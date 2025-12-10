@@ -185,7 +185,7 @@ export default function MenuPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMenu.map((menu: Menu) => (
+            {filteredMenu.map((menu) => (
               <div
                 key={menu.id}
                 className={`bg-white rounded-lg p-4 flex items-center justify-between ${
