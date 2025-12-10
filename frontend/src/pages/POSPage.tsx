@@ -20,7 +20,6 @@ export default function POSPage() {
     discountAmount,
     setTableNumber,
     loadTransaction,
-    clearCart,
   } = useCartStore()
   
   // Load existing transaction if table number is provided via URL
