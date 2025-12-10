@@ -6,10 +6,14 @@ import { stockService, menuService } from '@/services'
 import { getTodayDate } from '@/lib/utils'
 import { MenuWithStock } from '@/types'
 
-interface StockData {
+interface StockItem {
   id: string
   menuId: string
-  currentStock: number
+  menuName: string
+  category: string
+  stockStart: number
+  stockSold: number
+  stockRemaining: number
 }
 
 export default function StockPage() {
@@ -23,7 +27,7 @@ export default function StockPage() {
   })
   
   // Fetch daily stock
-  const { data: stockData = [], isLoading: loadingStock, refetch: refetchStock } = useQuery<StockData[]>({
+  const { data: stockData = [], isLoading: loadingStock, refetch: refetchStock } = useQuery<StockItem[]>({
     queryKey: ['stock', selectedDate],
     queryFn: () => stockService.getDailyStock(selectedDate),
   })
@@ -123,11 +127,11 @@ export default function StockPage() {
                               <div className="text-right mr-4">
                                 <p className="text-sm text-neutral-500">Stok Sisa</p>
                                 <p className={`text-xl font-bold ${
-                                  stock.currentStock > 5 ? 'text-success-600' :
-                                  stock.currentStock > 0 ? 'text-warning-600' :
+                                  stock.stockRemaining > 5 ? 'text-success-600' :
+                                  stock.stockRemaining > 0 ? 'text-warning-600' :
                                   'text-danger-600'
                                 }`}>
-                                  {stock.currentStock}
+                                  {stock.stockRemaining}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
