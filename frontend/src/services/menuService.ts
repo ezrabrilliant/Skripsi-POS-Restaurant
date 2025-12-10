@@ -2,9 +2,14 @@ import api from '@/lib/api'
 import type { MenuWithStock, ApiResponse } from '@/types'
 
 export const menuService = {
-  getMenus: async (category?: string) => {
+  getMenus: async (category?: string): Promise<MenuWithStock[]> => {
     const params = category ? { category } : {}
     const response = await api.get<ApiResponse<MenuWithStock[]>>('/menus', { params })
+    return response.data.data
+  },
+  
+  getAllMenu: async (): Promise<MenuWithStock[]> => {
+    const response = await api.get<ApiResponse<MenuWithStock[]>>('/menus')
     return response.data.data
   },
   

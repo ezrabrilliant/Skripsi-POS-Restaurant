@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Package, Plus, Minus, RefreshCcw } from 'lucide-react'
 import { stockService, menuService } from '@/services'
-import { formatDate, getTodayDate } from '@/lib/utils'
+import { getTodayDate } from '@/lib/utils'
 import { Menu } from '@/types'
 
 export default function StockPage() {

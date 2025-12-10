@@ -2,7 +2,7 @@ import api from '@/lib/api'
 import type { Transaction, TableStatus, CartItem, PaymentMethod, ApiResponse } from '@/types'
 
 export const transactionService = {
-  getTransactions: async (params?: { status?: string; date?: string; limit?: number }) => {
+  getTransactions: async (params?: { status?: string; date?: string; startDate?: string; endDate?: string; limit?: number }): Promise<Transaction[]> => {
     const response = await api.get<ApiResponse<Transaction[]>>('/transactions', { params })
     return response.data.data
   },

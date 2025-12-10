@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, Search, Receipt, ChevronRight } from 'lucide-react'
+import { Calendar, Receipt, ChevronRight } from 'lucide-react'
 import { transactionService } from '@/services/transactionService'
 import { formatCurrency, formatDateTime, getTodayDate, cn } from '@/lib/utils'
 import type { Transaction } from '@/types'

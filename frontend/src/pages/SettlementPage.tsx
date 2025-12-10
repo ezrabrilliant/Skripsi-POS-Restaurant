@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Calculator, Check, AlertTriangle } from 'lucide-react'
 import { settlementService } from '@/services/settlementService'
-import { formatCurrency, getTodayDate, formatDate } from '@/lib/utils'
+import { formatCurrency, getTodayDate } from '@/lib/utils'
 
 export default function SettlementPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDate())
