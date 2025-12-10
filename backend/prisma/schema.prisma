@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // =============================================
@@ -17,7 +18,7 @@ model User {
   id        String   @id @default(uuid())
   name      String   @db.VarChar(100)
   role      UserRole
-  pinCode   String   @map("pin_code") @db.VarChar(6)
+  pinCode   String   @map("pin_code") @db.VarChar(100)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
