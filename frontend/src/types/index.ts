@@ -17,6 +17,7 @@ export interface Menu {
   price: number
   category: string
   description: string | null
+  defaultStock: number
   isActive: boolean
 }
 
@@ -65,6 +66,7 @@ export interface Transaction {
   notes: string | null
   cashierId: string | null
   cashier?: { id: string; name: string }
+  user?: { id: string; name: string }
   items: TransactionItem[]
   paidAt: string | null
   createdAt: string
