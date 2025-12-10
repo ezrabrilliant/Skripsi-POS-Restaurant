@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, X, Save } from 'lucide-react'
 import { menuService } from '@/services'
 import { formatCurrency } from '@/lib/utils'
-import { Menu } from '@/types'
+import { MenuWithStock } from '@/types'
 
 type MenuFormData = {
   name: string
@@ -33,14 +33,14 @@ const CATEGORIES = [
 
 export default function MenuPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
+  const [editingMenu, setEditingMenu] = useState<MenuWithStock | null>(null)
   const [formData, setFormData] = useState<MenuFormData>(initialFormData)
   const [filterCategory, setFilterCategory] = useState<string>('')
   
   const queryClient = useQueryClient()
   
   // Fetch menu
-  const { data: menuItems = [], isLoading } = useQuery({
+  const { data: menuItems = [], isLoading } = useQuery<MenuWithStock[]>({
     queryKey: ['menu'],
     queryFn: menuService.getAllMenu,
   })
@@ -90,13 +90,13 @@ export default function MenuPage() {
     setIsModalOpen(true)
   }
   
-  const openEditModal = (menu: Menu) => {
+  const openEditModal = (menu: MenuWithStock) => {
     setEditingMenu(menu)
     setFormData({
       name: menu.name,
       category: menu.category,
       price: menu.price,
-      defaultStock: menu.defaultStock,
+      defaultStock: menu.stockStart || 10,
       isActive: menu.isActive,
     })
     setIsModalOpen(true)
@@ -125,11 +125,11 @@ export default function MenuPage() {
   
   // Filter menu
   const filteredMenu = filterCategory
-    ? menuItems.filter((m: Menu) => m.category === filterCategory)
+    ? menuItems.filter((m) => m.category === filterCategory)
     : menuItems
   
   // Group by category
-  const categories = [...new Set(menuItems.map((m: Menu) => m.category))]
+  const categories = [...new Set(menuItems.map((m) => m.category))]
   
   return (
     <div className="h-full overflow-y-auto">

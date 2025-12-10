@@ -4,20 +4,26 @@ import toast from 'react-hot-toast'
 import { Package, Plus, Minus, RefreshCcw } from 'lucide-react'
 import { stockService, menuService } from '@/services'
 import { getTodayDate } from '@/lib/utils'
-import { Menu } from '@/types'
+import { MenuWithStock } from '@/types'
+
+interface StockData {
+  id: string
+  menuId: string
+  currentStock: number
+}
 
 export default function StockPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDate())
   const queryClient = useQueryClient()
   
   // Fetch menu items
-  const { data: menuItems = [], isLoading: loadingMenu } = useQuery({
+  const { data: menuItems = [], isLoading: loadingMenu } = useQuery<MenuWithStock[]>({
     queryKey: ['menu'],
     queryFn: menuService.getAllMenu,
   })
   
   // Fetch daily stock
-  const { data: stockData = [], isLoading: loadingStock, refetch: refetchStock } = useQuery({
+  const { data: stockData = [], isLoading: loadingStock, refetch: refetchStock } = useQuery<StockData[]>({
     queryKey: ['stock', selectedDate],
     queryFn: () => stockService.getDailyStock(selectedDate),
   })
@@ -48,11 +54,11 @@ export default function StockPage() {
   
   // Get stock for a menu item
   const getStockForMenu = (menuId: string) => {
-    return stockData.find((s: { menuId: string }) => s.menuId === menuId)
+    return stockData.find((s) => s.menuId === menuId)
   }
   
   // Group menu by category
-  const categories = [...new Set(menuItems.map((m: Menu) => m.category))]
+  const categories = [...new Set(menuItems.map((m) => m.category))]
   
   return (
     <div className="h-full overflow-y-auto">
@@ -92,8 +98,8 @@ export default function StockPage() {
                 <h2 className="font-semibold text-neutral-700 mb-3">{category}</h2>
                 <div className="space-y-2">
                   {menuItems
-                    .filter((m: Menu) => m.category === category)
-                    .map((menu: Menu) => {
+                    .filter((m) => m.category === category)
+                    .map((menu) => {
                       const stock = getStockForMenu(menu.id)
                       return (
                         <div
@@ -107,7 +113,7 @@ export default function StockPage() {
                             <div>
                               <p className="font-medium text-neutral-800">{menu.name}</p>
                               <p className="text-sm text-neutral-500">
-                                Default: {menu.defaultStock} porsi
+                                Default: {menu.stockStart || 0} porsi
                               </p>
                             </div>
                           </div>
