@@ -81,7 +81,7 @@ export default function ReportsPage() {
       t.tableNumber || '-',
       t.totalAmount,
       t.paymentMethod || '-',
-      t.user?.name || '-',
+      t.cashier?.name || t.user?.name || '-',
     ])
     
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
