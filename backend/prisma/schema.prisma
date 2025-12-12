@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,45 +8,30 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// =============================================
-// USERS TABLE
-// =============================================
 model User {
-  id        String   @id @default(uuid())
-  name      String   @db.VarChar(100)
-  role      UserRole
-  pinCode   String   @map("pin_code") @db.VarChar(100)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  transactions Transaction[]
+  id           String        @id @default(uuid())
+  name         String        @db.VarChar(100)
+  role         UserRole
+  pinCode      String        @map("pin_code") @db.VarChar(100)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
   settlements  Settlement[]
+  transactions Transaction[]
 
   @@index([pinCode])
   @@map("users")
 }
 
-enum UserRole {
-  owner
-  cashier
-}
-
-// =============================================
-// MENUS TABLE
-// =============================================
 model Menu {
-  id          String   @id @default(uuid())
-  name        String   @db.VarChar(150)
-  price       Decimal  @db.Decimal(12, 2)
-  category    String   @db.VarChar(50)
-  description String?  @db.Text
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
+  id               String            @id @default(uuid())
+  name             String            @db.VarChar(150)
+  price            Decimal           @db.Decimal(12, 2)
+  category         String            @db.VarChar(50)
+  description      String?
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
   dailyStocks      DailyMenuStock[]
   transactionItems TransactionItem[]
 
@@ -58,20 +40,15 @@ model Menu {
   @@map("menus")
 }
 
-// =============================================
-// DAILY MENU STOCKS TABLE
-// =============================================
 model DailyMenuStock {
-  id        String   @id @default(uuid())
-  date      DateTime @db.Date
-  menuId    String   @map("menu_id")
-  stockStart Int     @default(0) @map("stock_start")
-  stockSold  Int     @default(0) @map("stock_sold")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  menuId     String   @map("menu_id")
+  stockStart Int      @default(0) @map("stock_start")
+  stockSold  Int      @default(0) @map("stock_sold")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  menu       Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
   @@unique([date, menuId])
   @@index([date])
@@ -79,9 +56,6 @@ model DailyMenuStock {
   @@map("daily_menu_stocks")
 }
 
-// =============================================
-// TRANSACTIONS TABLE
-// =============================================
 model Transaction {
   id             String            @id @default(uuid())
   tableNumber    String            @map("table_number") @db.VarChar(20)
@@ -92,15 +66,13 @@ model Transaction {
   totalAmount    Decimal           @default(0) @map("total_amount") @db.Decimal(12, 2)
   amountPaid     Decimal           @default(0) @map("amount_paid") @db.Decimal(12, 2)
   changeAmount   Decimal           @default(0) @map("change_amount") @db.Decimal(12, 2)
-  notes          String?           @db.Text
+  notes          String?
   cashierId      String?           @map("cashier_id")
   paidAt         DateTime?         @map("paid_at")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
-
-  // Relations
-  cashier User?             @relation(fields: [cashierId], references: [id])
-  items   TransactionItem[]
+  items          TransactionItem[]
+  cashier        User?             @relation(fields: [cashierId], references: [id])
 
   @@index([status])
   @@index([tableNumber])
@@ -109,39 +81,25 @@ model Transaction {
   @@map("transactions")
 }
 
-enum TransactionStatus {
-  open
-  paid
-  void
-}
-
-// =============================================
-// TRANSACTION ITEMS TABLE
-// =============================================
 model TransactionItem {
-  id            String   @id @default(uuid())
-  transactionId String   @map("transaction_id")
-  menuId        String   @map("menu_id")
-  menuName      String   @map("menu_name") @db.VarChar(150)
+  id            String      @id @default(uuid())
+  transactionId String      @map("transaction_id")
+  menuId        String      @map("menu_id")
+  menuName      String      @map("menu_name") @db.VarChar(150)
   quantity      Int
-  priceAtTime   Decimal  @map("price_at_time") @db.Decimal(12, 2)
-  subtotal      Decimal  @db.Decimal(12, 2)
-  notes         String?  @db.Text
-  isForceOrder  Boolean  @default(false) @map("is_force_order")
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  // Relations
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  menu        Menu        @relation(fields: [menuId], references: [id])
+  priceAtTime   Decimal     @map("price_at_time") @db.Decimal(12, 2)
+  subtotal      Decimal     @db.Decimal(12, 2)
+  notes         String?
+  isForceOrder  Boolean     @default(false) @map("is_force_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  menu          Menu        @relation(fields: [menuId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
   @@index([menuId])
   @@map("transaction_items")
 }
 
-// =============================================
-// SETTLEMENTS TABLE
-// =============================================
 model Settlement {
   id             String           @id @default(uuid())
   date           DateTime         @unique @db.Date
@@ -154,17 +112,26 @@ model Settlement {
   actualEdc      Decimal          @default(0) @map("actual_edc") @db.Decimal(12, 2)
   actualTransfer Decimal          @default(0) @map("actual_transfer") @db.Decimal(12, 2)
   actualTotal    Decimal          @default(0) @map("actual_total") @db.Decimal(12, 2)
-  varianceReason String?          @map("variance_reason") @db.Text
+  varianceReason String?          @map("variance_reason")
   status         SettlementStatus @default(pending)
-  notes          String?          @db.Text
+  notes          String?
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  cashier User @relation(fields: [cashierId], references: [id])
+  cashier        User             @relation(fields: [cashierId], references: [id])
 
   @@index([date])
   @@map("settlements")
+}
+
+enum UserRole {
+  owner
+  cashier
+}
+
+enum TransactionStatus {
+  open
+  paid
+  void
 }
 
 enum SettlementStatus {

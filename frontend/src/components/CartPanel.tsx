@@ -8,9 +8,10 @@ import TableSelectModal from './TableSelectModal'
 interface CartPanelProps {
   onSaveOrder: () => void
   isSaving: boolean
+  isMobile?: boolean
 }
 
-export default function CartPanel({ onSaveOrder, isSaving }: CartPanelProps) {
+export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: CartPanelProps) {
   const {
     items,
     tableNumber,
@@ -35,43 +36,77 @@ export default function CartPanel({ onSaveOrder, isSaving }: CartPanelProps) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
   
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="p-4 border-b border-neutral-200">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-neutral-800">
-            {transactionId ? 'Edit Pesanan' : 'Pesanan Baru'}
-          </h2>
+    <div className={cn(
+      "flex flex-col bg-white",
+      isMobile ? "h-full" : "h-full"
+    )}>
+      {/* Header - Hide on mobile since parent has header */}
+      {!isMobile && (
+        <div className="p-4 border-b border-neutral-200">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-neutral-800">
+              {transactionId ? 'Edit Pesanan' : 'Pesanan Baru'}
+            </h2>
+            {items.length > 0 && (
+              <button
+                onClick={clearCart}
+                className="text-sm text-danger-500 hover:text-danger-600"
+              >
+                Hapus Semua
+              </button>
+            )}
+          </div>
+          
+          {/* Table Number */}
+          <button
+            onClick={() => setShowTableModal(true)}
+            className={cn(
+              'w-full px-4 py-3 rounded-lg border-2 border-dashed text-left transition-colors',
+              tableNumber
+                ? 'border-primary-500 bg-primary-50'
+                : 'border-neutral-300 hover:border-neutral-400'
+            )}
+          >
+            {tableNumber ? (
+              <div>
+                <span className="text-xs text-neutral-500">Nomor Meja</span>
+                <p className="font-semibold text-primary-600">Meja {tableNumber}</p>
+              </div>
+            ) : (
+              <span className="text-neutral-500">Pilih Nomor Meja</span>
+            )}
+          </button>
+        </div>
+      )}
+      
+      {/* Mobile: Compact Table Selector */}
+      {isMobile && (
+        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
+          <button
+            onClick={() => setShowTableModal(true)}
+            className={cn(
+              'flex-1 px-4 py-2 rounded-lg border-2 border-dashed text-center transition-colors',
+              tableNumber
+                ? 'border-primary-500 bg-primary-50'
+                : 'border-neutral-300'
+            )}
+          >
+            {tableNumber ? (
+              <span className="font-semibold text-primary-600">Meja {tableNumber}</span>
+            ) : (
+              <span className="text-neutral-500">Pilih Meja</span>
+            )}
+          </button>
           {items.length > 0 && (
             <button
               onClick={clearCart}
-              className="text-sm text-danger-500 hover:text-danger-600"
+              className="ml-3 px-3 py-2 text-sm text-danger-500 hover:bg-danger-50 rounded-lg"
             >
-              Hapus Semua
+              Hapus
             </button>
           )}
         </div>
-        
-        {/* Table Number */}
-        <button
-          onClick={() => setShowTableModal(true)}
-          className={cn(
-            'w-full px-4 py-3 rounded-lg border-2 border-dashed text-left transition-colors',
-            tableNumber
-              ? 'border-primary-500 bg-primary-50'
-              : 'border-neutral-300 hover:border-neutral-400'
-          )}
-        >
-          {tableNumber ? (
-            <div>
-              <span className="text-xs text-neutral-500">Nomor Meja</span>
-              <p className="font-semibold text-primary-600">Meja {tableNumber}</p>
-            </div>
-          ) : (
-            <span className="text-neutral-500">Pilih Nomor Meja</span>
-          )}
-        </button>
-      </div>
+      )}
       
       {/* Cart Items */}
       <div className="flex-1 overflow-y-auto">
