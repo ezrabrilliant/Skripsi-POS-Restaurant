@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('daily_menu_stocks', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name', 100);
-            $table->enum('role', ['owner', 'cashier']);
-            $table->string('pin_code', 6);
-            $table->boolean('is_active')->default(true);
+            $table->date('date');
+            $table->foreignUuid('menu_id')->constrained('menus')->onDelete('cascade');
+            $table->integer('stock_start')->default(0);
+            $table->integer('stock_sold')->default(0);
             $table->timestamps();
 
-            // Index for PIN lookup during login
-            $table->index(['pin_code', 'is_active']);
+            $table->unique(['date', 'menu_id']);
+            $table->index('date');
         });
     }
 
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('daily_menu_stocks');
     }
 };

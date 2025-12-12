@@ -20,7 +20,6 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            // Indexes
             $table->index(['category', 'is_active']);
             $table->index('is_active');
         });

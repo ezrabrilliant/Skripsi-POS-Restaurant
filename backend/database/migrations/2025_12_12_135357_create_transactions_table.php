@@ -15,28 +15,20 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('table_number', 20);
             $table->enum('status', ['open', 'paid', 'void'])->default('open');
-            $table->string('payment_method', 50)->nullable(); // cash, edc_bca, edc_mandiri, qris, transfer
+            $table->string('payment_method', 50)->nullable();
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('discount_amount', 12, 2)->default(0);
             $table->decimal('total_amount', 12, 2)->default(0);
             $table->decimal('amount_paid', 12, 2)->default(0);
             $table->decimal('change_amount', 12, 2)->default(0);
             $table->text('notes')->nullable();
-            $table->uuid('cashier_id')->nullable();
+            $table->foreignUuid('cashier_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
 
-            // Foreign key
-            $table->foreign('cashier_id')
-                ->references('id')
-                ->on('users')
-                ->onDelete('set null');
-
-            // Indexes
             $table->index('status');
             $table->index(['table_number', 'status']);
             $table->index('created_at');
-            $table->index(['paid_at', 'status']);
         });
     }
 

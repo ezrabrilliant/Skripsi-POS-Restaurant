@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasUuids;
 
     /**
      * The attributes that are mass assignable.
@@ -19,8 +19,9 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'email',
-        'password',
+        'role',
+        'pin_code',
+        'is_active',
     ];
 
     /**
@@ -29,20 +30,47 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'pin_code',
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * Get transactions created by this cashier
+     */
+    public function transactions(): HasMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Transaction::class, 'cashier_id');
+    }
+
+    /**
+     * Get settlements created by this cashier
+     */
+    public function settlements(): HasMany
+    {
+        return $this->hasMany(Settlement::class, 'cashier_id');
+    }
+
+    /**
+     * Check if user is owner
+     */
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    /**
+     * Check if user is cashier
+     */
+    public function isCashier(): bool
+    {
+        return $this->role === 'cashier';
     }
 }
