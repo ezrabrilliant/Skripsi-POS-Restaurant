@@ -18,28 +18,34 @@ export default function PaymentModal({ isOpen, totalAmount, onClose }: PaymentMo
   const [amountPaid, setAmountPaid] = useState<string>('')
   const queryClient = useQueryClient()
   
-  const { items, tableNumber, transactionId, notes, discountAmount, clearCart } = useCartStore()
+  const { items, tableNumber, transactionId, notes, clearCart } = useCartStore()
   
   const saveAndPayMutation = useMutation({
     mutationFn: async () => {
       let txId = transactionId
       
+      // Prepare items for API
+      const apiItems = items.map(item => ({
+        menuId: item.menuId,
+        quantity: item.quantity,
+        notes: item.notes,
+        forceOrder: item.isForceOrder,
+      }))
+      
       // If no transaction exists, create one first
       if (!txId) {
         const tx = await transactionService.createTransaction({
           tableNumber,
-          items,
           notes,
-          discountAmount,
         })
         txId = tx.id
+        // Sync items if any
+        if (apiItems.length > 0) {
+          await transactionService.syncItems(txId, apiItems)
+        }
       } else {
-        // Update existing transaction
-        await transactionService.updateTransaction(txId, {
-          items,
-          notes,
-          discountAmount,
-        })
+        // Update existing transaction - sync all items at once
+        await transactionService.syncItems(txId, apiItems)
       }
       
       // Process payment

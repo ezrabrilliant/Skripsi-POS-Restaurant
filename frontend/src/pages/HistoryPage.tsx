@@ -21,7 +21,7 @@ export default function HistoryPage() {
   
   const { data: summary } = useQuery({
     queryKey: ['todaySummary'],
-    queryFn: () => transactionService.getTodaySummary(),
+    queryFn: () => transactionService.getDailySummary(),
   })
   
   const getStatusBadge = (status: string) => {

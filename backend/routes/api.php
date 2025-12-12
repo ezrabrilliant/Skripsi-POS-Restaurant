@@ -69,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions/daily-summary', [TransactionController::class, 'dailySummary']);
     Route::post('/transactions', [TransactionController::class, 'store']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+    Route::put('/transactions/{id}/items', [TransactionController::class, 'syncItems']);
     Route::post('/transactions/{id}/items', [TransactionController::class, 'addItem']);
     Route::put('/transactions/{id}/items/{itemId}', [TransactionController::class, 'updateItem']);
     Route::delete('/transactions/{id}/items/{itemId}', [TransactionController::class, 'removeItem']);

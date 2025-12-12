@@ -66,21 +66,28 @@ export default function POSPage() {
   // Save order mutation
   const saveOrderMutation = useMutation({
     mutationFn: async () => {
+      // Prepare items for API
+      const apiItems = items.map(item => ({
+        menuId: item.menuId,
+        quantity: item.quantity,
+        notes: item.notes,
+        forceOrder: item.isForceOrder,
+      }))
+      
       if (transactionId) {
-        // Update existing transaction
-        return transactionService.updateTransaction(transactionId, {
-          items,
-          notes,
-          discountAmount,
-        })
+        // Update existing transaction - sync all items at once
+        return transactionService.syncItems(transactionId, apiItems)
       } else {
-        // Create new transaction
-        return transactionService.createTransaction({
+        // Create new transaction first, then sync items
+        const newTransaction = await transactionService.createTransaction({
           tableNumber,
-          items,
           notes,
-          discountAmount,
         })
+        // If there are items, sync them
+        if (apiItems.length > 0) {
+          return transactionService.syncItems(newTransaction.id, apiItems)
+        }
+        return newTransaction
       }
     },
     onSuccess: (data) => {

@@ -3,7 +3,7 @@ import type { User, ApiResponse } from '@/types'
 
 export const authService = {
   login: async (pin: string) => {
-    const response = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/login', { pin })
+    const response = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/login', { pin_code: pin })
     return response.data.data
   },
   

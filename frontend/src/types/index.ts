@@ -65,6 +65,7 @@ export interface Transaction {
   changeAmount: number
   notes: string | null
   cashierId: string | null
+  cashierName?: string
   cashier?: { id: string; name: string }
   user?: { id: string; name: string }
   items: TransactionItem[]
@@ -101,6 +102,7 @@ export interface Settlement {
   date: string
   cashierId: string
   cashier?: { id: string; name: string }
+  transactionCount?: number
   systemCash: number
   systemEdc: number
   systemTransfer: number
@@ -110,12 +112,18 @@ export interface Settlement {
   actualTransfer: number
   actualTotal: number
   variance: number
-  varianceCash: number
-  varianceEdc: number
-  varianceTotal: number
+  varianceCash?: number
+  varianceEdc?: number
+  varianceTotal?: number
   varianceReason: string | null
   status: 'pending' | 'submitted' | 'reviewed'
+  settledBy?: string
+  settledByName?: string
+  reviewedBy?: string
+  reviewedByName?: string
   notes: string | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 // API Response type

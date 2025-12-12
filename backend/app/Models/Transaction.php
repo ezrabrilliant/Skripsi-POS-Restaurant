@@ -97,6 +97,14 @@ class Transaction extends Model
     }
 
     /**
+     * Alias for calculateTotals
+     */
+    public function recalculateTotals(): void
+    {
+        $this->calculateTotals();
+    }
+
+    /**
      * Process payment
      */
     public function processPayment(string $paymentMethod, float $amountPaid): void

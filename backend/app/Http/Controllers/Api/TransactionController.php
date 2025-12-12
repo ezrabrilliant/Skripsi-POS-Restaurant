@@ -87,6 +87,11 @@ class TransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'table_number' => 'required|string|max:20',
             'notes' => 'nullable|string',
+            'items' => 'nullable|array',
+            'items.*.menu_id' => 'required_with:items|uuid|exists:menus,id',
+            'items.*.quantity' => 'required_with:items|integer|min:1',
+            'items.*.notes' => 'nullable|string',
+            'items.*.force_order' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -110,12 +115,49 @@ class TransactionController extends Controller
             ], 409);
         }
 
-        $transaction = Transaction::create([
-            'table_number' => $request->table_number,
-            'status' => 'open',
-            'cashier_id' => $request->user()->id,
-            'notes' => $request->notes,
-        ]);
+        $transaction = DB::transaction(function () use ($request) {
+            $transaction = Transaction::create([
+                'table_number' => $request->table_number,
+                'status' => 'open',
+                'cashier_id' => $request->user()->id,
+                'notes' => $request->notes,
+            ]);
+
+            // Add items if provided
+            if ($request->has('items') && is_array($request->items)) {
+                $today = now()->toDateString();
+                
+                foreach ($request->items as $itemData) {
+                    $menu = Menu::find($itemData['menu_id']);
+                    $isForceOrder = $itemData['force_order'] ?? false;
+                    
+                    // Check and update stock
+                    $stock = DailyMenuStock::where('menu_id', $menu->id)
+                        ->where('date', $today)
+                        ->first();
+                    
+                    if ($stock && !$isForceOrder) {
+                        $stock->increment('stock_sold', $itemData['quantity']);
+                    }
+                    
+                    TransactionItem::create([
+                        'transaction_id' => $transaction->id,
+                        'menu_id' => $menu->id,
+                        'menu_name' => $menu->name,
+                        'price' => $menu->price,
+                        'quantity' => $itemData['quantity'],
+                        'subtotal' => $menu->price * $itemData['quantity'],
+                        'notes' => $itemData['notes'] ?? null,
+                        'is_force_order' => $isForceOrder,
+                    ]);
+                }
+                
+                // Recalculate totals
+                $transaction->recalculateTotals();
+            }
+
+            return $transaction;
+        });
 
         return response()->json([
             'success' => true,
@@ -369,6 +411,109 @@ class TransactionController extends Controller
             'success' => true,
             'message' => 'Item berhasil dihapus',
             'data' => $transaction->load('items'),
+        ]);
+    }
+
+    /**
+     * Sync all items in transaction (replace all items)
+     */
+    public function syncItems(Request $request, string $id): JsonResponse
+    {
+        $transaction = Transaction::find($id);
+
+        if (!$transaction) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan',
+            ], 404);
+        }
+
+        if (!$transaction->isOpen()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi sudah ditutup',
+            ], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array',
+            'items.*.menu_id' => 'required|uuid|exists:menus,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.notes' => 'nullable|string',
+            'items.*.force_order' => 'nullable|boolean',
+            'notes' => 'nullable|string',
+            'discount_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        DB::transaction(function () use ($request, $transaction) {
+            $today = now()->toDateString();
+            
+            // Restore stock from existing items
+            foreach ($transaction->items as $existingItem) {
+                $stock = DailyMenuStock::where('menu_id', $existingItem->menu_id)
+                    ->where('date', $today)
+                    ->first();
+                if ($stock && !$existingItem->is_force_order) {
+                    $stock->increment('stock_remaining', $existingItem->quantity);
+                    $stock->decrement('stock_sold', $existingItem->quantity);
+                }
+            }
+            
+            // Delete all existing items
+            $transaction->items()->delete();
+            
+            // Add new items
+            foreach ($request->items as $itemData) {
+                $menu = Menu::find($itemData['menu_id']);
+                $isForceOrder = $itemData['force_order'] ?? false;
+                
+                // Decrease stock
+                $stock = DailyMenuStock::where('menu_id', $menu->id)
+                    ->where('date', $today)
+                    ->first();
+                
+                if ($stock && !$isForceOrder) {
+                    $stock->decrement('stock_remaining', $itemData['quantity']);
+                    $stock->increment('stock_sold', $itemData['quantity']);
+                }
+                
+                TransactionItem::create([
+                    'transaction_id' => $transaction->id,
+                    'menu_id' => $menu->id,
+                    'menu_name' => $menu->name,
+                    'price' => $menu->price,
+                    'quantity' => $itemData['quantity'],
+                    'subtotal' => $menu->price * $itemData['quantity'],
+                    'notes' => $itemData['notes'] ?? null,
+                    'is_force_order' => $isForceOrder,
+                ]);
+            }
+            
+            // Update transaction notes and discount
+            if ($request->has('notes')) {
+                $transaction->notes = $request->notes;
+            }
+            if ($request->has('discount_amount')) {
+                $transaction->discount_amount = $request->discount_amount;
+            }
+            $transaction->save();
+            
+            // Recalculate totals
+            $transaction->recalculateTotals();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Items berhasil diupdate',
+            'data' => $transaction->fresh()->load('items'),
         ]);
     }
 

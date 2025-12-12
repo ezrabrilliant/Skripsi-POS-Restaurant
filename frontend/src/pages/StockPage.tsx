@@ -32,24 +32,27 @@ export default function StockPage() {
     queryFn: () => stockService.getDailyStock(selectedDate),
   })
   
-  // Initialize stock mutation
-  const initStockMutation = useMutation({
-    mutationFn: (menuId: string) => stockService.initializeStock(menuId, selectedDate),
+  // Set stock mutation (initialize or update)
+  const setStockMutation = useMutation({
+    mutationFn: ({ menuId, stockStart }: { menuId: string; stockStart: number }) => 
+      stockService.setStock(menuId, stockStart, selectedDate),
     onSuccess: () => {
-      toast.success('Stock initialized')
+      toast.success('Stock berhasil diset')
       queryClient.invalidateQueries({ queryKey: ['stock'] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
     },
     onError: (error: Error) => {
       toast.error(error.message)
     },
   })
   
-  // Adjust stock mutation
-  const adjustMutation = useMutation({
-    mutationFn: ({ stockId, adjustment }: { stockId: string, adjustment: number }) => 
-      stockService.adjustStock(stockId, adjustment),
+  // Update stock mutation
+  const updateStockMutation = useMutation({
+    mutationFn: ({ stockId, stockStart }: { stockId: string; stockStart: number }) => 
+      stockService.updateStock(stockId, { stockStart }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock'] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
     },
     onError: (error: Error) => {
       toast.error(error.message)
@@ -139,18 +142,19 @@ export default function StockPage() {
                               </div>
                               <div className="flex items-center gap-1 sm:gap-2">
                                 <button
-                                  onClick={() => adjustMutation.mutate({
+                                  onClick={() => updateStockMutation.mutate({
                                     stockId: stock.id,
-                                    adjustment: -1
+                                    stockStart: Math.max(0, stock.stockStart - 1)
                                   })}
                                   className="p-2 sm:p-2 bg-neutral-100 rounded-lg hover:bg-neutral-200 active:bg-neutral-300"
                                 >
                                   <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
+                                <span className="w-10 text-center font-medium">{stock.stockStart}</span>
                                 <button
-                                  onClick={() => adjustMutation.mutate({
+                                  onClick={() => updateStockMutation.mutate({
                                     stockId: stock.id,
-                                    adjustment: 1
+                                    stockStart: stock.stockStart + 1
                                   })}
                                   className="p-2 sm:p-2 bg-neutral-100 rounded-lg hover:bg-neutral-200 active:bg-neutral-300"
                                 >
@@ -160,11 +164,11 @@ export default function StockPage() {
                             </div>
                           ) : (
                             <button
-                              onClick={() => initStockMutation.mutate(menu.id)}
-                              disabled={initStockMutation.isPending}
+                              onClick={() => setStockMutation.mutate({ menuId: menu.id, stockStart: 10 })}
+                              disabled={setStockMutation.isPending}
                               className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 active:bg-primary-700 text-sm"
                             >
-                              Initialize Stock
+                              Set Stock
                             </button>
                           )}
                         </div>
