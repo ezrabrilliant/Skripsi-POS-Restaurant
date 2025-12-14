@@ -21,6 +21,9 @@ Sistem Point of Sale untuk restoran.
 Buat database MySQL:
 ```sql
 CREATE DATABASE pos_restaurant;
+
+-- atau
+mysql -u root -p -e "CREATE DATABASE pos_restaurant;"
 ```
 
 ### Backend
@@ -50,6 +53,7 @@ php artisan serve --port=8000
 ```bash
 cd frontend
 npm install
+cp .env.example .env
 npm run dev
 ```
 
