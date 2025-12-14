@@ -35,9 +35,12 @@ export default function POSPage() {
   
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
   
-  // Collapsed height = ~40% of screen, Expanded = ~95%
-  const collapsedHeight = typeof window !== 'undefined' ? window.innerHeight * 0.4 : 300
-  const expandedHeight = typeof window !== 'undefined' ? window.innerHeight * 0.95 : 600
+
+  // Bottom navbar height
+  const navbarHeight = 64
+  // Collapsed height = enough for all content + buttons + padding
+  const collapsedHeight = 380
+  const expandedHeight = typeof window !== 'undefined' ? window.innerHeight - navbarHeight - 16 : 600
   
   const handleDragStart = useCallback((clientY: number) => {
     isDragging.current = true
@@ -122,6 +125,21 @@ export default function POSPage() {
   useEffect(() => {
     if (!showMobileCart) {
       setIsExpanded(false)
+    }
+  }, [showMobileCart])
+  
+  // Lock body scroll when mobile cart is open
+  useEffect(() => {
+    if (showMobileCart) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.touchAction = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.touchAction = ''
     }
   }, [showMobileCart])
   
@@ -271,32 +289,38 @@ export default function POSPage() {
           showMobileCart ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        {/* Backdrop - fades based on expansion */}
+        {/* Backdrop - fades based on expansion, above navbar */}
         <div 
           className={cn(
-            "absolute inset-0 transition-opacity duration-300",
+            "absolute inset-x-0 top-0 transition-opacity duration-300",
             isExpanded ? "bg-transparent" : "bg-black/50"
           )}
+          style={{ bottom: navbarHeight }}
           onClick={() => {
             setShowMobileCart(false)
             setIsExpanded(false)
           }}
         />
         
-        {/* Swipeable Bottom Sheet */}
+        {/* Swipeable Bottom Sheet - positioned above navbar */}
         <div
           ref={sheetRef}
           className={cn(
-            'absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl',
-            'flex flex-col overflow-hidden',
+            'absolute left-0 right-0 bg-white rounded-t-2xl shadow-xl',
+            'flex flex-col',
             'transition-transform duration-300 ease-out',
+            'overscroll-contain touch-pan-y',
             showMobileCart ? 'translate-y-0' : 'translate-y-full'
           )}
-          style={{ height: isExpanded ? expandedHeight : collapsedHeight }}
+          style={{ 
+            bottom: navbarHeight,
+            height: isExpanded ? expandedHeight : collapsedHeight 
+          }}
+          onTouchMove={(e) => e.stopPropagation()}
         >
-          {/* Drag Handle */}
+          {/* Drag Handle - this is where swipe gesture works */}
           <div 
-            className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none"
+            className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -318,7 +342,7 @@ export default function POSPage() {
           </div>
           
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 flex-shrink-0">
             <h2 className="font-semibold text-neutral-800">
               Keranjang ({itemCount})
             </h2>
@@ -333,13 +357,14 @@ export default function POSPage() {
             </button>
           </div>
           
-          {/* Cart Content */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Cart Content - scrollable area with overscroll containment */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden overscroll-contain">
             <CartPanel 
               onSaveOrder={handleSaveOrder}
               isSaving={saveOrderMutation.isPending}
               isMobile={true}
               isCollapsed={!isExpanded}
+              onExpandRequest={() => setIsExpanded(true)}
             />
           </div>
         </div>
