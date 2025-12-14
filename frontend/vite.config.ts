@@ -11,9 +11,12 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    allowedHosts: [
+      'machelle-collectional-acropetally.ngrok-free.dev'
+    ],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://192.168.18.31:8000',
         changeOrigin: true,
       },
     },

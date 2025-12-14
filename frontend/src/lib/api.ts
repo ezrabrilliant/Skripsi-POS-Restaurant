@@ -4,9 +4,10 @@ import { useAuthStore } from '@/stores/authStore'
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning for API calls
   },
   timeout: 30000, // 30 seconds for slow networks
 })
