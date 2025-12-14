@@ -9,6 +9,20 @@ Sistem Point of Sale untuk restoran.
 
 ## Setup
 
+### Prerequisites
+
+- PHP 8.2+
+- Composer
+- Node.js 18+
+- MySQL
+
+### Database
+
+Buat database MySQL:
+```sql
+CREATE DATABASE pos_restaurant;
+```
+
 ### Backend
 
 ```bash
@@ -16,6 +30,17 @@ cd backend
 composer install
 cp .env.example .env
 php artisan key:generate
+```
+
+Edit file `.env`, sesuaikan konfigurasi database:
+```
+DB_DATABASE=pos_restaurant
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Lalu jalankan migrasi dan seeder:
+```bash
 php artisan migrate --seed
 php artisan serve --port=8000
 ```
@@ -58,6 +83,12 @@ VITE_API_URL=http://localhost:8000/api
 - Rekonsiliasi kas (settlement)
 - Riwayat transaksi
 - Laporan penjualan
+
+## Catatan
+
+- Backend jalan di port 8000
+- Frontend jalan di port 3000
+- Login menggunakan PIN (6 digit)
 
 ## Author
 
