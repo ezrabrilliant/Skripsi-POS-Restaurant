@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ShoppingCart, X } from 'lucide-react'
+import { ShoppingCart, X, ChevronUp } from 'lucide-react'
 import MenuGrid from '@/components/MenuGrid'
 import CartPanel from '@/components/CartPanel'
 import { transactionService } from '@/services/transactionService'
@@ -14,6 +14,13 @@ export default function POSPage() {
   const { tableNumber: urlTableNumber } = useParams()
   const queryClient = useQueryClient()
   const [showMobileCart, setShowMobileCart] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Drag state for swipeable bottom sheet
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const dragStartY = useRef(0)
+  const currentTranslateY = useRef(0)
+  const isDragging = useRef(false)
   
   const {
     items,
@@ -27,6 +34,96 @@ export default function POSPage() {
   } = useCartStore()
   
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  
+  // Collapsed height = ~40% of screen, Expanded = ~95%
+  const collapsedHeight = typeof window !== 'undefined' ? window.innerHeight * 0.4 : 300
+  const expandedHeight = typeof window !== 'undefined' ? window.innerHeight * 0.95 : 600
+  
+  const handleDragStart = useCallback((clientY: number) => {
+    isDragging.current = true
+    dragStartY.current = clientY
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'none'
+    }
+  }, [])
+  
+  const handleDragMove = useCallback((clientY: number) => {
+    if (!isDragging.current) return
+    
+    const deltaY = dragStartY.current - clientY
+    const currentHeight = isExpanded ? expandedHeight : collapsedHeight
+    let newHeight = currentHeight + deltaY
+    
+    // Clamp height
+    newHeight = Math.max(collapsedHeight * 0.8, Math.min(expandedHeight, newHeight))
+    
+    if (sheetRef.current) {
+      sheetRef.current.style.height = `${newHeight}px`
+    }
+    currentTranslateY.current = deltaY
+  }, [isExpanded, collapsedHeight, expandedHeight])
+  
+  const handleDragEnd = useCallback(() => {
+    if (!isDragging.current) return
+    isDragging.current = false
+    
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'height 0.3s ease-out'
+    }
+    
+    const threshold = 50
+    
+    if (isExpanded) {
+      // If dragging down from expanded
+      if (currentTranslateY.current < -threshold) {
+        setIsExpanded(false)
+      } else {
+        // Stay expanded
+        if (sheetRef.current) sheetRef.current.style.height = `${expandedHeight}px`
+      }
+    } else {
+      // If dragging up from collapsed
+      if (currentTranslateY.current > threshold) {
+        setIsExpanded(true)
+      } else if (currentTranslateY.current < -threshold) {
+        // Dragging down from collapsed = close
+        setShowMobileCart(false)
+        setIsExpanded(false)
+      } else {
+        // Stay collapsed
+        if (sheetRef.current) sheetRef.current.style.height = `${collapsedHeight}px`
+      }
+    }
+    
+    currentTranslateY.current = 0
+  }, [isExpanded, collapsedHeight, expandedHeight])
+  
+  // Touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    handleDragStart(e.touches[0].clientY)
+  }, [handleDragStart])
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    handleDragMove(e.touches[0].clientY)
+  }, [handleDragMove])
+  
+  const handleTouchEnd = useCallback(() => {
+    handleDragEnd()
+  }, [handleDragEnd])
+  
+  // Reset sheet height when opening
+  useEffect(() => {
+    if (showMobileCart && sheetRef.current) {
+      sheetRef.current.style.height = isExpanded ? `${expandedHeight}px` : `${collapsedHeight}px`
+    }
+  }, [showMobileCart, isExpanded, collapsedHeight, expandedHeight])
+  
+  // Reset expansion state when closing
+  useEffect(() => {
+    if (!showMobileCart) {
+      setIsExpanded(false)
+    }
+  }, [showMobileCart])
   
   // Load existing transaction if table number is provided via URL
   const { data: existingTransaction } = useQuery({
@@ -167,38 +264,69 @@ export default function POSPage() {
         </span>
       )}
       
-      {/* Mobile: Slide-up Cart Panel */}
+      {/* Mobile: Slide-up Cart Panel - Swipeable Bottom Sheet */}
       <div
         className={cn(
           'md:hidden fixed inset-0 z-40 transition-opacity duration-300',
           showMobileCart ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        {/* Backdrop */}
+        {/* Backdrop - fades based on expansion */}
         <div 
-          className="absolute inset-0 bg-black/50"
-          onClick={() => setShowMobileCart(false)}
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            isExpanded ? "bg-transparent" : "bg-black/50"
+          )}
+          onClick={() => {
+            setShowMobileCart(false)
+            setIsExpanded(false)
+          }}
         />
         
-        {/* Cart Panel */}
+        {/* Swipeable Bottom Sheet */}
         <div
+          ref={sheetRef}
           className={cn(
-            'absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl',
-            'max-h-[85vh] flex flex-col',
+            'absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl',
+            'flex flex-col overflow-hidden',
             'transition-transform duration-300 ease-out',
             showMobileCart ? 'translate-y-0' : 'translate-y-full'
           )}
+          style={{ height: isExpanded ? expandedHeight : collapsedHeight }}
         >
-          {/* Handle & Close */}
-          <div className="flex items-center justify-between p-4 border-b border-neutral-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-1 bg-neutral-300 rounded-full mx-auto" />
-              <h2 className="font-semibold text-neutral-800">
-                Keranjang ({itemCount})
-              </h2>
+          {/* Drag Handle */}
+          <div 
+            className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={(e) => handleDragStart(e.clientY)}
+            onMouseMove={(e) => {
+              if (isDragging.current) handleDragMove(e.clientY)
+            }}
+            onMouseUp={handleDragEnd}
+            onMouseLeave={handleDragEnd}
+          >
+            <div className="w-12 h-1.5 bg-neutral-300 rounded-full mb-2" />
+            <div className="flex items-center gap-1 text-xs text-neutral-400">
+              <ChevronUp className={cn(
+                "w-4 h-4 transition-transform",
+                isExpanded && "rotate-180"
+              )} />
+              <span>{isExpanded ? 'Geser turun untuk memperkecil' : 'Geser keatas untuk melihat semua'}</span>
             </div>
+          </div>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200">
+            <h2 className="font-semibold text-neutral-800">
+              Keranjang ({itemCount})
+            </h2>
             <button
-              onClick={() => setShowMobileCart(false)}
+              onClick={() => {
+                setShowMobileCart(false)
+                setIsExpanded(false)
+              }}
               className="p-2 -mr-2 text-neutral-500 hover:text-neutral-700"
             >
               <X className="w-5 h-5" />
@@ -206,11 +334,12 @@ export default function POSPage() {
           </div>
           
           {/* Cart Content */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <CartPanel 
               onSaveOrder={handleSaveOrder}
               isSaving={saveOrderMutation.isPending}
               isMobile={true}
+              isCollapsed={!isExpanded}
             />
           </div>
         </div>

@@ -9,9 +9,10 @@ interface CartPanelProps {
   onSaveOrder: () => void
   isSaving: boolean
   isMobile?: boolean
+  isCollapsed?: boolean // When true, only show summary & buttons
 }
 
-export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: CartPanelProps) {
+export default function CartPanel({ onSaveOrder, isSaving, isMobile = false, isCollapsed = false }: CartPanelProps) {
   const {
     items,
     tableNumber,
@@ -35,10 +36,22 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
   
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
   
+  const canSubmit = tableNumber && items.length > 0
+  
+  const handleSaveClick = () => {
+    if (!canSubmit) return
+    onSaveOrder()
+  }
+  
+  const handlePayClick = () => {
+    if (!canSubmit) return
+    setShowPaymentModal(true)
+  }
+  
   return (
     <div className={cn(
-      "flex flex-col bg-white",
-      isMobile ? "h-full" : "h-full"
+      "bg-white",
+      isMobile ? "flex flex-col h-full" : "flex flex-col h-full"
     )}>
       {/* Header - Hide on mobile since parent has header */}
       {!isMobile && (
@@ -52,7 +65,7 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
                 onClick={clearCart}
                 className="text-sm text-danger-500 hover:text-danger-600"
               >
-                Hapus Semua
+                Clear All
               </button>
             )}
           </div>
@@ -64,7 +77,9 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
               'w-full px-4 py-3 rounded-lg border-2 border-dashed text-left transition-colors',
               tableNumber
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-neutral-300 hover:border-neutral-400'
+                : items.length > 0
+                  ? 'border-warning-400 bg-warning-50 hover:border-warning-500'
+                  : 'border-neutral-300 hover:border-neutral-400'
             )}
           >
             {tableNumber ? (
@@ -73,28 +88,34 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
                 <p className="font-semibold text-primary-600">Meja {tableNumber}</p>
               </div>
             ) : (
-              <span className="text-neutral-500">Pilih Nomor Meja</span>
+              <span className={items.length > 0 ? 'text-warning-600 font-medium' : 'text-neutral-500'}>
+                {items.length > 0 ? 'Pilih Nomor Meja' : 'Pilih Nomor Meja'}
+              </span>
             )}
           </button>
         </div>
       )}
       
-      {/* Mobile: Compact Table Selector */}
-      {isMobile && (
-        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
+      {/* Mobile: Compact Table Selector - hidden when collapsed */}
+      {isMobile && !isCollapsed && (
+        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between flex-shrink-0">
           <button
             onClick={() => setShowTableModal(true)}
             className={cn(
               'flex-1 px-4 py-2 rounded-lg border-2 border-dashed text-center transition-colors',
               tableNumber
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-neutral-300'
+                : items.length > 0
+                  ? 'border-warning-400 bg-warning-50'
+                  : 'border-neutral-300'
             )}
           >
             {tableNumber ? (
               <span className="font-semibold text-primary-600">Meja {tableNumber}</span>
             ) : (
-              <span className="text-neutral-500">Pilih Meja</span>
+              <span className={items.length > 0 ? 'text-warning-600 font-medium' : 'text-neutral-500'}>
+                {items.length > 0 ? 'Pilih Meja' : 'Pilih Meja'}
+              </span>
             )}
           </button>
           {items.length > 0 && (
@@ -102,107 +123,112 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
               onClick={clearCart}
               className="ml-3 px-3 py-2 text-sm text-danger-500 hover:bg-danger-50 rounded-lg"
             >
-              Hapus
+              Clear All
             </button>
           )}
         </div>
       )}
       
-      {/* Cart Items */}
-      <div className="flex-1 overflow-y-auto">
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-neutral-400">
-            <ShoppingBag className="w-12 h-12 mb-2" />
-            <p>Belum ada pesanan</p>
-            <p className="text-sm">Pilih menu dari kiri</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-neutral-100">
-            {items.map((item) => (
-              <li key={item.id} className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-neutral-800">
-                      {item.menuName}
-                      {item.isForceOrder && (
-                        <span className="ml-2 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs rounded">
-                          Force
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-sm text-neutral-500">
-                      {formatCurrency(item.price)} × {item.quantity}
+      {/* Cart Items - hidden when collapsed on mobile */}
+      {!(isMobile && isCollapsed) && (
+        <div className={cn(
+          "overflow-y-auto",
+          isMobile ? "flex-1 min-h-0" : "flex-1 min-h-0"
+        )}>
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-neutral-400 py-8">
+              <ShoppingBag className="w-12 h-12 mb-2" />
+              <p>Belum ada pesanan</p>
+              <p className="text-sm">Pilih menu dari daftar</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {items.map((item) => (
+                <li key={item.id} className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-neutral-800">
+                        {item.menuName}
+                        {item.isForceOrder && (
+                          <span className="ml-2 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs rounded">
+                            Force
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-sm text-neutral-500">
+                        {formatCurrency(item.price)} × {item.quantity}
+                      </p>
+                    </div>
+                    <p className="font-semibold text-neutral-800">
+                      {formatCurrency(item.subtotal)}
                     </p>
                   </div>
-                  <p className="font-semibold text-neutral-800">
-                    {formatCurrency(item.subtotal)}
-                  </p>
-                </div>
-                
-                {/* Item Notes */}
-                {editingItemNote === item.id ? (
-                  <input
-                    type="text"
-                    value={item.notes}
-                    onChange={(e) => updateItemNotes(item.id, e.target.value)}
-                    onBlur={() => setEditingItemNote(null)}
-                    onKeyDown={(e) => e.key === 'Enter' && setEditingItemNote(null)}
-                    placeholder="Catatan (misal: pedas, tanpa bawang)"
-                    className="w-full px-3 py-1.5 text-sm bg-neutral-100 rounded border-0 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    autoFocus
-                  />
-                ) : item.notes ? (
-                  <button
-                    onClick={() => setEditingItemNote(item.id)}
-                    className="text-sm text-primary-600 flex items-center gap-1"
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    {item.notes}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setEditingItemNote(item.id)}
-                    className="text-sm text-neutral-400 hover:text-neutral-600 flex items-center gap-1"
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    Tambah catatan
-                  </button>
-                )}
-                
-                {/* Quantity Controls */}
-                <div className="flex items-center justify-between mt-3">
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="p-1.5 text-danger-500 hover:bg-danger-50 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                   
-                  <div className="flex items-center gap-3">
+                  {/* Item Notes */}
+                  {editingItemNote === item.id ? (
+                    <input
+                      type="text"
+                      value={item.notes}
+                      onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                      onBlur={() => setEditingItemNote(null)}
+                      onKeyDown={(e) => e.key === 'Enter' && setEditingItemNote(null)}
+                      placeholder="Catatan (misal: pedas, tanpa bawang)"
+                      className="w-full px-3 py-1.5 text-sm bg-neutral-100 rounded border-0 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      autoFocus
+                    />
+                  ) : item.notes ? (
                     <button
-                      onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                      className="p-1.5 bg-neutral-100 hover:bg-neutral-200 rounded"
+                      onClick={() => setEditingItemNote(item.id)}
+                      className="text-sm text-primary-600 flex items-center gap-1"
                     >
-                      <Minus className="w-4 h-4" />
+                      <MessageSquare className="w-3 h-3" />
+                      {item.notes}
                     </button>
-                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                  ) : (
                     <button
-                      onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                      className="p-1.5 bg-neutral-100 hover:bg-neutral-200 rounded"
+                      onClick={() => setEditingItemNote(item.id)}
+                      className="text-sm text-neutral-400 hover:text-neutral-600 flex items-center gap-1"
                     >
-                      <Plus className="w-4 h-4" />
+                      <MessageSquare className="w-3 h-3" />
+                      Tambah catatan
                     </button>
+                  )}
+                  
+                  {/* Quantity Controls */}
+                  <div className="flex items-center justify-between mt-3">
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="p-1.5 text-danger-500 hover:bg-danger-50 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                        className="p-1.5 bg-neutral-100 hover:bg-neutral-200 rounded"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-8 text-center font-medium">{item.quantity}</span>
+                      <button
+                        onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                        className="p-1.5 bg-neutral-100 hover:bg-neutral-200 rounded"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       
-      {/* Order Notes */}
-      {items.length > 0 && (
-        <div className="px-4 py-3 border-t border-neutral-200">
+      {/* Order Notes - hidden when collapsed */}
+      {items.length > 0 && !(isMobile && isCollapsed) && (
+        <div className="px-4 py-3 border-t border-neutral-200 flex-shrink-0">
           <input
             type="text"
             value={notes}
@@ -213,8 +239,11 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
         </div>
       )}
       
-      {/* Summary & Actions */}
-      <div className="p-4 border-t border-neutral-200 bg-neutral-50">
+      {/* Summary & Actions - Sticky at bottom for mobile */}
+      <div className={cn(
+        "p-4 border-t border-neutral-200 bg-neutral-50",
+        isMobile && "sticky bottom-0 pb-safe"
+      )}>
         {items.length > 0 && (
           <>
             {/* Discount Input */}
@@ -244,16 +273,27 @@ export default function CartPanel({ onSaveOrder, isSaving, isMobile = false }: C
         {/* Action Buttons */}
         <div className="flex gap-2">
           <button
-            onClick={onSaveOrder}
-            disabled={items.length === 0 || !tableNumber || isSaving}
-            className="flex-1 px-4 py-3 bg-neutral-200 text-neutral-700 rounded-lg font-medium hover:bg-neutral-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleSaveClick}
+            disabled={!canSubmit || isSaving}
+            className={cn(
+              "flex-1 px-4 py-3 rounded-lg font-medium transition-colors",
+              canSubmit 
+                ? "bg-neutral-200 text-neutral-700 hover:bg-neutral-300" 
+                : "bg-neutral-100 text-neutral-400 cursor-not-allowed",
+              isSaving && "opacity-50 cursor-not-allowed"
+            )}
           >
             {isSaving ? 'Menyimpan...' : 'Simpan'}
           </button>
           <button
-            onClick={() => setShowPaymentModal(true)}
-            disabled={items.length === 0 || !tableNumber}
-            className="flex-1 px-4 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handlePayClick}
+            disabled={!canSubmit || isSaving}
+            className={cn(
+              "flex-1 px-4 py-3 rounded-lg font-medium transition-colors",
+              canSubmit 
+                ? "bg-primary-500 text-white hover:bg-primary-600" 
+                : "bg-primary-200 text-primary-400 cursor-not-allowed"
+            )}
           >
             Bayar
           </button>
