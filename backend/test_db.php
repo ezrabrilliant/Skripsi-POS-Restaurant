@@ -3,7 +3,7 @@ try {
     $pdo = new PDO(
         'pgsql:host=aws-1-ap-southeast-1.pooler.supabase.com;port=6543;dbname=postgres',
         'postgres.aifkxyxfdrikuflkuvme',
-        'P6zpmE2RQ4Sk2Dv1v'
+        '7MwBrT93dPt5ny8N'
     );
     echo "Connected to Supabase!\n";
     $result = $pdo->query("SELECT 1")->fetch();

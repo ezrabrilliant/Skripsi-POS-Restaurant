@@ -27,6 +27,11 @@ Route::get('/health', function () {
     ]);
 });
 
+// Public menu routes (read-only)
+Route::get('/menus', [MenuController::class, 'index']);
+Route::get('/menus/categories', [MenuController::class, 'categories']);
+Route::get('/menus/{id}', [MenuController::class, 'show']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
@@ -41,10 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
-    // Menus
-    Route::get('/menus', [MenuController::class, 'index']);
-    Route::get('/menus/categories', [MenuController::class, 'categories']);
-    Route::get('/menus/{id}', [MenuController::class, 'show']);
+    // Menus (write operations require auth)
     Route::post('/menus', [MenuController::class, 'store']);
     Route::put('/menus/{id}', [MenuController::class, 'update']);
     Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
