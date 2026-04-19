@@ -132,21 +132,12 @@ class TransactionController extends Controller
                     $isForceOrder = $itemData['force_order'] ?? false;
                     
                     // Check and update stock
-                    $stock = DailyMenuStock::where('menu_id', $menu->id)
-                        ->where('date', $today)
-                        ->first();
-                    
-                    if ($stock && !$isForceOrder) {
-                        $stock->increment('stock_sold', $itemData['quantity']);
-                    }
-                    
                     TransactionItem::create([
                         'transaction_id' => $transaction->id,
                         'menu_id' => $menu->id,
                         'menu_name' => $menu->name,
-                        'price' => $menu->price,
+                        'price_at_time' => $menu->price,
                         'quantity' => $itemData['quantity'],
-                        'subtotal' => $menu->price * $itemData['quantity'],
                         'notes' => $itemData['notes'] ?? null,
                         'is_force_order' => $isForceOrder,
                     ]);
@@ -462,7 +453,6 @@ class TransactionController extends Controller
                     ->where('date', $today)
                     ->first();
                 if ($stock && !$existingItem->is_force_order) {
-                    $stock->increment('stock_remaining', $existingItem->quantity);
                     $stock->decrement('stock_sold', $existingItem->quantity);
                 }
             }
@@ -470,28 +460,17 @@ class TransactionController extends Controller
             // Delete all existing items
             $transaction->items()->delete();
             
-            // Add new items
+            // Add new items (stock auto-decreased by TransactionItem::created event for non-force orders)
             foreach ($request->items as $itemData) {
                 $menu = Menu::find($itemData['menu_id']);
                 $isForceOrder = $itemData['force_order'] ?? false;
-                
-                // Decrease stock
-                $stock = DailyMenuStock::where('menu_id', $menu->id)
-                    ->where('date', $today)
-                    ->first();
-                
-                if ($stock && !$isForceOrder) {
-                    $stock->decrement('stock_remaining', $itemData['quantity']);
-                    $stock->increment('stock_sold', $itemData['quantity']);
-                }
-                
+
                 TransactionItem::create([
                     'transaction_id' => $transaction->id,
                     'menu_id' => $menu->id,
                     'menu_name' => $menu->name,
-                    'price' => $menu->price,
+                    'price_at_time' => $menu->price,
                     'quantity' => $itemData['quantity'],
-                    'subtotal' => $menu->price * $itemData['quantity'],
                     'notes' => $itemData['notes'] ?? null,
                     'is_force_order' => $isForceOrder,
                 ]);

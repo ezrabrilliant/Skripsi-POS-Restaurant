@@ -227,9 +227,9 @@ class SettlementController extends Controller
     /**
      * Get today's settlement preview (without saving)
      */
-    public function preview(): JsonResponse
+    public function preview(?string $date = null): JsonResponse
     {
-        $date = now()->toDateString();
+        $date = $date ?: now()->toDateString();
         $systemTotals = Settlement::calculateSystemTotals($date);
 
         // Check for open transactions

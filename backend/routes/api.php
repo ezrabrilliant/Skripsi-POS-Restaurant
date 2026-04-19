@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settlements
     Route::get('/settlements', [SettlementController::class, 'index']);
     Route::get('/settlements/preview', [SettlementController::class, 'preview']);
+    Route::get('/settlements/calculate/{date}', [SettlementController::class, 'preview']);
     Route::get('/settlements/date/{date}', [SettlementController::class, 'showByDate']);
     Route::get('/settlements/{id}', [SettlementController::class, 'show']);
     Route::post('/settlements', [SettlementController::class, 'store']);
