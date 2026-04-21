@@ -1,0 +1,668 @@
+JURNAL INFORMATIKA, Vol.4 No.2 September 2017, pp. 241~248
+
+ISSN: 2355-6579
+
+E-ISSN: 2528-2247                                                                      241
+
+Penggunaan Metode Estimasi Use Case Points (UCP)
+          Dalam Proyek Software Domain Bisnis
+
+                   Edhi Prayitno
+
+                        AMIK BSI Jakarta
+                   e-mail: edhi.epo@bsi.ac.id
+
+                                                          Abstrak
+Software memegang peranan penting pada sebuah bisnis untuk mempercepat dan mengatur
+proses bisnis secara lebih baik. Proyek pengembangan software seperti halnya proyek-proyek
+pada umumnya membutuhkan estimasi yang tepat agar dapat berjalan dengan baik dan lancar.
+Metode use case points digunakan untuk mengestimasi software berbasis obyek dengan
+tingkat akurasi cukup baik. Nilai Effort Rate (ER) yang digunakan dalam metode estimasi UCP
+memiliki nilai yang bervariasi mulai dari 4 sampai 35 man-hours, sehingga akan membuat sulit
+pengembang pemula untuk menentukan nilai ER yang tepat. Thomas Tan dalam disertasinya
+berjudul `Domain-Based Effort Distribution Model For Software Cost Estimation' menunjukkan
+bahwa setiap aplikasi memiliki distribusi effort yang berbeda-beda sesuai dengan
+karakteristiknya yang berjumlah 21 domain. Dari hasil penelitian yang dilakukan terhadap
+proyek sistem penjualan barang, didapat nilai aktual effort dan cost mendekati nilai estimasi
+yang dilakukan. Nilai estimasi effort 381,3 jam dan aktual effort 407.5 jam, sedangkan estimasi
+cost IDR 39.804.236 dan aktual cost IDR 47.675.417 sehingga didapat nilai deviasi effort 6,4%
+dan deviasi cost 16,5%.
+
+Kata kunci: Estimasi usaha dan biaya software, use case point (UCP), domain aplikasi.
+
+                                                          Abstract
+Software plays an important role in a business to accelerate and manage business processes
+better. Software development projects as well as projects generally require the right estimates
+to work well and smoothly. Use case points method is used to estimate object-based software
+with good accuracy. The value of the Effort Rate (ER) used in the UCP estimation method has
+values range from 4 to 35 man-hours, so it will make it difficult for novice developers to
+determine the exact ER value. Thomas Tan in his dissertation entitled 'Domain-Based Effort
+Distribution Model For Software Cost Estimation' shows that each application has a different
+distribution effort according to its 21 domain characteristics. From the results of research
+conducted on the project sales system goods, obtained the actual value of effort and cost close
+to the estimated value made. The estimated value of effort is 381.3 hours and 407.5 hours
+actual effort, while the estimated cost is IDR 39,804,236 and the actual cost is IDR 47,675,417
+to get the value of deviation effort 6,4% and deviation cost 16,5%.
+
+Keywords: Estimate effort and cost software, use case points (UCP), application domain.
+
+1. Pendahuluan                            tepat waktu dan biaya serta fungsi dan
+Proyek software merupakan kegiatan yang
+membutuhkan keahlian (skill) dan          tampilan aplikasi yang sesuai kebutuhan.
+pengetahuan yang cukup memadai bagi
+developer. Minimnya kompetensi yang       Hal senada juga disampaikan dalam
+dimiliki developer akan berakibat fatal
+terhadap proyek yang sedang dikerjakan.   laporan yang dirilis oleh Capers Jones,
+Tidak sedikitnya jumlah proyek software
+yang gagal mengindikasikan kegagalan      Chief Scientist Emeritus SPR yang
+dalam proses estimasi effort dan
+manajemen yang dilakukan. Sebuah          mengidentifikasi estimasi biaya formal
+laporan dari Standish Group Study `CHAOS
+Summary 2012', yang menyatakan hanya      merupakan faktor penting untuk mencegah
+39% proyek IT yang sukses diselesaikan
+                                          kegagalan proyek.
+
+                                          Trendowicz        (Trendowicz,                 2013)
+
+                                          menyatakan bahwa estimasi biaya yang
+
+                                          tepat merupakan salah satu faktor
+
+                                          keberhasilan bagi manajer proyek dalam
+
+                                          mengatur dan menyelesaikan proyek
+
+                                          dengan baik. Menurut pendapat ahli yang
+
+Diterima Agustus 29, 2017; Revisi Agustus 5, 2017; Disetujui September 15, 2017
+                                                                         242
+
+lain, estimasi usaha (effort) yang buruk       diklasifikasikan sebagai simple, average,
+                                               atau complex sesuai tabel 1 berikut ini.
+merupakan salah satu dari dua masalah
+
+yang secara umum menyebabkan
+
+kegagalan proyek disamping kebutuhan           Tabel 1. Tipe, Bobot, dan Deskripsi Actor
+
+yang tidak bisa dikendalikan (unstable             Actor Weight          Description
+
+requirements). Dan penggunaan alat dan
+
+metodologi pengembangan proyek secara          Simple   1        Didefinisikaan dengan API
+
+formal akan meningkatkan produktivitas         Medium   2        Berinteraksi melalui Protokol
+                                                                 TCP/IP
+kerja dua kali lipat dibandingkan
+
+penggunaan secara konvensional.                Complex  3        Berinteraksi dengan GUI atau
+                                                                 Web Page
+Pengembangan proyek software yang baik
+
+memiliki dua kegiatan kritis yaitu             Kemudian menghitung jumlah actor dari
+                                               masing-masing tingkat kompleksitas dikali
+menghitung estimasi usaha/biaya software       dengan nilai faktor berat dari masing-
+                                               masing tingkatan.
+secara tepat dan melakukan manajemen           Nilai Unadjusted Use Case Weights
+                                               (UUCW) didapat sama dengan seperti
+proyek yang berdasarkan SDLC (Software         menentukan UAW, yaitu masing-masing
+                                               use case dibagi menjadi 3 kelompok yaitu
+Development Life Cycle) secara terukur.        simple, average, dan complex, tergantung
+                                               dari jumlah transaksi yang dilakukan.
+Untuk point yang pertama; ada beberapa         Berikut klasifikasi use case berdasarkan
+                                               jumlah transaksinya dapat dilihat pada tabel
+metode estimasi yang dapat digunakan           2 berikut ini.
+
+untuk menghitung estimasi effort software,
+
+beberapa diantaranya yaitu Function Point
+
+(FP), Function Point Analysis (FPA), Delphi,
+
+Use Case Points (UCP), Cocomo, Analogy
+
+dan sebagainya. Metode Use Case Points
+
+(UCP) dikembangkan oleh Gustav Karner
+
+tahun 1993. Use Case Points (UCP) adalah
+
+metode yang mempunyai kemampuan                Tabel 2. Tipe, Bobot, dan Deskripsi Use
+                                               Case
+untuk memberikan estimasi effort yang
+
+diperlukan untuk membuat suatu proyek
+
+berdasarkan jumlah dan kompleksitas use        Use Case Weight           Description
+
+case yang dimiliki oleh proyek software                          Menggunakan <= 3
+                                                                 transaksi
+tersebut (Karner, 1993). Menurut pendapat      Simple      5
+                                               Medium
+lain, UCP adalah metode yang dapat             Complex     10    Menggunakan 4 sampai 7
+                                                                 transaksi
+menganalisa aktor, use case, dan berbagai
+                                                                 Menggunakan > 7
+faktor teknis dan faktor lingkungan hingga                 15    transaksi
+
+menjadi suatu persamaan (Clemmons,
+
+2006). Kelebihan dari metode use case          Nilai Unadjusted Use Case Weights
+                                               (UUCW) didapat dari menghitung jumlah
+point yaitu UCP memiliki deviasi sebesar       use case dari masing-masing tingkat
+                                               kompleksitas dikali dengan nilai faktor berat
+6% (Nageswaran, 2001), UCP memiliki            setiap use case. Setelah nilai UAW dan
+                                               UUCW didapat maka dijumlahkan untuk
+deviasi sebesar 9% (Carrol, 2005) dan UCP      mendapatkan Unadjusted Use Case Point
+                                               (UUCP).
+memiliki deviasi sebesar 19%, sementara
+
+estimasi para ahli memiliki rata-rata deviasi
+
+sebesar 20% (Anda, 2002). Ini
+
+menunjukkan metode estimasi UCP
+
+memiliki tingkat akurasi yang baik
+
+digunakan dalam menentukan effort              2.       Menghitung nilai Technical
+
+terhadap suatu proyek software yang akan       Complexity Factor (TCF) dan Enviromental
+
+dikerjakan.                                    Complexity Factor (ECF).
+
+Berikut langkah-langkah menentukan nilai       Pada perhitungan nilai TCF dan ECF
+
+estimasi effort dengan menggunakan Use         terdapat nilai complexity factor. Complexity
+
+Case Point (UCP):                              factor merupakan faktor-faktor yang
+
+1.  Menghitung nilai Unadjusted Use            berpengaruh secara langsung dalam
+
+Case Point (UUCP), dengan terlebih dahulu      proses pengembangan proyek perangkat
+
+menentukan nilai Unadjusted Actor Weights      lunak.
+
+(UAW) dan Unadjusted Use Case Weights          a. Technical Complexity Factor (TCF)
+
+(UUCW).                                        Nilai-nilai pada technical factor tersebut
+
+Nilai Unadjusted Actor Weights (UAW)           dikalikan dengan bobot nilai masing-
+
+ditentukan dari jumlah aktor yang              masing. Bobot nilai yang diberikan pada
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+                                                                                   243
+
+setiap faktor tergantung dari seberapa          masing. Bobot nilai yang diberikan pada
+besar pengaruh dari faktor tersebut.            setiap faktor tergantung dari seberapa
+Dimana nilai 0 berarti tidak mempengaruhi,      besar pengaruh dari faktor tersebut. Nilai 0
+nilai 3 berarti rata-rata, dan nilai 5 berarti  berarti tidak mempengaruhi, nilai 3 berarti
+memberikan pengaruh yang besar. Hasil           rata-rata, dan nilai 5 berarti memberikan
+perkalian nilai dan bobot tersebut kemudian     pengaruh yang besar. Hasil perkalian nilai
+dijumlahkan untuk mendapatkan total             dan bobot tersebut kemudian dijumlahkan
+Technical Factor (TF), yang kemudian            untuk mendapatkan Environmental Factor
+digunakan untuk mendapatkan Technical           (EF), yang kemudian digunakan untuk
+Complexity Factor (TCF) berdasarkan             mendapatkan Environmental Complexity
+rumus:                                          Factor (ECF) berdasarkan rumus:
+TCF=0.6+(0.01 x TF)                             ECF=1.4+(-0.03 x EF)
+
+Tabel 3. Technical Factor dan Bobot             Tabel 4. Environmental Factor dan Bobot
+
+No.           Technical Factor       Bobot      No.     Technical Factor                Bobot
+
+1. Distributed System Required       2          1. Familiarity with the Project         1.5
+
+2. Response Time is Important        1          2. Application Experience               0.5
+
+3. End User Efficiency               1          3. OO Programming Experience            1
+
+4. Complex Internal Processing       1          4. Lead Analyst Capability              0.5
+        Required
+
+5. Reusable Code Must Be A Focus     1          5. Motivation                           1
+
+6. Installation easy                 0.5        6. Stable Requirements                  2
+
+7. Usability                         0.5        7. Part Time Staff                      -1
+
+8. Cross-platform support            2          8. Difficult Programming Language       -1
+
+9. Easy to change                    1          3. Dan terakhir nilai dari Use case Point
+                                                    (UCP) didapatkan melalui perkalian
+10. Highly concurrent                1              UUCP dengan TCF dan ECF, yaitu
+                                                    UCP=UUCP+TCF+ECF.
+11. Custom security                  1
+                                                Berikut gambaran secara mudah
+12. Dependence on third-part code    1          penggunaan metode estimasi use case
+                                                point dalam melakukan estimasi perangkat
+13. User training                    1          lunak (Karner, 1993):
+
+b. Enviromental Complexity Factor (ECF)
+Sama seperti pada technical factor, nilai-
+nilai pada environmental factor tersebut
+dikalikan dengan bobot nilai masing-
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+                                                        244
+
+    Hitung Unajusted     Menghitung Unajusted Use
+ Actor Weight (UAW)      Case Point (UUCP)
+                         UUCP = UAW + UUCW
+Hitung Unajusted Use
+Case Weight (UUCW)         Menghitung Use Case
+                                 Point (UCP)
+                                                               Menghitung Effort
+                        UCP = UUCP + TCF + ECF          Effort = UCP x Effort Rate
+
+ Menghitung Technical   Menghitung Complexity Factor
+         Factor (TF)    TCF = 0.6 + (0.01 * TF)
+                        ECF = 1.4 + (-0.03 * EF)
+Menghitung Environment
+        Factor (EF)
+
+Gambar 1.Proses Estimasi Effortdengan Use Case Points
+
+      Penggunaan metode estimasi UCP           komunikasi, tampilan dan pengontrolan,
+tidak lepas kaitannya dengan Effort Rate       infrastruktur atau perangkat perantara,
+(ER). Effort Rate setiap aplikasi berbeda-     informasi asuransi, maintenance dan
+beda antara satu pengembang dengan             diagnostik, perencanaan misi, kontrol
+pengembang yang lain. Hal ini disebabkan       proses, sensor pengontrol dan
+oleh kemampuan dan kapasitas yang              pemrosesan, pesawat ruang angkasa, dan
+dimiliki oleh pengembang yang jelas            muatan pesawat ruang angkasa.
+berbeda. Effort Rate pertama kali              Berdasarkan penelitian aplikasi domain
+digunakan oleh Karner tahun 1993 dan           bisnis yang dilakukan di Indonesia (Subriadi
+memiliki nilai 20 man-hours berdasarkan        dkk, 2014), diketahui nilai Effort Rate (ER)
+tiga data proyek pengembangan perangkat        untuk software aplikasi bisnis di Indonesia
+lunak (Karner, 1993). Schneider & Winters      adalah 8.2 man-hours.
+tahun 1998 mengusulkan nilai ER sebesar
+20, 28, dan 30 man-hours (Schneider,           2. Metode Penelitian
+1998). Clemmons tahun 2006 memberikan          Desain Penelitian
+nilai ER sebesar 18 man-hours yang             Berikut gambaran desain penelitian yang
+berdasarkan kualitas tim proyek dan data       dilakukan oleh penulis:
+historis (Clemmons, 2006). Dan Ochodek
+tahun 2011 memberikan nilai ER berkisar                                            Pengumpulan Data
+antara 4 sampai 35 man-hours berdasarkan
+perhitungan 14 proyek perangkat lunak                                          Perancangan Diagram
+yang telah selesai (Ochodeck, 2011).                                                     Use Case
+
+      Setiap perangkat lunak aplikasi yang                                     Pengujian dan Analisis
+dikembangkan memiliki jenis dan                                         Metode Use Case Points (UCP)
+karakteristiknya berdasarkan dari kelompok
+domain masing-masing. Menurut Thomas                                                  Estimasi Effort
+Tan dalam disertasinya dengan judul                                                        dan Cost
+
+`Domain-Based Effort Distribution Model                                          Bandingkan dengan
+For Software Cost Estimation',                                                 Aktual Effort d an Cost
+mengelompokkan aplikasi ke dalam 21
+wilayah domain yang meliputi sistem bisnis,                                            Nilai Deviasi
+internet, alat dan sistem alat, sains sistem,
+simulasi dan pemodelan, test dan evaluasi,               Gambar 2. Desain Penelitian
+training, perintah dan kontrol, manajemen
+misi, alat pertahanan dan pengontrolan,
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+                                                                                   245
+
+Data Penelitian                               Diagram use case terdiri dari use case dan
+Data penelitian dalam riset ini diambil dari  aktor yang mengggambarkan sistem yang
+teknik interview dengan Ketua Koperasi        berjalan. Pada aplikasi sistem penjualan
+Yayasan Istiqlal Indonesia (YII) untuk        barang diketahui terdapat 6 aktor dan 16
+menentukan ukuran perangkat lunak             use case yang digunakan. Berikut tahapan
+berdasarkan kebutuhan fungsional sistem       dalam menentukan nilai estimasi effort
+yang tergambar pada diagram use case.         software aplikasi:
+Data yang didapat berupa use case metric      1. Klasifikasikan aktor yang terlibat untuk
+berisi jumlah aktor dan fungsi yang terlibat
+dalam sistem.                                     menghasilkan nilai Unadjusted Actor
+Berikut diagram use case sistem penjualan         Weight (UAW).
+barang pada Koperasi Yayasan Istiqlal
+Indonesia (YII):                              Tabel 5. Mencari nilai Unadjusted Actor
+3. Hasil dan Pembahasan                                       Weight (UAW)
+3.1. Usecase Diagram
+                                              Actor    Description WFeiagchtotirngNumber Result
+Gambar. 3 Diagram Use Case Penjualan          Type
+Barang
+                                                       External System
+
+                                              Simple with well-defined       1     --   --
+
+                                                       API
+
+                                                       External system
+
+                                              Average  using a protocol      2     --   --
+                                                       based interface
+
+                                                       as TCP/IP
+
+                                                       Human interacts
+
+                                                       through Graphic
+
+                                              Complex User Interface         3     6    18
+
+                                                       (GUI) or Web
+
+                                                       Page
+
+                                              Unadjusted Actor Weight Total (UAW)       18
+
+                                              2. Klasifikasikan use case yang ada di use
+                                                  case diagram untuk menghasilkan nilai
+                                                  Unadjusted Use Case Weighting
+                                                  (UUCW)
+
+                                              Tabel 6. Mencari nilai Unadjusted Use
+
+                                                       Case Weighting (UUCW)
+
+                                              Use      Description WFeiagchtotirngNumber Result
+                                              Case
+                                              Type
+
+                                              Simple       1­3           5      6       30
+                                                       transactions
+
+                                              Average      4­7           10     5       50
+                                                       transactions
+
+                                              Complex       >7           15     5       75
+                                                       transactions
+
+                                              Unadjusted Use Case Weight Total (UUCW) 155
+
+                                              Mencari Nilai Unadjusted Use Case Points
+                                              (UUCP) dengan menjumlahkan nilai UAW
+                                              dan nilai UUCW, sehingga nilai UUCP dari
+                                              aplikasi sistem penjualan barang adalah:
+
+                                                        UUCP = UAW + UUW = 173
+                                              mmm Menghitung nilai faktor teknik (TF)
+                                              untuk memperoleh nilai Technical
+                                              Complexity Factor (TCF) seperti terlihat
+                                              pada tabel 7.
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+                                                                                     246
+
+    Tabel 7. Nilai Technical Factor (TF)                  C=1,4+(-0,03)
+
+Factor                       Assigned UCP                 C=0,72
+
+Number Description Weight Value Weighted              6.  Nilai UUCP, TCF dan ECF yang
+
+                                    (0­5) Value       didapat digunakan untuk menghitung nilai
+
+T1      Distributed    2,0               5   10,0     Use Case Points dengan rumus:
+
+        Systems
+
+T2      Response       1,0               4   4,0
+
+        time or                                           =C
+                                                          =1731,120,72
+        throughput                                        =139,5
+
+        performance
+
+        objectives
+
+T3      End-user       1,0               4   4,0
+
+        online                                        7.  Berdasarkan penelitian (Subriadi
+
+        efficiency                                    dkk, 2014), diketahui nilai Effort Rate (ER)
+
+T4      Complex        1,0               4   4,0      adalah 8,2 man-hours untuk aplikasi bisnis
+
+        internal                                      di Indonesia. Effort aplikasi didapat dengan
+
+        proccesing
+
+T5      Reusability    1,0               2   2,0      menggunakan rumus:
+
+        of code
+
+T6      Easy to        0,5               5   2,5          Effort=ER =139,5 * 8,2
+                                                          Effort= 1.144 man-hours
+        install
+
+T7      Ease of use    0,5               4   2,0
+
+T8      Portability    2,0               4   8,0
+
+T9      Ease of        1,0               3   3,0                Dari hasil penghitungan estimasi
+                                                      proyek software Sistem Penjualan Barang
+        change                                        dengan menggunakan metode UCP
+                                                      diperoleh hasil estimasi effort sebesar
+T10 Concurrency 1,0                      3   3,0      1.144 man-hour (orang per jam)
+
+T11 Special            1,0               2   2,0
+
+        security
+
+        objectives
+
+        included
+
+T12 Direct             1,0               5   5,0      Sedangkan untuk perhitungan cost
+                                                      estimation tentang jam kerja wajib pekerja
+        access for                                    per minggu mengacu pada UU No. 13 Th.
+                                                      2003 tentang ketenagakerjaan (UU
+        third parties                                 Ketenagakerjaan) yaitu 40 jam kerja wajib
+                                                      per minggu atau sekitar 173 jam per bulan.
+T13 Special user 1,0                     3   3,0      Sedangkan gaji pekerja IT mengacu pada
+                                                      riset Kelly Service tahun 2017 pada
+        training                                      perusahaan IT di Indonesia yang terdiri
+                                                      atas 50 item job description pada bidang
+        required                                      IT. Dalam penulisan jurnal ini mengambil
+                                                      batas bawah dari range gaji dikarenakan
+        Nilai Tehnical Factor (TF)           52,5     riset penelitian ini akan mengacu pada
+                                                      perusahaan IT skala kecil menengah di
+    =0,6+(0,01)                                       Indonesia. Dalam pengembangan proyek
+                                                      sistem aplikasi ini yang dikerjakan oleh tim
+    =1,12                                             yang terdiri dari 3 orang, memiliki job desk
+                                                      masing-masing yaitu project leader, analis
+5. Menghitung nilai faktor lingkungan (EF)            sistem, programmer dan technical support.
+                                                      Pengembangan Sistem Informasi
+    untuk memperoleh nilai Environmental              Penjualan pada koperasi YII nilai
+                                                      estimasinya yaitu 1.144 dibagi 3 menjadi
+    Complexity Factor (ECF) seperti terlihat          381.3 jam atau 2.2 bulan.
+
+    pada tabel 8.
+
+    Tabel 8. Nilai Environmental Factor (EF)
+
+Facto                               Assigne   UCP
+                                             Weighte
+r       Description    Weigh d Value
+                                                 d
+Number                 t            (0­5)    Value
+
+E1 Familiarity         1,5               4       6
+
+        with system                              2
+                                                 5
+        development
+                                                 2
+        process                                  3
+                                                 8
+        being used                               0
+                                                -3
+E2 Application         0,5               4
+                                                23
+        experience
+
+E3 Object-             1,0               5
+
+        oriented
+
+        experience
+
+E4 Lead analyst 0,5                      4            Rata-rata pendapatan per jam (pay rate per
+                                                      hours) untuk pekerja IT di Indonesia
+        capability                                    berdasarkan data yang dikeluarkan oleh
+                                                      Kelly Service tahun 2017 seperti terlihat
+E5 Motivation          1,0               3            pada tabel di bawah ini.
+
+E6 Requirement 2,0                       4
+
+        s stability
+
+E7 Part time           -1,0              0
+
+        staff
+
+E8 Difficulty of       -1,0              3
+
+        programming
+
+        language
+
+        Nilai Environmental Factor (EF)
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+                                                                                         247
+
+Tabel 9. Pay Rate per Aktivitas
+
+Activities                     Pay rate per   Berdasarkan penelitian yang dilakukan oleh
+                              hours (rupiah)  Sholiq dan Putu linda tahun 2015 terhadap
+                                              perusahaan skala kecil menengah di
+Needs analysis (Requirement)     40.462       Indonesia, nilai distribusi effort untuk
+Specification                    40.462       masing-masing fase sebagai berikut:
+Design                           28.902       - Software phase development sebesar
+
+Implementation                   28.902           72.6 %.
+                                              - Ongoing life-cycle activity sebesar 17.5
+Acceptance & installation        28.902
+                                                  %.
+Project management               86.705       - Quality and testing phases sebesar
+
+Configuration management         86.705           9.9%.
+                                              Berikut tabel selengkapnya distribusi effort
+Documentation                    28.902       fase-fase dalam aktivitas pengembangan
+                                              software aplikasi yang digunakan dalam
+Training & technical support     28.902       estimasi cost pada software aplikasi.
+
+Integrated testing               28.902
+
+Quality assurance                46.243
+
+Evaluation & testing             28.902
+
+                              Tabel 10. Estimasi Distribusi Effort dan Cost
+
+               Phases/           Prosentase Effort     Effort                    Cost
+              Activities           Distribution     Distribution             Estimation
+
+Software Phase Development               72.6           830.5                  (rupiah)
+Needs analysis (Requirement)              1.6           18.3
+Specification                             7.5           85.8                  740.455
+Design                                    6.0           68.6                 3.471.640
+Implementation                           52.0           594,9                1.982.677
+Acceptance & installation                 5.5           62.9                 17.193.800
+Ongoing life-cycle activity              17.5           200.2                1.817.936
+Project management                        3.8           43.5
+Configuration management                  4.3           49.2                 3.771.668
+Documentation                             8.4           96.1                 4.265.886
+Training & technical support              1.0           11.4                 2.777.482
+Quality and testing phases                9.9           113.3                 329.483
+Integrated testing                        7.0           80.1
+Quality assurance                         0.9           10.3                 2.315.050
+Evaluation & testing                      2.0           22.9                  476.303
+Total of Effort                          100            1144                  661.856
+                                                                             39.804.236
+
+Tabel 10 menunjukkan fase-fase dalam          Maka nilai deviasi cost adalah:
+aktivitas pengembangan software yang          (actual cost ­ estimasi cost)/actual cost *
+memiliki persentase effort masing-masing      100%
+yang berbeda. Total jumlah persentase         = (47,675,417­ 39,804,236)/ 47,675,417 *
+pada masing-masing fase menunjukkan           100%
+jumlah effort dan cost yang dikeluarkan       = 16,5 %
+untuk menyelesaikan sistem aplikasi yang
+akan digunakan pada Koperasi YII. Pada        Dan nilai deviasi effort adalah:
+tabel terlihat cost yang dikeluarkan untuk    (aktual effort ­ estimasi effort)/aktual effort *
+menyelesaikan software aplikasi sebesar       100%
+Rp 39.804.236.                                = (407.5 ­ 381,3)/407.5 * 100%
+Berdasarkan data aktual yang diperoleh        = 6,4 %
+dalam pengembangan Sistem Informasi
+Penjualan Barang pada Koperasi Istiqlal       4. Kesimpulan
+maka didapat nilai aktual cost sebesar Rp     Use Case Points (UCP) adalah metode
+47.675.417 dengan waktu yang dibutuhkan       yang mempunyai kemampuan untuk
+407.5 jam.                                    memberikan estimasi effort berdasarkan
+                                              jumlah dan kompleksitas use case yang
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+dimiliki oleh software. Berdasarkan proyek                                                  248
+sistem informasi penjualan yang
+dikembangkan oleh koperasi YII, maka                Jurnal Teknik POMITS, vol. 1, no. 1,
+sistem memiliki 6 aktor dan 16 use case.            pp. 1-6.
+Nilai UCP yang diperoleh sebesar 139.5
+dan nilai effort untuk software aplikasi      Karner Gustav. (1993). "Resource
+domain bisnis sebesar 1144 jam.                     Estimation for Objectory Projects".
+Dari hasil interview yang dilakukan                 Objective Systems SF AB.
+terhadap proyek sistem penjualan barang,
+didapat nilai aktual effort dan cost          Kassem Shaleh. (2011). "Effort and Cost
+mendekati nilai estimasi yang dilakukan.            Allocation in Medium to Large
+Nilai estimasi effort 381,3 jam dan aktual          Software Development Projects".
+effort 407.5 jam, sedangkan estimasi cost           International Journal of Computer, vol.
+Rp 39.804.236 dan aktual cost Rp                    5, no. 1, pp. 74-79.
+47.675.417 sehingga didapat nilai deviasi
+effort 6,4% dan deviasi cost 16,5%.           Nageswaran, Suresh. (2001). "Test Effort
+                                                    Estimasi Using Use Case Points".
+Referensi                                           www.cognizant.com/cogcommunity/pr
+                                                    esentations/Test_Effort_Estimasi.pdf.
+Bente Anda. (2002). "Comparing effort
+                                              Ochodek, M; Nawrocki, J; Kwarciak, K.
+estimates based on use cases with                   (2011). "Simplifying Effort Estimasi
+                                                    Based on Use Case Points",
+expert     estimates."    Empirical                 Sciencedirect.
+
+Assessment in Software Engineering            Sholiq, Teguh Sutanto, Arifin Puji Widodo,
+                                                    and Wahyu Kurniawan, "Effort Rate on
+(EASE), Keele UK, p. 13.                            Use Case Point Method for Effort
+                                                    Estimation of Website Development,"
+Carroll, Edward R. (2005). "Estimating              Journal of Theoretical and Applied
+                                                    Information Technology, vol. 63, no. 1,
+Software Based on Use Case Points."                 pp. 209-218.
+
+Object-Oriented,        Programming,          Standish Group. (2012), Chaos Reports
+                                                    http://standishgroup.com/news.
+Systems, Languages, and Object
+                                              Subriadi, Sholiq, dan Puji Agustin Ningrum.
+Oriented Programming Systems                        (2014). "Critical Review of The Effort
+                                                    Rate Value In Use Case Point Method
+Languages         and     Applications              for Estimating Software Development
+                                                    Effort," Journal of Theoretical and
+(OOPSLA) Conference, San Diego,                     Applied Information Technology, vol.
+                                                    59, no. 3, pp. 735-744.
+CA, pp.257­265.
+                                              Tan, Thomas. (2012). "Domain-Based
+Clemmons. (2006). "Project Estimation with          Effort Distribution Model For Software
+      Use Case Points." CrossTalk­The               Cost Estimation". A Dissertation
+      Journal of Defense Software                   Presented To The Faculty Of The Usc
+      Engineering, vol. 19 , no.2, pp. 8-22.        Graduate School University Of
+                                                    Southern California.
+Dennis, A., Wixom, B. H., & Tegarden, D.,
+      (2005). "System Analysis and Design     Trendowicz, Adam. (2013). "Software Cost
+      with UML Version 2.0 An Object-               Estimation, Benchmarking, and Risk
+      Oriented Approach (2nd ed)". USA:             Assessment". Springer-Verlag Berlin
+      John Wiley & Sons, Inc.                       Heidelberg. ISBN 978-3-642-30764-5
+                                                    (eBook).
+Edward R Carrol. (2005). "Estimating
+      Software Based on Use Case Points".
+      Object Oriented Programming
+      Systems Languages and Applications
+      (OOPSLA) Conference, San Diego,
+      pp. 257­265.
+
+Grandys Frieska Prassida, Achmad Holil
+      Noor Ali, dan Sholiq. (2012). Estimasi
+      Biaya Pembuatan Modul Enterprise
+      Resource Planning (ERP) Untuk Unit
+      Bisnis Pabrik Gula Di PT. Perkebunan
+      XYZ Dengan Metode Use Case Point.
+
+JURNAL INFORMATIKA Vol.4 No.2, September 2017: 241-248
+

@@ -1,0 +1,9 @@
+REVIEW: USE CASE DIAGRAM
+Use Case Scenario
+ACTIVITY DIAGRAM
+
+Contoh Activity Diagram "Pengambilan Uang di ATM"
+Contoh Kasus
+Gojek:
+https://gelegakzaki.wordpress.com/2016/11/27/diagram-dan-analisa-baimana-go-jek-berjalan/
+
