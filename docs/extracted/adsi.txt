@@ -1,0 +1,3150 @@
+ANALISIS DAN
+DESAIN
+SISTEM
+INFORMASI
+
+PROGRAM STUDI
+
+INFORMATIKA
+Modul
+Analisis dan Desain Sistem Informasi
+
+Pembuat:
+Alexander Setiawan
+Lily Puspa Dewi
+Silvia Rostianingsih
+Yulia
+
+November 2021
+
+                                                                                       1
+Daftar Isi
+
+1. Introduction to the Computer-Based Information System ......................................................4
+  1.1. Definisi Introduction to the Computer-Based Information System .............................4
+   1.2. Pentingnya Manajemen Informasi ..............................................................................................6
+   1.3. Fungsi dan Peranan Manajer .........................................................................................................6
+   1.4. Elemen Dalam Sistem Informasi................................................................................................ 10
+   1.5. Macam dan Nilai CBIS.................................................................................................................... 11
+
+2. General System Model (GSM) ............................................................................................................ 13
+          Definisi Model ................................................................................................................................... 13
+           Pengendalian Manajemen............................................................................................................ 14
+          Management by Exception (MBE) ............................................................................................ 16
+          Standart dan Objective ................................................................................................................. 16
+           Arus Keputusan ................................................................................................................................ 17
+          Critical Success Factor (CSF) ...................................................................................................... 18
+           Model Umum Sistem Perusahaan............................................................................................. 19
+           Contoh Penggunaan Dari Model Umum Sistem Perusahaan........................................ 19
+
+3. The System Approach ............................................................................................................................ 21
+           Arti Penting Pendekatan Sistem ............................................................................................... 21
+           Penerapan Pendekatan Sistem .................................................................................................. 23
+           Penggunaan Konsep Sistem ........................................................................................................ 23
+           Siklus Hidup Sistem......................................................................................................................... 24
+           Sistem Antarorganisasi.................................................................................................................. 25
+
+4. User Story ................................................................................................................................................... 28
+           Kebutuhan Pengguna..................................................................................................................... 28
+          User Story ........................................................................................................................................... 28
+
+5. Pengenalan Pemodelan dan Proses Pengembangan Software ............................................ 34
+          Mendata Kebutuhan (Requirement Gathering).................................................................. 35
+          Analisa Kebutuhan (Requirement Analysis)......................................................................... 35
+           Arsitektur ............................................................................................................................................ 36
+
+                                                                                       1
+           Design ................................................................................................................................................... 36
+          Implementasi, Pengujian dan Deployment ........................................................................... 36
+          Modeling Language......................................................................................................................... 37
+          Pengertian Use Case Diagram.................................................................................................... 39
+          Membuat Use Case Diagram ...................................................................................................... 41
+
+             Pola Inheritance ........................................................................................................................... 43
+             Actor Inheritance ........................................................................................................................ 43
+             Use Case Specialization ............................................................................................................ 44
+             Use Case Dependencies ........................................................................................................... 44
+6. Use Case Scenarios dan Forms .......................................................................................................... 46
+          Pengertian Use Case Scenarios ................................................................................................. 46
+          Supplementary Specifications.................................................................................................... 47
+          Use Case Form .................................................................................................................................. 49
+7. Activity Diagram ...................................................................................................................................... 53
+           Pengertian Activity Diagram ...................................................................................................... 53
+          Simbol Activity Diagram ............................................................................................................... 54
+          Contoh Activity Diagram.............................................................................................................. 56
+      7.3.1. Sekuensial................................................................................................................................... 56
+      7.3.2. Percabangan.............................................................................................................................. 57
+      7.3.3. Contoh Kasus Sistem Perpustakaan ............................................................................... 58
+8. Class diagram............................................................................................................................................. 61
+  2.1 Pengertian Class diagram............................................................................................................. 61
+   2.2 Objek..................................................................................................................................................... 61
+  2.3 Key Abstraction................................................................................................................................ 62
+     8.1.1. Contoh Kasus: Company Database ................................................................................. 62
+  2.4 Struktur Class diagram .................................................................................................................. 64
+     1.1.1. Notasi dan Struktur Class.................................................................................................... 65
+     8.1.2. Penamaan Class....................................................................................................................... 66
+      8.1.3. Atribut.......................................................................................................................................... 66
+     8.1.4. Method ........................................................................................................................................ 67
+
+                                                                                       2
+     8.1.5. Visibility ...................................................................................................................................... 67
+     8.1.6. Menggambar Class ................................................................................................................. 67
+     8.1.7. Class Stereotype...................................................................................................................... 68
+
+           Relasi ..................................................................................................................................................... 70
+      8.2.2. Multiplicity................................................................................................................................. 72
+     8.2.3. Dependency .............................................................................................................................. 73
+      8.2.4. Inheritance................................................................................................................................. 73
+     8.2.5. Generalization .......................................................................................................................... 74
+
+          Simbol Class diagram ..................................................................................................................... 75
+           Package Diagram ............................................................................................................................. 77
+          Beberapa contoh Class diagram ................................................................................................ 78
+     8.5.1. Contoh Kasus Company....................................................................................................... 78
+      8.5.2. Contoh Kasus Pembelian..................................................................................................... 78
+      8.5.3. Contoh Kasus Rental Film ................................................................................................... 79
+      8.5.4. Contoh Kasus Reservasi Hotel .......................................................................................... 81
+9. Object Diagram ........................................................................................................................................ 84
+          Pengertian Object Diagram......................................................................................................... 84
+          Tujuan Object Diagram ................................................................................................................. 84
+          Elemen Object Diagram ................................................................................................................ 84
+     9.3.2. Object Node .............................................................................................................................. 85
+      9.3.3. Link ................................................................................................................................................ 86
+          Validasi DomainModelMenggunakan ObjectDiagrams.................................................. 86
+      9.4.1. Step 1- Skenario 1: Create Reservation ........................................................................ 86
+      9.4.2. Step 2- Skenario 1: Create Reservation ........................................................................ 87
+      9.4.3. Step 3- Skenario 1: Create Reservation ........................................................................ 87
+      9.4.4. Step 4- Skenario 1: Create Reservation ........................................................................ 87
+      9.4.5. Step 5- Skenario 1: Create Reservation ........................................................................ 88
+      9.4.6. Skenario 2: Create Reservation ........................................................................................ 89
+     9.4.7. Membandingkan Object Diagram untuk Memvalidasi Domain Model............ 89
+     9.4.8. Perbaiki Domain Model untuk Hotel Reservation System.................................... 89
+
+                                                                                       3
+10. Interaction Diagram............................................................................................................................ 91
+             Pengertian Interaction Diagram ........................................................................................... 91
+             Boundary Class............................................................................................................................. 91
+             Service Class.................................................................................................................................. 92
+             Entity Class..................................................................................................................................... 92
+             Message........................................................................................................................................... 93
+             Contoh Sequence Diagram...................................................................................................... 93
+
+11. State Machine Diagram ..................................................................................................................... 98
+             Pengertian State Machine Diagram..................................................................................... 98
+             Langkah-langkah Pembuatan Diagram State Machine ............................................... 99
+             Self Transition ............................................................................................................................ 100
+             Contoh Soal................................................................................................................................. 101
+
+12. References ........................................................................................................................................... 102
+
+                                                                                       4
+Daftar Gambar
+
+Gambar 1.1. Pengaruh Tingkat Manajemen Terhadap Sumber Informasi ..............................7
+Gambar 1.2. Pengaruh Tingkat Manajemen Terhadap bentuk penyajian informasi...........8
+Gambar 1.3. Keberadaan Manajer Pada Semua Tingkatan............................................................8
+Gambar 1.4. Tingkatan Manajemen Pada Tingkat Fungsional Manajemen............................9
+Gambar 2.1. Sistem Lingkaran Terbuka .............................................................................................. 14
+Gambar 2.2. Sistem Lingkaran Tertutup ............................................................................................. 15
+Gambar 2.3. Sistem Fisik yang Melalui Decision Flow .................................................................. 18
+Gambar 2.4. Model Umum Sistem Perusahaan................................................................................ 19
+Gambar 3.1. Elemen-elemen Proses Pemecahan Masalah ......................................................... 22
+Gambar 4.1. Template user story........................................................................................................... 29
+Gambar 4.2. Penulisan user story .......................................................................................................... 30
+Gambar 4.3. Contoh lain user story template................................................................................... 30
+Gambar 4.4. Contoh penulisan card dan user story ....................................................................... 31
+Gambar 5.1. Project Stakeholders......................................................................................................... 34
+Gambar 5.2. Model Transformations (Microsystems, 2010) ..................................................... 37
+Gambar 5.3. Elemen UML (Microsystems, 2010)............................................................................ 38
+Gambar 5.4. Diagram UML dan pengkategoriannya (Microsystems, 2010)........................ 38
+Gambar 5.5. Elemen use case diagram (Microsystems, 2010)................................................... 39
+Gambar 5.6. Use case diagram dengan system boundary (Microsystems, 2010).............. 41
+Gambar 5.7. Use case diagram untuk sistem hotel (Microsystems, 2010) ........................... 42
+Gambar 5.8. Use case diagram yang lebih detail (Sun Microsystem, 2010) ......................... 43
+Gambar 5.9. Use case diagram dengan actor inherintance (Sun Microsystem, 2010) .... 43
+Gambar 5.10. Use case specialization (Sun Microsystem, 2010) ............................................ 44
+Gambar 5.11. Contoh <<include>> dependency (Sun Microsystem, 2010) ...................... 44
+Gambar 5.12. Contoh <<extend>> dependency (Sun Microsystem, 2010) ....................... 45
+Gambar 7.1. Activity diagram bentuk sekuensial............................................................................ 56
+Gambar 7.2. Activity diagram ambil uang di ATM........................................................................... 57
+
+                                                                                       1
+Gambar 7.3. Use case diagram perpustakaan................................................................................... 58
+Gambar 7.4. Activity diagram pendaftaran anggota, peminjaman dan pengembalian buku
+
+                   59
+Gambar 7.5. Activity diagram manipulasi data buku ..................................................................... 60
+Gambar 8.1. CRC card................................................................................................................................. 64
+Gambar 8.2. Struktur class........................................................................................................................ 65
+Gambar 8.3. Contoh class dan objek..................................................................................................... 65
+Gambar 8.4. Contoh penamaan class ................................................................................................... 66
+Gambar 8.5. Visibility dari atribut dan method ................................................................................ 67
+Gambar 8.6. Simbol boundary class stereotype............................................................................... 68
+Gambar 8.7. Boundary class stereotype ............................................................................................. 69
+Gambar 8.8. Entity class stereotype ..................................................................................................... 69
+Gambar 8.9. Control class stereotype.................................................................................................. 70
+Gambar 8.10. Contoh agregasi Company (whole) ­ Department (part) .............................. 71
+Gambar 8.11. Contoh agregasi bertingkat ....................................................................................... 71
+Gambar 8.12. Contoh class diagram dengan generalisasi.......................................................... 72
+Gambar 8.13. Multiciplicty pada asosiasi.......................................................................................... 72
+Gambar 8.14. Dependency...................................................................................................................... 73
+Gambar 8.15. Generalization ................................................................................................................. 74
+Gambar 8.16. Contoh generalization.................................................................................................. 75
+Gambar 8.17. Contoh package diagram............................................................................................. 77
+Gambar 8.18. Class diagram kasus "Company" .............................................................................. 78
+Gambar 8.19. Class diagram transaksi pembelian barang ......................................................... 79
+Gambar 8.20. Use case diagram rental film...................................................................................... 80
+Gambar 8.21. Class diagram rental film............................................................................................. 81
+Gambar 8.22. Key abstraction candidate.......................................................................................... 81
+Gambar 8.23. Asoasiasi antar class...................................................................................................... 82
+Gambar 8.24. Asosiasi dan role pada class diagram ..................................................................... 82
+Gambar 8.25. Multiplicity pada class diagram ................................................................................ 83
+Gambar 9.1. Elemen object diagram ..................................................................................................... 85
+
+                                                                                       2
+Gambar 9.2. Object node........................................................................................................................... 85
+Gambar 9.3. Contoh atribut pada objek .............................................................................................. 85
+Gambar 9.4. Link pada object diagram................................................................................................. 86
+Gambar 9.5. Step1-skenario 1 untuk use case "Create Reservation"..................................... 86
+Gambar 9.6. Step 2- skenario 1 untuk use case "Create Reservation"................................... 87
+Gambar 9.7. Step 3- skenario 1 untuk use case "Create Reservation"................................... 87
+Gambar 9.8. Step 4- skenario 1 untuk use case "Create Reservation"................................... 88
+Gambar 9.9. Step 5- skenario 1 untuk use case "Create Reservation"................................... 88
+Gambar 9.10. Skenario 2 untuk use case "Create Reservation".............................................. 89
+Gambar 9.11. Perbaikan domain model setelah validasi dengan object diagram ............ 90
+Gambar 10.1. Input dan output dari analisis ketahanan (Microsystems, 2010) ............... 91
+Gambar 10.2. Contoh boundary (Microsystems, 2010).............................................................. 92
+Gambar 10.3. Contoh service (Microsystems, 2010)................................................................... 92
+Gambar 10.4. Contoh entity (Microsystems, 2010) ..................................................................... 92
+Gambar 10.5. Sequence diagram Booking Room........................................................................... 94
+Gambar 10.6. Communication diagram Booking Room.............................................................. 95
+Gambar 10.7. Sequence diagram pembatalan Booking Room ................................................. 96
+Gambar 10.8. Communication diagram pembatalan Booking Room .................................... 96
+Gambar 10.9. Sequence diagram mencari kamar kosong .......................................................... 97
+Gambar 11.1. Elemen pada State Machine Diagram.................................................................... 98
+Gambar 11.2. Struktur penulisan transisi ......................................................................................... 99
+Gambar 11.3. Struktur penulisan state .............................................................................................. 99
+Gambar 11.4. Diagram state machine ............................................................................................. 100
+Gambar 11.5. Self transition ................................................................................................................ 100
+Gambar 11.6. State machine diagram untuk sebuah windows ............................................. 101
+
+                                                                                       3
+   1. Introduction to the Computer-Based Information
+
+                                    System
+
+1.1. Definisi Introduction to the Computer-Based Information
+      System
+
+         Informasi adalah salah satu jenis sumber daya utama yang dibutuhkan bagi manajer.
+Informasi harus mudah diperoleh, akurat dan mengikuti perkembangan. Pada dunia bisnis
+dikenal beberapa jenis aplikasi program komputer untuk mendukung kinerja suatu
+lembaga bisnis, seperti aplikasi yang berkaitan dengan penanganan transaksi akuntansi,
+aplikasi yang berkaitan dengan bidang manajemen sumber daya manusia, aplikasi yang
+berkaitan dengan bidang pengambilan keputusan, aplikasi yang berkaitan dengan bidang
+informasi manajemen, bahkan sampai pada kantor maya (virtual office), dan sistem berbasis
+pengetahuan (Knowledge Based System). Seluruh aplikasi program komputer atau lebih
+dikenal dengan software di bidang bisnis tersebut lebih dikenal dengan istilah sitem
+informasi berbasis komputer (Computer-Based Information System), atau CBIS.
+Pentingnya suatu informasi, menjadikan bisnis lebih kompleks dan kemampuan komputer
+sangat berkembang (Mc. Leod, 2007).
+
+         Pada setiap organisasi, peran informasi sangatlah penting. Bahkan, informasi
+dianggap sebagai sebagai salah satu sumberdaya utama organisasi, diantaranya personil
+(human), bahan (material), mesin (machine), dana (money), dan informasi.
+
+         Input personil berasal dari lingkungan. Calon pegawai berasal dari masyarakat
+setempat dan mungkin dari serikat buruh pesaing. Input personil ini biasanya diproses oleh
+fungsi sumber daya manusia, kemudian ditugaskan ke berbagai bidang fungsional. Ketika
+berada di wilayah bidang tersebut, para pegawai terlibat dalam proses transformasi, baik
+secara langsung maupun tidak langsung. Fungsi sumber daya manusia juga memproses
+pemberhentian pegawai (mengundurkan diri, phk, atau pensiun), dan sumber daya tersebut
+dikembalikan kepada lingkungan.
+
+         Material-material input diterima dari pemasok bahan baku dan komponen rakitan.
+Material ini disimpan di tempat penyimpanan sampai dibutuhkan dalam proses
+transformasi. Lalu, material tersebut di masukkan dalam aktivitas manufaktur. Pada akhir
+proses transformasi, material yang sekarang sudah dalam bentuk jadi, disimpan di tempat
+penyimpanan sampai dikirim kepada para pelanggan.
+
+         Pada perusahaan manufaktur, dua bidang fungsional terlibat dalam arus material
+tersebut. Fungsi manufaktur mengubah bahan baku menjadi barang jadi, dan fungsi
+pemasaran yang mendistribusikan produk jadi kepada para pelanggan. Kedua bidang
+tersebut harus bekerja sama untuk mempermudah arus material.
+
+                                                                                       4
+         Mesin-mesin diperoleh dari pemasok, dan biasanya berada di perusahaan untuk
+jangka waktu lama (3 ­ 20 tahun atau lebih). Namun, akhirnya semua mesin dikembalikan
+kepada lingkungan dalam bentuk tukar tambah dengan model baru, atau sebagai
+rongsokan. Mesin-mesin tersebut dipakai terus menerus, jarang disimpan begitu saja.
+Karena sumber pasokannya yang khusus, tanpa penyimpanan, dan jalur pembuangannya
+juga khsusu, sehingga arus mesin adalah sumber daya fisik yang paling langsung. Namun,
+pengendalian arus mesin tersebar antar berbagai bidang fungsional yang menggunakan
+mesin tersebut.
+
+         Uang terutama diperoleh dari para pemilik, yang menyediakan modal investasi, dan
+dari para pelanggan perusahaan yang memberikan pendapatan penjualan. Sumber lainnya
+mencakup lembaga keuangan, yang memberikan pinjaman dan bunga atas investas, serta
+dari pemerinta, yang menyediakan uang dalam bentuk pinjaman dan bantuan. Tanggung
+jawab pengendalian arus uang hanya berada pada fungsi keuangan.
+
+         Arus uang yang melalui perusahaan jarang melibatkan uang dalam bentuk fisik.
+Sebaliknya, yang adalah arus sesuatu yang mewakili uang (cek, slip kartu kredit, transaksi
+dalam bentuk elektronik). Hanya pada tingkat eceran uang kas benar-benar berpindah
+tangan. Karena itu arus uang menghubungkan perusahaan dengan lembaga-lembaga
+keuangan, para pelanggan, pemasok, pemegang saham, pekerja, dan pemerintah.
+
+         Tugas manajer adalah mengelola kelima sumber daya tersebut agar dapat digunakan
+dengan cara yang paling efektif. Empat jenis sumber daya yang pertama memiliki wujud
+(dapat dilihat secara langsung), sehingga secara fisik dapat disentuh, dikelola dan
+dimanfaatkan secara langsung. Sumber daya tersebut dikenal dengan istilah sumber daya
+fisik, sedangkan sumber daya yang kelima yaitu informasi, hanya memiliki nilai dari apa
+yang diwakilinya, bukan dari bentuk atau wujudnya.
+
+         Sumber daya informasi disebut juga dengan sumber daya konseptual. Para manajer
+dituntut agar dapat menggunakan sumber daya konseptual untuk mengelola sumber daya
+fisik. Dalam mengelola suatu organisasi, maka manajer akan selalu melakukan kegiatan
+pengambilan keputusan dalam rangka menggerakkan organisasi agar mencapai tujuan
+yang ditetapkan. Dan para manajer menyadari bahwa ketersediaan informasi yang relevan,
+akurat, komplit dan tepat waktu menjadi faktor penting dalam pengambilan keputusan
+yang tepat.
+
+         Sumber daya diperoleh dan disusun agar siap digunakan pada saat diperlukan.
+Proses pengolahan atau penyusunan sumber daya menjadi lebih baik tersebut,
+memerlukan biaya mahal, sehingga setelah sumber daya tersebut disusun seorang manajer
+dituntut untuk memaksimalkan penggunaan sumber daya dalam kegiatan manajemennya.
+Selanjutnya manajer harus meminimalkan biaya dan waktu yang terbuang untuk perbaikan
+sumber daya dengan cara menjaga berfungsinya sumber daya secara kontinyu pada titik
+efisiensi puncak. Manajer akan melakukan penggantian sumber daya tersebut pada saat
+kritis, sebelum sumber daya tersebut menjadi tidak efisien.
+
+                                                                                       5
+1.2. Pentingnya Manajemen Informasi
+
+         Manajer memastikan bahwa data mentah yang diperlukan terkumpul dan kemudian
+diproses menjadi informasi yang berguna. Kemudian manajer memastikan bahwa orang
+yang layak dalam organisasi menerima informasi tersebut dalam bentuk yang tepat pada
+saat yang tepat sehingga informasi tersebut dapat dimanfaatkan. Akhirnya manajer
+membuang informasi yang tidak berguna lagi dan menggantikannya dengan informasi yang
+terkini dan akurat. Seluruh aktivitas tersebut (memperoleh informasi, menggunakannya
+seefektif mungkin dan membuangnya pada saat yang tepat, disebut sebagai manajemen
+informasi.
+
+         Munculnya paradigma baru yaitu berupa informasi yang termasuk dalam
+sumberdaya utama organisasi akan mendorong usaha terhadap manajemen informasi.
+Perhatian terhadap Manajemen Informasi tersebut antara lain disebabkan oleh:
+
+     Pengaruh ekonomi internasional --> perusahaan-perusahan besar/kecil semua
+         terkena pengaruh ekonomi yang dapat bersumber dari belahan dunia manapun.
+         Pengaruh tsb. Terlihat pada nilai relatif mata uang tiap negara.
+
+     Persaingan tingkat dunia (globalisasi) --> persaingan tidak lagi terjadi dalam wilayah
+         geografisnya, nampak pada nilai impor dari luar negeri. Hal tersebut ditunjukkan
+         dengan adanya perjanjian antar negara berupa APEC, AFTA, WTO, dan sebagainya.
+
+     Peningkatan kompleksitas teknologi --> berbagai macam teknologi dalam
+        kehidupan ini telah banyak diterapkan sistem barcode scanners di pasar swalayan,
+        sistem pemesanan penerbangan, Automated Teller Machine (ATM), Closed Circuit
+        Television (CCTV) di gedung-gedung parkir, dan sebagainya.
+
+     Waktu yang terbatas --> semua tahap operasi bisnis saat ini dilaksanakan dengan
+         lebih cepat daripada sebelumnya. Sehingga muncul aktivitas pemasaran secara jarak
+        jauh melalui telepon (telemarketing) maupun internet (e-commerce). Selain itu
+        dijumpai pula penjadwalan pengiriman material produksi agar tiba tepat waktu (just
+        in time).
+
+     Kendala sosial --> pada kenyataan terdapat produk dan jasa yang tidak diinginkan
+         oleh masyarakat. Hal tersebut disebabkan oleh adanya keputusan bisnis yang hanya
+         didasarkan pada faktor-faktor ekonomis dengan mengabaikan perhatian atau
+         pertimbangan terhadap keuntungan dan biaya sosial.
+
+1.3. Fungsi dan Peranan Manajer
+
+         Pada awalnya, pemakai output komputer pada perusahaan adalah pegawai
+administrasi di bagian akuntansi, yang komputernya melaksanakan aplikasi seperti
+pembayaran gaji pegawai, pengelolaan persedian (inventory control), dan penagihan.
+Sebagian informasi juga disediakan bagi para manajer, tetapi hanya sebagai output
+
+                                                                                       6
+tambahan dari aplikasi akuntansi. Dengan demikian secara ringkas para pengguna dan
+pelaku sistem informasi meliputi:
+
+      Manajer
+      Non-manajer
+      Orang dan unit organisasi yang ada dalam organisasi dan lingkunganny
+
+         Para pelaku dan pemakai dari kelompok manajer, akan dibagi menjadi beberapa
+tingkatan dan dalam berbagai bidang fungsional pada perusahaan. Manajer dijumpai pada
+semua jenjang, sesuai dengan tingkatan manajemen, yaitu:
+
+     Tingkat Perencanaan Strategis (Strategic Planning Level)
+         Merupakan manajer pucak organisasi. Mereka mempunyai pengaruh atas
+         keputusan-keputusan yang diambil pada seluruh organisasi selama beberapa tahun
+         mendatang. Istilah lain yang digunakan yakni eksekutif.
+
+     Tingkat Pengendalian Manajemen (Management Control Level)
+         Merupakan manajer tingkat menengah, yang memiliki tanggung jawab untuk
+         merubah rencana menjadi tindakan dan memastikan agar tujuannya tercapai.
+
+     Tingkat Pengendalian Operasional (Operational Control Level)
+         Merupakan manajer tingkat bawah, yang bertangung jawab menyelesaikan
+         rencana-rencana yang telah ditetapkan oleh para manajer ditingkat yang lebih
+         tinggi.
+         Tingkat manajemen dapat mempengaruhi sumber informasi dan bentuk penyajian
+
+informasi. Komponen sumber informasi dikategorikan dalam dua kelompok besar yaitu
+dari lingkungan dan internal. Secara diagram hubungan tingkat manajemen terhadap
+sumber informasi dapat dilihat pada Gambar 1.1. dan tingkat manajemen terhadap bentuk
+penyajian informasi dapat dilihat pada Gambar 1.2.
+
+                                            Strategic Planning Level
+
+                                           Management Control Level
+
+                                            Operational Control Level
+
+           Gambar 1.1. Pengaruh Tingkat Manajemen Terhadap Sumber Informasi
+
+                                                                                       7
+                                           Strategic Planning Level
+
+                                           Management Control Level
+
+                                           Operational Control Level
+
+     Gambar 1.2. Pengaruh Tingkat Manajemen Terhadap bentuk penyajian informasi
+
+         Selain keberadaan manajer itu ada di berbagi tingkatan organisasi atau perusahaan.
+Manajer juga dijumpai dalam bidang fungsional perusahaan, tempat berbagai sumberdaya
+dipisahkan menurut jenis pekerjaan yang dilakukan. Pembagian bidang fungsional pada
+umunya yaitu seperti berikut, dan dapat dilihat pada Gambar 1.3.
+
+    · Bidang fungsional keuangan (Finance)
+    · Bidang fungsional jasa informasi (Information services)
+    · Bidang fungsional pemasaran (Marketing)
+    · Bidang fungsional sumberdaya manusia (Human resources)
+    · Bidang fungsional manufaktur (Manufacturing)
+
+                                             Strategic Planning Level
+
+                                                 Management Control Level
+
+                                                       Operational Control Level
+
+                    Gambar 1.3. Keberadaan Manajer Pada Semua Tingkatan
+        Seorang ahli teori manajemen berkebangsaan Perancis, Henry Fayol, tahun 1914
+menyatakan bahwa manajer melaksanakan lima fungsi-fungsi manajemen yang utama.
+Pertama, manajer merencanakan (plan) apa yang akan dilakukan. Kemudian, menyusun staf
+(staff) organisasi mereka dengan sumber daya yang diperlukan, serta melakukan
+pengaturan (organize). Dengan sumber daya yang ada, mereka mengarahkan (direct) untuk
+melaksanakan rencana. Akhirnya mereka mengendalikan (control) sumber daya,
+menjaganya agar tetap beroperasi secara optimal. Semua manajer, apapun tingkatannya
+melaksanakan fungsi-fungsi tersebut, walaupun mungkin dengan penekanan yang
+berlainan. Pada Gambar 1.4 ini menyatakan bagaimana tingkatan manajemen dapat
+mempengaruhi penekanan pada berbagai fungsi manajemen.
+
+                                                                                       8
+   Strategic    Management     Operational
+Planning Level  Control Level  Control Level
+
+          Gambar 1.4. Tingkatan Manajemen Pada Tingkat Fungsional Manajemen
+        Sementara itu Henry Mintzberg, professor pada McGill University Kanada,
+menganggap bahwa fungsi-fungsi Fayol tidak memberikan gambaran yang menyeluruh. Ia
+mengembangkan kerangka kerja yang lebih yang harus dimainkan oleh manajer, meliputi
+aktivitas antar-pribadi (interpersonal), informasi (informational) dan keputusan
+(decisional).
+        Sistem informasi manajemen yang baik, dirancang berdasarkan fungsi- fungsi dan
+peran-peran manajerial tersebut. Di samping itu agar SIM yang dirancang oleh suatu
+lembaga benar-benar fungsional, maka harus dikembangkan dengan memperhatikan
+keahlian yang harus dimiliki oleh seorang manajer (McLeod, 2007). Keahlian tersebut
+meliputi keahlian dalam berkomunikasi dan keahlian dalam memecahkan masalah.
+Keahlian tersebut akan segera terbentuk apabila SIM yang dikembangkan benar-benar
+fungsional.
+        Keahlian manajer dalam berkomunikasi meliputi kegiatan menerima dan
+mengirimkan informasi dalam bentuk lisan atau tertulis. Komunikasi tertulis meliputi
+laporan, surat, memo, surat elektronik dan terbitan berkala. Komunikasi lisan terjadi saat
+rapat, saat menggunakan telepon atau voice mail, saat meninjau fasilitas, dan selama acara
+makan, bisnis serta berbagai kegiatan sosial. Tiap manajer memiliki pilihan medianya
+sendiri. Seorang manajer mungkin lebih menyukai percakapan telepon daripada surat
+elektronik, sementara yang lain mungkin kebalikannya. Para manajer menyusun suatu
+perpaduan media komunikasi yang sesuai dengan gaya manajemen mereka.
+        Keahlian manajer dalam memecahkan masalah (problem solving) dapat
+didefinisikan sebagai semua kegiatan yang mengarah pada solusi suatu permasalahan.
+Masalah biasanya dianggap sebagai sesuatu yang selalu buruk, karena sangat sedikit yang
+menganggap masalah sebagai sesuatu untuk meraih kesempatan. Hasil dari aktivitas
+pemecahan masalah adalah solusi. Selama proses pemecahan masalah, manajer terlibat
+dalam pengambilan keputusan (decision making), yaitu tindakan memilih dari berbagai
+
+                                                                                       9
+alternatif tindakan. Keputusan adalah suatu tindakan tertentu yang telah dipilih. Seorang
+manajer yang berhasil harus banyak memiliki keahlian. Dari sekian banyak keahlian
+tersebut, terdapat dua keahlian yang mendasar, yaitu:
+
+     Keahlian Komunikasi (communication skill) --> Manajajer senantiasa berkomunikasi
+         dengan bawahannya, atasannya, orang-orang lain di unit lain dalam perusahaan, dan
+         orang-orang lain di luar perusahaan. Media yang digunakan bisa berupa media
+         tertulis atau lisan. Tiap manajer memiliki pilihannya tersendiri dan menyusun suatu
+         paduan media komunikasi yang sesuai dengan gaya manajemennya.
+
+     Keahlian Pemecahan Masalah (problem solving) --> sebagai suatu kegiatan yang
+         mengarah pada sokusi dari suatu permasalahan. Selama proses pemecahan masalah,
+         manajer terlibat dalam pengambilan keputusan (decision making), yaiu tindakan
+         memilih dari berbagai alternative tindakan. Pada umumnya, manajer perlu membuat
+         keputusan ganda dalam proses memecahkan suatu permasalahan tunggal.
+        Selain keahlian dasar tersebut, seorang manajer juga harus mengerti mengenai
+
+pengetahuan manajemen yang berbasis komputer, yaitu:
+     Mengerti Komputer --> istilah-istilah komputer, keunggulan dan kelemahan
+        komputer, kemampuan menggunakan komputer, dan lainnya.
+     Mengerti Informasi --> bagaimana menggunakan informasi, perolehan informasi,
+        dan bagaimana berbagi informasi, dan lainnya.
+
+1.4. Elemen Dalam Sistem Informasi
+
+        Sistem adalah sekelompok elemen yang bekerja sama (terintegrasi) untuk mencapai
+suatu tujuan atau sasaran tertentu. Organisasi atau perusahaan terdiri dari sejumlh
+sumberdaya yang bekerja menuju tercapainya suatu tujuan tertentu yang ditentukan oleh
+pemiliki atau manajemen. Setiap sistem memiliki batas-batas luar yang memisahkannya
+dari lingkungannya. Tidak semua sistem memiliki kombinasi elemen sistem yang sama,
+namun secara umum bisa digambarkan terdiri dari sumberdaya input (masukan), proses
+transformasi, dan sumberdaya output (keluaran).
+Berdasarkan Hubungan elemen, sistem dibagi atas:
+
+    Open Sistem --> sistem yang dihubungkan dengan lingkungannya melalui arus
+        sumberdaya.
+
+    Closed Sistem --> sistem yang tidak dihubungkan dengan lingkungannya.
+Berdasarkan besar kecilnya sistem, sistem terbagi atas:
+
+     Subsistem; sistem di dalam suatu sistem;
+     Supersistem atau suprasistem
+
+         Antara supersistem, sistem dan subsistem harus terjalin dalam satu kesatuan yang
+bersinergi. Ketiganya harus diikat dalam sebuah sistem informasi manajemen. Dengan
+demikian sistem informasi yang menghasilkan informasi dengan akurasi dan presisi tinggi
+
+                                                                                     10
+menjadi sebuah keharusan, agar ketiga sistem tersebut dapat berjalan seiring dan sejalan
+dalam mencapai tujuan.
+
+1.5. Macam dan Nilai CBIS
+
+         Manajer membuat keputusan untuk memecahkan masalah, dan informasi
+digunakan dalam membuat keputusan. Informasi disajikan dalam bentuk lisan maupun
+tertulis oleh suatu pengolah informasi. Porsi komputer dalam mengolah informasi terdiri
+dari berbagai aplikasi berbasis komputer, seperti Sistem Informasi Akuntansi (SIA), Sistem
+Informasi Manajemen (SIM), Decision Support System (DSS), Office Automation (OA),
+Expert System (ES) (McLeod, 2007).
+
+         Istilah yang mencakup semua aplikasi berbasis komputer adalah sistem informasi
+berbasis komputer (Computer Based Information System), untuk menggambarkan lima
+subsistem yang menggunakan komputer. Semua subsistem CBIS menyediakan informasi
+untuk pemecahan masalah.
+
+         Tanpa memandang apakah spesialis informasi atau pemakai yang mengembangkan
+aplikasi, CBIS harus dinilai dengan cara yang sama seperti investasi besar lain dalam
+perusahaan. Sebenarnya sangat sulit mengukur nilai CBIS, ada perusahaan yang mencoba
+menimbang nilai komputer berdasarkan biaya tenaga administrasi (clerical cost) yang
+digantikan. Sebenarnya hal ini tidaklah tepat, karena setelah ada CBIS hanya sedikit
+pegawai administrasi yang kehilangan pekerjaanya. Namun manfaat yang besar diperoleh
+perusahaan setelah ada CBIS, yaitu mampu mencapai peningkatan efisiensi dan efektivitas,
+bahkan mampu mengurangi investasi.
+
+        Sebagi bukti bahwa CBIS itu lebih efisien dari pendahulunya sistem manual, bahwa
+salah satu aplikasi komputer pertama adalah pengendalian persediaan dan perusahaan
+umumnya dapat mengurangi investasi persediaan mereka dengan mengkomputerisasi
+catatan persediaan.
+
+         Karena sukarnya mengukur nilai CBIS, perusahaan-perusahaan sangat berhati-hati
+dalam membuat keputusan untuk menerapkan sistem seperti itu. Banyak waktu manajer
+dan staf yang dihabiskan untuk mengevaluasi dampak sistem itu pada organisasi.
+Menimbang-nilai CBIS, dengan menggunakan gabungan ukuran-ukuran kuantitatif dan
+subyektif, adalah langkah kunci dalam mencapai sumber daya yang berharga ini.
+
+         Dalam beberapa hal, nilai CBIS juga dapat dipertimbangkan dari siklus CBIS. Tiap
+subsistem CBIS menyerupai suatu organisme hidup yaitu: lahir, bertumbuh, menjadi
+matang, berfungsi dan akhirnya mati. Proses evolusi ini disebut siklus hidup sistem (System
+Life Cycle ­ SLC), dan terdiri dari tahap-tahap berikut: (1) Perencanaan; (2) Analisis; (3)
+Rancangan; (4) Penerapan; dan (5) Penggunaan.
+
+         Siklus hidup suatu sistem berbasis komputer mungkin hanya berlangsung beberapa
+bulan, atau mungkin berlangsung beberapa tahun, sehingga dapat dikatakan bahwa CBIS
+
+                                                                                     11
+mempunyai biaya yang tinggi. Cepat atau lambat, sifat dinamis kebutuhan informasi akan
+melampaui kemampuan sistem informasi, sehingga sistem itu harus diperbarui. Tahap-
+tahap siklus hidup sistem membentuk suatu pola lingkaran. Saat suatu sistem berakhir
+masa kegunaannya dan harus diganti, suatu siklus hidup baru dimulai, diawali dengan tahap
+perencanaan.
+
+         Walau banyak orang mungkin menyumbangkan keahlian khusus mereka untuk
+pengembangan sistem berbasis komputer, pemakailah yang bertanggung jawab atas siklus
+hidup sistem. Sesuai dengan penekanan pada manajer sebagai pemakai, tanggung jawab
+untuk mengelola CBIS ditugaskan pada manajer. Manajer ini adalah manajer dari unit
+organisasi tempat diaplikasikannya komputer dan dapat ditempatkan di mana saja di dalam
+perusahaan.
+
+         Seiring berkembangnya CBIS, manajer merencanakan siklus hidup dan mengatur
+para spesialis informasi yang terlibat. Setelah penerapan, manajer mengendalikan CBIS
+untuk memastikan bahwa sistem tersebut terus menyediakan dukungan yang diharapkan.
+Saat manajer memilih untuk memanfaatkan dukungan para spesialis informasi, kedua pihak
+bekerja sama untuk mengidentifikasi dan mendefinisikan masalah, mengidentifikasi dan
+mengevaluasi solusi alternatif, memilih solusi terbaik, merakit perangkat keras dan
+perangkat lunak yang sesuai, menciptakan database, dan menjaga kemutakhiran sistem.
+Semua kegiatan tersebut akan dapat dilakukan dalam waktu relative singkat apabila
+perusahaan telah menggunakan sistem informasi berbasis komputer.
+
+                                                                                     12
+                 2. General System Model (GSM)
+
+      Definisi Model
+
+         Model adalah Penyederhanaan (abstraction) dari sesuatu. Dimana Model mewakili
+sejumlah objek atau aktivitas yang disebut entitas. Seorang manager akan menggunakan
+model sebagai alat untuk pemecahan masalah. (Mc. Leod, 2007).
+
+         Ada 4 Jenis Model Dasar:
+        (1). Model Fisik --> Penggambaran entitas dalam bentuk tiga dimensi, melalui
+
+              rancangan fisik. Model fisik yang digunakan dalam dunia bisnis meliputi maket
+              pusat perbelanjaan, atau prototype model baru.
+        (2). Model Naratif --> Menggambarkan entitas secara lisan atau tulisan dan hal ini
+              digunakan dalam hampir semua komunikasi bisnis. Semua komunikasi bisnis
+              adalah model naratif, sehingga model naratif merupakan model yang paling
+              populer. Model ini sering digunakan para manajer, namun jarang dikenali
+              sebagai suatu model.
+        (3). Model Grafik --> Menggambarkan entitasnya dengan sejumlah garis, simbol atau
+              bentuk untuk mengkomunikasikan suatu informasi. Model grafik digunakan
+              dalam bisnis untuk mengkomunikasikan informasi. Banyak laporan tahunan
+              perusahaan kepada para pemegang saham berisikan grafik- grafik berwarna
+              untuk menyampaikan kondisi keuangan perusahaan. Grafik juga digunakan
+              untuk mengkomunikasikan informasi kepada para manajer. Model grafik juga
+              digunakan dalam rancangan sistem informasi. Banyak peralatan yang digunakan
+              oleh analisis sistem dan programmer yang bersifat grafik. Contohnya bagan arus
+              (flowchart) dan diagram arus data (data flow diagram ­ DFD).
+        (4). Model Matematika --> Penggunaan semua rumus atau persamaan matematika.
+              Model matematika yang digunakan para manajer bisnis umumnya tidak lebih
+              rumit daripada model yang biasa digunakan dalam matematika.
+
+         Pada setiap organisasi, peran informasi sangatlah penting. Bahkan, informasi
+dianggap sebagai sebagai salah satu sumberdaya utama organisasi, diantaranya personil
+(human), bahan (material), mesin (machine), dana (money), dan informasi. Kegunaan Model
+antara lain:
+
+         1. Mempermudah Pengertian Sebab suatu model pasti lebih sederhana daripada
+             entitasnya. Elemen dan hubungan dari entitas itulah yang disederhanakan.
+
+         2. Mempermudah Komunikasi Karena keempat model dapat mengkomunikasikan
+             informasi secara cepat dan akurat kepada orang-orang yang mengetahui makna
+             dari berbagai bentuk, kata-kata, grafik dan matematika.
+
+                                                                                     13
+         3. Memperkirakan Masa Depan Ketelitian dalam menggambarkan entitas
+             membuat model matematika dapat memberikan kemampuan yang tidak dapat
+             disediakan oleh jenis model lain.
+
+         Catatan: Tidak ada model yang seratus persen akurat, karena banyak data yang
+dimasukkan kedalam model biasanya didasarkan atas berbagai asumsi.
+
+      Pengendalian Manajemen
+
+ Sistem Lingkaran Terbuka
+          Dalam sistem lingkaran terbuka hanya ada sumber masukkan, proses, dan sumber
+
+keluaran. Dan tidak ada umpan balik menjadi unsur jalannya pengendalian atas produk
+yang dihasilkan. Perusahaan-perusahaan tersebut menggunakan sistem terbuka, tetapi
+umpan balik dan mekanise pengendaliannya tidak bekerja sebagaimana mestinya.
+Perusahaan itu mulai pada suatu jalan dan tidak pernah berganti arah. Jika perusahaan
+kehilangan kendali, tidak ada yang dilakukan untuk mengendalikan keseimbangan.
+Hasilnya adalah kehancuran sistem (kebangkrutan). Gambar Sistem Lingkaran Terbuka
+dapat dilihat pada Gambar 2.1.
+
+Gambar 2.1.  Sistem Lingkaran Terbuka
+
+ Sistem Lingkaran Tertutup
+          Dalam sistem lingkaran tertutup proses pengendalian atas produk yang dihasilkan
+
+dapat terus dilaksanakan, dikarenakan adanya umpan balik (feedback). Sebab umpan balik
+menjadi unsur jalannya pengendalian atas produk yang dihasilkan. Lingkaran umpan balik
+tediri dari informasi. Manajemen menggunakan informasi sebagai dasar untuk membuat
+perubahan dalam sistem fisik. Informasi tersebut menggambarkan output sistem. Banyak
+laporan manajemen mencakup informasi jenis tersebut (misalnya volume produksi, biaya
+distribusi, dan analisis penjualan). Karena tujuan utama perusahaan adalah menghasilkan
+sejumlah jenis output, maka ukuran output merupakan bagian integral dari pengendalian
+sistem. Gambar Sistem Lingkaran Tertutup dapat dilihat pada Gambar 2.2.
+
+                                       14
+                                Gambar 2.2. Sistem Lingkaran Tertutup
+
+         Umpan balik yang berguna untuk proses pengendalian adalah sebuah informasi yang
+memiliki beberapa dimensi. Berikut ini dimensi informasi, diantaranya adalah:
+
+        1. Relevansi / Keterkaitan --> Informasi memiliki relevansi jika berkaitan langsung
+              dengan masalah yang ada tanpa membaca seluruh informasi disubjek lain.
+              Berkaitan dengan masalah yang terjadi. Manajer harus mampu memilih
+              informasi yang diperlukan tanpa membaca seluruh informasi mengenai subyek
+              lain.
+
+        2. Akurasi / Accuracy --> Diperlukan peningkatan ketelitian sistem untuk
+              keakuratan suatu informasi. Idealnya, semua informasi harus akurat, tetapi
+              peningkatan ketelitian sistem menambah biaya. Karena alasan tersebut,
+              manajer terpaksa menerima ketelitian yang kurang dari sempurna. Kasus
+              aplikasi pembayaran gaji, penagihan dan piutang, menuntut ketelitian 100 %.
+
+        3. Ketepatan Waktu / Timelines --> Informasi harus tersedia untuk memecahkan
+              masalah sebelum situasi krisis menjadi tidak terkendali atau kesempatan hilang.
+              Informasi harus tersedia untuk memecahkan masalah sebelu situasi krisi
+              menjadi tidak terkendali atau kesempatan menghilang. Manajer harus mampu
+              memperoleh informasi yang menggambarkan apa sedang terjadi saat ini, selain
+              apa yang telah terjadi di masa lampau.
+
+        4. Lengkap / Complete --> Manajer harus mampu memperoleh informasi yang
+              menyajikan gambaran lengkap dari suatu permasalahan atau penyelesaian.
+              Manajer harus mampu memperoleh informasi yang menyajikan gambaran
+              lengkap dari suatu permasalahan atau penyelesaian. Namun, rancangan sistem
+              seharusnya tidak menenggelamkan manajer dalam lautan informasi. Istilah
+              kelebihan informasi (information overload) mengakui adanya bahaya dari
+              informasi yang terlalu banyak. Manajer harus mampu menentukan jumlah
+              rincian yang diperlukan.
+
+                                                                                     15
+      Management by Exception (MBE)
+
+          Management by Exception (MBE): Merupakan gaya / tindakan yang dilakukan oleh
+manager apabila terjadi ketidaksesuaian antara kinerja aktual (apa yang telah atau sedang
+dicapai) dengan standart kinerja (apa yang harus dicapai). Ada 2 hal penting dalam MBE,
+yaitu: Tujuan dan Standart. Manajer untuk dapat mengendalikan apa yang menjadi
+tanggung jawabnya harus didukung oleh: Informasi mengenai apa yang telah dan sedang
+dicapai pada unit kerjanya. Standart kinerja yang dapat menunjukkan apa yang harus
+dicapai oleh unit kerjanya. Management by exception memberikan tiga keuntungan dasar,
+diantaranya yaitu:
+
+          1. Manajer tidak membuang-buang waktu untuk memantau aktivitas yang
+                  berlangsung secara normal.
+
+          2. Karena lebih sedikit keputusan yang dibuat, maka tiap keputusan dapat
+                  memperoleh perhatian lebih menyeluruh.
+
+          3. Perhatian dipusatkan pada peluang-peluang, maupun pada hal-hal yang tidak
+                  berjalan semestinya.
+
+Namun terdapat pula sejumlah kendala yang harus diketahui, yaitu:
+          1. Beberapa jenis kinerja bisnis tertentu tidak mudah ditentukan secara
+                  kuantitas sehingga standar tidak dapat ditetapkan.
+          2. Suatu sistem informasi yang memantau kinerja secara akurat sangat
+                  diperlukan.
+          3. Perhatian harus terus diarahkan pada standar untuk menjaga standar pada
+                  tingkat yang tepat.
+          4. Manajer tidak boleh pasif dan hanya menunggu batas kinerja lewat. Manajer
+                  harus bertindak memecahkan suatu permasalahan sebelum situasi menjadi
+                  tidak terkendali.
+          Management by exception merupakan kemampuan dasar yang disediakan CBIS.
+
+Dengan membiarkan CBIS memikul sebagian tanggung jawab memantau sistem fisik,
+waktu manajer dapat digunakan secara efektif.
+
+      Standart dan Objective
+
+          Standart dikombinasikan dengan output informasi dari pengolah informasi,
+memungkinkan manajer untuk melaksanakan Management by exception. Management by
+exception adalah suatu gaya yang diikuti manajer, yaitu manajer terlibat dalam aktivitas
+hanya jika aktivitas itu menyimpang dari kinerja yang dapat diterima. Agar manajer dapat
+mempraktekan management by exception, harus ditetapkan standar dalam bentuk batas
+atas dan batas bawah kinerja yang dapat diterima.
+
+                                                                                     16
+          Manajer dapat melakukan pengendalian atas bagian yang menjadi tanggung
+jawabnya, harus terdapat dua unsur, yaitu: harus ada informasi yang menggambarkan apa
+yang sedang dicapai pada bagian tersebut, dan harus ada standar kerja yang mencerminkan
+apa yang harus dicapai bagian tersebut.
+
+          Dapat dilakukan definisi tujuan sebagai sasaran keseluruhan yang harus dicapai
+sistem. Suatu sistem harus memiliki sedikitnya satu tujuan, tetapi dapat pula beberapa
+tujuan. Tujuan biasanya dinyatakan secara umum. Supaya para manajer dapat
+mengendalikan sistem, mereka memerlukan sesuatu yang lebih khusus daripada tujuan,
+yang dapat dicapai melalui standar. Standar adalah ukuran kerja yang dapat diterima,
+dinyatakan secara ideal dalam istilah-istilah spesifik.
+
+          Manajer menggunakan standar untuk mengendalikan sistem fisik dengan
+membandingkan kinerja aktual.Standart adalah ukuran kinerja yang dapat diterima, dan
+biasanya digunakan untuk mengontrol sistem fisik, dan memiliki satuan pengukuran.
+Objective adalah suatu tujuan keseluruhan sistem untuk mendapatkan atau memiliki satu
+atau lebih tujuan. Berikut ini adalah contoh perbandingan antara standart dengan objective
+dapat dilihat pada Tabel 2.1.
+
+Tabel 2.1. Perbandingan antara Tujuan dan Objective
+
+                Tujuan                                      Standart
+Memenuhi Kebutuhan              Mencapai hasil penjualan sedikitnya $ 25
+Customer
+                                   juta/tahun
+Menghasilkan ROI (return on     Mempertahankan saham dipasar 20%
+invesmet) untuk pemilik modal   Mempertahankan tingkat pertumbuhan
+
+Mengoperasikan secara efisien      15%/tahun
+                                Membayar deviden kepada pemegang saham
+Investasi masa depan
+Peningkatan penyediaan             setiap kwartal
+sumber pengembalian             Memelihara harga saham dibursa diatas $
+
+                                   85/lembar
+                                Penghasilan setelah pajak 15% dari perusahaan
+                                Mempertahankan tanpa kecelakaan kerja
+                                Menjaga turn over karyawan dibawah 10%
+                               Minimum 15% penjualan untuk R & D
+                               Persediaan yang habis <= 20% jenis barang dalam
+                               persediaan sepanjang tahun
+
+      Arus Keputusan
+
+          Modifikasi lain pada model umum diperlukan untuk mencerminkan bagaimana
+keputusan manajemen dapat mengubah sistem fisik. Sama seperti manajer harus
+mengumpulkan data dari ketiga elemen dalam sistem fisik (input, pengolahan, dan output).
+Manajer juga harus mampu membuat perubahan-perubahan pada kinerja ketiga elemen
+
+                                                                                     17
+tersebut. Sistem konseptual mengendalikan Sistem Fisik dengan menggunakan tiga elemen
+penting, yaitu: Manajemen, Pengolah Informasi, Standart. Umpan balik dari manajer ke
+sistem fisik adalah "keputusan untuk mencerminkan bagaimana manajer mengubah kinerja
+sistem". Gambar Sistem Fisik yang melalui Decision Flow dapat dilihat pada Gambar 2.3
+
+                       Gambar 2.3. Sistem Fisik yang Melalui Decision Flow
+
+      Critical Success Factor (CSF)
+
+          Konsep manajemen yang sama dengan management by exception disebut faktor
+sukses kritis (Critical Success Factors ­ CSF). CSF adalah salah satu kegiatan perusahaan
+yang berpengaruh kuat pada kemampuan perusahaan mencapai tujuannya. Perusahaan
+biasanya memiliki beberapa CSF. Misalnya pada industri otomotif, CSF yang telah
+teridentifikasi adalah gaya, jaringan dealer yang efisien, dan pengendalian biaya
+manufaktur yang ketat. Sistem informasi memungkin manajer mengikuti CSF dengan
+melaporkan informasi tentang CSF.
+
+          Konsep CSF sama dengan management by exception dalam hal memusatkan
+perhatian pada sebagian operasi perusahaan daripada keseluruhan. Selain itu, kedua
+konsep tersebut berbeda dalam hal CSF relatif stabil, sedangkan unsur-unsur pengecualian
+dari management by exception dapat berubah dari satu periode ke periode selanjutnya.
+
+                                                                                     18
+      Model Umum Sistem Perusahaan
+
+          Pendekatan yang dilakukan dalam hal ini adalah berdasarkan penggunaan
+komputer dalam bisnis, mencakup hal semua sistem informasi di segala jenis organisasi, dan
+sarana yang digunakan adalah model sistem umum perusahaan. Bentuk akhir dari model
+umum mengungkapkan bahwa sumber daya mengalir ke perusahaan dari lingkungan dan
+dari perusahaan kembali ke lingkungan. Sebagaimana dapat dilihat pada Gambar 7.5,
+sumberdaya konseptual (data dan informasi) masuk ke pengolah informasi, untuk disimpan
+atau disediakan bagi manajer.
+
+                            Gambar 2.4. Model Umum Sistem Perusahaan
+
+      Contoh Penggunaan Dari Model Umum Sistem Perusahaan
+
+          Semua sumber daya fisik mengalir melalui sistem fisik sebuah pasar swalayan. Arus
+utama adalah material, yaitu bahan makanan dan barang-barang lain yang dijual. Arus
+personil terdiri dari manajer toko, kasir, pegawai gudang, dan orang-orang lain yang
+dipekerjakan untuk suatu jangka waktu dan akhirnya berhenti. Sejumlah kecil mesin
+digunakan, yaitu alat pembaca bar code di kasir. Terdapat pula mesin-mesin di belakang
+layar seperti komputer, kalkulator dan telepon. Alat lainnya mencakup lemari pendingin,
+kotak peraga, dan rak-rak untuk menempatkan barang dagangan yang akan dijual. Arus
+uang ke pasar swalayan disediakan oleh para pelanggan, dan arus keluar terutama
+berbentuk pembayaran kepada para pemasok, pegawai dan pemilik.
+
+                                                                                     19
+          Proses transformasi meliputi membuka karton dan mengatur barang dagangan di
+rak. Dengan perkataan lain adalah semua kegiatan yang membuat berbagai produk siap
+untuk dijual secara mudah dan menarik.
+
+          Elemen manajemen dalam sistem konseptual terdiri dari manajer toko dan para
+asisten manajer. Pengolah informasi adalah komputer toko tersebut, yang mengendalikan
+alat pembaca bar code dan menyediakan harga-harga untuk berbagai barang. Komputer
+juga mengirim data ke kantor pusat yang menyebutkan barang-barang yang akan dipesan,
+menyediakan statistik penjualan, dan sebagainya.
+
+          Standar kinerja paar swalayan ditetapkan bersama oleh kantor pusat dan
+manajemen toko. Standar dalam bentuk kuota penjualan dan anggaran operasi memberi
+para manajer panduan mengenai tingkat kinerja yang harus dicapai. Manajer menggunakan
+pengamatan dan pengolah informasi untuk memantau kinerja aktual dan
+membandingkannya dengan standar.
+
+          Manajer menerima sejumlah laporan yang menunjukkan barang mana yang laku,
+dan yang tidak. Manajer menanggapi laporan tersebut dengan mengambil tindakan seperti
+menyesuaikan jumlah pesanan, mengatur ulang rak, mengadakan obral, serta menambah
+papan tanda dan rak promosi. Laporan tersebut juga dapat menunjukkan jam dan hari
+dimana penjualan sangat tinggi dan sangat rendah. Informasi tersebut berguna untuk
+mempekerjakan dan menjadualkan para pegawai agar dapat memberikan pelayanan yang
+memadai bagi pelanggan.
+
+          Manajer pasar swalayan menggunakan informasi dari pengolah informasi,
+ditambah standar-standar yang ada, sebagai dasar untuk membuat sejumlah perubahan
+dalam sistem fisik sehingga pasar swalayan dapat terus bekerja menuju tujuannya.
+
+                                                                                     20
+                      3. The System Approach
+
+      Arti Penting Pendekatan Sistem
+
+          Berbagai definisi muncul dari berbagai para ahli yang berbeda dengan memberikan
+definisi yang berbeda terhadap suatu hal yang sama. Salah satu definisi menyatakan bahwa
+pendekatan sistem sebagai sebuah teknik dalam menerapkan pendekatan ilmiah untuk
+memecahkan masalah-masalah yang yang kompleks, yang menekankan pada analisis dan
+perancangan secara menyeluruh atau ada juga yang berpendapat sebagai sebuah filosofi
+atau persepsi tentang struktur yang terkoordinir secara efisien dan optimal dalam
+menjalankannya aktivitas-aktivitas dan operasi perusahaan dalam organisasi apapun.
+
+          Beberapa peneliti melihat pendekatan sistem adalah sebagai perluasan dari
+metode pemecahan masalah. Masalah merupakan suatu kondisi yang memiliki potensi
+untuk menimbulkan kerugian atau menghasilkan keuntungan yang luar biasa. Jadi
+Pemecahan Masalah berarti tindakan memberi respons terhadap masalah untuk menekan
+akibat buruknya atau memanfaatkan peluang keuntungannya. Pentingnya pemecahan
+masalah bukan didasarkan pada jumlah waktu yang dihabiskan tetapi pada
+konsekuensinya. Serangkaian keputusan untuk memecahkan suatu masalah mungkin
+hanya membutuhkan sedikit jam namun dapat mempengaruhi laba perusahaan hingga
+ribuan atau jutaan dolar. Dalam memecahkan masalah, seorang manajer akan membuat
+banyak keputusan. Keputusan adalah pemilihan strategi atau tindakan. Pengambilan
+keputusan adalah tindakan memilih strategi atau aksi yang diyakini manajer akan
+memberikan solusi terbaik atas masalah tersebut. Biasanya ada beberapa strategi atau aksi
+yang dapat dipertimbangkan manajer. Salah satu kunci pemecahan masalah adalah
+mengidentifikasi berbagai alternatif keputusan. Seorang manajer mungkin memahami
+bahan sebagian persoalan lebih baik daripada yang lain. Masalah mengenai berapa banyak
+persediaan yang harus dipesan untuk pengisian kembali adalah suatu contoh
+permasalahanyang mungkin sangat dipahami oleh seorang manajer. Permasalahan yang
+terdiri dari elemen-elemen dan hubungan antar elemen yang semuannya dipahami oleh
+pemecah masalah sisebut dengan masalah terstruktur. Sedangkan permasalahan tak
+terstruktur merupakan kebalikan dari masalah terstruktur. Adapun elemen-elemen proses
+pemecahan masalah dapat dilihat pada Gambar 3.1.
+
+                                                                                     21
+                     Gambar 3.1. Elemen-elemen Proses Pemecahan Masalah
+          Proses pemecahan masalah secara sistematis bermula dari John Dewey seorang
+profesor filosofi di Columbia University pada awal abad ini. Dalam bukunya ditahun 1910,
+ia mengidentifikasi tiga seri penilaian yang terlibat dalam memecahkan suatu kotroversi
+secara memadai.
+     Mengenali kontroversi
+     Menimbang klaim alternatif
+     Membentuk penilaian
+          Untuk pendekatan sistem itu sendiri merupakan serangkaian langkah pemecahan
+masalah yang memastikan bahwa masalah itu pertama-tama dipahami, solusi alternatif
+dipertimbangkan, dan solusi yang dipilih bekerja.
+          Meskipun banyak deskripsi mengenai pendekatan sistem yang mengikuti pola
+dasar yang sama, jumlah langkahnya dapat berbeda. Mengenai pola dasar dan langkah-
+langkah pendekatan sistem, dikelompokkan menjadi tiga tahap, yaitu usaha persiapan,
+usaha definisi dan usaha solusi.
+          Usaha persiapan yaitu mempersiapkan manajer untuk memecahkan masalah
+dengan menyediakan orientasi sitem. Usaha definisi mencakup mengidentifikasi masalah
+untuk dipecahkan dan kemudian memahaminya. Usaha solusi mencakup mengidentifikasi
+solusi alternatif yang terbaik, menerapkannya dan meninjaklanjuti untuk meyakinkan
+bahwa masalah tersebut dapat dipecahkan. Yang mana dari ketiga tahap tersebut
+merupakan tahap yang dilalui seorang manajer dalam pendekatan sistem.
+
+                                                                                     22
+          Pendekatan sistem berfungsi untuk menjembatani antara masalah dengan CBIS
+dan memberikan suatu kerangka kerja untuk berbagai keputusan.
+
+      Penerapan Pendekatan Sistem
+
+          Meskipun tidak sukar untuk memahami tiap langkah dari pendektan sistem secara
+terpisah, menyatukan semua langkah itu menjadi suatu proses tunggal memerlukan banyak
+usaha. Manajer mengembangkan keahlian integrasi ini melalui pengalaman.
+
+          Titik awal yang baik adalah upaya persiapan yang harus dilakukan manajaer
+sebelum pemecahan masalah di mulai. Manajer harus memandang unit organisasi sebagai
+sistem yang berada dalam supersistem lingkungan yang lebih besar dan sistem itu juga
+terdiri dari beberapa subsistem. Manajer terlibat dalam penguraian fungsional dengan
+bergerak dari sistem ke subsistem, dan dengan menganalisis bagian-bagian sistem sesuai
+urutan tertentu.
+
+          Prosedur-prosedur yang sering kali diusulkan dalam menerapkan pendekatan
+sistem sangatlah bervariasi didalam tahapan-tahapan metode ilmiahnya. Adapun langkah-
+langkah dalam Pendekatan Sistem, terdiri dari:
+
+       1. Memandang perusahaan sebagai suatu sistem
+       2. Mengenal sistem lingkungan
+       3. Mengidentifikasi subsistem-subsistem perusahaan
+       4. Bergerak dari tingkat sistem ke subsistem
+       5. Menganalisis bagian-bagian sistem dalam satu ukuran tertentu
+       6. Mengidentifikasi solusi alternatif
+       7. Melakukan evaluasi solusi alternatif
+       8. Memilih solusi terbaik
+       9. Menerapkan solusinya
+       10. Melakukan tindak lanjut untuk memastikan bahwa solusinya efektif
+
+      Penggunaan Konsep Sistem
+
+          Dalam pengertian yang paling sederhana, konsep-konsep sistem memberikan kita
+pemikiran tentang manajemen. Konsep-konsep tersebut memberikan kerangka acuan
+untuk menilai akibat pengambilan keputusan manajemen. Organisasi perusahaan bukan
+saja merupakan contoh dari sebuah sistem dengan berbagai macam substitusinya, akan
+tetapi organisasi perusahaan itu sendiri merupakan sebuah subsiste dari sistem yang lebih
+besar.
+
+          Kekompleksannya sangat besar apabila manajer tidak berusaha untuk
+menyederhanakannya. Akan tetapi dengan mengidentifikasi subsistem-subsistemnya
+(seperti akutansi, produksi, pendidikan, dan lain-lain). Hubungan diantara subsistem
+
+                                                                                     23
+(hubungan horizontal), dan antara subsistem dan sistem (hubungan vertikal) di dalam
+organisasi, seorang manajer dapat mengetahui percabangan dari berbagai macam
+keputusannya.
+
+          Dari semua uraian diatas tentang penggunaan konsep sistem dengan beberapa ide
+penerapan konsep sistem tersebut menyatakan bila ciri-ciri berikut dipenuhi penerapan
+konsep sistem dapat memberikan banyak manfaat. Ciri-ciri tersebut adalah:
+
+     Sistem harus buatan manusia
+     Setiap koponen dari sistem harus memberikan andil dalam mencapai tujuan sistem
+
+         secara keseluruhan.
+     Sistemnya besar, khususnya bila dibuat dari sudut biasa.
+     Beberapa fungsi biasanya dilakukan dengan mesin, yang lainnya dilakukan dengan
+
+         manusia.
+          Seperti yang telah diketahui pada bagian sebelumnya bahwa konsep-konsep
+
+sistem dapat bermanfaat untuk membantu melaksanakan fungsi manajemen agar lebih
+efektif. Pernyataan ini dapat diterapkan saat kita menjalankan sistem apapun. Baik itu
+sistem di departemen pendidikan, perusahaan industri, ataupun bagian sistem informasi itu
+sendiri. agar efektivitas suatu sistem dapat tercapai dengan baik, maka kita harus dapat
+mengendalikan dan mengarahkan sistem tersebut kesasaran yang lebih ditetapkan untuk
+maksud ini, kita harus mengerti sistem tersebut dengan baik supaya keputusan yang
+memadai untuk setiap langkah kegiatan yang diambil.
+
+          Upaya dalam memahami suatu sistem, bahkan yang kompleks sekalipun, serta
+untuk meningkatkan kemampuan kita dalam memberikan keputusan yang lebih baik
+sehingga menjadi manajer yang lebih baik disebut sebagai `pendekatan sistem' atau
+penerapan konsep sistem dalam proses pengambilan keputusan.
+
+      Siklus Hidup Sistem
+
+          Tidak ada manusia yang terlepas dari sistem, sistem terdapat di mana saja dan
+manusia tidak bisa hidup tanpa sistem. Sistem sebagai produk berarti sistem dapat dibuat
+dan dapat diperjualbelikan. Banyak konsultan yang memiliki aktivitas dalam pembuatan
+sistem. Suatu kesalahan yang sering mereka lakukan adalah mereka menjual sistem pada
+suatu perusahaan hanya dengan menduplikasi sistem yang pernah dibuatnya diperusahaan
+lain. Sistem pada dasarnya berisi kebijakan manajemen tersebut tidak sama walaupun jenis
+perusahaannya sama maka sistemnya tidak akan persis sama.
+
+          Sistem sebagai alat berarti sistem tersebut digunakan oleh manajemen dalam
+mengoperasikan perusahaannya. Perusahaan seperti Kentucky Fried Chicken (KFC) dan
+Mc Donald (MCD) merupakan perusahaan yang beroperasi mengandalkan pada sistem.
+Pada dasarnya produk yang dibuat mereka bahan-bahannya semua ada di Indonesia. Jadi
+disini sistem disamping digunakan sebagai alat manajemen dalam mengoperasikan
+
+                                                                                     24
+usahanya juga digunakan sebagai alat bersaing dalam mempertahankan kelangsungan
+usahanya.
+
+          Sistem sebagai Pola Pikir digunakan dalam pendekatan sistem seperti yang telah
+dijelaskan sebelumnya. Pola pikir sistem merupakan upaya yang dilakukan dalam proses
+pengambilan keputusan dengan berusaha memahami sistem dari suatu objek atau masalah
+yang sedang dihadapi, bahkan yang kompleks sekalipun, dengan tujuan untuk lebih
+meningkatkan kemampuan kita dalam memberikan keputusan yang paling baik. Keputusan
+yang dihasilkan berdasarkan pola pikir sistem hasil keputusannya akan sangat sistematis.
+
+      Sistem Antarorganisasi
+
+          Sistem informasi merupakan komponen dari organisasi juga pada dasarnya
+merupakan komponen dari organisasi. Karena itu kalau pembahasan mengenai komponen-
+komponen diperluas kedalam suatu organisasi maka selain komponen yang dijelaskan
+sebelumnya, ada komponen-komponen lain yang di susun berdasarkan konsep organisasi.
+
+          Menurut sudut pandangan organisasi komponen penting lainnya dalam suatu
+organisasi dapat berupa tempat bekerja, budaya, kekayaan dan pengaruh di suatu orgnisasi.
+Suatu organisasi agar dapat beroprasi dengan lancar dalam mencapai suatu tujuan yang
+telah di tentukan, komponen-komponen yang dimilikinya harus berinteraksi dengan baik
+dan harmonis. Informasi merupakan kunci yang memungkinkan organisasi mencapai dan
+memelihara kesatuan dan harmonisasi tersebut, berikut ini ada 5 macam sistem
+antarorganisasi yang ditinjau dari pendekatan suatu sistem:
+
+     Tempat Kerja (Work Place)
+         Pembahasan mengenai tempat kerja dapat dilihat melalui sumber daya manusia
+         (SDM) yang bekerja ditempat tersebut. Suatu organisasi pada dasarnya terdiri dari
+         orang-orang yang secara bersama-sama berkerja pada organisasi tersebut
+         untukmencapai suatu tujuan yang telah ditentukan, yaitu membuat dan
+         memasarkan produk serta jasa. Contoh tempat kerja misalnya rumah sakit dan
+         sebagai tempat memberikan pelayanan kesehatan. Perusahaan industri tempat
+         memproduksi barang jadi dari bahan baki dan lain-lain.
+         Upaya untuk mencapai tujuan organisasi tersebut dilakukan di tempat kerja dengan
+         menyusun struktur organisasi, baik berbentuk lini, staff atau gabungan keduanya,
+         dan membagi sumber daya manusia yang ada berdasarkan keahlian dan pekerjaan
+         yang harus dilakukan. Di tempat dimana mereka bekerja, walaupun sumber daya
+         tersebut satu dengan yang lainnya terpisah, mereka harus tetap berinteraksi dan
+         terkoordinasi dalam pencapaian tujuan perusahaan apapun bentuk organisasinya.
+         Koordinasi hanya bisa dilakukan kalau antara masing-masing bagian, termasuk
+         karyawannya melakukan saling tukar menukar informasi melaui suatu komunikasi
+         diantara mereka.
+
+                                                                                     25
+ Sumber Daya Manusia Bagian Operasional
+    SDM yang ada di suatu organisasi dapat dikelompokkan ke dalam dua bagian besar
+    sesuai dengan aktivitas yang ada di dalam suatu organisasi, yaitu SDM informasi dan
+    SDM operasional. SDM informasi merupakan SDM yang terlibat dalam sistem
+    informasi dan merupakan komponen dari sistem informasi sedangkan SDM
+    operasional merupakan komponen organisasi yang secara langsung berhubungan
+    dengan proses produksi dan distribusi produk atau pelayanan.
+
+ Budaya Perusahaan
+    Budaya dalam kaitannya dalm organisasi didefinisikan sebagai cara-cara yang
+    dilakukan oleh SDM di dalam organisasi tersebut. Budaya merupakan unsur lain
+    yang menjadi perekat hubungan sosial yang memadukan suatu organisasi sehingga
+    bersatu. Budaya merupakan lingkungan internal sehari-hari yang terlihat dan
+    dirasakan oleh mereka yang bekerja di dalamnya. Hal ini merupakan hasil proses
+    belajar SDM secara komulatif sebagai pencerminan dan promosi, imbalan, hukuman
+    dan keputusan yang diterapkan oleh suatu orgaisasi.
+    Budaya juga menggambarkan bagaimana SDM belajar untuk melakukan sesuatu
+    disuatu organisasi. Budaya perusahaan tidak tertulis, budaya bukan merupakan
+    bagian penting dari uraian tugas juga bukan merupakan bagian penting dari uraian
+    tugas juga bukan merupakan uraian prosedur manual, ini merupakan gambaran
+    bagaimana kebiasaan SDM disuatu disuatu perusahaan dan apa yang sebenarnya
+    terjadi di perusahaan tersebut.
+    Apa yang harus dilakuan oleh budaya organisasi terhadap sistem informasi. Banyak
+    budaya perusahaan memiliki masalah mental yang kurang baik. Pada masa lalu
+    banyak orang yang merasa kecewa karena melakukan sesuatu yang positif.
+    Beberapa perubahan dalam budaya muncul karena munculnya komputer dan
+    Teknologi Informasi.
+    Perubahan apapun dalam sistem informasi memaksa SDM untuk melakuan sesuatu
+    yang berbeda dari biasanya. Karena itu upaya apapun yang dilakukan akan
+    mendorong sistem informasi yang lama untuk bertahan. Budaya menyatakan bahwa
+    kita bisa menghasilkan informasi seperti ini karena itu mereka tidak menginginkan
+    adanya sistem informasi yang baru. Lebih jauh lagi dalam sitem informasi di antara
+    kelompok ini tidak saling percaya satu sama lain. Karena itu mereka menolak untuk
+    saling memberi informasi, bahkan mugkin beberapa diantara mereka berfikir bahwa
+    sistem informasi ini akan digunakan untuk memutuskan hubungan kerja mereka
+    dengan perusahaan.
+
+                                                                                  26
+ Kekayaan (Aset)
+    Kekayaan perusahaan (aset) dapat disefinisikan dengan cara yang berbeda. Ada
+    yang menyatakan bahwa kekayaan perusahaan itu meliputi: uang, mesin, peralatan,
+    informasi, dan metode. Kekayaan tersebut ada yang terlihat seperti peralatan serta
+    tanah dan ada yang tidak terlihat seperti hak paten dan hak cipta. Kita ambil contoh
+    disini kekayaan dala bentuk keuangan dan kemampuan beroperasi (Sistem
+    Informasi). Dalam banyak hal informasi diperlukan untuk mengawasi atau menjaga
+    kekayaa ini. Misalkan informasi harus dapat menunjukkan bagaimana mereka
+    bekerja atau bagaimana agar mereka menjadi SDM yang baik karena efektifitas dan
+    efisiensi operasi merupakan salah satu faktor oenentu sukses bagi suatu organisasi.
+
+ Pengaruh
+    Adanya interaksi yang terjadi secara terus menerus antara lingkungan dan
+    organisasi, menyebabkan banyaknya informasi yang mengalir dari lingkungan ke
+    dalam organisasi, dan sebaliknya dari organisasi ke lingkungan dimana hal ini akan
+    memberikan pengaruh timbal balik bagi kedua belah pihak.
+    Ketika suatu organisasi di hadapkan pada masalah-masalah sosial misalnya,
+    berbagai lapisan sosial yang ada didalam masyarakat menjadi bagian yang sangat
+    penting pengaruhnya baik dalam menentukan suatu progam maupun menjadi
+    bagian dalam progam tersebut. Karena itu, beberapa organisasi sangat
+    memperhatikan kinerja organisasinya dalam menghadapi masalah lingkungan
+    seperti masalah pencemaran air dan udara, sehingga perlindungan terhadap sumber
+    daya alam, kualitas produk dan jasa menjadi hal yang sangat penting untuk
+    diperhatikan. Alasan mengapa hal tersebut perlu diperhatikan karena dampak
+    buruk terhadap lingkungan yang pada akhirnya akan berpengaruh buruk juga bagi
+    perjalanan perusahaan.
+
+                                                                                  27
+                            4. User Story
+
+      Kebutuhan Pengguna
+
+        Dalam proses pengembangan software dengan metodologi Agile, menggali
+kebutuhan pengguna terhadap sistem merupakan tahapan pertama yang penting. Di dalam
+metodologi pengembangan software yang tradisional, semua kebutuhan dikumpulkan,
+dianalisa dan dirancang di awal proyek. Jika rancangan tersebut disetujui dan
+ditandatangani oleh business owner dan stakeholder (pemangku kepentingan) maka
+rancangan tersebut dapat diasumsukan sudah cukup dan telah mencakup semua
+kebutuhan dan persyaratan sistem. Metodologi di atas dapat digunakan dan berjalan
+dengan baik jika pengguna telah mengetahui dengan pasti apa yang mereka butuhkan dan
+telah memiliki kebijakan atau prosedur yang jelas. Tetapi yang sering terjadi adalah
+pengguna tidak mengetahui dengan pasti dan detail apa yang mereka butuhkan bahkan
+terkadang belum memiliki kebijakan atau prosedur. Dalam kondisi seperti ini, metodologi
+pengembangan software yang tepat adalah Agile. Dalam agile, kebutuhan didetailkan
+dengan membagi ke ruang lingkup yang lebih kecil dan dalam dikerjakan dalam waktu
+singkat.
+Proses pengumpulan kebutuhan pengguna dapat dibagi menjadi empat komponen:
+
+    1. Developing a vision for the high-level details.
+         Pada tahap ini bertujuan melakukan identifikasi ruang lingkup global sesuai dengan
+         visi dan tujuan pengguna. Yang dilakukan di tahapan ini adalah wawancara dengan
+         pengguna.
+
+    2. Brainstorming for features of requirement.
+         Tahapan ini berfokus pada keluasan daripada kedalaman dan mengidentifikasi
+        sejumlah besar fitur/epik/cerita pengguna. Beberapa teknik brainstorming
+        persyaratan yang paling populer adalah story writing workshop.
+
+    3. Breakdown of features into user story.
+    4. Defining detailed requirements dengan acceptance test.
+
+      User Story
+
+        User story merupakan penjelasan yang dituliskan dalam bentuk narasi tentang
+kebutuhan system dari sudut pandang pengguna. Karakteristik user story adalah:
+
+     Mudah dipahami
+     Menunjukkan potongan detail tentang output system
+     Dapat membantu pengembang memahami keinginan pengguna
+
+                                                                                     28
+User story dijabarkan dalam tiga langkah yang sering disebut 3C yaitu Card, Conversation
+dan Confirmation.
+
+        Card berisi nama sistemnya dan penjelasan singkatnya, misal program
+perpustakaan, program reservasi hotel. Selain nama pendek dari sistem, card dapat dijuga
+dituliskan dengan fitur-fitur besar yang tersedia dalam sistem, misal program mesin ATM
+dengan fitur setoran tunai, tarik tunai, transfer, pembayaran dan ganti pin.
+
+        Conversation bertujuan untuk menjelaskan pemahaman tentang siapa saja yang
+mengakses (who) dan apa yang ingin dilakukan pada system (what). Format penulisan
+conversation adalah:
+
+         As a [description of user], I want [functionality] so that [benefit].
+Beberapa contoh conversation:
+
+    ­ Sebagai nasabah bank, saya ingin mengganti PIN secara online sehingga tidak perlu
+         datang ke cabang.
+
+    ­ Sebagai mahasiswa, saya ingin PRS online di mobile apps sehingga tidak perlu buka
+         browser di handphone.
+
+    ­ Sebagai customer, saya ingin memilih hotel sendiri sehingga merasa lebih bebas.
+    ­ As a user, I want to sign up to an e-commerce platform so that I can purchase
+
+         products.
+    ­ As a Visitor, I want to search by keyword so that I can find and read relevant article.
+
+Conversation berfokus pada "what" (apa), dan bukan pada "how" (bagaimana). Misal:
+"A manager can approve or disapprove an audit from"  menunjukkan "what"
+"A manager can click approve button to approve an audit form"  menunjukkan "how"
+
+         Salah satu contoh template untuk menuliskan user story dari Whizible dapat dilihat
+pada Gambar 4.1.
+
+                                  Gambar 4.1. Template user story
+   (sumber: https://www.whizible.com/how-to-write-effective-agile-scrum-user-story/)
+
+                                                                                     29
+        Penulisan user story untuk situs travel dengan gaya tulisan tangan dapat dilihat pada
+Gambar 4.2.
+
+                                    Gambar 4.2. Penulisan user story
+               (Sumber: https://www.justinmind.com/blog/user-story-examples/)
+        User story template dengan gaya penulisan yang lain sebagai contoh dari
+TechBeamers dapat dilihat pada Gambar 4.3.
+
+                             Gambar 4.3. Contoh lain user story template
+                 (Sumber: https://www.techbeamers.com/user-story-template/)
+Contoh penulisan card dan user story dapat dilihat pada Gambar 4.4.
+
+                                                                                     30
+                   Gambar 4.4. Contoh penulisan card dan user story
+    Tugas (waktu 30 menit)
+ Bekerja dalam kelompok.
+ Pilihlah salah satu topik yang sudah ditentukan.
+ Di dalam kelompok, beberapa mahasiswa berperan sebagai pengembang sistem
+    dan mahasiswa yang lain berperan sebagai pengguna (business owner dan
+    stakeholder)
+ Pengembang sistem melakukan wawancara ke pengguna tentang sistem yang ingin
+    dibuat. Tuliskan hasil wawancara tersebut menjadi narasi (card).
+ Pengembang sistem melakukan wawancara terhadap pengguna untuk
+    conversation. Gaya penulisan conversation bebas (bisa merujuk pada contoh
+    sebelumnya)
+ Bertukar peran antara pengembang sistem dan pengguna. Lakukan langkah di atas.
+
+                                                                                  31
+         Pada saat conversation, pengembang dan pengguna menuliskan semua kebutuhan
+tanpa memperhatikan detail, sehingga diperlukan satu tahapan akhir yang membuat detil
+dari conversation sehingga dapat menvalidasi apakah conversation itu benar-benar
+dibutuhkan. Tahapan ini disebut confirmation, yang dilakukan sebagai acceptance test
+untuk conversation yang telah dibuat. Beberapa contoh penulisan user story dan
+acceptance test dapat dilihat pada Tabel 4.1.
+
+                   Tabel 4.1. Contoh penulisan user story dan acceptance test
+
+        User story                Acceptance test
+                                  Menampilkan nilai ujian tahun ajaran sekarang
+Contoh  Sebagai guru, saya ingin  Menampilkan nilai ujian tahun ajaran
+1                                 sebelumnya
+        membuat laporan nilai     Ada pilihan untuk print dan share
+Contoh
+2       sehingga    dapat         Saat membuat user baru, data yang diinputkan
+                                  adalah nama, email, no telp, status diisi active
+Contoh  mengevaluasi prestasi     dan atasan (diambil dari user yang active).
+3                                 Tidak bisa memilih atasan yang statusnya
+        siswa                     inactive .
+Contoh                            Tidak bisa memilih atasan yang berulang. Misal
+4       Sebagai administrator,    user 1 dengan atasan user 2. User 2 dengan
+                                  atasan user.
+        saya ingin dapat          Hapus ini dari conversation, karena bukan dari
+                                  sisi pengguna.
+        membuat user baru
+                                  Diganti menjadi:
+        sehingga pengguna         Sebagai pembeli, saya ingin dapat melihat daftar
+                                  order sebelumnya sehingga saya bisa
+        dapat akses ke sistem     menggunakan lagi daftar ini untuk reorder
+                                  dengan lebih cepat.
+        Sebagai pemilik bisnis,   Kemudian dibuatkan acceptance test nya.
+        saya ingin akses
+        database langsung
+        sehingga saya dapat
+        mengetahui keakuratan
+        data.
+        Sebagai pembeli, saya
+        ingin dapat melihat
+        daftar oder sebelumnya
+        sehingga mengetahui
+        pernah order apa saja
+
+Tugas (waktu 30 menit):
+     Reviu card dan user story yang telah dibuat sebelumnya.
+     Lakukan acceptance test pada user story.
+
+                                                                                    32
+IN DEPTH
+
+Secara umum tujuan dari 3C yaitu card, conversation dan confirmation adalah
+membantu untuk memahami apa yang diinginkan pengguna (business owner
+dan stakeholder) terhadap sistem yang dibangun. Pemahaman ini disusun dari
+gambaran besar terlebih dulu di card kemudian di detailkan di conversation
+dan lebih detail lagi di confirmation.
+
+                                                                        33
+  5. Pengenalan Pemodelan dan Proses Pengembangan
+                                   Software
+
+        Pada pengembangan sebuah software diperlukan metodologi yang tepat sehingga
+proses dapat berjalan dengan baik dan hasil akhir software tersebut sesuai dengan
+kebutuhan pengguna. Pengguna yang dimaksud di sini adalah perusahaan atau organisasi
+beserta pemangku kepentingan (stakeholders). Pengembangan software yang berorientasi
+obyek disebut Object Oriented Software Development (OOSD).
+
+        Menurut OOSD, di dalam organisasi ada sistem yang berjalan yaitu workflow. Suatu
+organisasi memiliki banyak workflow, dimana workflow terdiri dari beberapa aktivitas.
+Aktivitas akan mengubah artefak input menjadi artefak output yang menjadi input untuk
+workflow berikutnya. Urutan workflow dalam OOSD yaitu:
+
+             1. Requirements Gathering
+             2. Requirements Analysis
+             3. Architecture
+             4. Design
+             5. Implementation
+             6. Testing
+             7. Deployment
+         Pihak yang terlibat di dalam pengembangan software disebut pemangku
+kepentingan (stakeholders). Gambar 5.1 menunjukkan stakeholder yang terlibat dalam
+pengembangan software. (Miles & Hamilton, 2006)
+
+                                    Gambar 5.1. Project Stakeholders
+                                            (Microsystems, 2010)
+
+        Pada bagian Client-Side menunjukkan peran (role) apa saja yang terlibat di sisi klien,
+yaitu Business Owner (pemilik bisnis), Manager dan Users (pengguna). Sedangkan pada
+
+                                                                                     34
+Developer-Side yaitu Project Manager, Business Analyst, Software Architect, Software
+Designer dan Software Programmer. Untuk proses pengujian software dilakukan oleh
+Software Tester dan implementasi dilakukan oleh Deployment Specialist. Software Tester
+dan Deployment Specialist merupakan tim gabungan dari pihak klien dan pihak developer
+dan mempunyai tugas untuk proses impelementasi software secara operasional harian
+organisasi atau perusahaan.
+
+      Mendata Kebutuhan (Requirement Gathering)
+
+Tujuan: menentukan ruang lingkup sistem.
+Menentukan:
+
+     Siapa saja yang berinteraksi dengan sistem (actor).
+     Perilaku sistem (behaviors) disebut juga use case.
+     Detil perilaku sistem, disebut juga Functional Requirements (FRs). FRs berisi hal-hal
+
+         apa saja yang bisa dilakukan sistem.
+     Non Functional Requirements (NFRs). NFRs berisi panduan bagaimana sistem
+
+        bekerja, seperti misalnya keamanan, availability dan performa sistem.
+Aktifitas:
+
+     Bertemu dengan Business Owner dan Stakeholders untuk mengidentifikasi
+         kebutuhan sistem yang ingin dibangun.
+
+Artefak luaran:
+     Use case diagram.
+     Use case scenario.
+     Use case description termasuk FRs dan NFRs.
+
+       Analisa Kebutuhan (Requirement Analysis)
+
+Tujuan: memodelkan proses bisnis yang saat ini sedang berjalan.
+Menentukan:
+
+     Detail perilaku tiap use case.
+     Supplementary use cases.
+     Key abstraction sistem.
+     Class diagram.
+Aktivitas:
+     Menganalisa dan membuat detail use case.
+Artefak luaran:
+     Use case diagram yang telah diperbaiki.
+     Use case scenario yang telah diperbaiki.
+     Supplementary spec.
+
+                                                                                     35
+     Class diagram.
+     Object diagram.
+
+      Arsitektur
+
+Tujuan: memodelkan struktur sistem sesuai dengan NFRs.
+Deskripsi:
+
+     Membangun struktur software.
+     Mengidentifikasi teknologi yang sesuai untuk architecture model.
+     Memastikan model arsitekturnya selaras dengan NFRs.
+Aktivitas:
+     Memilih sistem arsitektur untuk membangun sistem.
+     Membuat dokumentasi teknologi.
+Artefak luaran:
+     Deployement diagram.
+     Package diagram.
+
+      Design
+
+Tujuan: memodelkan bagaimana sistem sesuai dengan use case.
+Deskripsi:
+
+     Membangun design model .
+     Mengidentifikasi teknologi yang sesuai dengan model arsitekturnya.
+     Memastikan model arsitekturnya selaras dengan NFRs.
+Aktivitas:
+     Membangun design model untuk use case menggunakan Interaction diagram
+     Membuat state machine diagram.
+     Membuat solution model dengan menggabungkan design model dan architecture
+
+        model.
+Artefak luaran:
+
+     Interaction diagram.
+     State machine diagram.
+     Component diagram.
+
+      Implementasi, Pengujian dan Deployment
+
+Tujuan: melakukan implementasi, pengujian dan memastikan sistem dapat berjalan.
+Deskripsi:
+
+     Mengimplementasikan software.
+
+                                                                                     36
+     Melakukan pengujian untuk memastikan software bebas dari error.
+     Software digunakan untuk operasional.
+Aktivitas:
+     Menguji software untuk memastikan kesesuaiannya dengan use case scenario.
+Artefak luaran:
+     Rencana pengujian software.
+
+      Modeling Language
+
+         Model adalah metode untuk menggambarkan apa yang dipikirkan manusia.
+Pemodelan sistem akan memudahkan komunikasi dan pengambilan keputusan karena
+model dapat memvisualisasikan sistem yang saat ini sedang berjalan dan sistem yang
+diinginkan. Pemodelan juga menjelaskan struktur (statis) dan perilaku (dinamis) elemen-
+elemen pada sistem.
+
+         Unified Modeling Language (UML) merupakan standar pemodelan dengan
+memvisualisasikan, menspesifikasikan, mengkonstruksi dan mendokumentasikan artefak
+dalam OOSD.
+
+         Pengembangan software dapat dilihat pada Gambar 5.2 yang menampilkan
+rangkaian proses mulai dari apa yang dipikirkan stakeholders hingga menjadi sebuah
+aplikasi.
+
+                   Gambar 5.2. Model Transformations (Microsystems, 2010)
+Elemen UML Komponen UML terdiri dari:
+
+     Element (thing and relationship) seperti pada pada Gambar 5.3.
+     Diagram (built from elements) seperti pada Gambar 5.4Error! Reference source not
+
+         found..
+     View (diagram yang menunjukkan perspektif yang berbeda dari model)
+
+                                                                                     37
+                          Gambar 5.3. Elemen UML (Microsystems, 2010)
+         Jumlah diagram UML adalah 14 (empat belas) diagram yang dibagi menjadi diagram
+dengan kategori Structural (yang menunjukkan elemen dan relasi antar elemen yang tidak
+bergantung pada waktu) dan Behavioral (yang menunjukkan elemen dan relasi antar
+elemen yang bergantung pada waktu).
+
+          Gambar 5.4. Diagram UML dan pengkategoriannya (Microsystems, 2010)
+
+                                                                                     38
+          IN DEPTH
+
+                · Proses OOSD dimulai dengan menggali kebutuhan hingga proses software
+                siap digunakan secara operasional.
+                · Workflow mendefinisikan aktifitas mulai dari pemodelan kebutuhan sistem
+                hingga implementasi software.
+                · UML merupakan standar yang merepresentasikan model secara visual.
+     FRs menggambarkan apa yang dilakukan sistem sementara NFRs menguraikan
+         karakteristik sistem. Gabungan FRs dan NFRs menyatakan sistem secara
+         keseluruhan.
+
+      Pengertian Use Case Diagram
+
+        Use case diagram adalah diagram yang menunjukkan kebutuhan pengguna terhadap
+sistem yang akan dibangun. Secara sederhana, dengan membaca use case diagram, dapat
+diketahui fitur apa yang disediakan dalam sistem tertentu. Use case membentuk dasar dari
+FRs. Use case tidak menunjukkan bagaimana sistem bekerja (arsitektur sistem) (Non-
+Functional Requirements-NFRs). Contoh NFRs adalah kinerja sistem, bahasa
+pemrograman dan lain sebagainya (Miles & Hamilton, 2006).
+
+        Use case diagram menunjukkan hubungan antara actors (roles) dengan fitur yang
+dapat dikerjakannya. Elemen use case diagram antara lain:
+
+            1. Actor. Actor adalah roles yang dapat melakukan sesuatu (use case) di dalam
+                  sistem.
+
+            2. Use case. Use case adalah apa saja yang dapat dilakukan oleh actor.
+            3. Association. Association adalah penghubung antara actor dan use case.
+            4. System name merupakan nama sistem yang dibangun.
+            5. System boundary menunjukkan batasan sistem.
+        Elemen use case diagram beserta simbolnya dapat dilihat pada Gambar 5.5 yang
+menunjukkan actor "BookingAgent" melakukan "ManageReservations".
+
+                  Gambar 5.5. Elemen use case diagram (Microsystems, 2010)
+
+                                                                                     39
+Elemen pada use case dapat dilihat padaTabel 5.1.
+
+             Tabel 5.1. Simbol-simbol elemen use case diagram
+
+Simbol                     Nama                              Keterangan
+             Actors : human                        Pengguna sistem yang
+                                                   berupa nama profesi (role)
+
+             Actor: external system, Sistem atau alat yang
+
+             device                                mengakses sistem yang
+
+                                                   dibuat.
+
+             Actor: waktu                          Berupa waktu atau jadwal
+                                                   yang mengakses use case.
+
+<<include>>  Use case                              Berupa perilaku sistem
+<<extend>>   Association                           yang dibuat atau fitur.
+             Include dependency
+             Extend dependency                     Menunjukkan hubungan
+                                                   antara actor dan use case.
+                                                   Menunjukkan use case
+                                                   tertentu harus dilakukan
+                                                   sebelum use case lainnya.
+                                                   Menujukkan use case
+                                                   tertentu dapat dilakukan
+                                                   jika memenuhi kondisi
+                                                   tertentu.
+
+Karakteristik actor :
+     adalah role atau pekerjaan seseorang yang berinteraksi dengan sistem dan berada
+         di luar sistem.
+     Menggunakan kata benda.
+     dapat berupa:
+            o Orang atau role, dalam hal ini terkait dengan hak akses seseorang terhadap
+                  sistem.
+            o Device, misal seperti finger print, atau mesin EDC.
+             o Sistem lain, misal web service dari aplikasi lain.
+             o Waktu, misal seperti program yang berjalan otomatis pada waktu yang telah
+                  ditentukan.
+
+                                                               40
+     dapat sebagai primary atau secondary actor.
+            o Primary : yang menginisiasi dan mengontrol use case.
+            o Secondary: hanya berpartisipasi sebagian pada use case.
+
+Use case menggambarkan relasi antara actor dan apa yang dikerjakan sistem. Karakteristik
+use case:
+
+     menggunakan kata kerja dan kata benda, misal mengelola data konsumen,
+         mengelola reservasi dan lain sebaginya.
+
+     digambarkan dengan simbol oval.
+System boundary adalah batasan dari sistem yang dibuat. Karakteristik system boundary:
+
+     disimbolkan dengan kotak seperti terlihat pada Gambar 5.6.
+     bersifat opsional
+
+       Gambar 5.6. Use case diagram dengan system boundary (Microsystems, 2010)
+Karakteristik association:
+
+     actor harus berelasi dengan satu atau lebih use case.
+     use case harus berelasi dengan satu atau lebih actor
+     tidak ada use case atau actor yang berdiri sendiri (tidak berelasi)
+     tidak ada asosiasi antar actor.
+     digambarkan dengan garis lurus baik dengan anak panah ataupun tidak dengan
+
+         anak panah seperti terlihat pada Gambar 5.6.
+
+      Membuat Use Case Diagram
+
+        Tujuan use case diagram untuk memodelkan apa yang diinginkan business owner
+terhadap sistem yang dibuat.
+
+                                                                                     41
+Contoh:
+Sistem yang ingin dibuat adalah sistem reservasi hotel. Sistem ini digunakan oleh booking
+agent (staf internal perusahaan travel & tour), online booker (konsumen langsung lewat
+daring), resepsionis hotel dan marketing hotel.
+Booking agent dapat mengelola reservasi konsumen baik yang melalui telp atau email. Pada
+umumnya, permintaan konsumen adalah memesan atau membatalkan reservasi. Satu
+reservasi dilakukan pada satu atau lebih kamar untuk satu periode waktu dan dihubungkan
+ke jaminan pembayaran yang berupa pembayaran kartu elektronik (kartu debit atau kartu
+kredit) atau purchase order dari konsumen perusahaan atau agen travel. Jaminan
+pembayaran ini untuk referensi ke depannya.
+Reservasi dapat dilakukan juga secara elektronik dari sistem di agen travel atau dilakukan
+langsung oleh konsumen melalui internet.
+Saat konsumen datang ke hotel, resepsionis akan melakukan check in untuk konsumen
+tersebut. Proses ini akan mencarikan kamar sesuai dengan reservasinya (termasuk jenis
+kamar). Selain itu, proses akan mencatat jaminan pembayaran.
+Resepsionis dapat melayani konsumen yang langsung datang ke hotel tanpa melalui
+reservasi.
+Salah satu tugas marketing staff adalah membuat skema promosi (special offers)
+berdasarkan pada statistik reservasi.
+Manajemen membutuhkan laporan harian yang dibuat secara otomatis oleh sistem pada
+pukul 3.00 AM.
+
+        Use case diagram dapat dilihat pada Gambar 5.7.
+
+           Gambar 5.7. Use case diagram untuk sistem hotel (Microsystems, 2010)
+
+                                                                                     42
+        Use case tertentu dapat dijabarkan lagi lebih detail karena dianggap terlalu high
+level (kurang detail). Pada umumnya, use case yang diawali dengan kata mengelola,
+manage, mengatur, proses dapat didetailkan menjadi Create, Update dan Delete seperti
+pada Gambar 5.8.
+
+          Gambar 5.8. Use case diagram yang lebih detail (Sun Microsystem, 2010)
+
+      Pola Inheritance
+
+        Inheritance dapat terjadi pada actor ataupun use case. Actor inheritance berarti
+actor mewarisi semua sifat dan asosiasi use case dari parent actor. Use case dapat
+didetailkan lagi menjadi beberapa use case yang lebih spesifik. Inherintance digambarkan
+dengan garis dengan anak panah yang tertutup seperti pada Gambar 5.9.
+
+      Actor Inheritance
+
+        Actor dapat berupa turunan dari actor lain (parent actor). Actor ini akan mewarisi
+semua sifat (termasuk asosiasi use case, method dan atribut) dari parent actor. Contoh
+dapat dilihat pada Error! Reference source not found.. Gold customer sebagai turunan dari
+standard customer mendapatkan fasilitas yang sama seperti standard customer dan
+fasilitas khusus gold customer. Standard customer hanya mendapat fasilitas standar.
+
+    Gambar 5.9. Use case diagram dengan actor inherintance (Sun Microsystem, 2010)
+
+                                                                                     43
+      Use Case Specialization
+
+        Use case dapat dijabarkan ke beberapa subclass yang disebut specialized use case.
+Specialized use case memiliki sifat sendiri selain mewarisi sifat dari use case di atasnya
+(parent).
+
+        Proses check in konsumen dapat dibagi menjadi dua yaitu check in standard
+customer dan check in VIP customer, dimana masing-masing memiliki data (instance) yang
+berbeda. Use case yang tidak memiliki instance harus diberi tanda {abstract} seperti pada
+check in customer di Gambar 5.10.
+
+                  Gambar 5.10. Use case specialization (Sun Microsystem, 2010)
+
+      Use Case Dependencies
+
+        Selain berelasi dengan actor, use case dapat berelasi dengan use case lainnya dengan
+menggunakan relasi dependencies. Ada dua macam dependencies antar use case, yaitu:
+
+             Include. Use case a includes use case b, artinya setiap use case a dieksekusi
+                 maka use case b harus berjalan dulu, baru kemudian use case a. Contoh dapat
+                 dilihat pada Gambar 5.11 dan perhatikan anak panahnya melekat pada use
+                 case yang dipanggil terlebih dulu.
+
+             Extend. Use case a extends use case b, artinya use case a dapat memanggil
+                 (opsional) use case b jika memenuhi kondisi tertentu (extension point).
+                  Contoh dapat dilihat pada Gambar 5.12 dan perhatikan anak panahnya
+                 melekat pada use case yang dipanggil terlebih dulu.
+
+Include dan extend digambarkan dengan garis putus-putus, dengan anak panah terbuka
+dan diberi tulisan <<include>> atau <extend>> sesuai dengan dependecies. Anak panah
+menunjuk ke use case yang dijalankan terlebih dulu.
+
+           Gambar 5.11. Contoh <<include>> dependency (Sun Microsystem, 2010)
+
+                                                                                     44
+        Pustakawan (librarian) melakukan proses peminjaman dan pengembalian buku dari
+pengguna perpustakaan seperti pada contoh Gambar 5.12. Proses peminjaman diawali
+dengan mengidentifikasi buku (identify book) terlebih dulu baru kemudian buku dipinjam
+(check out book). Pada proses pengembalian buku, pustakawan mengidentifikasi buku
+(identify book) terlebih dulu baru kemudian buku dikembalikan (return book).
+
+           Gambar 5.12. Contoh <<extend>> dependency (Sun Microsystem, 2010)
+        Pada Gambar 5.12 menunjukkan contoh use case diagram dengan extend
+dependency. Pustakawan melakukan proses pengembalian buku dari pengguna. Pada saat
+proses pengembalian buku (return a book), jika terlambat atau ada denda maka akan ada
+proses menampilkan denda (issue a fine). Jika tidak terlambat, maka use case issue a fine
+tidak akan dieksekusi.
+
+          IN DEPTH
+
+                 Use case diagram adalah single picture dari apa yang dilakukan pengguna di
+                   sistem.
+
+                 Use case diagram terdiri dari actor, use case, assosiation, system name dan
+                  system boundary.
+
+                 Setiap actor harus berelasi minimal pada satu use case pada use case
+                  diagram.
+
+             Use case menggambarkan fitur pada sistem yang dibuat. Jika ada proses
+                  yang dikerjakan secara manual, maka tidak perlu dijadikan use case.
+
+              Tidak perlu mengggambarkan aktivitas atau proses yang terjadi di dalam
+                  sistem yang tidak melibatkan actor di dalam use case diagram.
+
+             Extend dependency menunjukkan perilaku sistem di bagian alternate flow
+                  di use case scenarios.
+
+                                                                                     45
+               6. Use Case Scenarios dan Forms
+
+      Pengertian Use Case Scenarios
+
+        Use case dilengkapi dengan use case scenarios. Use case scenario merupakan
+penjelasan alur bagaimana actor menjalankan proses dan bagaimana sistem merespon apa
+yang dilakukan actor. Karakteristik use case scenario:
+
+              Dibuat dengan detail.
+             Tidak memuat conditional statements.
+             Tidak spesifik ke user interface.
+             Untuk proses yang berjalan sesuai alur dinyatakan dalam primary scenario.
+
+                 Sedangkan secondary scenarios menunjukkan proses yang berpotensi
+                 mengalami failure.
+             Tidak semua use case perlu dibuatkan use case scenario. Pilihlah use case
+                 yang mempunyai interaksi kompleks dengan actor atau yang berpotensi
+                 mengalami failure, seperti misalnya dengan sistem eksternal ataupun
+                 database.
+             Use case scenario dibagi menjadi tiga bagian yaitu beginning, middle dan end.
+
+Contoh penulisan primary use case scenario:
+Beginning
+
+        Use case dimulai saat booking agent menerima permintaan reservasi kamar hotel.
+Middle
+
+        Booking agent memasukkan arrival date, departure date dan jumlah kamar beserta
+         tipe kamar yang diminta. Sistem mencari ketersediaan kamar sesuai dengan
+         permintaan yaitu periode reservasi dan jumlah kamar dengan tipe kamar tertentu.
+         Sistem merespon dengan menampilkan kamar yang tersedia, memberikan nomer
+        reservasi dan menandai reservasi tersebut dengan "held". Booking agent
+         menyetujui reservasi tersebut.
+        Untuk memasukkan data konsumen yang melakukan reservasi tersebut, booking
+        agent memasukkan zip code dan nama konsumen. Sistem mencari semua data
+         konsumen dan menampilkan daftar konsumen yang sesuai (termasuk alamat
+        lengkap). Booking agent memilih satu nama konsumen yang sesuai dari daftar yang
+         tampil. Sistem menyimpan koncumen tersebut sebagai konsumen yang melakukan
+        reservasi. Booking agent memasukkan data jaminan pembayaran. Proses reservasi
+         berhasil dan disimpan.
+
+                                                                                     46
+End
+         Sistem mencatat jaminan pembayaran dan mengubah reservasi menjadi
+         "confirmed". Sistem menampilkan nomer dan detail reservasi.
+
+Contoh penulisan secondary use case scenario:
+Beginning
+
+        Use case dimulai saat booking agent menerima permintaan reservasi kamar hotel.
+Middle
+
+        Booking agent memasukkan arrival date, departure date dan jumlah kamar beserta
+         tipe kamar yang diminta. Sistem tidak menemukan kamar hotel yang tersedia sesuai
+         dengan data permintaan. Sistem merespon bahwa tidak ada kamar hotel dengan tipe
+         kamar yang diminta yang tersedia pada periode tersebut.
+End
+        Use case selesai.
+
+      Supplementary Specifications
+
+        Supplementary specifications merupakan kumpulan dokumen penunjang untuk
+menjelaskan sistem yang dibuat. Dokumen ini terdiri dari:
+
+     NFRs : Non Functional Requirements yaitu dokumen yang menjelaskan bagaimana
+         sistem berjalan. NFRs menjelaskan batasan sistem, proses pengembangannya dan
+         batasan eksternal yang dipenuhi sistem. Beberapa contoh yang termasuk NFR
+         adalah keamanan sistem, reliabilitas sistem, kinerja sistem, bahasa pemrograman
+         dan lain sebagainya (Miles & Hamilton, 2006). Menurut IEEE-Std 830-1993, ada 13
+        dokumen NFR yang disertakan dalam dokumen spesifikasi software, yaitu:
+            o Performance* menunjukkan kecepatan operasional sebuah sistem. Misal:
+                  response rate, scalability (kemampuan sistem melayani saat terjadi lonjakan
+                  akses), jumlah transaksi yang dapat dilayani dalam satu satuan waktu.
+            o Interface* merupakan kemudahan pengguna mengoperasikan sistem. Misal:
+                 adanya user manual, error message yang informatif, menu Help, antarmuka
+                  yang mudah dipahami.
+            o Operasional
+            o Resource
+            o Verification
+            o Acceptance
+            o Documentation
+
+                                                                                     47
+        o Security* menjamin akses sistem yang mempunyai otorisasi, dan memastikan
+             integritas sistem dari kecelakaan atau kerusakan. Misal: pengaturan hak
+            akses, ototentifikasi akses, backup data, enkripsi data.
+
+        o Portability
+        o Quality
+        o Reliability* adalah batasan perilaku sistem pada saat beroperasi. Reliability
+
+            dapat diukur dengan availability dan failure rate yaitu seberapa sering sistem
+             gagal merespon permintaan.
+        o Maintainability
+        o Safety* mengatur keamanan. Misal server diletakkan di cloud yang dapat
+             dihandalkan.
+
+      * harus ada
+
+    Contoh dokumen NFRs:
+         o Sistem mempunyai prosedur otorisasi dimana penggunanya harus
+            mengidentifikasi diri dengan username dan password. Hanya pengguna yang
+             mempunyai kewenangan melalui prosedur otorisasi ini yang dapat
+             mengakses data dalam sistem.
+         o Sistem memiliki tingkata ketersediaan 99%,
+        o Sistem dapat diakses 500 pengguna dalam satu saat (concurrent user).
+
+ Project risks: menunjukan risiko jika mengalami kendala. Risiko dibagi menjadi high,
+    medium dan low.
+
+ Glossary of terms merupakan daftar istilah baik dari sisi bisnis ataupun pihak
+    Teknologi Informasi (TI). Dokumen ini merupakan jenis dokumen yang dapat
+    diperbarui setiap saat. Contoh glossary of terms dapat dilihat padaTabel 6.1.
+
+                    Tabel 6.1. Glossary of Terms (Microsystems, 2010)
+
+                                                                                  48
+      Use Case Form
+
+        Use case form adalah alat bantu untuk dokumentasi penjelasan setiap use case
+beserta skenario nya secara tabular. Use case form tidak mempunyai standar baku, sebagai
+contoh template dari use case form dapat dilihat pada Tabel 6.2
+
+                 Tabel 6.2. Use case form template
+
+Elemen           Deskripsi
+Nama use case    Dituliskan nama use case sesuai dengan use case diagram.
+Deskripsi        Dituliskan dalam satu atau dua kalimat sebagai penjelasan nama use
+                 case.
+Actor            Daftar aktor yang mempunyai akses ke use case.
+Prioritas        Menunjukkan prioritas use case di dalam sistem. Pilihan isian prioritas
+                 adalah must have, should have, could have atau won't have.
+Risiko           Menunjukkan risiko use case jika gagal diproses. Pilihan isian risiko
+                 adalah high, medium dan low.
+Pre-conditions   Kondisi yang harus terjadi. Jika kondisi ini tidak terpenuhi, maka use
+and              case tidak berjalan semestinya.
+assumptions
+Extension        Daftar poin-poin yang membuat use case lain dipanggil.
+points
+Extends          Daftar use case lain yang dapat dipanggil jika extension points
+                 terpenuhi.
+Trigger          Kondisi yang membuat use case dipanggil.
+Flow of events   Alur utama use case berjalan.
+Alternate flows  Kemungkinan alur yang berjalan.
+Post-            Kondisi seharusnya jika use case selesai.
+conditions
+Business rules   Daftar business rule yang sesuai dengan use case.
+Non-             Daftar NFRs yang terkait dengan use case.
+Functional
+Requirements     Informasi lain yang dapat ditambahkan
+Catatan
+
+        Flow of events diisi dengan primary scenario sedangkan alternate flow diisi dengan
+secondary scenario. Diskusi dengan stakeholder dapat dilakukan saat menentukan
+prioritas, risiko, business rules dan kemungkinan adanya NFR baru karena use case ini.
+Contoh isian use case form dapat dilihat pada Tabel 6.3Error! Reference source not found..
+
+                                   Tabel 6.3. Contoh use case form
+
+                                                    49
+Elemen            Deskripsi
+Nama use case     Create reservation
+Deskripsi         Konsumen memesan reservasi kamar hotel untuk periode tertentu.
+                  Jika semua permintaan kosumen dapat dipenuhi, maka kalkulasi
+Actor             harga diinformasikan ke konsumen. Jika data detail konsumen dan
+Prioritas         jaminan pembayaran telah diterima, maka reservasi menjadi
+Risiko            terkonfirmasi untuk konsumen tersebut.
+Pre-conditions    Booking agent, online booker, travel agent system.
+and assumptions   Must have : penting bagi sistem.
+Extension points  High: karena kompleksitas dalam mengidentifikasi ketersediaan
+Extends           kamar dan banyaknya aktor yang dapat mengakses use case ini.
+Trigger           Setidaknya ada satu kamar yang tersedia.
+Post-conditions   Actor melakukan reservasi.
+Business rules    -
+Non-Functional    -
+Requirements      Konsumen melakukan reservasi.
+Catatan           Reservasi.
+Flow of events    Jaminan pembayaran.
+
+Alternate flows   NFR 1 (lihat dokumen NFRs)
+                  NFR 2 (lihat dokumen NFRs)
+                  NFR 4(lihat dokumen NFRs)
+                  -
+                  1. Use case dipanggil saat konsumen melakukan reservasi.
+                  2. Konsumen memasukkan jenis kamar, arrival date dan departure
+
+                      date. [A1] [A2]
+                       a. Sistem membuat reservasi sesuai dengan BR3. [A3]
+                       b. Sistem menghitung harga sesuai dengan BR4.
+                       c. Sistem menginformasikan detail reservasi (kamar dan harga)
+                  3. Konsumen menyetujui penawaran. [A5]
+                       a. Extension point : konsumen baru [A6]
+                       b. Extension point: jaminan pembayaran [A7]
+                       c. Sistem mengubah status reservasi menjadi "confirmed"
+                       d. Sistem menginformasikan konsumen tentang detail
+
+                           reservasi.
+                  4. Use case selesai.
+                  A1: Konsumen memasukkan durasi reservasi. Lanjut ke 2a.
+                  A2: salah memasukkan tanggal (arrival date dan atau departure
+                  date). Menampilkan pesan kesalahan di layar. Kembali ke no 2.
+
+                  50
+Business Rules  A3: Tidak ditemukan kamar yang sesuai dengan permintaan
+                reservasi. Sistem menawarkan tipe kamar yang berbeda, jika
+                diterima menuju ke no 2a. [A4]
+                A4: Tidak ada tipe kamar lain yang tersedia. Menampilkan pesan ke
+                konsumen, menuju no 2.
+                A5: Kamar yang ditawarkan, ditolak, menuju A9.
+                A6: Data konsumen sudah ada, konsumen memasukkan nama dan
+                zip code (kode pos). Sistem mencari data konsumen yang sesuai dan
+                menampilkan daftar data tersebut di layar. Konsumen memilih data
+                yang sesuai dari daftar konsumen yang tampil, menuju ke 3b. [A8]
+                A7:Jaminan pembayaran gagal. Menampilkan pesan ke konsumen,
+                menuju no 3b.
+                A8: Data konsumen tidak ditemukan, menuju 3a.
+                A9: Reservasi tidak terkonfirmasi, reservasi dihapus, use case
+                selesai.
+                BR1: arrival date tidak boleh sebelum hari ini , dan departure date
+                harus setelah arrival date.
+                BR2: overbooking tidak diijinkan.
+                BR3: Reservasi tanpa jaminan pembayaran diberi status "held"
+                BR4: Harga penawaran adalah jumlah harga dasar tipe kamar
+                dengan memperhatikan BR5 dan BR6.
+                BR5: Harga dapat berubah sesuai dengan periode tertentu (misal
+                liburan sekolah, periode bulan puasa, periode liburan Natal dan
+                Tahun Baru atau lainnya.
+                BR6: Penawaran dengan harga khusus dapat diberlakukan (misal:
+                reservasi untuk 1 bulan dengan harga khusus, dan lain-lain)
+                BR7: Reservasi dengan status "held" dapat dibatalkan
+                BR8: Resercasi dengan status "confirmed" harus terhubung dengan
+                jaminan pembayaran dan data konsumen.
+                BR9: Reservasi tidak perlu disimpan jika tidak terhubung minimal
+                pada satu kamar.
+
+                51
+ IN DEPTH
+
+    Use case scenario adalah narasi untuk menggambarkan alur use case..
+    Alur pada use case scenario meliputi alur yang terjadi jika proses berjalan
+
+      lancar dan beberapa skenario yang terjadi jika ada kesalahan penggunaan
+      atau terjadi kondisi lainnya.
+    Use case form merupakan detail dari use case scenario.
+ Flow of events menggambarkan alur proses yang normal, sedangkan
+     alternate flow menggambarkan alur proses jika terjadi kondisi tertentu.
+ Setiap actor harus berelasi minimal pada satu use case pada use case
+     diagram.
+
+                                                                           52
+                        7. Activity Diagram
+
+      Pengertian Activity Diagram
+
+         "Activity diagram merupakan penggambaran workflow (aliran kerja) atau aktivitas
+dari sebuah sistem proses bisnis atau menu yang ada pada perangkat lunak". (Sukamto &
+Shalahuddin, 2016). Tujuan dari activity diagram adalah untuk menangkap tingkah laku
+dinamis dari sistem dengan cara menunjukan aliran pesan dari satu aktivitas ke aktivitas
+lain.
+
+        Activity diagram diperlukan untuk menggambarkan proses bisnis dan urutan
+aktivitas dalam sebuah proses untuk membantu memahami proses secara keseluruhan.
+Activity diagram dibuat berdasarkan sebuah atau beberapa use case pada use case
+diagram. Aktivitas menggambarkan proses yang berjalan, sementara use case
+menggambarkan bagaimana aktor menggunakan sistem untuk melakukan aktivitas
+
+        Struktur diagram ini mirip flowchart atau document flow pada perancangan
+terstruktur.
+Secara umum tujuan dari activity diagram bisa digambarkan sebagai berikut:
+
+         · Menggambarkan aliran aktivitas dari sistem.
+         · Menggambarkan urutan aktivitas dari satu aktivitas ke lainnya.
+         · Menggambarkan paralelisme, percabangan dan aliran konkuren dari sistem.
+        Activity diagram berhubungan dengan Statechart diagram. Statechart diagram
+fokus pada objek dalam suatu proses (atau proses menjadi suatu objek), sedangkan activity
+diagram fokus pada aktivitas-aktivitas yang terjadi yang terkait dalam suatu proses tunggal.
+Dengan kata lain, diagram ini menunjukkan bagaimana aktivitas-aktivitas tersebut
+bergantung satu sama lain. Yang perlu diperhatikan disini adalah bahwa activity diagram
+menggambarkan aktivitas sistem bukan apa yang dilakukan aktor.
+
+          IN DEPTH
+
+                Secara umum tujuan dari activity diagram bisa digambarkan sebagai berikut:
+                · Menggambarkan aliran aktivitas dari sistem.
+                · Menggambarkan urutan aktivitas dari satu aktivitas ke lainnya.
+                · Menggambarkan paralelisme, percabangan dan aliran konkuren dari sistem.
+
+                                                                                     53
+Simbol Activity Diagram
+
+        Tabel 7.1. Tabel Simbol Activity Diagram
+
+Simbol       Nama                        Keterangan
+        Start Point
+                         · Start point dengan tegas menunjukkan
+                             dimulainya suatu workflow pada sebuah
+                             activity diagram.
+
+                         · Hanya ada satu start state dalam sebuah
+                             workflow.
+
+                         · Pada UML, start point digambarkan
+                             dengansimbol lingkaran yang solid.
+
+           End Point     · End point menggambarkan
+                             akhir atau terminal dari pada sebuah
+            Activity         activity diagram.
+
+              Fork       · Bisa terdapat lebih dari satu end state
+        (Percabangan)        pada sebuah activity diagram.
+
+                         · Pada UML, end point digambarkan
+                             dengan simbol sebuah bull's eye (mata
+                             sapi).
+
+                         · Activity menggambarkan sebuah
+                             pekerjaan/tugas dalam workflow.
+
+                         · Pada UML, activity digambarkan dengan
+                             simbol belah ketupat=`lozenge'
+                             (horizontal top and bottom with convex
+                             sides).
+
+                         · Diagram activity dapat dibagi menjadi
+                             beberapa jalur kelompok yang
+                             menunjukkan objek yang mana yang
+                             bertanggung jawab untuk suatu aktifitas.
+
+                         · Peralihan tunggal (single transition)
+                             timbul dari setiap adanya activity
+                             (aktifitas), yang saling menghubungi
+
+                                                  54
+Simbol  Nama                                   Keterangan
+                      ·
+                                   pada aktivitas berikutnya.
+        Join           ·           Sebuah transition (transisi) dapat
+                                   membuat cabang ke dua atau lebih
+        (Penggabungan              percabangan exclusive transition
+                                   (transisi eksklusif).
+        / Merge)                   Label Guard Expression (ada di dalam [ ])
+                                   yang menerangkan output (keluaran)
+                       ·           dari percabangan.
+                                   Percabangan akan menghasilkan bentuk
+                                ·  menyerupai bentuk intan. Transition
+            Decision               bisa bercabang menjadi beberapa
+            (Kondisi)              aktifitas paralel yang disebut Fork. Fork
+                                   beserta join (gabungan dari hasil output
+                                ·  fork)dalam diagram berbentuk solid bar
+                                   (batang penuh).
+                                ·  Decision adalah suatu titik/point pada
+        State Transition           activity diagram yang mengindikasikan
+                                   suatu kondisi dimana ada kemungkinan
+            (Alur)                 perbedaan transisi.
+                                ·  Pada UML, decision digambarkan
+                                   dengan sebuah simbol diamond.
+
+                                   State transition menunjukkan kegiatan
+                                   apa berikutnya setelah suatu kegiatan
+                                   sebelumnya.
+                                   Pada UML, state transition digambarkan
+                                   oleh sebuah solid line dengan panah.
+
+         Swimlane      · Objek swimlane untuk menggambarkan
+        (Kelompok)         objek mana yang bertanggung jawab
+                           untuk aktivitas tertentu.
+
+IMPORTANT
+
+Petunjuk Membuat Activity Diagram
+1. Mulailah dengan node awal untuk titik awal.
+2. Tambahkan partisi jika relevan untuk analisis yang dibuat.
+3. Tambahkan aksi untuk setiap langkah utama dari use case.
+4. Tambahkan alur dari setiap aksi ke ak.si lain, keputusan atau node akhir.
+
+     Setiap aksi hanya mendapat satu alur masuk dan satu alur keluar menuju
+    ke forks, joins, decisions, dan merges.
+
+                                                                       55
+    5. Tambahkan decisions jika alur dipecah menjadi beberapa pilihan. Jangan lupa untuk
+        menggabungkan kembali dengan merge.
+
+    6. Tambahkan forks dan joins jika aktivitas akan dilakukan secara paralel.
+    7. Akhiri proses dengan notasi untuk akhir aktivitas.
+
+      Contoh Activity Diagram
+
+7.3.1. Sekuensial
+
+                         Gambar 7.1. Activity diagram bentuk sekuensial
+        Gambar 7.1 merupakan contoh activity diagram sekuensial dimana semua activity
+dijalankan dari awal hingga akhir.
+
+                                                                                     56
+7.3.2. Percabangan
+
+                         Gambar 7.2. Activity diagram ambil uang di ATM
+
+                                                                                     57
+        Activity diagram pada Gambar 7.2 ini adalah activity diagram ketika seorang
+nasabah mengambil uang di mesin ATM. Terdapat 3 buah swimlane: nasabah, ATM dan
+sistem Bank. Di dalamnya juga terdapat proses percabangan (kondisi) yaitu ketika cek PIN.
+Jika nasabah salah dalam memasukkan PIN maka proses kembali ke activity "Memasukkan
+PIN" namun jika benar maka akan lanjut ke activity "Menampilkan menu utama" dan jika
+nasabah melakukan kesalahan input sebanyak 3x maka akan ke activity "Blokir kartu".
+
+        Pada activity diagram ini juga terdapat simbol fork dan join. Setelah activity "cek
+saldo cukup, maka akan lanjut ke 2 proses yang dijalankan secara bersamaan (paralel), yaitu
+activity "Keluarkan uang" oleh ATM dan activity "Debet saldo" oleh sistem bank. Untuk itu
+digunakan simbol fork (bercabang) dan setelah 2 activity ini selesai maka akan kembali
+bergabung menggunakan simbol join. Activity "tampilkan saldo" baru dijalankan setelah 2
+activity ini selesai dijalankan.
+
+7.3.3. Contoh Kasus Sistem Perpustakaan
+
+                             Gambar 7.3. Use case diagram perpustakaan
+
+                                                                                     58
+Gambar 7.4. Activity diagram pendaftaran anggota, peminjaman dan pengembalian buku
+
+                                                                                     59
+                       Gambar 7.5. Activity diagram manipulasi data buku
+        Gambar 7.3 merupakan use case diagram (UCD) pada sistem perpustakaan. Dalam
+UCD ini terdapat beberapa use case, dimana beberapa di antaranya telah dibuat beberapa
+activity diagram untuk menggambarkan proses bisnis dan urutan aktivitas pada proses
+pendaftaran anggota, peminjaman buku, dan pengembalian buku (Gambar 7.4) serta
+manipulasi data buku (Gambar 7.5).
+
+         TIPS
+
+                 - Identifikasi use case yang paling kritis, dan buat activity diagram untuk
+                     use case tersebut yang memerlukan beberapa eksplorasi.
+
+                 - Jika Anda tidak yakin berapa banyak activity diagram yang harus dibuat,
+                     coba buat activity diagram untuk setiap fungsi utama dari use case yang
+                      paling penting.
+
+                                                                                     60
+                           8. Class diagram
+
+2.1 Pengertian Class diagram
+
+        Class adalah sebuah spesifikasi yang jika di-instansiasi akan menghasilkan sebuah
+objek dan merupakan inti dari pengembangan dan desain berorientasi objek. Class
+menggambarkan keadaan (atribut/properti) suatu sistem, sekaligus menawarkan layanan
+untuk memanipulasi keadaan tersebut (method /fungsi).
+
+        Class diagram menggambarkan struktur dan deskripsi class, package dan objek
+beserta hubungan satu sama lain seperti containment, pewarisan, asosiasi, dan lain-lain.
+Class diagram memberikan pandangan secara luas dari suatu sistem dengan menunjukan
+classnya dan hubungan mereka. Class diagram bersifat statis, menggambarkan hubungan
+apa yang terjadi bukan apa yang terjadi jika mereka berhubungan.
+
+        Class diagram dapat membantu dalam memvisualisasikan struktur class dari suatu
+sistem dan merupakan tipe diagram yang paling ditemui dalam pemodelan sistem berbasis
+objek-oriented. Class diagram memperlihatkan sekumpulan class, interface, dan
+collaborations dan relasi yang ada didalamnya.
+
+        Selama proses analisa, class diagram memperhatikan aturan-aturan dan tanggung
+jawab entitas yang menentukan perilaku sistem. Selama tahap desain, class diagram
+berperan dalam menangkap struktur dari semua class yang membentuk arsitektur sistem
+yang dibuat. Kita memodelkan class diagram untuk memodelkan static design view dari
+suatu sistem.
+
+          IN DEPTH
+
+                Secara umum tujuan dari activity diagram bisa digambarkan sebagai berikut:
+                · Menggambarkan aliran aktivitas dari sistem.
+                · Menggambarkan urutan aktivitas dari satu aktivitas ke lainnya.
+                · Menggambarkan paralelisme, percabangan dan aliran konkuren dari sistem.
+
+2.2 Objek
+
+· Objek adalah gambaran dari entity, baik dunia nyata atau konsep dengan batasan-
+     batasan yang tepat.
+
+· Objek bisa mewakili sesuatu yang nyata dalam domain problem kita seperti komputer,
+     barang, konsumen, dapat berupa konsep seperti proses penarikan uang, pembayaran,
+     pengembalian buku dan lain- lain.
+
+· Dari objek kita bisa mengabstraksikan candidate class yang mungkin terlibat.
+
+                                                                                     61
+`
+
+Karakteristik objek:
+1. State, merupakan suatu kondisi / keadaan dari objek yang mungkin ada. Status dari
+
+     objek akan berubah setiap waktu dan ditentukan oleh sejumlah property dan relasi
+     dengan objek lainnya.
+2. Behavior (sifat) menentukan bagaimana objek merespon permintaan dari objek lain
+     dan melambangkan setiap hal yang dapat dilakukan. Sifat ini diimplementasikan
+     dengan sejumlah operasi untuk objek.
+3. Identity (identitas) artinya setiap objek yang ada dalam suatu system adalah "unik".
+
+2.3 Key Abstraction
+
+"A key abstraction is a class or object that forms part of the vocabulary of the problem
+domain." (Booch OOAD page 162)
+Cara menemukan key abstraction adalah:
+
+    1. Identifikasi semua kandidata key abstraction dengan mendaftar semua kata benda
+        dari artefak proyek dan masukkan dalam tabel kandidat key abstraction.
+
+    2. Gunakan CRC analysis untuk mendapatkan kumpulan key abstraction.
+        Dapat masuk sebagai key abstraction jika objek punya tugas (responsibilities) dan
+        kolaborasi (collaborators).
+
+Beberapa artefak proyel antara lain:
+    1. Main flow dan alternate flow pada use case form
+    2. Bagian lain pada use case forms
+    3. Use case scenarios
+    4. Glossary of terms
+    5. Supplementary Specification document
+
+8.1.1. Contoh Kasus: Company Database
+
+COMPANY database keeps track of a company's employees, departements, and projetcs.
+The part of the company to be represented in the database are:
+
+    · The company is organized into departments. Each departments has a unique name,
+        a unique number, and a particular employee who manages the department. We keep
+        track of the start date when tha employee began managing the department. A
+        department may have several locations.
+
+    · A department controls a number of projects, each which has a unique name, a unique
+        number and a single location.
+
+    · We store each employee's name, social security number, address, salary, sex, and
+        birthdate. An employee is assigned to one department but may work on several
+        projetcs, which are not necessarily controlled by the same department. We keep
+
+                                                                                     62
+`
+
+       track of the number of hours per week that an employee works on each project. We
+       also keep track of the direct supervisor of each employee.
+   · We want to keep track of the dependents of each employee for insurance purposes.
+       We keep each dependent's name, sex, birthdate, and relationship to the employee.
+
+   Cari kandidat key abstraction dengan mendaftar semua kata benda:
+   · The company is organized into DEPARTMENTs. Each department has a name,
+
+       number and an employee who manages the department. We keep track of the start
+       date of the department manager. A department may have several locations.
+   · Each department controls a number of PROJECTs. Each project has a unique name,
+       unique number and is located at a single location.
+   · We store each EMPLOYEE's social security number, address, salary, sex, and
+       birthdate.
+        · Each employee works for one department but may work on several projects.
+        · We keep track of the number of hours per week that an employee currently
+
+            works on each project.
+        · We also keep track of the direct supervisor of each employee.
+   · Each employee may have a number of DEPENDENTs.
+        · For each dependent, we keep track of their name, sex, birthdate, and
+
+            relationship to the employee.
+   Kemudian dari semua kata benda tersebut, lakukan analisa apakah akan menjadi key
+   abstraction atau bukan. Sebuah key abstraction harus punya responsibilty dan
+   collaborators.
+   Tabel 8.1 berikut merupakan form kandidat key abstraction
+
+                           Tabel 8.1. Tabel Kandidat Key Abstraction
+
+   Nouns             Reason of elimination         Selected Entity Name
+
+   company           the whole system              department
+   department
+   dept_name         candidate atribut of dept     location
+   dept_number       candidate atribut of dept     project
+   dept_manager      same with employee
+   dept_location                                   employee
+   project           candidate atribut of project
+   project_name      candidate atribut of project
+   project_number    candidate atribut of project
+   project_location
+   employee
+
+                                                                         63
+`
+
+   Nouns              Reason of elimination               Selected Entity Name
+                                                          dependent
+   emp_ssn            candidate atribut of employee
+
+   emp_address        candidate atribut of employee
+
+   empl_salary        candidate atribut of employee
+
+   empl_sex           candidate atribut of employee
+
+   empl_birhtdate     candidate atribut of employee
+
+   num_of_hour        candidate atribut
+
+   direct_supervisor  same with employee
+
+   dependent
+
+   dependent_name     candidate atribut of dependent
+
+   dependent_sex      candidate atribut of dependent
+
+   dependent_birthdate candidate atribut of dependent
+
+   dependent_relationship candidate atribut of dependent
+
+                                         Gambar 8.1. CRC card
+    Gambar 8.1 merupakan hasil key abstraction yang diperoleh dari proses CRC analysis.
+
+2.4 Struktur Class diagram
+
+· Class adalah deskripsi sekelompok objek dari property (atribut), sifat (operasi), relasi
+     antar object dan semantik yang umum. Class merupakan blueprint / template / cetakan
+     dari satu atau lebih object.
+
+· Setiap objek merupakan contoh dari beberapa class dan objek tidak dapat menjadi
+     contoh lebih dari satu class.
+
+· Penamaan class menggunakan kata benda tunggal yang merupakan abstraksi yang
+     terbaik.
+
+                                                                                     64
+`
+
+· Pada UML, class digambarkan dengan segi empat yang dibagi: bagian atas merupakan
+     nama dari class. Bagian yang tengah merupakan struktur dari class (atribut) dan bagian
+     bawah merupakan sifat dari class (operasi).
+
+1.1.1. Notasi dan Struktur Class
+
+· Class memiliki tiga area pokok: Nama (dan stereotype), atribut, dan metode (operasi),
+     dapat dilihat pada Gambar 8.2.
+
+· Atribut dan metoda dapat memiliki salah satu sifat berikut:
+     - Private, tidak dapat dipanggil dari luar class yang bersangkutan.
+     - Protected, hanya dapat dipanggil oleh class yang bersangkutan dan anak-anak
+          yang mewarisinya.
+     - Public, dapat dipanggil oleh siapa saja dan dimana saja.
+
+                                      Gambar 8.2. Struktur class
+
+                                 Gambar 8.3. Contoh class dan objek
+
+                                                                                     65
+`
+
+Gambar 8.3 merupakan contoh class Patient dan Appointment serta contoh objek dari class
+tersebut.
+
+8.1.2. Penamaan Class
+
+· Setiap class harus memiliki sebuah nama yang dapat digunakan untuk membedakannya
+     dari class lain.
+
+· Penamaan class menggunakan kata benda tunggal yang merupakan abstraksi yang
+     terbaik.
+
+· Nama class dapat dituliskan dengan 2 cara:
+1. Hanya menuliskan nama dari class (simple name).
+2. Nama class diberi prefix nama package letak class tersebut (path name).
+· Penulisan nama class, huruf pertama dari setiap kata pada nama class ditulis dengan
+
+     menggunakan huruf kapital. Contohnya, Customer dan FraudAgent.
+
+                                Gambar 8.4. Contoh penamaan class
+
+8.1.3. Atribut
+
+· Sebuah class mungkin memiliki beberapa atribut atau tidak sama sekali.
+· Atribut juga diperoleh dari daftar kata benda yang ada pada artefak. Bedanya dengan
+
+     class diagram, kalau class diagram tersusun atas elemen lain sedang atribut tidak
+     tersusun atas elemen yang lain lagi.
+· Atribut merepresentasikan beberapa property dari sesuatu yang kita modelkan, yang
+     dibagi dengan semua objek dari semua class yang ada.
+· Contohnya, setiap tembok memiliki tinggi, lebar dan ketebalan
+· Untuk penulisan atribut class, biasanya huruf pertama dari tiap kata merupakan huruf
+     kapital, kecuali untuk huruf awal. Contoh: birthDate, length.
+
+                                                                                     66
+`
+
+8.1.4. Method
+
+· Methods / Operasi adalah abstraksi dari segala sesuatu yang dapat kita lakukan pada
+     sebuah object dan ia berlaku untuk semua object yang terdapat dalam class tersebut.
+
+· Class mungkin memiliki beberapa operasi atau tanpa operasi sama sekali.
+· Contohnya adalah sebuah class Kotak dapat dipindahkan, diperbesar atau diperkecil.
+· Biasanya, pemanggilan operasi pada sebuah object akan mengubah data atau kondisi
+
+     dari object tersebut.
+
+8.1.5. Visibility
+
+· Visibility merupakan property yang sangat penting dalam pendefinisian atribut dan
+     operasi pada suatu class.
+
+· Visibility menspesifikasikan apakah atribut/operasi tersebut dapat digunakan/diakses
+     oleh class lain (Gambar 8.5). UML menyediakan 3 buah tingkat visibility, yaitu:
+     - Private (-), tidak dapat dipanggil dari luar class yang bersangkutan
+     - Protected (#), hanya dapat dipanggil oleh class yang bersangkutan dan anak- anak
+          yang mewarisinyaPublic (+), dapat dipanggil oleh siapa saja
+
+                          Gambar 8.5. Visibility dari atribut dan method
+
+8.1.6. Menggambar Class
+
+· Ketika menggambarkan sebuah class kita tidak perlu menampilkan seluruh atribut atau
+     operasi.
+
+                                                                                     67
+`
+
+· Karena dalam sebagian besar kasus kita tidak dapat menampilkannya dalam sebuah
+     gambar, karena terlalu banyaknya atribut atau operasinya, bahkan terkadang tidak
+     perlu karena kurang relevannya atribut atau operasi yang akan ditampilkan.
+
+· Sehingga kita dapat menampilkan atribut dan operasinya hanya sebagian atau tidak
+     sama sekali. Kosongnya tempat pengisian bukan berarti tidak ada. Karena itu kita dapat
+     menambahkan tanda ellipsis (...) pada akhir daftar yang menunjukkan bahwa masih ada
+     atribut atau operasi yang lain.
+
+8.1.7. Class Stereotype
+
+· Stereotype adalah sebuah mekanisme yang digunakan untuk mengkategorikan sebuah
+     class. Misal, kita ingin mencari form dalam model. Kita dapat menciptakan Form
+     stereotype, dan dapat menemukan seluruh form dalam form stereotype. Fitur ini
+     memudahkan kita dalam mengorganisasi responsibility dari tiap-tiap class. Sebagai
+     contoh, beberapa class yang memiliki form stereotype memiliki responsibility untuk
+     menampilkan dan menerima informasi dari user.
+
+· Terdapat 3 stereotype utama dalam UML, yaitu boundary, entity dancontrol.
+    1. Boundary Class
+       - Boundary class adalah class yang terdapat batasan sistem dan dunia nyata. Hal ini
+            mencakup semua form, report, hardware interface seperti printer atau scanner.
+       - Boundary class dapat diidentifikasi dari use case diagram. Minimal terdapat satu
+           buah boundary class dalam relasi aktor dengan use case. Boundary class adalah
+            yang mengakomodasi interaksi antara aktor dengan sistem.
+        - Simbol dan contoh boundary class dapat dilihat pada Gambar 8.7 dan Gambar 8.7.
+
+                           Gambar 8.6. Simbol boundary class stereotype
+
+                                                                                     68
+`
+
+                              Gambar 8.7. Boundary class stereotype
+   2. Entity Class
+
+      - Entity class menyimpan informasi yang mungkin akan disimpan ke sebuah
+          storage. Class dengan stereotype entity dapat ditemukan di flow of event
+          (skenario dari use-case diagram) dan interaction diagram.
+
+      - Entity class dapat diidentifikasi dengan mencari kata benda (noun) yang ada pada
+          flow of events. Selain itu, dapat juga diidentifikasi dari struktur database (dilihat
+          dari nama-nama tabelnya). Sebuah entity class mungkin perlu dibuat untuk
+           sebuah tabel. Bila sebuah table menyimpan informasi secara permanen, maka
+          entity class akan menyimpan informasi pada memory ketika sistem sedang
+          running.
+
+      - Simbol entity class stereotype dapat dilihat pada Gambar 8.8.
+
+                     Gambar 8.8. Entity class stereotype
+
+   3. Control Class
+
+                                                          69
+`
+
+       - Control class bertanggung jawab dalam mengatur class yang lain. Seperti yang
+           terlihat pada gambar di bawah, control class bertanggung jawab dalam
+           mendelegasikan responsibility kepada class lain.
+
+       - Control class juga bertanggung jawab dalam mengetahui dan menyampaikan
+           business rule dari sebuah organisasi. Class ini menjalankan alternate flow dan
+           mampu mengatasi error. Karena alasan ini control class sering disebut sebagai
+           manager class.
+
+       - Simbol control class stereotype dapat dilihat pada Gambar 8.9.
+
+                                 Gambar 8.9. Control class stereotype
+
+      Relasi
+
+· Relasi atau relationship menghubungkan beberapa objek sehingga memungkinkan
+     terjadinya interaksi dan kolaborasi diantara objek- objek yang terhubung.
+
+· Dalam pemodelan class diagram, terdapat tiga buah relasi utama yaitu association,
+     agregation dan generalization:
+
+· Association/ asosiasi
+     - Suatu hubungan antara bagian dari dua class. Terjadi asosiasi antara dua class jika
+          salah satu bagian dari class mengetahui yang lainnya dalam melakukan suatu
+          kegiatan. Di dalam diagram, sebuah asosiasi adalah penghubung yang
+          menghubungkan dua class
+      - Relasi asosiasi merupakan relasi struktural yang menspesifikasikan bahwa satu
+          objek terhubung dengan objek lainnya. Relasi ini tidak menggambarkan aliran data,
+          sebagaimana yang terdapat pada pemodelan desain pada analisa terstruktur.
+
+                                                                                     70
+`
+
+· Aggregation/ agregasi. Suatu association dimana salah satu classnya merupakan bagian
+     dari suatu kumpulan. Aggregation memiliki titik pusat yang mencakup keseluruhan
+     bagian. Sebagai contoh: OrderDetail merupakan kumpulan dari Order.
+      - Agregasi merupakan bentuk khusus dari asosiasi dimana induk terhubung dengan
+          bagian-bagiannya.
+     - Agregasi merepresentasikan relasi "has-a", artinya sebuah class
+      - memiliki/terdiri dari bagian-bagian yang lebih kecil.
+      - Dalam UML, relasi agregasi digambarkan dengan open diamon pada sisi yang
+          menyatakan induk (whole) seperti pada Gambar 8.10 dan Gambar 8.11.
+
+             Gambar 8.10. Contoh agregasi Company (whole) ­ Department (part)
+
+                               Gambar 8.11. Contoh agregasi bertingkat
+· Generalization. Suatu hubungan turunan dengan mengasumsikan satu class
+
+     merupakan suatu superClass dari class yang lain. Generalization memiliki tingkatan
+
+                                                                                     71
+`
+
+     yang berpusat pada superClass. Contoh pada Gambar 8.12 Person adalah parent dari
+     Student dan Professor.
+
+                     Gambar 8.12. Contoh class diagram dengan generalisasi
+
+8.2.2. Multiplicity
+
+· Multiplicity menentukan/mendefinisikan banyaknya objek yang terhubung dalam
+     suatu relasi.
+
+· Indikator multiplicity terdapat pada masing-masing akhir garis relasi, baik pada asosiasi
+     maupun agregasi
+
+                               Gambar 8.13. Multiciplicty pada asosiasi
+· Multiplicity dari suatu titik asosiasi adalah angka kemungkinan bagian dari hubungan
+
+     class dengan single instance (bagian) pada titik yang lain.
+· Multiplicity berupa single number (angka tunggal) atau range number (angka batasan).
+
+                                                                                     72
+`
+
+· Pada contoh Gambar 8.13, 1 Person bisa menjadi employee dari banyak Company, dan
+     1 Company bisa menjadi employer bagi banyak Person.
+
+· Tabel 8.2 merupakan beberapa jenis multiplicity.
+                                     Tabel 8.2. Jenis Multipilcity
+
+8.2.3. Dependency
+
+· Dependency merupakan sebuah relasi yang menyebutkan bahwa perubahan pada satu
+     class (misal class event), maka akan mempengaruhi class lain yang menggunakannya
+     (misal class window), tetapi tidak berlaku sebaliknya.
+
+· Pada umumnya, relasi dependency dalam konteks Class diagram, digunakan apabila
+     terdapat satu class yang menggunakan / meng- instance class lain sebagai argumen dari
+     sebuah method.
+
+· Perhatikan contoh Gambar 8.14 ini, bila spesifikasi dari class Channel berubah, maka
+     method playOn pada class FilmClip juga akan berubah.
+
+                                         Gambar 8.14. Dependency
+
+8.2.4. Inheritance
+
+· Inheritance merupakan salah satu karakteristik dalam pemrograman berorientasi
+     objek, dimana sebuah class mewarisi / inherit sifat-sifat (dalam hal ini atribut & operasi)
+     dari class lain yang merupakan parent dari class tadi. Class yang menurunkan sifat-
+
+                                                                                     73
+`
+
+     sifatnya disebut superclass, sedangkan class yang mewarisi sifat dari superclass
+     disebut subclass.
+· Inheritance disebut juga hierarki "is-a" (adalah sebuah) atau "kind-of" (sejenis).
+     Subclass dapat memiliki atau menggunakan atribut & operasi tambahan yang hanya
+     berlaku pada tingkat hierarkinya.
+· Karena inheritance relationship bukan merupakan relationship diantara objek yang
+     berbeda, maka relationship ini tidak diberi nama. Begitu pula dengan penamaan role
+     dan multiplicity
+
+8.2.5. Generalization
+
+· Abstract class: jika satu class hanya diperlukan sebagai template untuk class yang lebih
+     spesifik (dalam sistem tidak akan ada object dari class tsb)
+
+· Tidak memiliki instance
+· Dalam notasi namanya dituliskan huruf miring (italic). Gambar 8.15 merupakan contoh
+
+     dari generalization.
+
+                                        Gambar 8.15. Generalization
+Keterangan Error! Reference source not found.
+· Class person merupakan generalisasi, class doctor dan class patient adalah spesialisasi.
+· Class yang menjadi superclass (dalam hal ini adalah class person) dinamakan abstract
+
+     class, sedangkan class yang menjadi subclass (class doctor dan class patient) dinamakan
+     concrete class
+
+                                                                                     74
+`
+
+                                   Gambar 8.16. Contoh generalization
+
+      Simbol Class diagram
+
+Tabel 8.3 merupakan simbol yang ada pada class diagram.
+
+                                                                                     75
+`
+
+                                   Tabel 8.3. Simbol Class Diagram
+
+                                                                                     76
+`
+
+      Package Diagram
+
+· Untuk mengatur pengorganisasian class diagram yang kompleks, dapat dilakukan
+     pengelompokan class berupa package (paket).
+
+· Package adalah kumpulan elemen-elemen logika UML.
+· Gambar 8.17 ini mengenai model bisnis dengan pengelompokan class dalam bentuk
+
+     paket-paket:
+
+                                 Gambar 8.17. Contoh package diagram
+
+                                                                                     77
+`
+
+      Beberapa contoh Class diagram
+
+8.5.1. Contoh Kasus Company
+
+Gambar 8.18 merupakan hasil class diagram dari contoh kasus Company pada sub bab
+8.1.1.
+
+                           Gambar 8.18. Class diagram kasus "Company"
+Setiap class diagram memiliki Class (class), association, dan multiplicity. Sedangkan
+navigability (alur arah) dan role (kegiatan) merupakan optional (tidak diharuskan).
+
+8.5.2. Contoh Kasus Pembelian
+
+Gambar 8.19 merupakan contoh class diagram untuk transaksi pembelian, dimana pada
+class diagram ini, terdapat contoh generalization: class payment adalah class abstract,
+mempunyai 3 child: Credit, Cash dan Check.
+Relasi antara class Order dan OrderDetail adalah agregasi, dimana Order sebagai whole
+dan OrderDetail sebagai part.
+
+                                                                                     78
+`
+
+                     Gambar 8.19. Class diagram transaksi pembelian barang
+
+8.5.3. Contoh Kasus Rental Film
+
+Gambar 8.20 merupakan contoh use case diagram untuk kasus rental film, dimana terdapat
+1 aktor dan beberapa use case di dalamnya. Sedang Gambar 8.21 adalah hasil dari class
+diagram rental film
+
+                                                                                     79
+`
+
+                                                                                                                        System
+
+                                             Cari Film                                     Cek Ketersedian Film
+
+                                                                              <<include>>
+
+                                             <<include>>
+                                                                  Olah Film
+
+                             Tambah Film Baru                                              Hapus Film
+                                                    <<include>>Update Film
+
+   Operator
+
+                             <<include>>
+
+             Cek Judul Film                  <<include>>
+                                                                 Update Stok
+
+                             Cek Stok Film
+
+                                                                              <<include>>
+
+             Cek Pelanggan                                                                              Cari Pelanggan
+                                <<include>>
+                                             Olah Pelanggan
+
+             Tambah Pelanggan baru                                            Hapus Pelanggan
+                                                      Update Pelanggan
+
+                                             Transaksi Peminjaman                          <<include>>
+
+                                             Daftar Sewa                                                <<include>>
+
+                                                                              Kembalikan Film
+
+             Sewa Film
+
+             Gambar 8.20. Use case diagram rental film
+
+                                                                                                                                80
+`
+
+                               Gambar 8.21. Class diagram rental film
+
+8.5.4. Contoh Kasus Reservasi Hotel
+
+Dari studi kasus tentang reservasi hotel, berikut adalah Gambar 8.22 merupakan hasil key
+abstraction candidate yang diperoleh dari proses CRC analysis.
+
+                                Gambar 8.22. Key abstraction candidate
+
+                                                                                     81
+`
+
+Setelah diperoleh semua key abstraction candidate , maka digambar asosiasi antar class
+seperti pada Gambar 8.23.
+
+                                    Gambar 8.23. Asoasiasi antar class
+Kemudian dapat diberikanlabel pada asosiasi dan nama role seperti pada Gambar 8.24.
+
+                        Gambar 8.24. Asosiasi dan role pada class diagram
+Kemudian diberikan multiplicity pada asosiasi, seperti pada Gambar 8.25.
+
+                                                                                     82
+`
+
+                             Gambar 8.25. Multiplicity pada class diagram
+
+                                                                                     83
+                          9. Object Diagram
+
+      Pengertian Object Diagram
+
+        Object diagram diturunkan dari class diagram sehingga object diagram bergantung
+pada class diagram. Object diagram merepresentasikan instance dari class diagram. Konsep
+dasarnya serupa untuk class diagram dan object diagram. Object diagram juga mewakili
+tampilan statis suatu sistem tetapi ini tampilan statis adalah snapshot dari sistem pada saat
+tertentu. Object diagram digunakan untuk membuat sekumpulan objek dan hubungannya
+sebagai sebuah instance.
+
+      Tujuan Object Diagram
+
+         Tujuan dari diagram harus dipahami dengan jelas untuk mengimplementasikannya
+secara praktis. Tujuan diagram objek mirip dengan diagram class.
+
+        Perbedaannya adalah bahwa diagram class mewakili model abstrak yang terdiri dari
+class dan hubungan antar class. Tapi diagram objek mewakili sebuah contoh kejadian nyata
+pada saat tertentu.
+
+         Ini berarti diagram objek lebih dekat dengan perilaku sistem yang sebenarnya.
+Tujuannya adalah untuk menangkap tampilan statis sistem pada saat tertentu.
+
+         Jadi tujuan dari diagram objek dapat diringkas sebagai:
+     Forward and reverse engineering.
+     Hubungan antar objek dari sebuah sistem
+     Tampilan statis dari sebuah interaksi.
+     Memahami perilaku objek dan hubungan antar objek dari perspektif praktis
+     Memvalidasi domain model dengan menganalisis beberapa object diagram
+
+         berdasarkan skenario kasus penggunaan.
+
+      Elemen Object Diagram
+
+        A static object adalah diagram turunan dari class diagram; itu menunjukkan
+snapshot dari keadaan rinci sistem pada suatu titik waktu. [UML specv1.4, page 3-35]
+Elemen dari object diagram dapat dilihat pada Gambar 9.1.
+
+                                                                                     84
+`
+
+                                  Gambar 9.1. Elemen object diagram
+
+9.3.2. Object Node
+
+        Sebuah object node mencakup beberapa bentuk nama dan tipe data seperti pada
+Gambar 9.2:
+
+                                         Gambar 9.2. Object node
+Sebuah object node juga bisa terdiri atas atribut seperti pada Gambar 9.3.
+
+                                Gambar 9.3. Contoh atribut pada objek
+
+                                                                                     85
+`
+
+9.3.3. Link
+
+        Pada object diagram setiap link unik dan one-to-one untuk tiap participant (Gambar
+9.4).
+
+                                 Gambar 9.4. Link pada object diagram
+
+      Validasi DomainModelMenggunakan ObjectDiagrams
+
+    1. Pilih satu atau lebih use case pada domain model.
+    2. Pilih satu atau lebih skenario use case untuk use case yang dipilih.
+    3. Telusuri setiap skenario (secara terpisah), dan bangun objek (dengan data) yang
+
+         disebutkan dalam skenario.
+    4. Bandingkan setiap object diagram dengan domain model untuk melihat apakah ada
+
+         batasan asosiasi yang dilanggar.
+
+9.4.1. Step 1- Skenario 1: Create Reservation
+
+        Use case dimulai ketika booking agent menerima permintaan reservasi sebuah
+kamar hotel Gambar 9.5). Booking agent memasukkan arrival date, departure date, dan
+kuantitas tiap tipe kamar yang dibutuhkan.
+
+             Gambar 9.5. Step1-skenario 1 untuk use case "Create Reservation"
+
+                                                                                     86
+`
+
+9.4.2. Step 2- Skenario 1: Create Reservation
+
+        Booking agent kemudian memasukkan detil reservasi. Sistem akan mencari kamar
+yang tersedia dalam periode pada reservasi tersebut (Gambar 9.6).
+
+             Gambar 9.6. Step 2- skenario 1 untuk use case "Create Reservation"
+
+9.4.3. Step 3- Skenario 1: Create Reservation
+
+         Sistem mengalokasikan sejumlah kamar sesuai tipe yang dipesan dari kamar yang
+tersedia. Sistem merespon bahwa kamar tersedua, dan mengembalikan nomor reservasi
+sementara, dan memberi tanda "held" pada reservasi tersebut. (Gambar 9.7)
+
+             Gambar 9.7. Step 3- skenario 1 untuk use case "Create Reservation"
+
+9.4.4. Step 4- Skenario 1: Create Reservation
+
+        Booking agent menerima kamar yang ditawarkan. Booking agent memilih bahwa
+pelanggan pernah mengunjungi salah satu hotel di grup ini sebelumnya, dan memasukkan
+kode pos dan nama pelanggan. Sistem menemukan dan mengembalikan daftar pelanggan
+
+                                                                                     87
+`
+
+yang cocok dengan detail alamat lengkap. Booking agent memilih salah satu pelanggan
+sebagai pelanggan yang valid. Sistem memasukkan pelanggan ini ke reservasi. (Gambar 9.8)
+
+Gambar 9.8.  Step 4- skenario 1 untuk use case "Create Reservation"
+
+9.4.5. Step 5- Skenario 1: Create Reservation
+
+        Booking agent melakukan pemeriksaan jaminan pembayaran. Pemeriksaan ini
+berhasil. Sistem memberikan jaminan pembayaran ke reservasi dan mengubah status
+reservasi menjadi "confirmed". Sistem mengembalikan ID reservasi dan detail pemesanan.
+(Gambar 9.9)
+
+Gambar 9.9.  Step 5- skenario 1 untuk use case "Create Reservation"
+
+                                                                     88
+`
+
+9.4.6. Skenario 2: Create Reservation
+
+        Skenario "Create a Reservation" lain, actor melakukan reservasi untuk reuni
+keluarga kecil di mana tiga kamar dipesan seperti pada Gambar 9.10:
+
+                 Gambar 9.10. Skenario 2 untuk use case "Create Reservation"
+
+9.4.7. Membandingkan Object Diagram untuk Memvalidasi Domain Model
+
+        Untuk memvalidasi domain model, bandingkan class diagram dengan skenario
+object diagram.
+
+     Apakah ada atribut atau responsibilities yang disebutkan dalam skenario yang tidak
+        tercantum dalam domain model?
+
+     Apakah ada asosiasi dalam object diagram yang tidak ada dalam domain model?
+     Apakah ada skenario di mana multiplicity suatu relasi salah?
+
+9.4.8. Perbaiki Domain Model untuk Hotel Reservation System
+
+        Setelah dilakukan validasi dengan menggunakan object diagram, maka kita bisa
+melakukan perbaikan pada domain model (class diagram) yang telah dihasilkan pada sub
+bab 8.5.4. Hasil perbaikan dapat dilihat pada Gambar 9.11.
+
+                                                                                     89
+`
+
+       Gambar 9.11. Perbaikan domain model setelah validasi dengan object diagram
+
+                                                                                     90
+                       10. Interaction Diagram
+
+      Pengertian Interaction Diagram
+
+        Interaction diagram adalah diagram yang menggambarkan urutan interaksi yang
+terjadi antar obyek dalam satu atau dua buah use case scenario maupun dalam sebuah
+fragment dari suatu use scenario. Interaction diagram juga dapat digunakan untuk
+menggambarkan urutan interaksi yang terjadi antara sistem atau subsistem. Interaction
+diagram terdiri dari sequence diagram dan communication diagram.
+
+         Untuk membuat interaction diagram, perlu dilakukan review terhadap hasil analisis
+yang telah dibuat. Sebagai perbandingan, analisis menghasilkan model yang menjelaskan
+apa yang harus disediakan oleh sistem untuk mendukung proses bisnis melalui use case dan
+domain model. Sedangkan desain menghasilkan model yang menjelaskan bagaimana sistem
+mendukung proses bisnis melalui komponen boundary, komponen service, dan komponen
+entity.
+
+         Analisis ketahanan adalah proses yang membantu dalam mengidentifikasikan
+komponen desain yang dibutuhkan dalam model desain. Input dari analisis ini adalah use
+case, use case scenario untuk use case tersebut, use case activity (optional) untuk use case
+tersebut, dan domain model. Sedangkan output dari analisis ini adalah model desain yang
+digambarkan sebagai interaction diagrams dengan komponen boundary, service, dan
+entity. Hal ini dapat dilihat pada Error! Reference source not found..
+
+        Gambar 10.1. Input dan output dari analisis ketahanan (Microsystems, 2010)
+
+      Boundary Class
+
+        Boundary class (komponen boundary) digunakan untuk menggambarkan interaksi
+antara sistem dan aktor (user atau sistem eksternal). Boundary class dapat berupa: (1)
+abstraksi dari user interface, sensor, interface untuk berkomunikasi, dan sebagainya; atau
+
+                                                                                     91
+`
+
+(2) high-level user interface. Setiap boundary harus berasosiasi dengan setidaknya seorang
+aktor. Contoh penggunaan boundary dapat dilihat pada Gambar 10.2.
+
+                       Gambar 10.2. Contoh boundary (Microsystems, 2010)
+
+      Service Class
+
+        Service (atau control) class (komponen service) merepresentasikan koordinasi,
+urutan, transaksi, dan kontrol dari obyek lain dan digunakan untuk melakukan enkapsulasi
+yang berhubungan dengan user case tertentu. Service class dapat berarti melakukan
+koordinasi aliran kontrol. Selain itu, service class juga mengisolasi perubahan dalam
+workflow antara boundary dan entity. Contoh penggunaan service dapat dilihat pada
+Gambar 10.3.
+
+                         Gambar 10.3. Contoh service (Microsystems, 2010)
+
+      Entity Class
+
+        Entity class (komponen entity) digunakan untuk memodelkan data yang harus
+disimpan (persistent). Entity adalah kumpulan dari domain obyek yang bersifat persistent
+dan dapat mempunyai sifat yang kompleks. Contoh penggunaan entity dapat dilihat pada
+Gambar 10.4.
+
+                          Gambar 10.4. Contoh entity (Microsystems, 2010)
+
+                                                                                     92
+`
+
+      Message
+
+        Message adalah relasi yang menghubungkan antar boundary class, control class, dan
+entity class. Message mempunyai nama mempunyai arah panah (panah solid untuk message
+synchronous dan panah terbuka untuk message asynchronous). Untuk mempermudah
+melihat urutan relasinya, message dilengkapi juga dengan penomoran. Dalam sebuah
+message dapat dimungkinkan juga adanya parameter yang diparsingkan kepada obyek
+penerima. Selain itu, message juga dapat menghasilkan return parameter. Untuk
+menggambarkan conditional message, maka digunakan kurung siku.
+
+      Fragment
+
+         Fragment digunakan untuk menggambarkan suatu:
+· Looping
+· Alternatif skenario
+ Dua atau lebih skenario dalam satu diagram
+· Reference pada detail fragment sequence diagram lain
+· Dapat memecah diagram yang besar menjadi beberapa diagram kecil
+
+      Contoh Sequence Diagram Booking Hotel
+
+        Sebelum membuat diagram, kita harus menentukan class/object apa saja yang
+terlibat dalam diagram tersebut. Ketika melakukan booking suatu kamar hotel, maka actor
+yang terlibat adalah Booking Agent. Booking Agent berhadapan dengan user interface
+Reservation (class boundary). Untuk melakukan pencarian data kamar tersedia ataupun
+menyimpan data booking, maka dibutuhkan class entity yaitu room dan reservation. Agar
+class boundary dapat mengakses class entity maka dibutuhkan class service yang berperan
+sebagai perantara. Ketika seorang booking agent akan melakukan booking, dia akan
+mencari kamar berdasarkan jenis kamar, tanggal check in, dan tanggal check out.
+Selanjutnya sistem akan membantu mencarikan kamar yang available berdasarkan
+pencarian tersebut. Jika user menyetujui hasil pencarian tersebut, maka user dapat
+melanjutkan dengan memasukkan biodata dan detail pembayarannya. Gambar 10.5 adalah
+sequence diagram untuk melakukan booking kamar, sedangkan Gambar 10.6 adalah
+communication diagram untuk melakukan booking kamar.
+
+        Kita juga dapat menggambarkan sequence diagram (Gambar 10.7) dan
+communication diagram (Gambar 10.8) dalam kasus ketika user tidak menyetujui hasil
+pencarian dalam. Sistem akan menghapus object reservation yang telah di-create
+sebelumnya.
+
+                                                                                     93
+`
+
+Gambar 10.9 menggambarkan tentang fragmen mencari kamar yang kosong berdasarkan
+jenis kamar, tanggal check in, dan tanggal check out.
+
+         Sequence fragment mencari kamar kosong, mendapatkan detail reservasi,
+mengidentifikasi customer, melakukan pembayaran.
+
+                           Gambar 10.5. Sequence diagram Booking Room
+
+                                                                                     94
+`
+
+                       Gambar 10.6. Communication diagram Booking Room
+
+                                                                                     95
+`
+
+                   Gambar 10.7. Sequence diagram pembatalan Booking Room
+
+               Gambar 10.8. Communication diagram pembatalan Booking Room
+
+                                                                                     96
+`
+
+                      Gambar 10.9. Sequence diagram mencari kamar kosong
+
+                                                                                     97
+                     11. State Machine Diagram
+
+      Pengertian State Machine Diagram
+
+        State adalah sebuah status atau sebuah kondisi. Ada dua cara untuk dapat
+menemukan suatu state: (1) state dari suatu obyek merupakah atribut dari obyek tersebut;
+atau (2) state dari suatu obyek mendeskripsikan tentang perilaku dari obyek tersebut
+ketika ada trigger dari luar.
+
+                         Gambar 11.1. Elemen pada State Machine Diagram
+        Pada Gambar 11.1 terdapat elemen initial state, final state, state, dan transisi.
+Sebuah state machine diagram harus mempunyai sebuah initial state yang menunjukkan
+state pertama kali yang terjadi ketika proses berjalan. Sedangkan final state untuk
+menunjukkan berakhirnya suatu proses. Selama di dalam rangkaian proses, boleh terjadi
+perpindahan state yang digambarkan dengan transisi.
+         Dalam sebuah transisi, terdapat tiga struktur yaitu trigger event, guard condition,
+dan action. Ketiga struktur ini sifatnya optional (tidak harus semuanya ada), namun urutan
+penulisannya harus berurutan. Trigger event adalah stimulus dari luar yang menyebabkan
+terjadinya perpindahan state. Guard condition adalah kondisi yang harus dipenuhi agar
+dapat terjadi perpindahan state. Cara penulisan guard condition adalah dengan
+menggunakan kurung siku. Sedangkan action adalah hal yang dilakukan ketika terjadi
+perubahan state. Cara penulisan action diawali dengan tanda garis miring. Contoh diagram
+dapat dilihat pada Gambar 11.2.
+
+                                                                                     98
+`
+
+         Ketika berada pada state idle dan terjadi suatu kondisi bahwa realTemp >
+upperBound, maka akan terjadi perpindahan state menjadi cooling dan melakukan
+turnOnFan.
+
+                                Gambar 11.2. Struktur penulisan transisi
+        Di dalam sebuah state terdapat struktur internal yaitu entry, exit, maupun do. Ketiga
+struktur ini sifatnya optional (tidak harus semuanya ada). Entry digunakan untuk
+menunjukkan apa yang terjadi ketika masuk ke dalam sebuah state. Exit digunakan untuk
+menunjukkan apa yang terjadi ketika keluar dari sebuah state. Sedangkan do digunakan
+untuk menunjukkan action apa yang terjadi selama berada dalam state tersebut.
+
+                                  Gambar 11.3. Struktur penulisan state
+
+      Langkah-langkah Pembuatan Diagram State Machine
+
+        Langkah-langkah yang dibutuhkan untuk pembuatan diagram state machine adalah:
+    1. Gambar initial state dan final state untuk suatu obyek
+    2. Gambar state dari suatu obyek
+    3. Gambar transisi utama untuk perubahan dari obyek
+    4. Tentukan trigger dan (jika ada) action dari transisi tersebut
+
+                                                                                     99
+`
+
+    5. Tentukan (jika ada) action pada state.
+         Hasilnya dapat dilihat pada Gambar 11.4
+
+                                  Gambar 11.4. Diagram state machine
+
+      Self Transition
+
+        Self transition adalah transisi dimana state asal dan state tujuan adalah state yang
+sama. Error! Reference source not found. menunjukkan penggunaan self transition.
+Diagram state machine tersebut menggambarkan penggunaan sebuah stack, dimana item
+yang pertama kali masuk akan menjadi item yang terakhir keluar.
+
+Gambar 11.5. Self transition
+
+                                                  100
+`
+
+      Contoh Soal
+
+        Sebuah window dapat ditampilkan dalam tiga buah state yaitu: maximized, dimana
+window akan memenuhi seluruh layar; normal, dimana window akan ditampilkan dalam
+suatu batasan ukuran dan posisi pada layar; dan iconized, dimana akan ditampilkan dalam
+bentuk icon. Ketika sebuah window dibuka, maka tampilannya adalah sebagai bentuk
+normal. Minimize window akan ditampilkan dalam bentuk icon. Sebuah normal window
+ataupun minimized window dapat di-maximize; sebuah maximized window ataupun
+normal window dapat di-minimize, atau dikecilkan menjadi sebuah icon. Maximized
+window dapat di-restore menjadi ukuran normal, and icon dapat di-restore menjadi ukuran
+sebelum dia di-minimize. Icon and normal windows dapat dipindah, dan normal window
+juga dapat di-resize. Window dapat ditutup kapanpun user menginginkan. Gambarlah state
+diagram untuk window tersebut.
+
+                  Gambar 11.6. State machine diagram untuk sebuah windows
+
+                                                                                   101
+                             12. References
+
+Booch, G., Maksimchuck, R. A., Engle, M. W., Young, B. J., Conallen, J., & Houston, K. A.
+        (2007). Object Oriented Analysis and Design with Application. Addison-Wesley
+         Professional;.
+
+Microsystems, S. (2010). Object-Oriented Analysis and Design Using UML. California: Sun
+         Learning Services.
+
+Miles, R., & Hamilton, K. (2006). Learning UML 2.0. California: O'Reilly Media, Inc.
+Sukamto, R. A., & Shalahuddin, M. (2016). Rekayasa Perangkat Lunak. Bandung.
+
+                                                                                   102
+PROGRAM STUDI INFORMATIKA
+UNIVERSITAS KRISTEN PETRA
+
+. 1 4 2 - 1 4 4 6 0 2 3 6 J l n S i w a l a n k e r t o
+                       Surabaya
+
+. T e l p ( 0 3 1 ) - 2 9 8 3 4 5 2 / 2 9 8 3 4 5 5
+
+: / / . . . / h t t p
+informatika petra ac id
+
+: / / . . . / h t t p
+sib petra ac id
+
+: @ . . e m a i l
+informatics  petra ac id
+
