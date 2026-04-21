@@ -207,6 +207,22 @@ Messages:
 6. TransactionController →→ PaymentForm : return receipt data
 7. `opt [customer wants receipt]` → PaymentForm → Kasir : print receipt
 
+## 8b. StarUML sizing pitfalls (MCP-specific — critical)
+
+When building via `staruml-mcp` tools, watch two traps that StarUML's defaults do not save you from:
+
+### Lifeline linePart height
+StarUML's `lifelineFn` auto-extends the box (`y2 = y1 + 200` minimum) but does **not** constrain `linePart.height` (the dashed vertical tail below the box). If messages are created without explicit `y`, or if the diagram mutates in certain orders, linePart grows to thousands of px (observed 14,802 / 14,056 / 9,753 px) and is not shrunk back by StarUML. The diagram becomes absurdly tall.
+
+**Fix at build time:**
+1. Create every UMLMessage with explicit `y` (40 px spacing — e.g. 130, 170, 210, …).
+2. After all messages exist, `update_element` each lifeline's `linePart._id` with `field: "height", value: <lastMessageY - 40>`. The linePart id is in the lifeline view's `linePart._id` attribute (read via `get_element_by_id`).
+
+### Wrong parent → wrong view type
+UMLLifeline and UMLMessage **must** be parented to `UMLInteraction`, not `UMLCollaboration` (even though Collaboration is the Interaction's parent). If you use Collaboration, `lifelineFn`'s assert fails and the extension silently falls back to `defaultModelAndViewFn`, which creates a generic `UMLLifelineView` instead of `UMLSeqLifelineView`. Later `UMLMessage` creation will then fail with "Invalid connection (UMLMessage)" because messages require `UMLSeqLifelineView` endpoints.
+
+**Check:** after creating lifelines, the returned `method` should be `"createModelAndView"`. If it says `"defaultModelAndViewFn"`, you have the wrong parent — delete and recreate with the Interaction as `parentId`.
+
 ## 9. Common mistakes to grep for
 
 - Actor calls entity directly → insert boundary + control between them.
