@@ -1,0 +1,367 @@
+menurutmu database, skema, dan api nya apa yang perlu di ubah atau ditambahkan. itu yang kemarin, saya hanya iseng buat" strukturnya, dari opus, saya belum membaca full. intinya lebih berfokus ke PWA untuk mobile device, saya akan mengasih latar belakang singkat, intinya kasir akses web untuk order, terus customer melakukan pembayaran ketika selesai makan. semua masih dilakukan menggunakan buku kertas, stok hari ini itu di taru di sisi kiri buku, dia catat langsung totalnya berapa spendnya. lalu di sisi kanan adalah penjualan restonya, semua rincian ditulis dalam sisi kanan, kalau lebih dia wordwrap sisi kanan sudah di garis, jadi dipisah menjadi 3 section, pesenan, harga total, payment method, misal 
+
+1. 1 Paket Serasi (1 paha bakar, 1 dada bakar) 1 ati goreng   |              | 
+    1 rempelo goreng                                                               | 88.000   | BCA QRIS
+2. 2 Paket A (2 paha bakar, 1 air mineral, 1 es teh manis)      | 291.500  | BCA QRIS
+    2 Paket B (2 paha bakar), 1 udang, 1 Es                              |               |
+    Jeruk, 1 Jeruk, 1 Es Jeruk                                                     |               |
+                                                                                                |               |
+.............                                                                                      |               |
+                                                                                                |               |
+6. 1 Empal, 1 Nasi                                                                    | 36.000    | Gojek
+                                                                                                | 825.000 |
+
+lalu kendala selanjutnya adalah management stock, di resto ini makanan sudah di olah dan tinggal di bakar atau di goreng (intinya setengah jadi gitu) dapur aslinya itu di rumah pemilik resto, tiap hari pemilik membawa stok menggunakan mobil dari rumah ke resto, di sisi kiri kan full diapakai untuk menulis stok hari ini apa saja, kadang pegawai lupa stok opname pada pagi hari, yang mengakibatkan kasir tidak tau stok hari ini berapa, sedangkan di sisi kasir, ketika pelanggan menanyakan stock, ada atau tidak, biasanya pihak kasir langsung mengiyakan pesanan tersebut, lalu baru cek stoknya ada apa ngga, dan pernah ada kasus ketika stok udah tidak ada, jadi mau gamau pihak resto memesankan gosend dari rumah ke resto hanya untuk mengirim olahan tersebut dari rumah pemilik ke restoran. serta minornya adalah pemilik tidak tau persis berapa pengeluaran dan pemasukan bulan itu, mungkin masih di kira" ini saya gatau bener atau ngga, tapi mending di kasih dashboard buat owner jadi dia bakal tau rincian full dari resto tersebut. dan pengeluaran di catat langsung total, tidak di rincikan cabe 500gr x rupiah gitu", karena di sisi resto bakal ngeribetin malah ga kepake, dan udah ada batasan penelitian di skripsi dan juga ketika sidang proposal skripsi dosen penguji bilang gausah hitung hpp, langsung pengeluaran aja, karena skalanya kecil, dan kalau hpp pasti lebih ribet.
+
+planning sebelumnya yang terlupakan:
+# Rewrite Backend: Laravel → Express (TypeScript + Prisma + PostgreSQL)
+
+## Context
+
+Project ini adalah skripsi POS Restaurant (Ezra Brilliant, C14220315) untuk "Ayam Bakar Banjar Monosuko". Naskah skripsi terbaru telah diubah ke stack **all-JavaScript**, tapi codebase masih Laravel + MySQL. Project harus disinkronkan dengan naskah.
+
+**Masalah riil di resto yang ingin dipecahkan (dari cerita user + foto buku):**
+1. Semua order + stok masih dicatat manual di buku kertas (kiri: stok, kanan: penjualan). Buku kadang tidak lengkap — pegawai lupa opname pagi → kasir tidak tahu stok.
+2. Kasir kadang langsung iya-kan order tanpa cek stok → pernah harus GoSend dari rumah pemilik ke resto untuk kirim stok yang habis.
+3. Pemilik tidak tahu persis pengeluaran/pemasukan bulanan — hanya estimasi.
+4. Pegawai kasir = anggota keluarga pemilik → bukan tech-savvy → UX harus sangat simpel.
+
+**Pendekatan pembangunan:** User ingin **incremental, pedagogical** — dibangun 1 file (atau 1 grup kecil yang saling terikat) per step. Tiap step dijelaskan fungsinya & cara nyambungnya, lalu menunggu review sebelum lanjut. Tujuan user: *paham* prosesnya, bukan sekedar dapat hasil jadi.
+
+---
+
+## Decisions (sudah dikonfirmasi user)
+
+| # | Keputusan | Detail |
+|---|---|---|
+| 1 | **Stack backend** | Node.js 20 LTS + Express 4 + TypeScript + Prisma ORM + PostgreSQL 16 (self-host) + JWT + Zod + Vitest + Pino |
+| 2 | **Struktur folder** | Replace total: `backend/` Laravel dihapus, diisi Express. Folder lama direname dulu ke `backend.laravel.bak/` sebagai safety net, dihapus setelah user konfirmasi semuanya jalan. |
+| 3 | **Data existing** | Migrate semua: users + menus + daily_menu_stocks + transactions + transaction_items + settlements. Export JSON dari MySQL, import ke Postgres via script. |
+| 4 | **API contract** | 1:1 dengan Laravel lama. Base path `/api`, port `8000`, response shape `{success, message, data}`. Frontend tidak diubah (kecuali auth header JWT vs Sanctum — sama-sama `Authorization: Bearer <token>`, transparan). |
+| 5 | **Roles** | 3 roles: `owner`, `cashier`, **`kitchen`** (baru). Kitchen tugas utamanya hanya input opname pagi — tidak ada notifikasi order, tidak ada workflow kompleks (menghindari scope creep + risiko adopsi). |
+| 6 | **Payment methods** | Enum detail: `cash`, `qris`, `transfer` (manual transfer), `debit`, `credit`, `ojol` (Gojek/Grab/ShopeeFood). Settlement split mengikuti enum ini. |
+| 7 | **Bahasa code** | Full English — nama variable, kolom DB, enum, komentar. Update `CLAUDE.md` + `AGENTS.md`. |
+| 8 | **PIN storage** | Plaintext `VARCHAR(6)` dengan index (sama seperti Laravel — agar bisa lookup cepat saat login). Security trade-off didokumentasikan di `SKRIPSI.md`. |
+| 9 | **Diskon** | Kolom `discount_amount` dipertahankan (optional usage). |
+| 10 | **PWA** | Level A — installable (add-to-home-screen) + static asset cache via `vite-plugin-pwa`. TETAP butuh internet untuk data. Alasan: kasir selalu pakai wifi resto, user bukan tech-savvy, hindari risiko sync failure. |
+| 11 | **Owner-side (expenses + dashboard)** | **Deferred ke akhir**. Fokus restaurant-side dulu (POS, tables, menu, stock, settlement). Owner-side jadi Phase 13. |
+| 12 | **Tracking** | Buat `ROADMAP.md` untuk track completion per step. Buat `SKRIPSI.md` untuk catat perubahan naskah skripsi. |
+
+---
+
+## Final Tech Stack
+
+```
+Runtime:       Node.js 20 LTS
+Framework:     Express 4
+Language:      TypeScript 5
+ORM:           Prisma 5
+Database:      PostgreSQL 16 (self-host, bukan Supabase)
+Auth:          jsonwebtoken (JWT) + akses lookup by PIN plaintext
+Validation:    Zod
+Logging:       Pino + pino-http
+Testing:       Vitest + Supertest
+Dev tooling:   tsx (watch mode), prettier, eslint
+PWA (FE):      vite-plugin-pwa
+```
+
+---
+
+## Schema Design (PostgreSQL via Prisma)
+
+Semua enum & kolom diubah ke **English**. Primary key pakai UUID (match existing).
+
+### Enums baru
+```prisma
+enum UserRole {
+  owner
+  cashier
+  kitchen
+}
+
+enum TransactionStatus {
+  open
+  paid
+  void
+}
+
+enum PaymentMethod {
+  cash
+  qris
+  transfer
+  debit
+  credit
+  ojol
+}
+
+enum SettlementStatus {
+  pending
+  submitted
+  reviewed
+}
+
+enum ExpenseCategory { // Phase 13
+  ingredients
+  utilities
+  salary
+  transport
+  other
+}
+```
+
+### Tabel — perubahan dari Laravel
+
+| Tabel | Perubahan |
+|---|---|
+| `users` | `role` enum jadi `owner \| cashier \| kitchen` |
+| `menus` | Tidak berubah |
+| `daily_menu_stocks` | Tidak berubah |
+| `transactions` | `payment_method` jadi enum typed (bukan string bebas) |
+| `transaction_items` | Tidak berubah |
+| `settlements` | Kolom dipecah per-method baru: `system_cash`, `system_qris`, `system_transfer`, `system_debit_credit`, `system_ojol` (+ `actual_*` + `variance_*` mirrors). Kolom lama `system_edc` dihapus. |
+| **`expenses`** (baru, Phase 13) | `id, date, description, amount, category (enum), paid_by (FK users), notes, timestamps` |
+
+---
+
+## API Contract
+
+Semua endpoint match Laravel `backend/routes/api.php` (35 endpoint). Tambahan:
+
+**Baru (Phase 5):**
+- `GET /api/stocks/status?date=YYYY-MM-DD` → `{opname_done: bool, missing_menus: [...]}`
+
+**Baru (Phase 13, owner-side, deferred):**
+- `GET /api/expenses` + CRUD
+- `GET /api/dashboard/summary?month=YYYY-MM`
+- `GET /api/dashboard/daily?date=YYYY-MM-DD`
+
+**Berubah:** auth header pakai JWT (`Authorization: Bearer <jwt>`), bukan Sanctum — tapi shape-nya sama, frontend tidak perlu ubah.
+
+---
+
+## Folder Structure (target)
+
+```
+backend/
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── src/
+│   ├── config/
+│   │   ├── env.ts              # zod-validated env loader
+│   │   └── logger.ts           # pino instance
+│   ├── middleware/
+│   │   ├── auth.ts             # verify JWT, attach user
+│   │   ├── requireRole.ts      # ownerOnly, kitchenOnly, etc
+│   │   └── errorHandler.ts     # central error handler
+│   ├── modules/
+│   │   ├── auth/
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── auth.service.ts
+│   │   │   ├── auth.routes.ts
+│   │   │   └── auth.schema.ts  # zod schemas
+│   │   ├── users/
+│   │   ├── menus/
+│   │   ├── stocks/
+│   │   ├── tables/
+│   │   ├── transactions/
+│   │   └── settlements/
+│   ├── utils/
+│   │   ├── response.ts         # formatSuccess/formatError
+│   │   └── errors.ts           # AppError class
+│   ├── app.ts                  # express app builder
+│   └── server.ts               # entry point (listen)
+├── scripts/
+│   ├── export-mysql-data.ts    # export Laravel MySQL → JSON
+│   └── import-to-postgres.ts   # import JSON → Postgres via Prisma
+├── tests/
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+**Kenapa modular per-resource (`modules/menus/menus.*.ts`) dan bukan layered (`controllers/`, `services/`)?** Supaya kalau tambah/ubah fitur menu, semua file terkait ada di 1 folder. Lebih gampang direview user saat build incremental.
+
+---
+
+## Incremental Build Sequence
+
+Tiap step = 1 file (atau grup kecil yang saling terikat). Setelah tiap step, user review, baru lanjut.
+
+### Phase 0 — Preservation & Safety (sebelum apapun)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 0.1 | `scripts/export-mysql-data.ts` (dibuat di folder root baru `migration-scripts/`, karena `backend/` Laravel masih aktif) | Export semua tabel MySQL → JSON dumps |
+| 0.2 | Rename `backend/` → `backend.laravel.bak/` via `git mv`; update `package.json` root script temporer | Safety net — jika ada yang miss, masih bisa rollback |
+
+### Phase 1 — Express Foundation
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 1.1 | `backend/package.json`, `backend/tsconfig.json`, `backend/.gitignore` | Init project baru |
+| 1.2 | `backend/.env.example`, `backend/src/config/env.ts` | Env schema + zod validator |
+| 1.3 | `backend/prisma/schema.prisma` (initial: User + Menu saja) | Skema minimal utk test koneksi |
+| 1.4 | Run `prisma migrate dev` → first migration file | Verify DB connection |
+| 1.5 | `backend/src/utils/response.ts`, `backend/src/utils/errors.ts` | Response formatter `{success, message, data}` |
+| 1.6 | `backend/src/config/logger.ts` | Pino logger |
+| 1.7 | `backend/src/app.ts`, `backend/src/server.ts` + `/health` route | Express bootstrap, start server |
+| 1.8 | `backend/src/middleware/errorHandler.ts` | Central error handler |
+
+**Review checkpoint 1:** Server nyala di `:8000`, `GET /api/health` return `{success: true, ...}`.
+
+### Phase 2 — Auth
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 2.1 | Update `schema.prisma` — finalize User dengan `UserRole` enum (owner, cashier, kitchen) | |
+| 2.2 | `backend/src/modules/auth/auth.schema.ts` | Zod schemas (LoginInput, VerifyPinInput) |
+| 2.3 | `backend/src/modules/auth/auth.service.ts` | Login logic, JWT sign, PIN lookup |
+| 2.4 | `backend/src/middleware/auth.ts` | JWT verify middleware |
+| 2.5 | `backend/src/middleware/requireRole.ts` | Role guard |
+| 2.6 | `backend/src/modules/auth/auth.controller.ts` + `auth.routes.ts` | login, logout, me, verify-pin endpoints |
+| 2.7 | `backend/prisma/seed.ts` — default users (owner Pak Budi, cashier Siti/Dewi, + 1 kitchen) | |
+
+**Review checkpoint 2:** Test `POST /api/auth/login` dengan PIN via curl/Postman, dapat token, `GET /api/auth/me` dengan Bearer token return user data.
+
+### Phase 3 — Menu (read-only)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 3.1 | `backend/src/modules/menus/menus.service.ts` | list/find/categories logic |
+| 3.2 | `backend/src/modules/menus/menus.controller.ts` + `menus.routes.ts` | GET endpoints (public) |
+| 3.3 | Update `seed.ts` — menu dari `docs/menu-ayam-bakar-banjar-monosuko.md` | |
+
+**Review checkpoint 3:** `GET /api/menus` return list dari seeder.
+
+### Phase 4 — Menu (write, owner-only)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 4.1 | `backend/src/modules/menus/menus.schema.ts` + extend service/controller | POST/PUT/DELETE dengan role guard |
+
+### Phase 5 — Daily Stock + Stock Status (NEW)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 5.1 | `schema.prisma` — add DailyMenuStock model + migration | |
+| 5.2 | `backend/src/modules/stocks/stocks.service.ts` | CRUD + reset-today + copy-yesterday logic |
+| 5.3 | `backend/src/modules/stocks/stocks.controller.ts` + `stocks.routes.ts` | Endpoints existing |
+| 5.4 | **Baru:** `GET /stocks/status` endpoint | Check opname done hari ini |
+
+### Phase 6 — Tables + Transactions
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 6.1 | `schema.prisma` — Transaction + TransactionItem models + migration | |
+| 6.2 | `backend/src/modules/tables/tables.service.ts` + controller + routes | getOpenTransaction, transfer |
+| 6.3 | `backend/src/modules/transactions/transactions.service.ts` (create, show, history) | |
+| 6.4 | Transactions items — sync, add, update, remove (force-order support) | |
+| 6.5 | Pay endpoint + PIN verification utk void | |
+| 6.6 | Daily summary endpoint | |
+
+### Phase 7 — Settlement (payment methods updated)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 7.1 | `schema.prisma` — Settlement dengan 5-way payment split + migration | |
+| 7.2 | `backend/src/modules/settlements/settlements.service.ts` — preview/store/review | |
+| 7.3 | Endpoints settlement | |
+
+### Phase 8 — Data Migration
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 8.1 | `backend/scripts/import-to-postgres.ts` | Import JSON dumps (dari Phase 0.1) via Prisma, map enum lama→baru |
+| 8.2 | Verify counts & spot-check beberapa transaksi | |
+
+### Phase 9 — Users Management (owner-only CRUD)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 9.1 | `backend/src/modules/users/*` | User CRUD |
+
+### Phase 10 — Integration & Frontend Smoke Test
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 10.1 | CORS config | Allow `http://localhost:3000` |
+| 10.2 | Update root `package.json` — `dev:backend` script pakai `tsx watch src/server.ts` bukan `php artisan serve` | |
+| 10.3 | `npm run dev` — frontend + backend jalan bareng | |
+| 10.4 | Full smoke test: login → buka meja → order → pay → settlement | |
+| 10.5 | **Setelah user konfirmasi semua jalan:** `rm -rf backend.laravel.bak/` | |
+
+### Phase 11 — PWA (Frontend)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 11.1 | `frontend/package.json` — install `vite-plugin-pwa` | |
+| 11.2 | `frontend/vite.config.ts` — plugin config (manifest, workbox) | |
+| 11.3 | `frontend/public/icon-192.png`, `icon-512.png` | PWA icons |
+| 11.4 | Test install di HP via Chrome "Add to Home Screen" | |
+
+### Phase 12 — Docs
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 12.1 | `CLAUDE.md` — update tech stack, commands, architecture | |
+| 12.2 | `AGENTS.md` — baru, tim AI agents instructions (dicopy dari CLAUDE.md tapi fokus task execution) | |
+| 12.3 | `README.md` — update setup steps (Node + Postgres, bukan PHP + MySQL) | |
+| 12.4 | `ROADMAP.md` — daftar Phase dengan status (done/in-progress/todo), owner-side di paling bawah | |
+| 12.5 | `SKRIPSI.md` — daftar section naskah skripsi yang perlu diubah + suggested wording |
+
+### Phase 13 — Owner Side (deferred, last priority)
+| Step | File(s) | Tujuan |
+|---|---|---|
+| 13.1 | `schema.prisma` — Expense model + `ExpenseCategory` enum + migration | |
+| 13.2 | `backend/src/modules/expenses/*` — CRUD | |
+| 13.3 | `backend/src/modules/dashboard/*` — summary + daily aggregation | |
+| 13.4 | Frontend: Dashboard page, Expenses page | |
+
+---
+
+## Critical Files to be Modified / Created
+
+**Created (new):** seluruh `backend/**`, `ROADMAP.md`, `SKRIPSI.md`, `AGENTS.md`, `migration-scripts/export-mysql-data.ts`.
+
+**Modified:** `CLAUDE.md`, `README.md`, root `package.json` (scripts), `frontend/package.json`, `frontend/vite.config.ts`, `frontend/public/` (PWA icons + manifest), `frontend/src/services/api.ts` (nothing functional jika contract 1:1, tapi perlu konfirmasi).
+
+**Deleted (after confirmation):** `backend.laravel.bak/` (setelah Phase 10 smoke test lolos).
+
+---
+
+## Existing Utilities to Reuse
+
+Dari Laravel (sebagai referensi implementasi, bukan code):
+- Business logic di `backend.laravel.bak/app/Http/Controllers/Api/*.php` — acuan untuk port ke TypeScript
+- Response shape `{success, message, data}` — dari Laravel helpers
+- Force-order logic di `TransactionController` — port apa adanya (stock tidak decremented below zero, `is_force_order` flag di item)
+- Review gate di `SettlementController` — port apa adanya
+
+Dari frontend (tidak diubah):
+- `frontend/src/services/*.ts` — semua service Axios tetap pakai `VITE_API_URL` yang sama
+- `frontend/src/stores/authStore.ts` — token storage tidak berubah (bearer token)
+
+---
+
+## Verification
+
+Per step (incremental):
+- Setiap file baru dijelaskan fungsinya + cara test manual
+- Tiap Phase punya review checkpoint (test via curl/Postman/browser)
+
+End-to-end (setelah Phase 10):
+1. `npm run db:fresh` — migrate Postgres + seed
+2. `npm run dev` — backend + frontend jalan
+3. Buka `http://localhost:3000`, login dengan PIN `123456` (owner)
+4. Test flow: pilih meja → tambah item → payment → settlement preview
+5. Login sebagai kitchen → input opname → cashier lihat stock update
+6. Login sebagai owner → test void dengan PIN verification
+7. Data migration verify: query `SELECT COUNT(*)` per tabel, match dengan JSON dump counts
+8. PWA (setelah Phase 11): buka `http://<IP-laptop>:3000` dari HP, test "Add to Home Screen"
+
+Regression check (hal yang harus tetap jalan tanpa perubahan frontend):
+- Login, logout, me, verify-pin
+- Menu CRUD (owner)
+- Stock input, reset-today, copy-yesterday
+- Table lifecycle (open → items → pay → closed)
+- Force order (order meski stok 0)
+- Void dengan PIN elevation
+- Settlement preview + store + review
+
+---
+
+## Out of Scope
+
+- Notifikasi real-time order ke kitchen (dibahas, disepakati tidak perlu — Opsi B kitchen minimal)
+- HPP / cost calculation (batasan skripsi dari sidang proposal)
+- Offline-capable PWA (Level B — tidak dipilih, ditulis sebagai future work di SKRIPSI.md)
+- Multi-tenant / multi-restaurant
+- Reporting lanjutan (export PDF, dll)
