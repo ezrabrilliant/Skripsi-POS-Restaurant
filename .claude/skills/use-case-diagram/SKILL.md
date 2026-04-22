@@ -1,295 +1,245 @@
 ---
 name: use-case-diagram
-description: Build UML Use Case Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a use case diagram — even when they use words like "use case", "UC diagram", "diagram aktor", or describe actors/use cases informally. Covers ADSI Modul Pembelajaran conventions (Microsystems/Sun reference diagrams, actor karakteristik, include/extend semantics, actor & use case inheritance, specialization with {abstract}, relation ke use case scenario + use case form) and programmatic construction via staruml-mcp tools (`create_diagram UMLUseCaseDiagram`, `create_element_with_view UMLActor/UMLUseCase`, `create_edge_with_view UMLAssociation/UMLInclude/UMLExtend/UMLGeneralization`). Do not create a use case diagram without consulting this skill first.
+description: Build UML Use Case Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a use case diagram — even when they use words like "use case", "UC diagram", "diagram aktor", or describe actors/use cases informally. Covers ADSI Modul Pembelajaran Bab 5 + real skripsi conventions from 3 POS case studies (restoran cross-channel, supermarket ABC-VED, toko inventory control). Uses staruml-mcp tools (`create_diagram UMLUseCaseDiagram`, `create_element_with_view UMLActor/UMLUseCase/UMLSubsystem`, `create_edge_with_view UMLAssociation/UMLInclude/UMLExtend/UMLGeneralization`). Do not create a use case diagram without consulting this skill first.
 ---
 
-# Use Case Diagram — ADSI convention + StarUML MCP
+# Use Case Diagram — ADSI + skripsi-praktis convention + StarUML MCP
 
-Authoritative source for conventions: **Modul Pembelajaran ADSI Bab 5 — Use Case Diagram** (extracted text at `docs/extracted/adsi.txt` lines 1488–1710). When in doubt, quote this source. Numbered figure references below ("Gambar 5.5", etc.) refer to the ADSI modul, not to this skill.
+Sumber otoritatif:
+- **ADSI Bab 5** — Modul Pembelajaran ADSI (`docs/extracted/adsi.txt` §5)
+- **3 contoh skripsi POS** di `docs/pdf-pages/`: resto, super, toko
 
-## 1. What use case diagram is (per ADSI)
+---
 
-> *"Use case diagram adalah diagram yang menunjukkan kebutuhan pengguna terhadap sistem yang akan dibangun... dapat diketahui fitur apa yang disediakan dalam sistem tertentu. Use case membentuk dasar dari FRs [Functional Requirements]."* — Modul ADSI §5
+## 1. Struktur (ADSI §5 verbatim)
 
-Key consequence:
+**5 elemen:**
+1. **Actor** — role yang berinteraksi dengan sistem (stick figure)
+2. **Use Case** — fitur/behavior yang dapat dikerjakan (oval/ellipse)
+3. **Association** — connector actor ↔ use case (garis lurus, no arrow standard)
+4. **System name** — label sistem
+5. **System boundary** — rectangle batas sistem (**opsional** per ADSI; di skripsi praktis **sering ada**, kadang tidak — pilih sesuai kebutuhan)
 
-- Captures **FRs (what the system does for users)**. Does NOT show architecture, programming language, performance, security — those are NFRs and belong in Supplementary Specifications, not on the diagram.
-- If a process is done manually and never touches the system, **do not make it a use case**.
-- Do not draw internal activities that don't involve an actor.
+---
 
-## 2. Five elements (ADSI §5)
+## 2. Actor — characteristics dari ADSI §5 + skripsi
 
-1. **Actor** — role that does something (a use case) in the system.
-2. **Use case** — anything the actor can do.
-3. **Association** — connector between actor and use case.
-4. **System name** — name of the system being built.
-5. **System boundary** — a rectangle showing system scope. **Opsional** per ADSI ("bersifat opsional") — but most dosen pembimbing still expect it on a skripsi diagram, so include it unless the user explicitly says otherwise.
+**Per ADSI:**
+- Role / pekerjaan yang berinteraksi dengan sistem, **berada di luar sistem**
+- Kata benda (noun): `Kasir`, `Owner`, `Admin`, `Kitchen`, `Supplier`
+- Jenis actor: human, external system/device, another system, time/scheduler
 
-### Actor karakteristik (verbatim from ADSI Tabel 5.1 + text)
+**Per skripsi:**
+- Actor biasanya 2-5 per diagram (jangan terlalu banyak)
+- Ditempatkan di **sisi kiri & kanan** cluster use cases
+- Contoh dari 3 skripsi:
+  - resto: `Kasir`, `Admin` (2)
+  - super: `User` (generic, kalau hanya 1 role aktif) / `Manager`, `Admin`, `Distributor` (3)
+  - toko: `Kasir`, `Owner`, `Customer`, `Supplier`, `Sistem Notifikasi` (5 — 3 human + 1 external + 1 sistem notif)
 
-- A role or job of someone interacting with the system, **sitting outside the system**.
-- Named with **kata benda** (noun).
-- Types of actor — all four are legitimate:
-    - **Human / role** (most common) — stick-figure icon. E.g. `Kasir`, `Owner`, `Booking Agent`.
-    - **External system / device** — stick-figure or boxed-stereotype icon. E.g. `Mesin EDC`, `Finger Print Scanner`, `Web Service Payment Gateway`.
-    - **Other system** — e.g. `Sistem Akuntansi`.
-    - **Waktu / scheduler** — a time-triggered actor, for jobs that run automatically at a scheduled time. E.g. `Scheduler 03:00 AM` triggers use case `Generate Daily Report` (this is the hotel-system example in Gambar 5.7).
-- **Primary** = initiates and controls the use case.
-- **Secondary** = only partly participates in the use case (e.g. receives notification, validates externally).
+**Primary vs Secondary** (ADSI):
+- Primary → inisiasi use case (biasanya kiri)
+- Secondary → partisipasi sebagian (biasanya kanan)
 
-### Use case karakteristik
+**Association rules (ADSI verbatim):**
+- *"Actor harus berelasi dengan satu atau lebih use case."*
+- *"Use case harus berelasi dengan satu atau lebih actor."*
+- *"Tidak ada use case atau actor yang berdiri sendiri."*
+- *"Tidak ada asosiasi antar actor"* — never draw a line actor ↔ actor. Gunakan inheritance (hollow triangle) jika satu aktor specialization dari yang lain.
 
+---
+
+## 3. Use Case naming — verb + noun
+
+**Per ADSI §5 verbatim:**
 > *"menggunakan kata kerja dan kata benda, misal mengelola data konsumen, mengelola reservasi"*
 
-- Name = **verb + noun (kata kerja + kata benda)**. Examples from ADSI: `Mengelola Data Konsumen`, `Mengelola Reservasi`, `Create Reservation`, `Check In Customer`, `Identify Book`, `Check Out Book`, `Return Book`, `Issue a Fine`.
-- Drawn as an **oval / ellipse**.
-- Bad names (would fail dosen review):
-    - Just a noun: `Customer`, `Dashboard`, `Database`.
-    - UI action: `Click Login Button`, `Tekan Tombol Bayar`.
-    - Technical primitive: `Validate Input`, `Fetch Data`, `Store Record`.
-    - Manual-only process that doesn't touch the system — omit entirely.
-- Use cases starting with `Mengelola` / `Manage` / `Mengatur` / `Proses` can be **detailed further** into `Create`, `Update`, `Delete` (ADSI Gambar 5.8). On a skripsi-level diagram, keep the high-level `Mengelola X` unless detail is specifically requested.
+**Style dari 3 contoh skripsi:**
 
-### Atomicity — one UC = one business goal (CRITICAL — most common mistake)
+| Style | Contoh | Dipakai di |
+|---|---|---|
+| lowercase Indonesian | `mengatur menu pada sistem dan gobiz`, `melihat histori transaksi`, `me-refund pesanan`, `membuat menu promo pada Gobiz` | resto |
+| Title Case English | `Make Sales`, `Add Purchase`, `Reorder Point Notification`, `ABC-VED Analysis Result` | toko |
+| Title Case Indonesian | `Mengelola Menu`, `Memproses Pembayaran`, `Melakukan Opname Stok` | super + umum di skripsi Indonesian |
 
-Each use case must be **one atomic business goal**, not a list of sub-views, report types, or CRUD sub-operations. A good rule: if the user can describe the goal with a single sentence ("Owner ingin memantau kinerja restoran"), it's one use case — even if the screen behind it has multiple tabs, filters, or report variants.
+Pilih **1 style** dan konsisten.
 
-**Symptom of over-splitting:** an actor has 6+ use cases whose names are minor variations of "Melihat X", "Mencatat Y", "Mengedit Y" — this is a dashboard/CRUD, not six goals.
+**❌ Bad names (gagal review dosen):**
+- Noun only: `Customer`, `Dashboard`, `Database`
+- UI click: `Click Login Button`, `Tekan Tombol Bayar`
+- Technical primitive: `Validate Input`, `Fetch Data`, `Store Record`
+- Manual-only process (tidak melibatkan sistem) — hapus
+- Super-fine-grained (field edit): `Edit Nama Customer` — gabung ke `Mengelola Customer`
 
-**Fix by consolidating:**
+**✅ Atomicity rule (CRITICAL — paling sering saya kesalahan):**
 
-| ❌ Bad (over-split, 6 UCs) | ✅ Good (1 UC, same goal) |
+Satu UC = **satu atomic business goal**, bukan daftar sub-view/sub-laporan/sub-CRUD.
+
+| ❌ Over-split (jangan) | ✅ Konsolidasi (pakai ini) |
 |---|---|
-| `Melihat Dashboard`<br>`Melihat Laporan Pendapatan`<br>`Melihat Laporan Pengeluaran`<br>`Melihat Laporan Laba Kotor`<br>`Melihat Laporan Rekonsiliasi`<br>`Melihat Grafik Penjualan` | `Melihat Dashboard dan Laporan` (single UC; the tabs and filters live in use-case scenario / use-case form, not on the diagram) |
-| `Mencatat Pengeluaran`<br>`Mengedit Pengeluaran`<br>`Menghapus Pengeluaran` | `Mengelola Pengeluaran` (CRUD umbrella per ADSI Gambar 5.8) |
-| `Mengedit Menu`<br>`Menambah Menu`<br>`Menghapus Menu` | `Mengelola Menu` |
+| `Melihat Dashboard` + `Melihat Laporan Pendapatan` + `Melihat Laporan Pengeluaran` + `Melihat Laporan Laba Kotor` + `Melihat Laporan Rekonsiliasi` (5 UC) | `Melihat Dashboard dan Laporan` (1 UC) |
+| `Mencatat Pengeluaran` + `Mengedit Pengeluaran` + `Menghapus Pengeluaran` | `Mengelola Pengeluaran` |
+| `Tambah Menu` + `Edit Menu` + `Hapus Menu` | `Mengelola Menu` |
 
-Where the detail *does* go:
-- **Use case scenario** (ADSI §6) — narrate the branches / tabs / filters in the Beginning / Middle / End scenario text.
-- **Use case form** (ADSI Tabel 6.2) — enumerate sub-flows in the "Main flow" and "Alternate flow" rows.
-- **Activity diagram** (ADSI §7) — show the step-by-step of selecting a report type, applying a filter, etc.
+Detail sub-flow masuk **Use Case Scenario** (ADSI §6 narrative Beginning/Middle/End) atau **Use Case Form** (ADSI Tabel 6.2) — **bukan** di diagram.
 
-Keep the diagram lean. A skripsi use case diagram typically has **7–15 UCs total**; if you're above 20, over-splitting is usually the cause.
+Target count: **7-15 UC** per diagram skripsi. Lebih dari 20 biasanya over-split.
 
-**Exception:** split *is* justified when the sub-operations have genuinely different actors, triggers, or pre/postconditions. E.g. `Memecah Tagihan` vs `Menggabungkan Tagihan` vs `Membatalkan Pesanan` are all distinct goals with distinct flows — keep them separate.
+**Exception:** split valid kalau sub-operations punya genuinely different actors/triggers/pre-post. Contoh: `Memecah Tagihan` vs `Menggabungkan Tagihan` vs `Membatalkan Pesanan` — all distinct.
 
-### System boundary
+**Mengelola X → CRUD detail:** ADSI Gambar 5.8 tunjukkan `Mengelola X` bisa dispecialize jadi `Create`, `Update`, `Delete` kalau benar-benar diperlukan. Biasanya di skripsi cukup `Mengelola X` saja di diagram, detail CRUD di scenario.
 
-- Rectangle around the use cases, labeled with system name.
-- Actors stay **outside**, use cases stay **inside**.
-- Optional per ADSI but strongly expected in skripsi practice. Label example: `Sistem POS Restoran Ayam Bakar Banjar Monosuko`.
+---
 
-### Association karakteristik (verbatim)
+## 4. System boundary — opsional tapi umum
 
-- *"actor harus berelasi dengan satu atau lebih use case."*
-- *"use case harus berelasi dengan satu atau lebih actor."*
-- *"tidak ada use case atau actor yang berdiri sendiri (tidak berelasi)."*
-- *"tidak ada asosiasi antar actor."* → never draw a line between two actors (coordinate via a shared use case instead, or use inheritance).
-- Association is drawn as a plain straight line. ADSI allows an arrowhead OR no arrowhead — both are acceptable. In StarUML, default is no arrowhead; leave it that way unless the user wants directed associations.
+**Per ADSI §5:** *"bersifat opsional"*
 
-## 3. Dependencies between use cases (ADSI §5 — Use Case Dependencies)
+**Per 3 skripsi observed:**
+- resto: **tidak ada** boundary box eksplisit — actors stick figure, UCs floating di tengah
+- super: **tidak ada** boundary explicit
+- toko: **ADA** — rectangle dengan label `Point of Sales dan Inventory System`
 
-There are only two:
+**Rekomendasi skripsi POS:** **pakai boundary** dengan label sistem (contoh `Sistem POS Restoran`) — lebih profesional dan jelas scope-nya. Tapi bukan wajib.
 
-### `<<include>>` — mandatory
-> *"Use case a includes use case b, artinya setiap use case a dieksekusi maka use case b harus berjalan dulu, baru kemudian use case a."* — ADSI §5
+Aktor **di luar** boundary, use cases **di dalam**.
 
-- Dashed line with open arrowhead, labeled `<<include>>`.
-- **Arrow points to the use case that runs first** (the included one).
-- In StarUML: `create_edge_with_view type=UMLInclude`, `tailViewId = base use case`, `headViewId = included use case`.
-- Example (ADSI Gambar 5.11, library): base `Borrow Book` `<<include>>` → `Identify Book`. Identify runs first.
-- Use when the extra behavior is **always** executed as part of the base.
+---
 
-### `<<extend>>` — optional (conditional)
-> *"Use case a extends use case b, artinya use case a dapat memanggil (opsional) use case b jika memenuhi kondisi tertentu (extension point)."* — ADSI §5
+## 5. Dependencies — `<<include>>` dan `<<extend>>`
 
-- Dashed line with open arrowhead, labeled `<<extend>>`.
-- **Arrow points to the use case that runs first** (the base — i.e. the extended one).
-- In StarUML: `create_edge_with_view type=UMLExtend`, `tailViewId = extending use case`, `headViewId = base use case`.
-- Example (ADSI Gambar 5.12, library): extending `Issue a Fine` `<<extend>>` → `Return a Book`. `Return a Book` runs first; `Issue a Fine` only fires if the book is late.
-- Use when the extra behavior is **optional / conditional**.
+**`<<include>>` — mandatory dependency** (ADSI §5 verbatim):
+> *"Use case a includes use case b, artinya setiap use case a dieksekusi maka use case b harus berjalan dulu."*
 
-> ⚠️ Arrow-direction mnemonic (do not get this wrong): for BOTH include and extend, the arrowhead points at the use case that runs **first**. For include that's the included one; for extend that's the base. Memorize: *"arrow menunjuk ke yang jalan duluan."*
+- Garis putus-putus, panah terbuka, label `<<include>>`
+- **Panah ke arah UC yang jalan duluan** (yang di-include-kan)
+- Contoh skripsi: `Atur Transaksi` `<<include>>` `Login` (Login jalan duluan, jadi panah ke Login)
+- resto skripsi: **hampir semua main UC punya `<<include>>` ke Login** — pola sangat umum
 
-## 4. Inheritance / Generalization (ADSI §5 — Pola Inheritance)
+**`<<extend>>` — optional dependency** (ADSI §5):
+> *"Use case a extends use case b, artinya use case a dapat memanggil (opsional) use case b jika memenuhi kondisi tertentu."*
 
-Hollow-triangle arrow, from child to parent.
+- Garis putus-putus, panah terbuka, label `<<extend>>`
+- **Panah ke arah base UC** (yang di-extend), extending UC berjalan opsional
+- Contoh: `Mencetak Struk` `<<extend>>` `Memproses Pembayaran`
 
-- **Actor inheritance** (Gambar 5.9): child actor inherits all associations + methods + attributes of parent. Example: `Gold Customer` inherits from `Standard Customer` and adds extra privileges. In StarUML: `UMLGeneralization`, tail = child, head = parent.
-- **Use case specialization** (Gambar 5.10): use case can be split into specialized subclasses. E.g. `Check In Customer {abstract}` → `Check In Standard Customer`, `Check In VIP Customer`. Parent that has no instances of its own is marked `{abstract}` (set `isAbstract=true` on the UMLUseCase).
-- Use sparingly. Most skripsi diagrams do not need generalization.
+**Arrow direction mnemonic** (ADSI verbatim):
+> *"Anak panah menunjuk ke use case yang dijalankan terlebih dulu."*
 
-## 5. Relation to Use Case Scenarios & Forms (why it matters for skripsi)
+Both include+extend: arrow → UC yang jalan pertama.
 
-The diagram is only part of the deliverable. Each non-trivial use case should have:
+---
 
-- **Use case scenario** (ADSI §6) — narrative in *Beginning / Middle / End* form. Primary scenario = happy path. Secondary scenario = failure/alternate paths. Not every use case needs a scenario — pick ones with complex interaction or risk of failure.
-- **Use case form** (ADSI §6, Tabel 6.2) — tabular template (Nama, Deskripsi, Actor, Preconditions, Flow, Postconditions, etc.).
-- **Extend dependencies** on the diagram correspond to the **alternate flow** inside the scenario. If you draw an `<<extend>>`, expect the dosen to ask to see that condition in the scenario document.
+## 6. Actor generalization (jarang, tapi valid)
 
-If the user asks to build *scenarios* or *use case forms*, that's a separate artifact — not drawn on this diagram.
+ADSI §5 Gambar 5.9: actor inheritance = actor turunan dari actor lain. Contoh: `Gold Customer` inherits dari `Standard Customer`.
 
-## 6. The checklist — verify before saving
+Garis dengan **hollow triangle** ke parent actor.
 
-Before declaring a use case diagram done, walk through every item. Each is traceable to ADSI §5.
+**Kapan pakai:** kalau 2+ aktor share banyak UC, ekstrak parent abstract. Di POS skripsi biasanya tidak perlu (3-5 aktor cukup flat).
 
-1. System boundary rectangle present with system name label (unless user opted out).
-2. All actors sit **outside** the boundary. None inside.
-3. Each actor name is a **noun** (role, device, other system, or scheduler).
-4. Each use case name is **verb + noun** in consistent language (Indonesian OR English, pick one for the whole diagram).
-5. No use case is a UI click, a data entity, a technical primitive, or a manual-only process.
-6. **Every actor connects to ≥1 use case. Every use case connects to ≥1 actor.** (ADSI: "tidak ada use case atau actor yang berdiri sendiri.")
-7. **No line between two actors.** (If two actors must cooperate, they do it via a shared use case — or one inherits from the other.)
-8. `<<include>>` arrow points to the *included* use case (the one that runs first).
-9. `<<extend>>` arrow points to the *base* use case (the one that runs first; the extending use case is conditional).
-10. Generalization arrows are hollow-triangle and point child → parent. Abstract parents marked `{abstract}`.
-11. Diagram has ~7–15 use cases for a skripsi module. More than 20 → split per module.
-12. Related use cases grouped visually; minimize line crossings.
-13. Diagram title / Navigator label is meaningful (not `UseCaseDiagram1`).
+---
 
-If any check fails, fix it before moving on.
+## 7. Layout conventions dari skripsi
 
-## 7. How to build it in StarUML via staruml-mcp
+**Pola yang terlihat:**
+- Actors di kiri & kanan cluster UC
+- UC tersebar di tengah, kadang clustered by domain:
+  - resto: UC untuk order/transaction di kiri, UC untuk monitoring/menu di tengah, UC untuk refund/promo di kanan
+  - toko: UC grup per-domain (sales, purchase, master data, inventory)
+- `<<include>>` lines dari banyak UC konvergen ke Login — kelompokkan di tengah-bawah untuk arrow rapi
+- Gunakan **spacing generous** antar UC (min 60px vertikal) supaya label `<<include>>` tidak overlap
 
-**Rule:** use the registered `mcp__staruml__*` tools only. Do not bypass with raw HTTP/curl to ports 58321/58322.
+---
 
-### Step 1 — container model + diagram
+## 8. Build di StarUML via staruml-mcp
 
+### Step 1 — container + diagram
 ```
-mcp__staruml__create_element type=UMLModel parentId=<project_id> name="Use Case Model"
-    → returns modelId
-mcp__staruml__create_diagram type=UMLUseCaseDiagram parentId=<modelId> name="Use Case Diagram - <System Name>"
-    → returns diagramId
+mcp__staruml__create_element type=UMLModel parentId=<projectId> name="Use Case Model"
+mcp__staruml__create_diagram type=UMLUseCaseDiagram parentId=<modelId> name="Use Case Diagram - <Nama Sistem>"
 ```
 
-The system-boundary rectangle can be added as a `UMLSubsystem` (or left as a visual box) inside the diagram — StarUML renders the subject automatically when a boundary is present. If the advisor is picky about the label, use `UMLPackage` or `UMLSubsystem` named with the system name and place use cases inside it.
-
-### Step 2 — actors
-
-Primary actors column-left (x≈80), secondary column-right (x≈800). Vertical spacing ≥ 180 px between actors.
-
+### Step 2 — boundary (opsional)
 ```
-mcp__staruml__create_element_with_view \
-    type=UMLActor parentId=<modelId> diagramId=<diagramId> \
-    name="<Nama Aktor>" x=80 y=80 x2=140 y2=160
+mcp__staruml__create_element_with_view type=UMLSubsystem parentId=<modelId> diagramId=<diagId> name="Sistem POS Restoran" x=220 y=60 x2=1020 y2=900
 ```
 
-Save every returned `view._id` — edges need them.
-
-### Step 3 — use cases
-
-Use cases in 1–2 columns middle. Each ellipse ~180×50 px. Vertical spacing ≥ 90 px.
-
+### Step 3 — actors (stick figure, pakai UMLActor)
 ```
-mcp__staruml__create_element_with_view \
-    type=UMLUseCase parentId=<modelId> diagramId=<diagramId> \
-    name="<Kata kerja + kata benda>" x=320 y=60 x2=500 y2=110
+type=UMLActor parentId=<modelId> diagramId=<diagId> name="Kasir" x=80 y=300 x2=140 y2=400   # kiri
+type=UMLActor ... name="Owner" x=1080 y=300 x2=1140 y2=400                                   # kanan
 ```
 
-For abstract use case: after creation, `mcp__staruml__update_element id=<ucId> properties={isAbstract: true}`.
-
-### Step 4 — associations (actor ↔ use case)
-
+### Step 4 — use cases (oval, pakai UMLUseCase)
 ```
-mcp__staruml__create_edge_with_view \
-    type=UMLAssociation parentId=<modelId> diagramId=<diagramId> \
-    tailViewId=<actorViewId> headViewId=<useCaseViewId>
+type=UMLUseCase parentId=<modelId> diagramId=<diagId> name="Login" x=... y=...
+# ~180x50 size, consistent
 ```
 
-### Step 5 — `<<include>>` and `<<extend>>`
-
+### Step 5 — associations
 ```
-# include: tail = base, head = included (included runs first)
-mcp__staruml__create_edge_with_view \
-    type=UMLInclude parentId=<modelId> diagramId=<diagramId> \
-    tailViewId=<baseUseCaseViewId> headViewId=<includedUseCaseViewId>
-
-# extend: tail = extending, head = base (base runs first)
-mcp__staruml__create_edge_with_view \
-    type=UMLExtend parentId=<modelId> diagramId=<diagramId> \
-    tailViewId=<extendingUseCaseViewId> headViewId=<baseUseCaseViewId>
+type=UMLAssociation tailViewId=<actorView> headViewId=<ucView>
 ```
+No name. No arrow head by default.
 
-### Step 6 — generalization (if needed)
-
+### Step 6 — include/extend
 ```
-# actor or use case inheritance: tail = child, head = parent
-mcp__staruml__create_edge_with_view \
-    type=UMLGeneralization parentId=<modelId> diagramId=<diagramId> \
-    tailViewId=<childViewId> headViewId=<parentViewId>
+# <<include>>: tail=base UC, head=included UC (arrow ke included yang jalan duluan)
+type=UMLInclude tailViewId=<baseUC> headViewId=<includedUC>
+
+# <<extend>>: tail=extending UC, head=base UC (arrow ke base yang jalan duluan)
+type=UMLExtend tailViewId=<extendingUC> headViewId=<baseUC>
 ```
 
 ### Step 7 — save
-
 ```
-mcp__staruml__save_project
+mcp__staruml__save_project filename="..."
 ```
 
-### Coordinate cheat sheet
+---
 
-| Element | Width × Height | Typical X |
-|---|---|---|
-| Actor (stick) | 60 × 80 | Primary col x=80–140, Secondary col x=800–860 |
-| Use case (ellipse) | 180 × 50 | Col 1 x=320–500, Col 2 x=580–760 |
-| Vertical spacing between same-column items | — | 90–180 px |
+## 9. Checklist verifikasi
 
-## 8. Worked example — POS Ayam Bakar Banjar Monosuko
+1. ✅ **Actors 2-5** (terlalu banyak = diagram kusut; tapi toko bisa 5 kalau sistemnya kompleks)
+2. ✅ Setiap actor **≥1 association**
+3. ✅ Setiap UC **≥1 actor association**
+4. ✅ Nama UC **verb + noun**, tidak ada yg cuma noun/UI click/SQL
+5. ✅ Konsistensi style (all lowercase Indonesian OR all Title Case OR all English — jangan campur)
+6. ✅ **Atomicity:** tidak ada cluster UC yg harusnya dikonsolidasi jadi 1 (contoh: 5 variasi Melihat Laporan)
+7. ✅ **Tidak ada actor-to-actor** line (kecuali inheritance hollow triangle)
+8. ✅ `<<include>>` panah ke UC yg jalan duluan
+9. ✅ `<<extend>>` panah ke base UC (extending opsional)
+10. ✅ Target count **7-15 UC total**
+11. ✅ System boundary opsional — kalau dipakai, label sistem jelas, aktor di luar box
 
-System name: `Sistem POS Restoran Ayam Bakar Banjar Monosuko`.
+---
 
-Actors (all human roles, primary):
+## 10. Worked example — POS Ayam Bakar Banjar Monosuko
 
-- `Kasir` — primary
-- `Kitchen` — primary
-- `Owner` — primary
+**3 actors:** `Owner`, `Kasir`, `Kitchen` (3 role sesuai backend plan)
 
-Use cases (verb+noun, consistent Indonesian):
+**~12 Use Cases:**
+- Shared: `Login`
+- Kasir: `Buka Kasir`, `Mengelola Pesanan Meja`, `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran`, `Mencetak Struk`, `Melakukan Stock Opname`, `Tutup Kasir`
+- Kitchen: `Menginput Stok Masuk`
+- Owner: `Mengelola Menu`, `Mengelola Pengguna`, `Mengelola Pengeluaran`, `Melihat Dashboard dan Laporan`
 
-- `Login`
-- `Mencatat Pesanan` (Kasir)
-- `Memproses Pembayaran` (Kasir)
-- `Membatalkan Transaksi` (Kasir, void — requires Owner PIN)
-- `Mencetak Struk`
-- `Menginput Opname Stok` (Kitchen, pagi)
-- `Mengelola Menu` (Owner)
-- `Melihat Laporan Penjualan` (Owner)
-- `Mereview Settlement` (Owner)
+**Dependencies:**
+- `Mencetak Struk` `<<extend>>` `Memproses Pembayaran`
+- (Optional) `Membatalkan Pesanan` `<<include>>` `Verify PIN Owner` — tapi biasanya PIN elevation digambarkan di scenario, bukan UC separate
 
-Relationships:
+Boundary: `Sistem POS Restoran` (rectangle label).
 
-- `Kasir` ↔ `Login`, `Mencatat Pesanan`, `Memproses Pembayaran`, `Membatalkan Transaksi`.
-- `Kitchen` ↔ `Login`, `Menginput Opname Stok`.
-- `Owner` ↔ `Login`, `Mengelola Menu`, `Melihat Laporan Penjualan`, `Mereview Settlement`, `Membatalkan Transaksi` (secondary — Owner's PIN elevates void).
-- `Memproses Pembayaran` `<<extend>>` `Mencetak Struk`? **No** — printing is the optional one, so reverse: `Mencetak Struk` `<<extend>>` `Memproses Pembayaran` (extending→base, base runs first, printing is conditional on customer wanting a receipt).
-- `Mencatat Pesanan` `<<include>>` `Memproses Pembayaran`? **No** — payment is sometimes deferred (table open with pending items). Use separate associations; no include.
-- `Membatalkan Transaksi` `<<include>>` `Verifikasi PIN Owner`? **Yes, if** you model `Verifikasi PIN Owner` as a use case — void always requires PIN elevation, so include is appropriate (base always runs the included step).
+---
 
-## 9. Common mistakes to grep for
+## 11. Common mistakes
 
-After building, scan the diagram for these smells:
-
-- **Actor with 5+ use cases that are minor variations of "Melihat X" or "Mencatat Y"** → over-split; consolidate into one `Melihat Dashboard dan Laporan` or `Mengelola X`. See §2 "Atomicity".
-- Use case named `Login Button`, `Dashboard`, `Customer`, `Database` → fix the name to verb+noun.
-- Actor sitting inside the system boundary → move it out.
-- Missing system boundary or unlabeled boundary → add `Sistem <Nama>`.
-- An actor with zero associations → either delete the actor or add the missing use case.
-- `<<extend>>` arrow pointing away from the base → flip it; arrow must point to the use case that runs first.
-- `<<include>>` arrow pointing away from the included → flip it.
-- Line drawn directly between two actors → replace with shared use case or generalization.
-- Use case for a purely manual process that never touches the system → delete it.
-- Mixed Indonesian and English use case names → pick one and rename.
-
-Fix one issue at a time, save, ask the user to review. Do not batch six fixes silently.
-
-## 10. When the user says "jelek" or similar
-
-Walk the §6 checklist literally. Common root causes:
-
-- Diagram built as Mermaid flowchart instead of native `UMLUseCaseDiagram` — regenerate with `create_diagram type=UMLUseCaseDiagram` and populate with typed `UMLActor` / `UMLUseCase` / `UMLAssociation`.
-- Wrong granularity (UI clicks as use cases, or one mega "Kasir Do Everything").
-- Missing boundary / label.
-- Inconsistent language (half Indonesian, half English).
-- Arrow directions flipped on include/extend.
-- Actors inside boundary, or actor-to-actor line.
-
-Fix the most impactful issue first, save, show the user, iterate.
+- ❌ UC berupa cluster 5 varian "Melihat X" → konsolidasi jadi 1 `Melihat Dashboard dan Laporan`
+- ❌ UC cuma noun: `Customer`, `Dashboard`, `Database` → rename verb+noun
+- ❌ Actor inside boundary → move out
+- ❌ Actor tidak ada association → kasih relasi atau hapus
+- ❌ `<<extend>>` arrow terbalik (menunjuk extending) → flip ke base
+- ❌ Language inconsistent (UC name 50/50 Indonesian/English) → pilih satu
+- ❌ UC terlalu teknis / UI-level (`Click Submit Button`) → rename business
+- ❌ >20 UC → hampir pasti over-split; konsolidasi
