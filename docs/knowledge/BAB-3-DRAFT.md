@@ -32,7 +32,7 @@ Sebelum copy-paste konten di bawah:
 
 ## Mapping Gambar dan Tabel
 
-**Total: 9 Gambar + 9 Tabel**
+**Total: 8 Gambar + 9 Tabel**
 
 | Gambar | Sub-bab | Judul | File screenshot |
 |---|---|---|---|
@@ -41,10 +41,9 @@ Sebelum copy-paste konten di bawah:
 | 3.3 | 3.2.3.2 | Activity Diagram Order Flow | `activity-diagram-order-flow.png` |
 | 3.4 | 3.2.3.3 | Activity Diagram Pay Flow | `activity-diagram-pay-flow.png` |
 | 3.5 | 3.2.3.4 | Activity Diagram Stock Opname Pagi | `activity-diagram-stock-opname-pagi-kitchen.png` |
-| 3.6 | 3.2.3.5 | Activity Diagram Stock Opname Sore | `activity-diagram-stock-opname-sore-kasir.png` |
-| 3.7 | 3.2.3.6 | Activity Diagram Tutup Kasir Blind Count | `activity-diagram-tutup-kasir-blind-count.png` |
-| 3.8 | 3.2.3.7 | Activity Diagram Mencatat Pengeluaran | `activity-diagram-mencatat-pengeluaran.png` |
-| 3.9 | 3.2.4 | Entity Relationship Diagram | `erd-sistem-pos-restoran.png` |
+| 3.6 | 3.2.3.5 | Activity Diagram Tutup Kasir Blind Count | `activity-diagram-tutup-kasir-blind-count.png` |
+| 3.7 | 3.2.3.6 | Activity Diagram Mencatat Pengeluaran | `activity-diagram-mencatat-pengeluaran.png` |
+| 3.8 | 3.2.4 | Entity Relationship Diagram | `erd-sistem-pos-restoran.png` |
 
 | Tabel | Sub-bab | Konten | Sumber |
 |---|---|---|---|
@@ -101,11 +100,10 @@ Sebelum copy-paste konten di bawah:
 > 8. Mendukung pemecahan tagihan (*split bill*) dan penggabungan tagihan (*merge bill*) untuk fleksibilitas pembayaran.
 > 9. Memproses pembayaran dengan enam metode: tunai, QRIS, transfer, debit, kredit, dan layanan ojek daring (*ojol*), serta opsi pencetakan struk.
 > 10. Melakukan pengurangan stok secara otomatis saat pembayaran berhasil dilakukan.
-> 11. Melakukan stok opname pada akhir shift untuk mencocokkan stok fisik dan stok sistem serta menampilkan selisihnya.
-> 12. Melakukan tutup kasir dengan metode *blind count* — yaitu rekonsiliasi kas akhir shift dengan input jumlah fisik per metode pembayaran tanpa melihat total dari sistem terlebih dahulu — untuk mendeteksi mismatch.
-> 13. Mencatat pengeluaran harian oleh Pemilik beserta kategori (bahan baku, utilitas, gaji, transportasi, atau lainnya) dan jumlah nominalnya.
-> 14. Menyediakan dashboard dan laporan yang berisi pendapatan harian, pengeluaran harian, rekonsiliasi shift, dan laba kotor harian bagi Pemilik.
-> 15. Memerlukan otorisasi PIN Pemilik (*Owner PIN elevation*) untuk pembatalan pesanan dan tindakan sensitif lainnya.
+> 11. Melakukan tutup kasir dengan metode *blind count* — yaitu rekonsiliasi kas akhir shift dengan input jumlah fisik per metode pembayaran tanpa melihat total dari sistem terlebih dahulu — untuk mendeteksi mismatch.
+> 12. Mencatat pengeluaran harian oleh Pemilik beserta kategori (bahan baku, utilitas, gaji, transportasi, atau lainnya) dan jumlah nominalnya.
+> 13. Menyediakan dashboard dan laporan yang berisi pendapatan harian, pengeluaran harian, rekonsiliasi shift, dan laba kotor harian bagi Pemilik.
+> 14. Memerlukan otorisasi PIN Pemilik (*Owner PIN elevation*) untuk pembatalan pesanan dan tindakan sensitif lainnya.
 
 ### Kebutuhan Non-Fungsional
 
@@ -122,7 +120,7 @@ Sebelum copy-paste konten di bawah:
 
 ## 3.2.1 Proses Bisnis yang Diusulkan
 
-> Sistem yang diusulkan mengubah proses bisnis restoran dari pencatatan manual berbasis buku menjadi pencatatan terintegrasi berbasis aplikasi dengan basis data tunggal sebagai acuan. Proses bisnis yang dikomputerisasi mencakup tujuh alur utama berikut.
+> Sistem yang diusulkan mengubah proses bisnis restoran dari pencatatan manual berbasis buku menjadi pencatatan terintegrasi berbasis aplikasi dengan basis data tunggal sebagai acuan. Proses bisnis yang dikomputerisasi mencakup enam alur utama berikut.
 >
 > **Pertama, autentikasi pengguna**, di mana setiap pengguna wajib login dengan PIN 6 digit sebelum dapat mengakses fungsi sistem; halaman setelah login otomatis menyesuaikan dengan peran yang dimiliki.
 >
@@ -132,19 +130,17 @@ Sebelum copy-paste konten di bawah:
 >
 > **Keempat, pembayaran**, di mana Kasir memilih metode pembayaran dari enam pilihan, memasukkan nominal pembayaran, dan sistem memvalidasi kecukupan nominal serta menandai pesanan sebagai lunas. Stok dikurangi secara otomatis pada saat pembayaran berhasil. Pencetakan struk dilakukan secara opsional sesuai permintaan pelanggan.
 >
-> **Kelima, stok opname akhir shift**, di mana Kasir memasukkan jumlah fisik aktual per menu dan sistem menghitung selisih dengan stok yang tercatat untuk mendeteksi kebocoran atau kesalahan pencatatan.
+> **Kelima, tutup kasir dengan metode *blind count***, di mana Kasir memasukkan jumlah kas fisik per metode pembayaran tanpa melihat total dari sistem, kemudian sistem menampilkan rekap perbandingan dan total selisih (*over*/*short*) sebelum shift ditutup.
 >
-> **Keenam, tutup kasir dengan metode *blind count***, di mana Kasir memasukkan jumlah kas fisik per metode pembayaran tanpa melihat total dari sistem, kemudian sistem menampilkan rekap perbandingan dan total selisih (*over*/*short*) sebelum shift ditutup.
->
-> **Ketujuh, pencatatan pengeluaran harian** oleh Pemilik dengan kategori dan nominal, sebagai pengganti tempelan struk pada buku pencatatan lama.
+> **Keenam, pencatatan pengeluaran harian** oleh Pemilik dengan kategori dan nominal, sebagai pengganti tempelan struk pada buku pencatatan lama.
 
 ---
 
 ## 3.2.2 Use Case Diagram
 
-> *Use case diagram* pada Gambar 3.1 mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran. Sistem melibatkan tiga aktor — Pemilik, Kasir, dan Pegawai Dapur — yang berinteraksi dengan lima belas *use case* yang terbagi dalam empat domain.
+> *Use case diagram* pada Gambar 3.1 mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran. Sistem melibatkan tiga aktor — Pemilik, Kasir, dan Pegawai Dapur — yang berinteraksi dengan empat belas *use case* yang terbagi dalam empat domain.
 >
-> Domain pertama adalah autentikasi melalui *use case* `Login` yang wajib dilakukan oleh seluruh aktor. Domain kedua adalah operasional kasir yang mencakup `Buka Kasir`, `Mengelola Pesanan Meja`, `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran`, `Mencetak Struk`, `Melakukan Stock Opname`, dan `Tutup Kasir`. Domain ketiga adalah manajemen stok yang dilakukan oleh Pegawai Dapur melalui `Menginput Stok Masuk`. Domain keempat adalah pengelolaan master data dan pemantauan oleh Pemilik melalui `Mengelola Menu`, `Mengelola Pengguna`, `Mengelola Pengeluaran`, dan `Melihat Dashboard dan Laporan`.
+> Domain pertama adalah autentikasi melalui *use case* `Login` yang wajib dilakukan oleh seluruh aktor. Domain kedua adalah operasional kasir yang mencakup `Buka Kasir`, `Mengelola Pesanan Meja`, `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran`, `Mencetak Struk`, dan `Tutup Kasir`. Domain ketiga adalah manajemen stok yang dilakukan oleh Pegawai Dapur melalui `Menginput Stok Masuk` setiap pagi sebelum jam operasional. Domain keempat adalah pengelolaan master data dan pemantauan oleh Pemilik melalui `Mengelola Menu`, `Mengelola Pengguna`, `Mengelola Pengeluaran`, dan `Melihat Dashboard dan Laporan`.
 >
 > Hubungan `<<include>>` ditunjukkan dari setiap *use case* operasional ke `Login`, menandakan bahwa autentikasi merupakan prasyarat wajib sebelum *use case* tersebut dapat dijalankan. Hubungan `<<extend>>` ditunjukkan dari `Mencetak Struk` ke `Memproses Pembayaran`, menandakan bahwa pencetakan struk hanya dilakukan apabila pelanggan memintanya.
 
@@ -155,7 +151,7 @@ Sebelum copy-paste konten di bawah:
 
 ## 3.2.3 Activity Diagram
 
-> *Activity diagram* digunakan untuk menggambarkan alur kerja proses bisnis utama yang teridentifikasi pada *use case diagram*. Setiap *activity diagram* menggunakan *swimlane* (partisi vertikal) untuk memisahkan tanggung jawab antara aktor dan sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami oleh pegawai non-teknis. Setiap titik keputusan diberi label pertanyaan dengan jawaban `Ya` atau `Tidak` pada masing-masing cabang. Sub-bab berikut menjelaskan tujuh *activity diagram* yang dirancang untuk sistem ini.
+> *Activity diagram* digunakan untuk menggambarkan alur kerja proses bisnis utama yang teridentifikasi pada *use case diagram*. Setiap *activity diagram* menggunakan *swimlane* (partisi vertikal) untuk memisahkan tanggung jawab antara aktor dan sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami oleh pegawai non-teknis. Setiap titik keputusan diberi label pertanyaan dengan jawaban `Ya` atau `Tidak` pada masing-masing cabang. Sub-bab berikut menjelaskan enam *activity diagram* yang dirancang untuk sistem ini.
 
 ### 3.2.3.1 Activity Diagram Login
 
@@ -193,40 +189,33 @@ Sebelum copy-paste konten di bawah:
 **Gambar 3.5** *Activity Diagram Stock Opname Pagi*
 *(File: `docs/diagrams/activity-diagram-stock-opname-pagi-kitchen.png`)*
 
-### 3.2.3.5 Activity Diagram Stock Opname Sore
+### 3.2.3.5 Activity Diagram Tutup Kasir Blind Count
 
-> Gambar 3.6 menjelaskan alur stok opname akhir shift yang dilakukan oleh Kasir sebelum tutup kasir. Kasir memulai opname akhir shift, sistem mengambil daftar menu beserta stok di sistem dan menampilkannya bersama kolom input stok fisik. Kasir memasukkan jumlah stok fisik aktual per menu. Sistem menghitung selisih antara stok fisik dan stok sistem untuk mendeteksi kebocoran atau kesalahan pencatatan. Setelah semua menu dihitung, sistem menyimpan hasil opname dan menampilkan rekap selisih sebelum proses berakhir.
-
-**Gambar 3.6** *Activity Diagram Stock Opname Sore*
-*(File: `docs/diagrams/activity-diagram-stock-opname-sore-kasir.png`)*
-
-### 3.2.3.6 Activity Diagram Tutup Kasir Blind Count
-
-> Gambar 3.7 menjelaskan alur tutup kasir dengan metode *blind count*, yaitu rekonsiliasi kas akhir shift di mana Kasir memasukkan jumlah fisik tanpa melihat total dari sistem terlebih dahulu. Kasir mengklik tombol Tutup Kasir, lalu sistem memeriksa apakah masih ada pesanan yang belum dibayar. Apabila ada, sistem menampilkan peringatan agar Kasir menyelesaikan pesanan yang belum dibayar terlebih dahulu, dan proses berakhir lebih awal.
+> Gambar 3.6 menjelaskan alur tutup kasir dengan metode *blind count*, yaitu rekonsiliasi kas akhir shift di mana Kasir memasukkan jumlah fisik tanpa melihat total dari sistem terlebih dahulu. Kasir mengklik tombol Tutup Kasir, lalu sistem memeriksa apakah masih ada pesanan yang belum dibayar. Apabila ada, sistem menampilkan peringatan agar Kasir menyelesaikan pesanan yang belum dibayar terlebih dahulu, dan proses berakhir lebih awal.
 >
 > Apabila tidak ada pesanan yang belum dibayar, sistem menampilkan formulir rekonsiliasi tanpa memperlihatkan total sistem. Kasir memasukkan jumlah fisik untuk masing-masing dari lima metode pembayaran (tunai, QRIS, transfer, debit/kredit, dan *ojol*). Setelah Kasir submit, sistem menghitung total penjualan per metode berdasarkan data transaksi pada shift tersebut, lalu menghitung selisih per metode. Sistem menampilkan rekap perbandingan beserta total selisih *over*/*short* kepada Kasir, kemudian menyimpan hasil rekonsiliasi shift dan menutup shift sebelum proses selesai.
 >
 > Mekanisme *blind count* ini bertujuan agar Kasir tidak terpengaruh oleh angka sistem saat menghitung kas fisik, sehingga selisih yang muncul mencerminkan kondisi aktual dan dapat menjadi indikator dini adanya kebocoran atau kesalahan operasional.
 
-**Gambar 3.7** *Activity Diagram Tutup Kasir Blind Count*
+**Gambar 3.6** *Activity Diagram Tutup Kasir Blind Count*
 *(File: `docs/diagrams/activity-diagram-tutup-kasir-blind-count.png`)*
 
-### 3.2.3.7 Activity Diagram Mencatat Pengeluaran
+### 3.2.3.6 Activity Diagram Mencatat Pengeluaran
 
-> Gambar 3.8 menjelaskan alur Pemilik dalam mencatat pengeluaran harian. Pemilik membuka halaman pengeluaran, lalu sistem menampilkan formulir pengeluaran. Pemilik memasukkan tanggal, kategori (bahan baku, utilitas, gaji, transportasi, atau lainnya), jumlah nominal, dan deskripsi. Setelah Pemilik submit, sistem memvalidasi input.
+> Gambar 3.7 menjelaskan alur Pemilik dalam mencatat pengeluaran harian. Pemilik membuka halaman pengeluaran, lalu sistem menampilkan formulir pengeluaran. Pemilik memasukkan tanggal, kategori (bahan baku, utilitas, gaji, transportasi, atau lainnya), jumlah nominal, dan deskripsi. Setelah Pemilik submit, sistem memvalidasi input.
 >
 > Apabila input tidak valid (misalnya kategori belum dipilih atau jumlah kosong), sistem menampilkan pesan kesalahan dan alur kembali ke tahap input. Apabila input valid, sistem menyimpan data pengeluaran dan menampilkan konfirmasi sebelum proses selesai. Alur ini menggantikan pencatatan struk dan total pengeluaran yang sebelumnya ditempel dengan solatip di sisi kiri buku catatan.
 
-**Gambar 3.8** *Activity Diagram Mencatat Pengeluaran*
+**Gambar 3.7** *Activity Diagram Mencatat Pengeluaran*
 *(File: `docs/diagrams/activity-diagram-mencatat-pengeluaran.png`)*
 
 ---
 
 ## 3.2.4 Entity Relationship Diagram
 
-> Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.9 menggunakan notasi *crow's-foot*.
+> Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.8 menggunakan notasi *crow's-foot*.
 
-**Gambar 3.9** *Entity Relationship Diagram Sistem POS Restoran*
+**Gambar 3.8** *Entity Relationship Diagram Sistem POS Restoran*
 *(File: `docs/diagrams/erd-sistem-pos-restoran.png`)*
 
 > Sistem terdiri atas delapan entitas utama. Entitas `users` menyimpan data seluruh pengguna beserta peran dan PIN autentikasi. Entitas `menus` menyimpan master katalog makanan siap jual. Entitas `daily_menu_stocks` menyimpan stok per menu per hari dengan *constraint* unik per kombinasi tanggal dan menu. Entitas `shifts` mencatat siklus buka-tutup kasir per hari per kasir. Entitas `transactions` menyimpan *header* pesanan per meja dengan status terbuka, terbayar, atau dibatalkan. Entitas `transaction_items` sebagai entitas asosiatif (*junction*) antara menu dan transaksi yang menyimpan jumlah, harga *snapshot*, dan penanda *force order*. Entitas `settlements` menyimpan hasil rekonsiliasi *blind count* akhir shift dengan kolom terpisah untuk masing-masing dari lima metode pembayaran. Entitas `expenses` menyimpan pencatatan pengeluaran harian beserta kategorinya.
@@ -275,8 +264,8 @@ Buka [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) — file itu sudah beris
 - [ ] 3.1.3 Kebutuhan Fungsional + Non-Fungsional ada, masing-masing minimum 5 item.
 - [ ] 3.2.1 Proses Bisnis yang Diusulkan: paragraf naratif tujuh proses, tanpa figure.
 - [ ] 3.2.2 Use Case Diagram (Gambar 3.1) dirujuk di paragraf pertama, lalu narasi tiga paragraf.
-- [ ] 3.2.3 Activity Diagram tujuh sub-bab, masing-masing punya pengantar paragraf + Gambar 3.2 sampai 3.8.
-- [ ] 3.2.4 ERD (Gambar 3.9) dirujuk di paragraf pengantar, lalu narasi delapan entitas + sembilan relasi.
+- [ ] 3.2.3 Activity Diagram enam sub-bab, masing-masing punya pengantar paragraf + Gambar 3.2 sampai 3.7.
+- [ ] 3.2.4 ERD (Gambar 3.8) dirujuk di paragraf pengantar, lalu narasi delapan entitas + sembilan relasi.
 - [ ] 3.2.5 Data Dictionary: tujuh tabel `users`, `menus`, `daily_menu_stocks`, `shifts`, `transactions`, `transaction_items`, `settlements`, `expenses` di Tabel 3.2 hingga 3.9.
 - [ ] Tidak ada penyebutan eksplisit Express, React, PostgreSQL, JWT — istilah teknologi ditahan ke Bab 4. Yang boleh: "*basis data relasional*", "*aplikasi berbasis web*", "*server berbasis komputasi awan*".
 
