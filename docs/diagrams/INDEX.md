@@ -6,6 +6,13 @@ Render PNG dari semua diagram di `Skripsi.mdj`. Rendered via staruml-mcp tool `g
 
 ---
 
+## Block Diagram (1)
+
+### ![Blok Diagram](blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png)
+- **File:** `blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png`
+- **Isi:** 4 device (HP Kasir, HP Kitchen, Laptop Owner, Server VPS Tencent Cloud) + 3 artifact (frontend, backend, db) + 3 communication path stereotyped
+- **Topology:** Cellular data → Internet → Tencent Cloud VPS (resto tidak punya WiFi sendiri)
+
 ## Use Case (1)
 
 ### ![Use Case Diagram](use-case-diagram-sistem-pos-restoran.png)
@@ -44,10 +51,18 @@ Render PNG dari semua diagram di `Skripsi.mdj`. Rendered via staruml-mcp tool `g
 
 ---
 
-## Diagram yang BELUM dibangun
+## Flowchart (1)
 
-- ⏳ **Blok Diagram Sistem** (Deployment): diagram dibuat tapi masih kosong (tidak ada node/edge). Build ulang dengan block-diagram skill saat diperlukan.
-- ⏳ **Flowchart Force Order**: belum dibuat.
+### ![Flowchart Force Order](flowchart-force-order.png)
+- **File:** `flowchart-force-order.png`
+- **Isi:** Algoritma decision tree force-order — Start → Pilih menu → Cek stok → 2 decision (Jumlah ≤ stok? + Konfirmasi force order?) → Merge → End
+- **Beda dari Activity Order Flow:** flowchart fokus ke algoritma binary decision (no swimlane), Activity fokus ke workflow bisnis (swimlane Kasir|Sistem)
+
+---
+
+## Status build
+
+Semua **15 dari 15 diagram** yang direncanakan sudah dibangun: 1 blok + 1 use case + 1 ERD + 7 activity + 5 sequence + 1 flowchart.
 
 ---
 

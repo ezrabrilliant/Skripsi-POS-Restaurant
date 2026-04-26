@@ -51,7 +51,38 @@ File terkait:
 
 ---
 
-## 3. Use Case Diagram (detail → [USE-CASE.md](USE-CASE.md))
+## 3. Blok Diagram Sistem (Deployment)
+
+### Ringkasan
+
+Diagram deployment yang menggambarkan topology fisik sistem POS. Karena resto **tidak punya WiFi internal** (WiFi resto tetangga tidak reliable, jadi setiap device pakai paket data sendiri), dan server di-host di **VPS Tencent Cloud** (1 tahun ~$10), arsitekturnya:
+
+| Node | Tipe | Isi |
+|---|---|---|
+| HP Kasir | Device | `pos-frontend (React + Vite PWA)` artifact |
+| HP Kitchen | Device | `pos-frontend (PWA)` artifact (same bundle, login berbeda role) |
+| Laptop Owner | Device | `pos-frontend (browser)` artifact |
+| Server VPS Tencent Cloud | Device | `server.ts (Express + Prisma)` + `pos_db schema` artifacts |
+
+**Communication paths** (semua direct via internet, tanpa router lokal):
+
+| From | To | Stereotype |
+|---|---|---|
+| HP Kasir | Server VPS | `«HTTPS REST JSON + JWT via Cellular 4G/5G»` |
+| HP Kitchen | Server VPS | `«HTTPS REST JSON + JWT via Cellular 4G/5G»` |
+| Laptop Owner | Server VPS | `«HTTPS REST JSON + JWT via Cellular/WiFi»` |
+
+![Blok Diagram](../diagrams/blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png)
+
+### Mengapa cloud server?
+
+- Resto tidak punya WiFi sendiri → tidak ada server lokal yang reachable dari semua device
+- Tencent Cloud VPS murah ($10/tahun) + reliable + legal
+- Cellular data tiap pegawai sudah jadi standar — minimal infrastruktur tambahan
+
+---
+
+## 4. Use Case Diagram (detail → [USE-CASE.md](USE-CASE.md))
 
 ### Ringkasan
 
@@ -70,7 +101,7 @@ File terkait:
 
 ---
 
-## 4. Activity Diagrams (detail → [ACTIVITY.md](ACTIVITY.md))
+## 5. Activity Diagrams (detail → [ACTIVITY.md](ACTIVITY.md))
 
 ### Ringkasan 7 Diagram
 
@@ -95,7 +126,7 @@ File terkait:
 
 ---
 
-## 5. ERD (detail → [ERD.md](ERD.md))
+## 6. ERD (detail → [ERD.md](ERD.md))
 
 ### Ringkasan
 
@@ -120,7 +151,7 @@ Data dictionary lengkap (8 tabel × Field/Tipe/Keterangan) di [DATA-DICTIONARY.m
 
 ---
 
-## 6. Sequence Diagrams
+## 7. Sequence Diagrams
 
 5 sequence diagram dibuat untuk skenario-skenario kritis:
 
@@ -143,7 +174,38 @@ PNG files di `docs/diagrams/sequence-diagram-*.png`.
 
 ---
 
-## 7. Traceability Matrix — Use Case × Diagram
+## 8. Flowchart Force Order Logic
+
+### Ringkasan
+
+Flowchart algoritma untuk **business rule force-order** — kasir bisa lanjut order meski stok hari ini sudah habis (sesuai cerita "GoSend dari rumah pemilik" di Bab 1.1). Stok tidak diturunkan di bawah nol; item ditandai `is_force_order=true` untuk audit.
+
+```
+Start → Pilih menu dan jumlah → Ambil stok hari ini
+  → Decision: Jumlah ≤ stok hari ini?
+     Ya  → Kurangi stok sebanyak jumlah → Tambah item ke pesanan → Merge
+     Tidak → Tampilkan modal konfirmasi force order → Decision: Konfirmasi force order?
+              Ya  → Tambah item dengan tanda force order → Pertahankan stok di nol → Merge
+              Tidak → Batalkan penambahan item → Merge
+  → Merge → End
+```
+
+![Flowchart Force Order](../diagrams/flowchart-force-order.png)
+
+### Beda dengan Activity Diagram
+
+| Aspect | S.4 Order Flow (UML Activity) | S.8 Flowchart |
+|---|---|---|
+| Standard | UML 2.x Activity | Klasik ANSI/ISO 5807 |
+| Swimlane | Ya (Kasir \| Sistem) | Tidak |
+| Fokus | Workflow bisnis | Algoritma decision tree |
+| Cocok untuk | Bab 3.4 (perancangan sistem) | Bab 3 (perancangan algoritma) |
+
+Keduanya komplementer — Activity lihat alur kerja, Flowchart lihat decision logic.
+
+---
+
+## 9. Traceability Matrix — Use Case × Diagram
 
 | Use Case | Activity | Sequence |
 |---|---|---|
@@ -165,7 +227,7 @@ PNG files di `docs/diagrams/sequence-diagram-*.png`.
 
 ---
 
-## 8. Mapping ke Rumusan Masalah Skripsi
+## 10. Mapping ke Rumusan Masalah Skripsi
 
 | Rumusan Masalah (Bab 1.2) | Diagram yang Menjawab |
 |---|---|
@@ -176,37 +238,40 @@ PNG files di `docs/diagrams/sequence-diagram-*.png`.
 
 ---
 
-## 9. Status Build
+## 11. Status Build
 
+- ✅ **S.1 Blok Diagram Sistem** (Deployment) — 4 device + 3 artifact + 3 communication path stereotyped, topology cellular data → Tencent Cloud VPS
 - ✅ **S.2 Use Case Diagram** (1 diagram)
 - ✅ **S.3 ERD** (1 diagram, 8 entitas, 77 kolom, 9 relasi)
 - ✅ **5 Sequence Diagrams** (SQ.1-5)
-- ✅ **7 Activity Diagrams** (A.1, S.4, A.4, A.2, A.8, A.9, A.10)
-- ⏳ **S.1 Blok Diagram Sistem** (Deployment) — belum dibangun
-- ⏳ **S.8 Flowchart Force Order** — belum dibangun
+- ✅ **7 Activity Diagrams** (A.1, S.4, A.4, A.2, A.8, A.9, A.10) — semua dengan swimlane Owner/Kasir/Kitchen × Sistem
+- ✅ **S.8 Flowchart Force Order** — algoritma decision tree force-order
 - ✅ **Data Dictionary** (DATA-DICTIONARY.md, 8 tabel)
 
-Total **13 dari 15 diagram yang direncanakan** sudah dibangun.
+Total **15 dari 15 diagram yang direncanakan** sudah dibangun.
 
 ---
 
-## 10. Output Files
+## 12. Output Files
 
 ### Diagrams (PNG) di `docs/diagrams/`
 ```
-use-case-diagram-sistem-pos-restoran.png      (217 KB)
-erd-sistem-pos-restoran.png                   (212 KB)
-activity-diagram-order-flow.png               (168 KB)
-activity-diagram-pay-flow.png                 (162 KB)
-activity-diagram-stock-opname-pagi-kitchen.png (129 KB)
-activity-diagram-stock-opname-sore-kasir.png  (142 KB)
-activity-diagram-tutup-kasir-blind-count.png  (197 KB)
-activity-diagram-mencatat-pengeluaran.png     (138 KB)
-sequence-diagram-login-happy-path.png         (79 KB)
-sequence-diagram-pay-transaction.png          (114 KB)
-sequence-diagram-input-stok-masuk-pagi.png    (105 KB)
-sequence-diagram-mencatat-pengeluaran.png     (96 KB)
-sequence-diagram-tutup-kasir-blind-count.png  (144 KB)
+blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png  (S.1)
+use-case-diagram-sistem-pos-restoran.png                (S.2)
+erd-sistem-pos-restoran.png                             (S.3)
+activity-diagram-login.png                              (A.1)
+activity-diagram-order-flow.png                         (S.4 → split)
+activity-diagram-pay-flow.png                           (A.4)
+activity-diagram-stock-opname-pagi-kitchen.png          (A.2)
+activity-diagram-stock-opname-sore-kasir.png            (A.8)
+activity-diagram-tutup-kasir-blind-count.png            (A.9)
+activity-diagram-mencatat-pengeluaran.png               (A.10)
+sequence-diagram-login-happy-path.png                   (SQ.1)
+sequence-diagram-pay-transaction.png                    (SQ.2)
+sequence-diagram-input-stok-masuk-pagi.png              (SQ.3)
+sequence-diagram-mencatat-pengeluaran.png               (SQ.4)
+sequence-diagram-tutup-kasir-blind-count.png            (SQ.5)
+flowchart-force-order.png                               (S.8)
 ```
 
 ### StarUML Source
@@ -231,7 +296,7 @@ docs/
 
 ---
 
-## 11. Konvensi Global (untuk konsistensi)
+## 13. Konvensi Global (untuk konsistensi)
 
 ### Bahasa
 - **Indonesian Title Case** untuk nama elemen yang orang awam baca (actor, use case, activity action)
@@ -251,7 +316,7 @@ docs/
 
 ---
 
-## 12. Referensi Konvensi
+## 14. Referensi Konvensi
 
 - **ADSI Modul Pembelajaran** — Bab 5 (Use Case), Bab 7 (Activity), Bab 10 (Interaction/Sequence), Bab 8 (Class)
 - **3 skripsi POS UK Petra** yang distudi:
@@ -260,7 +325,7 @@ docs/
   - Toko X dengan analisis ABC-VED (inventory control)
 - **Skills** di `.claude/skills/` — use-case-diagram, activity-diagram, erd-diagram, sequence-diagram, block-diagram, flowchart, class-diagram
 
-## 13. Memory Snapshot (untuk future agents)
+## 15. Memory Snapshot (untuk future agents)
 
 Memory feedback yang accumulated selama build:
 

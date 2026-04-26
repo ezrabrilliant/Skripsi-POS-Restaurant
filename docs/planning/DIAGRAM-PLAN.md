@@ -135,9 +135,9 @@ Per plan §Schema Design, dengan tambahan pengeluaran dibawa naik dari Phase 13 
 
 Catatan penting: saya usul tambah **`shifts`** baru (tidak ada di plan Phase 6) — karena skripsi sec 1.4 eksplisit sebut "buka kasir" + "tutup kasir (clock-out)" sebagai fitur. Settlement lama (di Laravel) tanpa shift table mempersulit ketika 1 hari ada 2 cashier berbeda. `shifts` = agregat per-cashier per-hari yang bisa jadi parent settlement.
 
-**Keputusan yang perlu user konfirmasi:**
-- [ ] Setuju tambah tabel `shifts`? (atau cukup pakai settlement sebagai shift-close marker, tanpa shift open event — konsekuensi: modal awal (petty cash) harus disimpan di field `settlement.opening_cash` + buka kasir = create settlement row dengan status `open`)
-- [ ] Setuju `expenses` naik dari Phase 13 ke ERD skripsi utama?
+**Keputusan yang sudah dikonfirmasi (resolved):**
+- [x] Tambah tabel `shifts` — done, jadi parent dari `transactions` + `settlements`
+- [x] `expenses` naik dari Phase 13 ke ERD skripsi utama — done
 
 ---
 
@@ -174,17 +174,56 @@ Tambahan yang saya usul (bonus, kalau halaman cukup):
 
 ---
 
-## 8. Pertanyaan yang perlu kamu jawab sebelum lanjut
+## 8. Resolusi (semua sudah dijawab via build, per 2026-04-25)
 
-1. **Rename `Pegawai` → `Kitchen`** di use case diagram? (Saya rasa iya, sesuai enum UserRole plan.)
-2. **Tambah `Mencatat Pengeluaran` + `Melihat Laporan Pengeluaran` + `Melihat Laporan Laba Kotor`** ke use case diagram? (Saya sangat rekomendasikan iya — skripsi Bab 1 eksplisit sebut masalah "pemilik tidak tau pengeluaran".)
-3. **Tambah tabel `shifts`** ke ERD? (Atau pakai settlement sebagai shift marker?)
-4. **Naikkan `expenses`** dari Phase 13 jadi ERD skripsi utama? (Iya kalau mau diagram skripsi komplit matching skripsi text.)
-5. **Activity diagram A.3 + A.4** mau dibundle jadi S.4 atau split 2 diagram? (Saya usul: split — masing-masing cukup kompleks untuk 1 halaman.)
-6. **Activity diagram A.10 Mencatat Pengeluaran** mau masuk? (Saya usul iya.)
+| # | Pertanyaan | Resolusi |
+|---|---|---|
+| 1 | Rename `Pegawai` → `Kitchen` | ✅ Done — UC Diagram pakai 3 actor: Owner, Kasir, Kitchen |
+| 2 | Tambah 3 UC pengeluaran | ✅ Done dengan **konsolidasi atomicity rule** — 4 laporan terpisah (Pendapatan, Pengeluaran, Laba Kotor, Rekonsiliasi) digabung jadi 1 UC `Melihat Dashboard dan Laporan` (umbrella), `Mencatat Pengeluaran` jadi UC tersendiri |
+| 3 | Tambah tabel `shifts` ke ERD | ✅ Done — ERD final 8 entitas include shifts |
+| 4 | Naikkan `expenses` ke ERD utama | ✅ Done — ERD final 8 entitas include expenses |
+| 5 | Bundle/split A.3+A.4 | ✅ **Split** — Order Flow & Pay Flow jadi 2 diagram terpisah |
+| 6 | A.10 Mencatat Pengeluaran masuk? | ✅ Done |
 
-Setelah 6 pertanyaan ini dijawab, saya:
-- Update S.2 Use Case (rename Pegawai→Kitchen, tambah 3 UC pengeluaran)
-- Build S.3 ERD (dengan shifts + expenses)
-- Build S.4 Activity detail per ADSI Bab 7 (single-in/single-out, decision+merge, fork+join, swimlane)
-- Lanjut S.5 → S.8
+## 9. Status build per 2026-04-25 (final)
+
+### Activity Diagrams (7 dibangun, 4 deferred)
+
+| # | Diagram | Status | Note |
+|---|---|---|---|
+| A.1 | Login | ✅ | Swimlane User\|Sistem, PIN 6-digit + loop salah |
+| A.2 | Stock Opname Pagi (Kitchen) | ✅ | |
+| A.3 | Order Flow (was: Mengelola Pesanan + Menambah Item) | ✅ | Force-order branching, loop tambah item |
+| A.4 | Pay Flow (Memproses Pembayaran) | ✅ | 6-way payment + opsi cetak struk |
+| A.5 | Split Bill | ⏳ Defer | Low priority — Bab 3 sudah cukup figure |
+| A.6 | Merge Bill | ⏳ Defer | Same |
+| A.7 | Void Pesanan | ⏳ Defer | Bisa di-cover sebagai sub-flow nanti |
+| A.8 | Stock Opname Sore (Kasir) | ✅ | |
+| A.9 | Tutup Kasir Blind Count | ✅ | Rebuilt 2026-04-25 — layout cleaner |
+| A.10 | Mencatat Pengeluaran | ✅ | Rebuilt 2026-04-25 — swimlane Owner\|Sistem |
+| A.11 | Dashboard / Laporan | ⏳ Defer | Read-only, activity optional |
+
+### Sequence Diagrams (5 dibangun)
+
+| # | Skenario | Status |
+|---|---|---|
+| SQ.1 | Login (Happy Path) | ✅ |
+| SQ.2 | Memproses Pembayaran | ✅ |
+| SQ.3 | Input Stok Masuk | ✅ |
+| SQ.4 | Mencatat Pengeluaran | ✅ |
+| SQ.5 | Tutup Kasir Blind Count | ✅ |
+
+### Mapping S.1–S.8 (semua dibangun)
+
+| # | Diagram | Status | Output |
+|---|---|---|---|
+| S.1 | Blok Diagram Sistem | ✅ | 4 device + 3 artifact + 3 communication path. **Topology cellular data → Tencent Cloud VPS** (resto tidak punya WiFi sendiri) |
+| S.2 | Use Case Diagram | ✅ | 3 actor + 15 UC + 14 dep |
+| S.3 | ERD | ✅ | 8 entitas + 9 relasi (crow's-foot via Mermaid) |
+| S.4 | Activity Order & Pay | ✅ **Split** | 2 diagram terpisah (Order + Pay) |
+| S.5 | Activity Stock Opname | ✅ **Split** | 2 diagram terpisah (Pagi + Sore) |
+| S.6 | Sequence Login | ✅ | SQ.1 |
+| S.7 | Sequence Pay Transaction | ✅ | SQ.2 |
+| S.8 | Flowchart Force Order | ✅ | Decision tree algoritma — bukan UML, ANSI/ISO 5807 style |
+
+**Total final: 15 diagram** (1 blok + 1 use case + 1 ERD + 7 activity + 5 sequence + 1 flowchart) di `Skripsi.mdj` + render PNG di `docs/diagrams/`.
