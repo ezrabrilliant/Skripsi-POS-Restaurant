@@ -2,6 +2,8 @@
 
 Dokumen ini berisi **paragraf paste-ready** untuk Bab 3 skripsi mengikuti **Pedoman Program SIB UK Petra** (`docs/Pedoman Program SIB.pdf`). Semua konten konseptual — tidak menyebut Express/React/PostgreSQL eksplisit di narasi (tech stack ditahan ke Bab 4).
 
+> **Cakupan diagram (per arahan pembimbing):** Use Case Diagram + Activity Diagram + Entity Relationship Diagram saja. *Sequence Diagram*, *Block Diagram*, dan *Flowchart Force Order* TIDAK dipakai di Bab 3.
+
 ---
 
 ## ⚠️ Penting: Renumbering yang harus kamu lakukan dulu
@@ -15,13 +17,46 @@ Naskah kamu sekarang (`SKRIPSI_C14220315.pdf`) punya numbering yang **tidak sesu
 | `3.2 Analisis Kebutuhan Informasi` | `3.1.2 Analisis Kebutuhan Informasi` |
 | *(belum ada)* | `3.1.3 Analisis Kebutuhan Sistem` |
 | *(belum ada)* | `3.2 Desain Sistem` *(umbrella)* |
-| | `3.2.1 Blok Diagram Desain Sistem` |
-| | `3.2.2 Desain Aplikasi` |
+| | `3.2.1 Proses Bisnis yang Diusulkan` |
+| | `3.2.2 Use Case Diagram` |
+| | `3.2.3 Activity Diagram` *(7 sub-bab)* |
+| | `3.2.4 Entity Relationship Diagram` |
+| | `3.2.5 Data Dictionary` |
 
-Jadi sebelum copy-paste konten di bawah:
+Sebelum copy-paste konten di bawah:
 1. Buka skripsi kamu, ganti judul `3.1 Analisis Permasalahan` jadi heading dua tingkat: heading utama `3.1 Analisis` (kosong, langsung ke sub-bab), lalu `3.1.1 Analisis Permasalahan` di atas paragraf yang sudah ada.
 2. Heading `3.2 Analisis Kebutuhan Informasi` ganti jadi `3.1.2 Analisis Kebutuhan Informasi`.
-3. Tambah `3.1.3`, `3.2`, `3.2.1`, `3.2.2` baru sesuai konten di bawah.
+3. Tambah `3.1.3`, `3.2`, `3.2.1`–`3.2.5` baru sesuai konten di bawah.
+
+---
+
+## Mapping Gambar dan Tabel
+
+**Total: 9 Gambar + 9 Tabel**
+
+| Gambar | Sub-bab | Judul | File screenshot |
+|---|---|---|---|
+| 3.1 | 3.2.2 | Use Case Diagram | `use-case-diagram-sistem-pos-restoran.png` |
+| 3.2 | 3.2.3.1 | Activity Diagram Login | `activity-diagram-login.png` |
+| 3.3 | 3.2.3.2 | Activity Diagram Order Flow | `activity-diagram-order-flow.png` |
+| 3.4 | 3.2.3.3 | Activity Diagram Pay Flow | `activity-diagram-pay-flow.png` |
+| 3.5 | 3.2.3.4 | Activity Diagram Stock Opname Pagi | `activity-diagram-stock-opname-pagi-kitchen.png` |
+| 3.6 | 3.2.3.5 | Activity Diagram Stock Opname Sore | `activity-diagram-stock-opname-sore-kasir.png` |
+| 3.7 | 3.2.3.6 | Activity Diagram Tutup Kasir Blind Count | `activity-diagram-tutup-kasir-blind-count.png` |
+| 3.8 | 3.2.3.7 | Activity Diagram Mencatat Pengeluaran | `activity-diagram-mencatat-pengeluaran.png` |
+| 3.9 | 3.2.4 | Entity Relationship Diagram | `erd-sistem-pos-restoran.png` |
+
+| Tabel | Sub-bab | Konten | Sumber |
+|---|---|---|---|
+| 3.1 | 3.1.2 | Kebutuhan Informasi per Peran Pengguna | (paragraf di bawah) |
+| 3.2 | 3.2.5 | Data Dictionary `users` | DATA-DICTIONARY.md §1 |
+| 3.3 | 3.2.5 | Data Dictionary `menus` | DATA-DICTIONARY.md §2 |
+| 3.4 | 3.2.5 | Data Dictionary `daily_menu_stocks` | DATA-DICTIONARY.md §3 |
+| 3.5 | 3.2.5 | Data Dictionary `shifts` | DATA-DICTIONARY.md §4 |
+| 3.6 | 3.2.5 | Data Dictionary `transactions` | DATA-DICTIONARY.md §5 |
+| 3.7 | 3.2.5 | Data Dictionary `transaction_items` | DATA-DICTIONARY.md §6 |
+| 3.8 | 3.2.5 | Data Dictionary `settlements` | DATA-DICTIONARY.md §7 |
+| 3.9 | 3.2.5 | Data Dictionary `expenses` | DATA-DICTIONARY.md §8 |
 
 ---
 
@@ -29,14 +64,14 @@ Jadi sebelum copy-paste konten di bawah:
 
 > Berdasarkan analisis permasalahan pada sub-bab 3.1.1, dapat diidentifikasi kebutuhan informasi yang harus dipenuhi sistem agar mendukung proses pengambilan keputusan dan pelaksanaan tugas pada masing-masing peran pengguna. Tabel 3.1 menunjukkan informasi yang dibutuhkan oleh setiap aktor beserta tujuan pemanfaatannya.
 
-**Tabel 3.1 Kebutuhan Informasi per Peran Pengguna**
+**Tabel 3.1** *Kebutuhan Informasi per Peran Pengguna*
 
 | Peran Pengguna | Informasi yang Dibutuhkan | Tujuan Penggunaan |
 |---|---|---|
 | Pemilik (*Owner*) | Pendapatan harian per metode pembayaran | Memantau pemasukan harian dan rekonsiliasi kas |
 | Pemilik (*Owner*) | Pengeluaran harian per kategori | Mengevaluasi alokasi biaya operasional bulanan |
 | Pemilik (*Owner*) | Selisih kas akhir shift (rekonsiliasi *blind count*) | Mendeteksi mismatch atau potensi kebocoran kas |
-| Pemilik (*Owner*) | Stok harian per menu beserta variansnya | Mengevaluasi efisiensi penggunaan stok dan kebocoran |
+| Pemilik (*Owner*) | Stok harian per menu beserta variansnya | Mengevaluasi efisiensi penggunaan stok |
 | Pemilik (*Owner*) | Daftar transaksi yang dibatalkan beserta alasannya | Mengontrol penyalahgunaan otorisasi pembatalan pesanan |
 | Kasir | Status meja (kosong, terisi, menunggu pembayaran) | Mengelola alokasi pesanan ke meja tersedia |
 | Kasir | Ketersediaan stok harian per menu | Menentukan apakah menu dapat dipesan atau perlu *force order* |
@@ -85,30 +120,7 @@ Jadi sebelum copy-paste konten di bawah:
 
 ---
 
-## 3.2.1 Blok Diagram Desain Sistem
-
-> Blok diagram desain sistem POS Restoran menggambarkan empat elemen utama yang saling terkait yaitu sumber data, modul utama, pengguna, dan keluaran sistem. Gambaran umum keterkaitan keempat elemen tersebut ditunjukkan pada Gambar 3.1.
-
-**Gambar 3.1** *Blok Diagram Sistem POS Restoran*
-*(File: `docs/diagrams/blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png`)*
-
-### Elemen Blok Diagram
-
-> **Sumber data** sistem berasal dari delapan entitas data yang saling berelasi dan disimpan terpusat pada basis data relasional, yaitu data pengguna, data menu, data stok harian per menu, data shift kasir, data transaksi, data item transaksi, data hasil rekonsiliasi shift, dan data pengeluaran. Sumber data ini menjadi acuan tunggal yang digunakan oleh seluruh modul sistem agar tidak terjadi duplikasi atau ketidakkonsistenan informasi seperti pada pencatatan manual.
->
-> **Modul utama** sistem terdiri atas enam modul yang masing-masing mendukung satu kelompok proses bisnis. Modul autentikasi mengelola login pengguna dan otorisasi peran. Modul manajemen stok mengelola input stok masuk pagi, pengurangan stok saat transaksi, dan stok opname akhir shift. Modul pesanan dan pembayaran mengelola siklus pesanan meja mulai dari pembukaan hingga pelunasan termasuk mekanisme *force order*. Modul rekonsiliasi mengelola tutup kasir dengan metode *blind count* dan perhitungan selisih kas. Modul pengeluaran mengelola pencatatan biaya operasional harian. Modul pelaporan menghasilkan dashboard dan laporan untuk Pemilik.
->
-> **Pengguna** sistem terdiri atas tiga peran yaitu Pemilik (*Owner*) sebagai pemegang akses penuh terhadap master data, pengeluaran, dan laporan; Kasir sebagai operator harian yang menangani pesanan dan pembayaran; serta Pegawai Dapur (*Kitchen*) yang bertanggung jawab atas input stok masuk pagi sebelum jam operasional.
->
-> **Keluaran** sistem berupa rincian transaksi setiap meja, struk pembayaran (opsional), laporan pendapatan harian per metode pembayaran, laporan pengeluaran harian per kategori, laporan rekonsiliasi shift dengan rincian variansi per metode, serta laporan laba kotor harian.
-
-> Aspek arsitektur fisik sistem dibahas secara konseptual pada keterangan Gambar 3.1: aplikasi berjalan sebagai perangkat lunak berbasis peramban (*web-based application*) yang diakses oleh pengguna melalui telepon seluler dan komputer, dengan layanan dan basis data di-*host* pada server publik berbasis komputasi awan agar dapat diakses dari semua perangkat klien tanpa bergantung pada jaringan lokal restoran.
-
----
-
-## 3.2.2 Desain Aplikasi
-
-### Proses Bisnis yang Diusulkan (*to-be*)
+## 3.2.1 Proses Bisnis yang Diusulkan
 
 > Sistem yang diusulkan mengubah proses bisnis restoran dari pencatatan manual berbasis buku menjadi pencatatan terintegrasi berbasis aplikasi dengan basis data tunggal sebagai acuan. Proses bisnis yang dikomputerisasi mencakup tujuh alur utama berikut.
 >
@@ -126,43 +138,104 @@ Jadi sebelum copy-paste konten di bawah:
 >
 > **Ketujuh, pencatatan pengeluaran harian** oleh Pemilik dengan kategori dan nominal, sebagai pengganti tempelan struk pada buku pencatatan lama.
 
-### Use Case Diagram
+---
 
-> Interaksi antara pengguna dengan sistem digambarkan menggunakan *use case diagram* seperti pada Gambar 3.2. Sistem melibatkan tiga aktor — Pemilik, Kasir, dan Pegawai Dapur — yang berinteraksi dengan lima belas *use case* yang terbagi dalam empat domain.
+## 3.2.2 Use Case Diagram
+
+> *Use case diagram* pada Gambar 3.1 mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran. Sistem melibatkan tiga aktor — Pemilik, Kasir, dan Pegawai Dapur — yang berinteraksi dengan lima belas *use case* yang terbagi dalam empat domain.
 >
 > Domain pertama adalah autentikasi melalui *use case* `Login` yang wajib dilakukan oleh seluruh aktor. Domain kedua adalah operasional kasir yang mencakup `Buka Kasir`, `Mengelola Pesanan Meja`, `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran`, `Mencetak Struk`, `Melakukan Stock Opname`, dan `Tutup Kasir`. Domain ketiga adalah manajemen stok yang dilakukan oleh Pegawai Dapur melalui `Menginput Stok Masuk`. Domain keempat adalah pengelolaan master data dan pemantauan oleh Pemilik melalui `Mengelola Menu`, `Mengelola Pengguna`, `Mengelola Pengeluaran`, dan `Melihat Dashboard dan Laporan`.
 >
 > Hubungan `<<include>>` ditunjukkan dari setiap *use case* operasional ke `Login`, menandakan bahwa autentikasi merupakan prasyarat wajib sebelum *use case* tersebut dapat dijalankan. Hubungan `<<extend>>` ditunjukkan dari `Mencetak Struk` ke `Memproses Pembayaran`, menandakan bahwa pencetakan struk hanya dilakukan apabila pelanggan memintanya.
 
-**Gambar 3.2** *Use Case Diagram Sistem POS Restoran*
+**Gambar 3.1** *Use Case Diagram Sistem POS Restoran*
 *(File: `docs/diagrams/use-case-diagram-sistem-pos-restoran.png`)*
 
-### Activity Diagram
+---
 
-> Setiap proses bisnis utama yang teridentifikasi pada *use case diagram* dijabarkan alurnya dalam bentuk *activity diagram* dengan *swimlane* (partisi vertikal) untuk memisahkan tanggung jawab antara aktor dan sistem. Mengingat banyaknya proses bisnis yang dirinci, *activity diagram* lengkap untuk tujuh proses utama — yaitu Login, Pengelolaan Pesanan Meja, Pemrosesan Pembayaran, Input Stok Masuk Pagi, Stok Opname Akhir Shift, Tutup Kasir *Blind Count*, dan Pencatatan Pengeluaran — diletakkan pada **Lampiran A**.
+## 3.2.3 Activity Diagram
+
+> *Activity diagram* digunakan untuk menggambarkan alur kerja proses bisnis utama yang teridentifikasi pada *use case diagram*. Setiap *activity diagram* menggunakan *swimlane* (partisi vertikal) untuk memisahkan tanggung jawab antara aktor dan sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami oleh pegawai non-teknis. Setiap titik keputusan diberi label pertanyaan dengan jawaban `Ya` atau `Tidak` pada masing-masing cabang. Sub-bab berikut menjelaskan tujuh *activity diagram* yang dirancang untuk sistem ini.
+
+### 3.2.3.1 Activity Diagram Login
+
+> Gambar 3.2 menjelaskan alur proses login. Aktor (yang dapat berperan sebagai Pemilik, Kasir, atau Pegawai Dapur) memulai dengan membuka aplikasi POS, kemudian sistem menampilkan layar login PIN. Aktor memasukkan PIN 6 digit, lalu sistem memvalidasi PIN tersebut dengan memeriksa keberadaannya di basis data dan mengambil peran pengguna. Apabila PIN tidak valid, sistem menampilkan pesan kesalahan dan aktor kembali ke tahap memasukkan PIN. Apabila PIN valid, sistem menampilkan halaman dashboard sesuai peran pengguna dan proses login selesai.
+
+**Gambar 3.2** *Activity Diagram Login*
+*(File: `docs/diagrams/activity-diagram-login.png`)*
+
+### 3.2.3.2 Activity Diagram Order Flow
+
+> Gambar 3.3 menjelaskan alur Kasir dalam mengelola pesanan meja. Kasir memilih meja yang masih kosong, membuka pesanan untuk meja tersebut, lalu memilih menu beserta jumlahnya. Sistem kemudian melakukan pengecekan ketersediaan stok hari ini.
 >
-> Setiap *activity diagram* menggunakan notasi UML standar dengan simbol *initial node* untuk titik mulai, *activity final node* untuk titik akhir, *action* untuk langkah aktivitas, *decision* untuk percabangan keputusan, dan *merge* untuk konvergensi alur. Setiap titik keputusan diberi label pertanyaan dengan jawaban `Ya` atau `Tidak` pada masing-masing cabang.
+> Apabila stok mencukupi, sistem mencatat pesanan dan mengurangi stok sebanyak jumlah yang dipesan. Apabila stok tidak mencukupi, sistem menanyakan apakah pesanan akan tetap diteruskan dalam mode *force order* — yakni pencatatan paksa meskipun stok di sistem akan menjadi nol. Jika dikonfirmasi, Kasir menyetujui melalui dialog *force order*, lalu sistem mencatat pesanan dengan tanda *force order* tanpa membuat stok menjadi negatif. Jika tidak dikonfirmasi, sistem membatalkan penambahan item.
+>
+> Setelah salah satu cabang selesai, sistem menanyakan apakah Kasir ingin menambahkan item lain. Jika ya, alur kembali ke pemilihan menu. Jika tidak, sistem menyimpan pesanan sebagai pesanan terbuka dan proses selesai. Mekanisme *force order* ini merupakan kontribusi utama dari sistem untuk menjawab permasalahan kasir yang sering menerima pesanan tanpa memeriksa stok terlebih dahulu.
 
-### Sequence Diagram
+**Gambar 3.3** *Activity Diagram Order Flow*
+*(File: `docs/diagrams/activity-diagram-order-flow.png`)*
 
-> Untuk menggambarkan urutan interaksi antar objek pada skenario kritis, sistem dilengkapi dengan lima *sequence diagram* yang mencakup proses Login, Pemrosesan Pembayaran, Input Stok Masuk Pagi, Pencatatan Pengeluaran, dan Tutup Kasir *Blind Count*. Setiap *sequence diagram* terdiri atas *lifeline* dengan stereotype `<<boundary>>` untuk komponen antarmuka, `<<control>>` untuk layanan pengendali, dan `<<entity>>` untuk objek data. Pesan antar objek dinomori secara berurutan dan menggunakan panah solid untuk pemanggilan sinkron serta panah putus-putus untuk nilai kembalian. *Sequence diagram* lengkap untuk lima skenario tersebut diletakkan pada **Lampiran B**.
+### 3.2.3.3 Activity Diagram Pay Flow
 
-### Flowchart Algoritma *Force Order*
+> Gambar 3.4 menjelaskan alur pembayaran pesanan meja. Kasir memilih opsi bayar untuk meja yang sudah memiliki pesanan terbuka, kemudian sistem mengambil daftar pesanan meja dan menampilkan rincian tagihan. Kasir memilih metode pembayaran yang digunakan pelanggan (tunai, QRIS, transfer, debit, kredit, atau *ojol*) dan memasukkan nominal pembayaran.
+>
+> Sistem melakukan validasi nominal. Apabila nominal kurang dari total tagihan, alur kembali ke tahap memasukkan nominal. Apabila nominal mencukupi, sistem menandai pesanan sebagai lunas dan mencatatnya ke rekap harian. Setelah pembayaran tercatat, sistem menanyakan apakah pelanggan meminta cetak struk. Jika ya, sistem mencetak struk; jika tidak, alur langsung berlanjut. Kedua cabang menyatu dan sistem menampilkan konfirmasi pembayaran sebelum proses selesai.
 
-> Mekanisme *force order* yang menjadi salah satu kontribusi utama sistem untuk menjawab permasalahan kasir yang sering menerima pesanan tanpa memeriksa stok dijelaskan secara terpisah dalam bentuk *flowchart* algoritma pada **Lampiran C**. Penggunaan notasi *flowchart* klasik dipilih karena kompleksitas pengambilan keputusan dengan jalur kondisional ganda lebih sesuai divisualisasikan dengan notasi algoritma daripada notasi UML.
+**Gambar 3.4** *Activity Diagram Pay Flow*
+*(File: `docs/diagrams/activity-diagram-pay-flow.png`)*
 
-### Entity Relationship Diagram
+### 3.2.3.4 Activity Diagram Stock Opname Pagi
 
-> Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.3 menggunakan notasi *crow's-foot*.
+> Gambar 3.5 menjelaskan alur input stok masuk pagi yang dilakukan oleh Pegawai Dapur sebelum jam buka restoran. Setelah Pegawai Dapur melakukan login, sistem mengambil daftar menu yang aktif dan menampilkannya bersama kolom input stok. Pegawai Dapur kemudian memasukkan jumlah stok pagi untuk masing-masing menu. Sistem menyimpan stok awal hari ini dan memeriksa apakah semua menu sudah selesai diinput. Apabila masih ada menu yang belum, alur kembali ke tahap input. Apabila semua menu sudah, sistem menandai opname pagi sebagai selesai dan proses berakhir.
+>
+> Alur ini menggantikan pencatatan manual stok di buku tulis yang sering tidak lengkap, dan menjadi sumber data utama bagi pengecekan stok pada *Activity Diagram Order Flow*.
 
-**Gambar 3.3** *Entity Relationship Diagram Sistem POS Restoran*
+**Gambar 3.5** *Activity Diagram Stock Opname Pagi*
+*(File: `docs/diagrams/activity-diagram-stock-opname-pagi-kitchen.png`)*
+
+### 3.2.3.5 Activity Diagram Stock Opname Sore
+
+> Gambar 3.6 menjelaskan alur stok opname akhir shift yang dilakukan oleh Kasir sebelum tutup kasir. Kasir memulai opname akhir shift, sistem mengambil daftar menu beserta stok di sistem dan menampilkannya bersama kolom input stok fisik. Kasir memasukkan jumlah stok fisik aktual per menu. Sistem menghitung selisih antara stok fisik dan stok sistem untuk mendeteksi kebocoran atau kesalahan pencatatan. Setelah semua menu dihitung, sistem menyimpan hasil opname dan menampilkan rekap selisih sebelum proses berakhir.
+
+**Gambar 3.6** *Activity Diagram Stock Opname Sore*
+*(File: `docs/diagrams/activity-diagram-stock-opname-sore-kasir.png`)*
+
+### 3.2.3.6 Activity Diagram Tutup Kasir Blind Count
+
+> Gambar 3.7 menjelaskan alur tutup kasir dengan metode *blind count*, yaitu rekonsiliasi kas akhir shift di mana Kasir memasukkan jumlah fisik tanpa melihat total dari sistem terlebih dahulu. Kasir mengklik tombol Tutup Kasir, lalu sistem memeriksa apakah masih ada pesanan yang belum dibayar. Apabila ada, sistem menampilkan peringatan agar Kasir menyelesaikan pesanan yang belum dibayar terlebih dahulu, dan proses berakhir lebih awal.
+>
+> Apabila tidak ada pesanan yang belum dibayar, sistem menampilkan formulir rekonsiliasi tanpa memperlihatkan total sistem. Kasir memasukkan jumlah fisik untuk masing-masing dari lima metode pembayaran (tunai, QRIS, transfer, debit/kredit, dan *ojol*). Setelah Kasir submit, sistem menghitung total penjualan per metode berdasarkan data transaksi pada shift tersebut, lalu menghitung selisih per metode. Sistem menampilkan rekap perbandingan beserta total selisih *over*/*short* kepada Kasir, kemudian menyimpan hasil rekonsiliasi shift dan menutup shift sebelum proses selesai.
+>
+> Mekanisme *blind count* ini bertujuan agar Kasir tidak terpengaruh oleh angka sistem saat menghitung kas fisik, sehingga selisih yang muncul mencerminkan kondisi aktual dan dapat menjadi indikator dini adanya kebocoran atau kesalahan operasional.
+
+**Gambar 3.7** *Activity Diagram Tutup Kasir Blind Count*
+*(File: `docs/diagrams/activity-diagram-tutup-kasir-blind-count.png`)*
+
+### 3.2.3.7 Activity Diagram Mencatat Pengeluaran
+
+> Gambar 3.8 menjelaskan alur Pemilik dalam mencatat pengeluaran harian. Pemilik membuka halaman pengeluaran, lalu sistem menampilkan formulir pengeluaran. Pemilik memasukkan tanggal, kategori (bahan baku, utilitas, gaji, transportasi, atau lainnya), jumlah nominal, dan deskripsi. Setelah Pemilik submit, sistem memvalidasi input.
+>
+> Apabila input tidak valid (misalnya kategori belum dipilih atau jumlah kosong), sistem menampilkan pesan kesalahan dan alur kembali ke tahap input. Apabila input valid, sistem menyimpan data pengeluaran dan menampilkan konfirmasi sebelum proses selesai. Alur ini menggantikan pencatatan struk dan total pengeluaran yang sebelumnya ditempel dengan solatip di sisi kiri buku catatan.
+
+**Gambar 3.8** *Activity Diagram Mencatat Pengeluaran*
+*(File: `docs/diagrams/activity-diagram-mencatat-pengeluaran.png`)*
+
+---
+
+## 3.2.4 Entity Relationship Diagram
+
+> Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.9 menggunakan notasi *crow's-foot*.
+
+**Gambar 3.9** *Entity Relationship Diagram Sistem POS Restoran*
 *(File: `docs/diagrams/erd-sistem-pos-restoran.png`)*
 
 > Sistem terdiri atas delapan entitas utama. Entitas `users` menyimpan data seluruh pengguna beserta peran dan PIN autentikasi. Entitas `menus` menyimpan master katalog makanan siap jual. Entitas `daily_menu_stocks` menyimpan stok per menu per hari dengan *constraint* unik per kombinasi tanggal dan menu. Entitas `shifts` mencatat siklus buka-tutup kasir per hari per kasir. Entitas `transactions` menyimpan *header* pesanan per meja dengan status terbuka, terbayar, atau dibatalkan. Entitas `transaction_items` sebagai entitas asosiatif (*junction*) antara menu dan transaksi yang menyimpan jumlah, harga *snapshot*, dan penanda *force order*. Entitas `settlements` menyimpan hasil rekonsiliasi *blind count* akhir shift dengan kolom terpisah untuk masing-masing dari lima metode pembayaran. Entitas `expenses` menyimpan pencatatan pengeluaran harian beserta kategorinya.
 >
 > Sistem memiliki sembilan relasi utama yang menghubungkan entitas-entitas tersebut, dengan dominasi relasi satu-ke-banyak — sebagai contoh, satu kasir dapat melakukan banyak transaksi — dan satu relasi satu-ke-satu antara `shifts` dan `settlements` di mana setiap shift menghasilkan tepat satu rekonsiliasi. Relasi banyak-ke-banyak antara menu dan transaksi dijabarkan sebagai entitas asosiatif `transaction_items` yang menyimpan atribut tambahan seperti jumlah dan harga *snapshot* saat transaksi terjadi.
 
-### Data Dictionary
+---
+
+## 3.2.5 Data Dictionary
 
 > Definisi rinci atribut, tipe data, dan keterangan untuk setiap entitas dijabarkan pada Tabel 3.2 hingga Tabel 3.9 berikut. Tipe data yang digunakan merujuk pada konvensi DBMS basis data relasional standar.
 
@@ -185,66 +258,32 @@ Buka [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) — file itu sudah beris
 
 ---
 
-## Lampiran (saran isi)
-
-Karena Bab 3 utama sebaiknya tetap ringkas, beberapa diagram pendukung dipindah ke lampiran sesuai pedoman SIB ("Activity diagram boleh diletakkan di lampiran").
-
-### Lampiran A — *Activity Diagram*
-
-| Sub-lampiran | Judul | File screenshot |
-|---|---|---|
-| A.1 | *Activity Diagram* Login | `activity-diagram-login.png` |
-| A.2 | *Activity Diagram* Pengelolaan Pesanan Meja | `activity-diagram-order-flow.png` |
-| A.3 | *Activity Diagram* Pemrosesan Pembayaran | `activity-diagram-pay-flow.png` |
-| A.4 | *Activity Diagram* Input Stok Masuk Pagi | `activity-diagram-stock-opname-pagi-kitchen.png` |
-| A.5 | *Activity Diagram* Stok Opname Akhir Shift | `activity-diagram-stock-opname-sore-kasir.png` |
-| A.6 | *Activity Diagram* Tutup Kasir *Blind Count* | `activity-diagram-tutup-kasir-blind-count.png` |
-| A.7 | *Activity Diagram* Pencatatan Pengeluaran | `activity-diagram-mencatat-pengeluaran.png` |
-
-> Untuk setiap *activity diagram*, tulis pengantar 2-3 kalimat yang menjelaskan alur diagram secara ringkas. Narasi paste-ready untuk masing-masing tersedia di [docs/knowledge/ACTIVITY.md](ACTIVITY.md) sub-bab 5.1 sampai 5.7.
-
-### Lampiran B — *Sequence Diagram*
-
-| Sub-lampiran | Judul | File screenshot |
-|---|---|---|
-| B.1 | *Sequence Diagram* Login | `sequence-diagram-login-happy-path.png` |
-| B.2 | *Sequence Diagram* Pemrosesan Pembayaran | `sequence-diagram-pay-transaction.png` |
-| B.3 | *Sequence Diagram* Input Stok Masuk Pagi | `sequence-diagram-input-stok-masuk-pagi.png` |
-| B.4 | *Sequence Diagram* Pencatatan Pengeluaran | `sequence-diagram-mencatat-pengeluaran.png` |
-| B.5 | *Sequence Diagram* Tutup Kasir *Blind Count* | `sequence-diagram-tutup-kasir-blind-count.png` |
-
-### Lampiran C — *Flowchart* Algoritma *Force Order*
-
-> Algoritma pengambilan keputusan *force order* yang menjadi kontribusi utama sistem digambarkan secara terpisah dalam *flowchart* klasik pada Lampiran C. Algoritma diawali dengan input menu dan jumlah, kemudian sistem mengambil stok hari ini. Apabila jumlah lebih kecil atau sama dengan stok, sistem mengurangi stok dan menambahkan item secara normal. Apabila jumlah lebih besar dari stok, sistem menampilkan modal konfirmasi *force order*. Konfirmasi dari Kasir akan menghasilkan penambahan item dengan penanda *force order* tanpa membuat stok menjadi negatif, sedangkan pembatalan akan menghasilkan pembatalan penambahan item.
-
-| Sub-lampiran | Judul | File screenshot |
-|---|---|---|
-| C.1 | *Flowchart* Algoritma *Force Order* | `flowchart-force-order.png` |
-
----
-
 ## Tips Teknis Penulisan
 
 1. **Caption gambar** di **bawah** gambar; **caption tabel** di **atas** tabel — konvensi UK Petra.
 2. **Setiap gambar dan tabel WAJIB di-rujuk** di paragraf dengan kalimat seperti *"ditunjukkan pada Gambar 3.x"* atau *"seperti pada Tabel 3.x"*. Jangan letakkan gambar/tabel tanpa rujukan teks.
-3. **Istilah teknis dimiringkan** (*italic*) saat pertama muncul: *blind count*, *force order*, *swimlane*, *snapshot*, *boundary*/*control*/*entity*. Setelahnya boleh tegak.
+3. **Istilah teknis dimiringkan** (*italic*) saat pertama muncul: *blind count*, *force order*, *swimlane*, *snapshot*. Setelahnya boleh tegak.
 4. **Bahasa pasif** untuk teks akademik: "*sistem dirancang untuk*", "*proses bisnis dilakukan*", bukan "*kita merancang*" atau "*kami melakukan*".
 5. **Konsistensi penamaan aktor** — gunakan istilah Indonesia dengan istilah Inggris dalam tanda kurung saat pertama muncul: "*Pemilik (Owner)*", "*Pegawai Dapur (Kitchen)*". Setelahnya boleh pakai salah satunya saja.
 6. **Tabel WAJIB dijelaskan dalam kalimat** di paragraf — bukan sekadar dilemparkan tanpa narasi (per Pedoman SIB hal. 6).
 
 ## Self-Check sebelum Submit Bab 3
 
-- [ ] Numbering sudah sesuai pedoman: 3.1 Analisis (umbrella) → 3.1.1, 3.1.2, 3.1.3 → 3.2 Desain Sistem (umbrella) → 3.2.1, 3.2.2.
+- [ ] Numbering sudah sesuai pedoman: 3.1 Analisis (umbrella) → 3.1.1, 3.1.2, 3.1.3 → 3.2 Desain Sistem (umbrella) → 3.2.1, 3.2.2, 3.2.3, 3.2.4, 3.2.5.
 - [ ] 3.1.1 Analisis Permasalahan sudah ada (kontennya yang sudah kamu tulis).
-- [ ] 3.1.2 Tabel kebutuhan informasi (Tabel 3.1) dirujuk di paragraf, lalu tabel di tampilkan, lalu dijelaskan dengan paragraf di bawahnya.
+- [ ] 3.1.2 Tabel kebutuhan informasi (Tabel 3.1) dirujuk di paragraf, lalu tabel ditampilkan, lalu dijelaskan dengan paragraf di bawahnya.
 - [ ] 3.1.3 Kebutuhan Fungsional + Non-Fungsional ada, masing-masing minimum 5 item.
-- [ ] 3.2.1 Blok Diagram (Gambar 3.1) dirujuk di paragraf pertama, lalu narasi 4 elemen (sumber data, modul utama, pengguna, output).
-- [ ] 3.2.2 berisi: proses bisnis to-be (paragraf), Use Case Diagram (Gambar 3.2), referensi Activity Diagram di Lampiran A, ERD (Gambar 3.3) + Data Dictionary (Tabel 3.2-3.9).
-- [ ] Lampiran A, B, C punya pengantar dan list sub-lampiran berurutan.
+- [ ] 3.2.1 Proses Bisnis yang Diusulkan: paragraf naratif tujuh proses, tanpa figure.
+- [ ] 3.2.2 Use Case Diagram (Gambar 3.1) dirujuk di paragraf pertama, lalu narasi tiga paragraf.
+- [ ] 3.2.3 Activity Diagram tujuh sub-bab, masing-masing punya pengantar paragraf + Gambar 3.2 sampai 3.8.
+- [ ] 3.2.4 ERD (Gambar 3.9) dirujuk di paragraf pengantar, lalu narasi delapan entitas + sembilan relasi.
+- [ ] 3.2.5 Data Dictionary: tujuh tabel `users`, `menus`, `daily_menu_stocks`, `shifts`, `transactions`, `transaction_items`, `settlements`, `expenses` di Tabel 3.2 hingga 3.9.
 - [ ] Tidak ada penyebutan eksplisit Express, React, PostgreSQL, JWT — istilah teknologi ditahan ke Bab 4. Yang boleh: "*basis data relasional*", "*aplikasi berbasis web*", "*server berbasis komputasi awan*".
 
 ---
 
 ## Catatan tentang Pedoman SIB
 
-Pedoman SIB UK Petra menyebutkan bahwa **3.2.3 Pengolahan Data dan Metode** wajib diisi jika TA menggunakan metode/algoritma seperti *forecasting*, *recommendation*, *clustering*, *classification*, dll. Skripsi POS ini **tidak menggunakan algoritma analitik** seperti itu — *force order* adalah aturan bisnis dengan dua kondisi sederhana, bukan metode analitik yang membutuhkan elaborasi statistik. Oleh karena itu **3.2.3 dapat dilewatkan** dan langsung lanjut ke Bab 4. Apabila pembimbing meminta penjelasan lebih atas algoritma *force order*, tunjukkan *flowchart* di Lampiran C sebagai dokumentasi alur keputusan.
+Pedoman SIB UK Petra menyebutkan **3.2.1 Blok Diagram Desain Sistem** dan **3.2.3 Pengolahan Data dan Metode** sebagai sub-bab yang umumnya ada. Kedua sub-bab tersebut **dilewatkan** atas arahan pembimbing yang membatasi cakupan diagram pada Bab 3 ini hanya pada *use case*, *activity*, dan ERD.
+
+Pedoman juga menyebutkan bahwa "*Activity diagram boleh diletakkan di lampiran*". Pada draft ini, *activity diagram* tetap diletakkan pada main body (sub-bab 3.2.3) dengan tujuh sub-bab terpisah agar lebih mudah dirujuk dan dievaluasi oleh pembimbing. Apabila pembimbing meminta agar dipindahkan ke lampiran, pengantar pada 3.2.3 dapat diringkas menjadi satu paragraf yang merujuk pada Lampiran A.
