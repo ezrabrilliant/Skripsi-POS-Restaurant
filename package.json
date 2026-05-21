@@ -1,22 +1,22 @@
 {
   "name": "pos-restaurant",
   "version": "1.0.0",
-  "description": "Web-based POS System for Restaurant",
+  "description": "Web-based POS System for Restaurant — backend Express + Prisma + MySQL, frontend React + Vite",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && %USERPROFILE%\\.config\\herd\\bin\\php.bat artisan serve --host=0.0.0.0 --port=8000",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev -- --host",
-    "build": "cd frontend && npm run build",
-    "install:all": "cd frontend && npm install",
-    "db:migrate": "cd backend && %USERPROFILE%\\.config\\herd\\bin\\php.bat artisan migrate",
-    "db:seed": "cd backend && %USERPROFILE%\\.config\\herd\\bin\\php.bat artisan db:seed",
-    "db:fresh": "cd backend && %USERPROFILE%\\.config\\herd\\bin\\php.bat artisan migrate:fresh --seed"
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "db:migrate": "cd backend && npm run prisma:migrate",
+    "db:seed": "cd backend && npm run db:seed",
+    "db:fresh": "cd backend && npm run db:fresh && npm run db:seed"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

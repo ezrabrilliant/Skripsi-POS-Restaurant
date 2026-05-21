@@ -4,68 +4,64 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Web-based POS (Point of Sale) system for a restaurant. Skripsi/thesis project by Ezra Brilliant (C14220315). Backend uses Laravel 12 + MySQL, frontend uses React 18 + TypeScript + Vite + Tailwind. Login is PIN-based (6 digits); two roles: `owner` and `kasir`.
+Web-based POS (Point of Sale) system for a restaurant ("Ayam Bakar Banjar Monosuko"). Skripsi/thesis project by Ezra Brilliant (C14220315). Backend uses **Express 4 + TypeScript + Prisma + MySQL**; frontend uses React 18 + TypeScript + Vite + Tailwind. Login is PIN-based (6 digits); three roles: `owner`, `cashier`, `kitchen`.
+
+The backend is built per-phase to match the skripsi design diagrams (ERD, use case, activity). Diagram knowledge + Bab 3 draft live in [docs/knowledge/](docs/knowledge/); schema reference in [docs/DATA-DICTIONARY.md](docs/DATA-DICTIONARY.md).
 
 ## Commands
 
 Root (runs both backend and frontend concurrently):
-- `npm run dev` — start backend (`php artisan serve` on :8000) + frontend (`vite` on :3000)
+- `npm run dev` — start backend (`tsx watch` on :8000) + frontend (`vite` on :3000)
 - `npm run dev:backend` / `npm run dev:frontend` — individually
-- `npm run db:fresh` — `migrate:fresh --seed` (wipes DB)
-- `npm run db:migrate` / `npm run db:seed`
+- `npm run db:migrate` / `npm run db:seed` / `npm run db:fresh` (reset + seed)
 
 Backend (`cd backend`):
-- `php artisan serve --port=8000`
-- `php artisan migrate --seed`
-- `php artisan test` — run PHPUnit suite (`phpunit.xml`); single test: `php artisan test --filter=TestName`
+- `npm run dev` — server with watch mode
+- `npm run build` — `tsc` compile to `dist/`
+- `npm run prisma:migrate` — apply schema changes; `npm run prisma:studio` — DB GUI
+- `npm run db:seed` — seed 4 users + 47 menus
+- `npm run test` — Vitest
 
 Frontend (`cd frontend`):
 - `npm run dev` — Vite dev server
-- `npm run build` — `tsc -b && vite build` (type-check is part of build)
+- `npm run build` — `tsc -b && vite build`
 - `npm run lint` — ESLint
 
-Note: frontend `.env` and `vite.config.ts` currently have uncommitted local changes (Supabase/remote DB experiments per recent commits). Confirm with user before committing them. `VITE_API_URL` points at the Laravel API base (default `http://localhost:8000/api`).
+`VITE_API_URL` points at the API base (default `http://localhost:8000/api`).
 
 ## Architecture
 
-### Backend (Laravel 12, API-only)
+### Backend (Express 4, TypeScript, API-only)
 
-All routes live in [backend/routes/api.php](backend/routes/api.php) — there is no web UI served by Laravel. Auth uses **Sanctum bearer tokens** issued by `POST /api/auth/login` (PIN-based). Public endpoints: login, health, menu reads. Everything else is behind `auth:sanctum`.
+Entry: [backend/src/server.ts](backend/src/server.ts) builds the app from [backend/src/app.ts](backend/src/app.ts). Auth uses **JWT bearer tokens** issued by `POST /api/auth/login` (PIN lookup). Public endpoints: login, health, menu reads. Everything else needs `authenticate` middleware; role gates via `requireRole`.
 
-Domain models in [backend/app/Models/](backend/app/Models/):
-- `User` — has `role` (`owner`|`kasir`) and 6-digit PIN.
-- `Menu` — catalog items; categories are a derived list (`/menus/categories`).
-- `DailyMenuStock` — per-day stock per menu. Separate from `Menu` because stock resets daily; endpoints `reset-today` and `copy-yesterday` manage it.
-- `Transaction` + `TransactionItem` — an open transaction is tied to a table (`tableNumber`); the `/tables/{n}/transaction` endpoint returns the current open one. Items can be synced/added/updated/removed until payment. `pay` closes; `void` cancels.
-- `Settlement` — end-of-day cash reconciliation with a `review` step (owner approves kasir's settlement).
+**Modular per-resource** structure under [backend/src/modules/](backend/src/modules/) — each module has `*.schema.ts` (Zod), `*.service.ts` (business logic), `*.controller.ts` (thin handlers), `*.routes.ts`. Modules: `auth`, `menus`, `stocks`, `shifts`, `tables`, `transactions`, `settlements`, `users`, `expenses`, `dashboard`.
 
-Key business flows (span multiple controllers):
-- **Table → Transaction lifecycle**: `TableController@getOpenTransaction` resolves/creates a transaction for a table; `TransactionController` mutates items; `pay` settles it. A table is "occupied" iff it has an open transaction.
-- **Force order**: orders can be placed even when `DailyMenuStock` is depleted — the frontend `ForceOrderModal` confirms, and the backend allows it without decrementing below zero (check controllers before changing stock logic).
-- **Settlement**: `preview` computes totals from transactions of the day; `store` persists; `review` (owner) finalizes. Don't bypass the review step.
+Schema in [backend/prisma/schema.prisma](backend/prisma/schema.prisma) — 8 entities matching the ERD: `User`, `Menu`, `DailyMenuStock`, `Shift`, `Transaction`, `TransactionItem`, `Settlement`, `Expense`. Primary keys are auto-increment integers.
+
+Key business flows:
+- **Shift**: a cashier must "buka kasir" (`POST /shifts/open`) before creating transactions — transactions require an open shift.
+- **Table → Transaction**: a table is "occupied" iff it has an `open` transaction. `tables` is virtual (1..`TABLE_COUNT` from env), derived from transactions.
+- **Force order**: when adding an item with qty exceeding today's stock, the request is rejected `409` unless `forceOrder: true` — the item is flagged `isForceOrder`. Stock is decremented at **payment** time (not order time), clamped at 0.
+- **Settlement (blind count)**: `preview` checks for unpaid transactions without revealing system totals; `POST /settlements` submits the cashier's physical count, computes variance, and closes the shift; `review` (owner) finalizes.
 
 ### Frontend (React + TS + Vite)
 
-Routing in [frontend/src/App.tsx](frontend/src/App.tsx):
-- `ProtectedRoute` gates on auth; `OwnerRoute` additionally requires `role === 'owner'`.
-- Owner-only pages: `/stock`, `/menu`, `/users`, `/reports`.
-- Shared pages: `/pos`, `/pos/:tableNumber`, `/tables`, `/history`, `/settlement`.
+Routing in [frontend/src/App.tsx](frontend/src/App.tsx): `ProtectedRoute` gates on auth; `OwnerRoute` requires `role === 'owner'`.
 
-State:
-- **Zustand** stores in [frontend/src/stores/](frontend/src/stores/): `authStore` (user + token, persisted) and `cartStore` (in-progress order for the active table).
-- **React Query** (`@tanstack/react-query`) for server state in pages; don't duplicate server state into Zustand.
+State: **Zustand** (`authStore`, `cartStore`) + **React Query** for server state. API layer in [frontend/src/services/](frontend/src/services/) — one file per resource using a shared Axios instance that injects the JWT bearer token.
 
-API layer in [frontend/src/services/](frontend/src/services/) — one file per resource, all using a shared Axios instance that injects the Sanctum bearer token. When adding a new endpoint, extend the matching service rather than calling axios directly from components.
-
-Cart → transaction sync: `CartPanel` drives POS flow; items sync to the backend via `transactionService` (`PUT /transactions/{id}/items` is the bulk sync endpoint). Payment flows through `PaymentModal` → `POST /transactions/{id}/pay`.
+> Note: the frontend was written against the old Laravel API; it may need updates to match the new Express endpoints (roles `cashier`/`kitchen`, shift flow). Verify before relying on it.
 
 ### Database
 
-Schema lives both in [backend/database/migrations/](backend/database/migrations/) (authoritative) and [database/schema.sql](database/schema.sql) (reference dump). Prefer migrations; only update `schema.sql` if explicitly asked.
+Schema is defined in [backend/prisma/schema.prisma](backend/prisma/schema.prisma) (authoritative). Apply changes with `npm run prisma:migrate`. Seed data in [backend/prisma/seed.ts](backend/prisma/seed.ts).
 
 ## Conventions
 
-- API response shape: `{ success, message, data }` — preserve this when adding endpoints.
-- PINs are 6 digits; never log them. Use `verify-pin` endpoint for elevation checks (e.g., void, owner actions).
-- Indonesian language is used in some UI strings and the README — mirror existing language in surrounding code rather than translating.
-- Backend port 8000, frontend port 3000 are assumed throughout; changing them requires updating `VITE_API_URL` and CORS config.
+- API response shape: `{ success, message, data }` — preserve this when adding endpoints (`sendSuccess`/`sendError` in `utils/response.ts`).
+- Errors: throw `AppError(message, statusCode)`; the central `errorHandler` formats them. Zod validation errors become `422`.
+- PINs are 6 digits, plaintext (documented trade-off); never log or return them — `toPublicUser` strips the field.
+- Code in English (variables, columns, enums). User-facing messages in Indonesian.
+- Backend port 8000, frontend port 3000; changing them requires updating `VITE_API_URL` and `CORS_ORIGIN`.
+- Per-phase build, incremental — explain each phase and wait for review.

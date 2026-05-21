@@ -19,7 +19,13 @@ out/
 coverage/
 .nyc_output/
 
-# Environment files
+# Environment files (berisi rahasia — jangan di-commit)
+.env
+*/.env
+
+# Local tool artifacts
+ruvector.db
+**/ruvector.db
 
 # Logs
 logs/
