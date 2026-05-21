@@ -1,8 +1,10 @@
 # Activity Diagram — Sistem POS Ayam Bakar Banjar Monosuko
 
-Dokumen ini menjelaskan apa itu Activity Diagram, kegunaannya untuk skripsi, dan isi tujuh activity diagram yang menggambarkan alur kerja operasional sistem POS.
+Dokumen ini menjelaskan apa itu Activity Diagram, kegunaannya untuk skripsi, dan isi activity diagram yang menggambarkan alur kerja operasional sistem POS.
 
-**Referensi visual:** lihat folder [`docs/diagrams/`](../diagrams/) — 7 file PNG dengan prefix `activity-diagram-*`.
+**Referensi visual:** lihat folder [`docs/diagrams/`](../diagrams/) — file PNG dengan prefix `activity-diagram-*`.
+
+> ⚠️ **Catatan revisi.** Desain final menetapkan **stok opname hanya pagi** (oleh Kitchen). Activity Diagram **Stock Opname Sore** (oleh Kasir) yang masih tercantum di dokumen ini & di `Skripsi.mdj` sudah **tidak dipakai** — naskah final ([BAB-3-DRAFT.md](BAB-3-DRAFT.md)) memuat 6 activity diagram, bukan 7. Diagram Sore perlu dihapus dari `Skripsi.mdj` saat StarUML dibuka kembali.
 
 ---
 

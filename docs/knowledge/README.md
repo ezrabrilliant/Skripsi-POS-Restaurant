@@ -1,5 +1,8 @@
 # Knowledge Base — Sistem POS Ayam Bakar Banjar Monosuko
 
+> **Status proyek:** diagram skripsi selesai; backend Express sudah dibangun. Untuk status menyeluruh lihat [ROADMAP.md](../../ROADMAP.md) di root.
+> **Catatan revisi:** desain final menghapus stok opname sore (Kasir) — lihat banner di [ACTIVITY.md](ACTIVITY.md) & [USE-CASE.md](USE-CASE.md). Naskah final ada di [BAB-3-DRAFT.md](BAB-3-DRAFT.md).
+
 Dokumentasi lengkap tentang semua diagram skripsi. Setiap file berisi:
 - Pengertian diagram (teori + ADSI reference)
 - Kegunaan untuk skripsi
@@ -23,9 +26,10 @@ Dokumentasi lengkap tentang semua diagram skripsi. Setiap file berisi:
 
 - [`../DIAGRAM-SPEC.md`](../DIAGRAM-SPEC.md) — design spec awal (pre-build decisions)
 - [`../DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) — 8 tabel data dictionary paste-ready untuk Bab 3
-- [`../diagrams/`](../diagrams/) — 13 PNG hasil render + INDEX.md gallery
-- [`../planning/DIAGRAM-PLAN.md`](../planning/DIAGRAM-PLAN.md) — 6 keputusan design awal
+- [`../diagrams/`](../diagrams/) — PNG hasil render + INDEX.md gallery
+- [`../planning/DIAGRAM-PLAN.md`](../planning/DIAGRAM-PLAN.md) — keputusan design awal
 - [`../../Skripsi.mdj`](../../Skripsi.mdj) — StarUML project (editable source)
+- [`BAB-3-DRAFT.md`](BAB-3-DRAFT.md) — draft naskah Bab 3 paste-ready (sesuai desain final)
 
 ## 🎯 Cara pakai saat menulis Bab 3
 

@@ -1,99 +1,89 @@
-# POS Restaurant
+# Sistem POS Restoran — Ayam Bakar Banjar Monosuko
 
-Sistem Point of Sale untuk restoran.
+Sistem Point of Sale (POS) berbasis web untuk restoran. Proyek skripsi Ezra Brilliant Konterliem (C14220315), Sistem Informasi Bisnis UK Petra.
 
 ## Tech Stack
 
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS
-- **Backend:** Laravel 12, MySQL
+- **Backend:** Node.js 20 + Express 4 + TypeScript + Prisma + MySQL
+- **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS
+- **Auth:** JWT, login PIN 6 digit
+- **Peran:** `owner`, `cashier`, `kitchen`
+
+## Prasyarat
+
+- Node.js 20+
+- MySQL (mis. via Laragon) — buat database kosong `pos_restaurant`
 
 ## Setup
 
-### Prerequisites
-
-- PHP 8.2+
-- Composer
-- Node.js 18+
-- MySQL
-
-### Database
-
-Buat database MySQL:
-```sql
-CREATE DATABASE pos_restaurant;
-
--- atau
-mysql -u root -p -e "CREATE DATABASE pos_restaurant;"
-```
-
-### Backend
-
 ```bash
+# 1. Install dependency backend + frontend
+npm run install:all
+
+# 2. Siapkan konfigurasi backend
 cd backend
-composer install
 cp .env.example .env
-php artisan key:generate
+# Edit .env — sesuaikan DATABASE_URL dengan MySQL kamu
+# Laragon default: mysql://root:@localhost:3306/pos_restaurant
+
+# 3. Migrasi + seed database
+npm run prisma:migrate
+npm run db:seed
+cd ..
 ```
 
-Edit file `.env`, sesuaikan konfigurasi database:
-```
-DB_DATABASE=pos_restaurant
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-Lalu jalankan migrasi dan seeder:
-```bash
-php artisan migrate --seed
-php artisan serve --port=8000
-```
-
-### Frontend
+## Menjalankan
 
 ```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
+npm run dev          # backend (:8000) + frontend (:3000) sekaligus
+npm run dev:backend  # backend saja
+npm run dev:frontend # frontend saja
 ```
 
-## Default Users
+Cek backend hidup: buka `http://localhost:8000/api/health`.
 
-| Nama | Role | PIN |
-|------|------|-----|
-| Pak Budi | Owner | 123456 |
-| Siti | Kasir | 111111 |
-| Dewi | Kasir | 222222 |
+## Akun Default (hasil seed)
 
-## Environment
-
-Backend `.env`:
-```
-DB_DATABASE=pos_restaurant
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-Frontend `.env`:
-```
-VITE_API_URL=http://localhost:8000/api
-```
+| Nama | Peran | PIN |
+|------|-------|-----|
+| Pak Budi | owner | `100000` |
+| Siti | cashier | `200000` |
+| Dewi | cashier | `200001` |
+| Joko | kitchen | `300000` |
 
 ## Fitur
 
-- Manajemen meja & pesanan
-- Stok menu harian
-- Force order (pesan meski stok habis)
-- Rekonsiliasi kas (settlement)
-- Riwayat transaksi
-- Laporan penjualan
+- Autentikasi PIN + tiga peran (owner / kasir / kitchen)
+- Manajemen menu (katalog + kategori)
+- Stok harian — input pagi oleh kitchen + status opname
+- Buka kasir (shift), manajemen meja & pesanan
+- **Force order** — pesan meski stok kurang, dengan konfirmasi
+- Pembayaran 6 metode + cetak struk + pembatalan (void) ber-PIN owner
+- **Tutup kasir blind count** — rekonsiliasi kas + deteksi selisih
+- Pencatatan pengeluaran harian
+- Dashboard & laporan (pendapatan, pengeluaran, laba kotor)
+
+## Struktur Proyek
+
+```
+backend/    API Express + Prisma (lihat backend/README.md untuk daftar API)
+frontend/   Aplikasi React (PWA)
+docs/       Dokumentasi skripsi — diagram, knowledge base, Bab 3
+ROADMAP.md  Status & rencana pengembangan proyek
+```
+
+## Dokumentasi
+
+- **API backend** — [backend/README.md](backend/README.md) + `backend/postman_collection.json`
+- **Status proyek** — [ROADMAP.md](ROADMAP.md)
+- **Diagram & knowledge skripsi** — [docs/knowledge/](docs/knowledge/)
+- **Panduan Claude Code** — [CLAUDE.md](CLAUDE.md)
 
 ## Catatan
 
-- Backend jalan di port 8000
-- Frontend jalan di port 3000
-- Login menggunakan PIN (6 digit)
+- Backend port 8000, frontend port 3000
+- Login PIN 6 digit; PIN disimpan plaintext (trade-off didokumentasikan di skripsi)
 
-## Author
+## Penyusun
 
-Ezra Brilliant Konterliem - C14220315
+Ezra Brilliant Konterliem — C14220315

@@ -4,6 +4,8 @@ Dokumen ini menjelaskan apa itu Use Case Diagram, kegunaannya untuk skripsi, dan
 
 **Referensi visual:** [`docs/diagrams/use-case-diagram-sistem-pos-restoran.png`](../diagrams/use-case-diagram-sistem-pos-restoran.png)
 
+> ⚠️ **Catatan revisi.** Desain final menghapus use case **Melakukan Stock Opname** (oleh Kasir, sore hari) — stok opname kini hanya pagi oleh Kitchen. Naskah final ([BAB-3-DRAFT.md](BAB-3-DRAFT.md)) memuat **14 use case**, bukan 15. UC tersebut perlu dihapus dari `Skripsi.mdj` saat StarUML dibuka kembali.
+
 ---
 
 ## 1. Apa itu Use Case Diagram?

@@ -1,51 +1,29 @@
 # Skripsi Diagrams — Progress Tracker
 
-Semua diagram UML untuk Bab 3 (Perancangan Sistem) skripsi POS Restaurant. Dibangun via Claude Desktop + StarUML MCP (lihat [SETUP.md](SETUP.md)).
+Semua diagram UML untuk Bab 3 skripsi POS Restoran. **Status: selesai.**
+Tersimpan dalam satu file StarUML: `Skripsi.mdj` (di root proyek). PNG render ada di folder ini ([INDEX.md](INDEX.md)).
 
-**Target output:** 1 file `.mdj` StarUML berisi semua diagram, disimpan di `docs/diagrams/ayam-bakar-monosuko.mdj`.
+> Untuk status proyek menyeluruh (backend, frontend, dll) lihat [ROADMAP.md](../../ROADMAP.md) di root.
 
 ## Progress
 
-| Step | Diagram | Status | File prompt |
-|---|---|---|---|
-| S.1 | Blok Diagram Sistem Keseluruhan | ⏳ prompt ready | inline chat |
-| S.2 | Use Case Diagram | ⏸ todo | — |
-| S.3 | ERD (Entity Relationship Diagram) | ⏸ todo | — |
-| S.4 | Activity Diagram — Order & Pay | ⏸ todo | — |
-| S.5 | Activity Diagram — Stock Opname | ⏸ todo | — |
-| S.6 | Sequence Diagram — Login (PIN) | ⏸ todo | — |
-| S.7 | Sequence Diagram — Pay Transaction | ⏸ todo | — |
-| S.8 | Flowchart — Force Order Logic | ⏸ todo | — |
+| Step | Diagram | Status |
+|---|---|---|
+| S.1 | Blok Diagram Sistem | ✅ done |
+| S.2 | Use Case Diagram | ✅ done |
+| S.3 | ERD | ✅ done |
+| S.4 | Activity Diagram — Order Flow | ✅ done |
+| — | Activity Diagram — Login, Pay, Stock Opname Pagi, Tutup Kasir, Pengeluaran | ✅ done |
+| S.6 | Sequence Diagram — Login | ✅ done |
+| S.7 | Sequence Diagram — Pay Transaction | ✅ done |
+| — | Sequence Diagram — Input Stok, Pengeluaran, Tutup Kasir | ✅ done |
+| S.8 | Flowchart — Force Order Logic | ✅ done |
 
-**Legenda:**
-- ⏳ prompt ready — prompt sudah dikasih, nunggu eksekusi di Claude Desktop
-- ⏸ todo — belum dikasih prompt
-- 🔄 in progress — sedang di-iterate di Claude Desktop
-- ✅ done — diagram ter-save di `.mdj`, sudah direview di Claude Code
-- 🔧 needs revision — ada catatan revisi (cek komentar di bawah)
+## Catatan revisi tertunda
 
-## Notes per diagram
+Keputusan desain final: **stok opname hanya pagi** (oleh Kitchen). Diagram berikut di `Skripsi.mdj` masih perlu dihapus agar konsisten dengan `docs/knowledge/BAB-3-DRAFT.md`:
 
-### S.1 Blok Diagram Sistem Keseluruhan
-_Notes akan ditambah setelah eksekusi._
+- Activity Diagram **Stock Opname Sore** (oleh Kasir)
+- Use Case **Melakukan Stock Opname** (oleh Kasir)
 
-### S.2 Use Case Diagram
-_Notes akan ditambah setelah eksekusi._
-
-### S.3 ERD
-_Notes akan ditambah setelah eksekusi._
-
-### S.4 Activity Diagram — Order & Pay
-_Notes akan ditambah setelah eksekusi._
-
-### S.5 Activity Diagram — Stock Opname
-_Notes akan ditambah setelah eksekusi._
-
-### S.6 Sequence Diagram — Login (PIN)
-_Notes akan ditambah setelah eksekusi._
-
-### S.7 Sequence Diagram — Pay Transaction
-_Notes akan ditambah setelah eksekusi._
-
-### S.8 Flowchart — Force Order Logic
-_Notes akan ditambah setelah eksekusi._
+Setelah dihapus: re-render PNG + update ACTIVITY.md, USE-CASE.md, FULL.md.

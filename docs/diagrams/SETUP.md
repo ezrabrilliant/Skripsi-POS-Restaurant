@@ -1,5 +1,9 @@
 # Claude Desktop + StarUML MCP — Setup Guide
 
+> **STATUS: historis.** Semua diagram skripsi sudah selesai dibangun (lihat [ROADMAP.md](ROADMAP.md)).
+> Pada praktiknya diagram dibangun langsung dari Claude Code memakai `staruml-mcp` (HTTP transport),
+> bukan via Claude Desktop. Dokumen ini disimpan sebagai catatan setup awal saja.
+
 Dokumen ini menjelaskan cara setup Claude Desktop untuk build diagram UML skripsi via StarUML MCP.
 
 ## Kenapa Claude Desktop (bukan Claude Code)?

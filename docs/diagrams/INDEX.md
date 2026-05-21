@@ -4,6 +4,8 @@ Render PNG dari semua diagram di `Skripsi.mdj`. Rendered via staruml-mcp tool `g
 
 **Note watermark:** "UNREGISTERED" di background muncul karena StarUML versi free. Tidak mempengaruhi konten diagram itu sendiri — untuk naskah final, lisensi StarUML atau gunakan tools sekreen capture.
 
+> ⚠️ **Catatan revisi.** Galeri ini mencerminkan isi `Skripsi.mdj` saat ini. Desain final menghapus **stok opname sore**: `activity-diagram-stock-opname-sore-kasir.png` dan use case "Melakukan Stock Opname" tidak dipakai lagi (naskah final = 14 use case, 6 activity diagram). Perlu dihapus dari `Skripsi.mdj`. Lihat [BAB-3-DRAFT.md](../knowledge/BAB-3-DRAFT.md).
+
 ---
 
 ## Block Diagram (1)

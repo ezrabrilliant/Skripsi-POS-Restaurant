@@ -2,6 +2,11 @@
 
 Kompilasi lengkap pengetahuan tentang semua diagram skripsi ini. Dokumen ini **self-contained** — reviewer, dosen pembimbing, atau future agent bisa baca satu file ini dan memahami seluruh design.
 
+> ⚠️ **Catatan revisi desain final.** Dokumen ini sebagian masih mencerminkan rancangan awal. Yang berubah pada desain final:
+> - **Stok opname hanya pagi** (oleh Kitchen). Use case "Melakukan Stock Opname" (Kasir, sore) & activity "Stock Opname Sore" **dihapus** — naskah final = 14 use case, 6 activity diagram.
+> - **Stack:** Express + TypeScript + Prisma + **MySQL** (bukan PostgreSQL/Laravel); primary key **integer auto-increment** (bukan UUID).
+> Sumber kebenaran naskah Bab 3 = [BAB-3-DRAFT.md](BAB-3-DRAFT.md). Status proyek = [ROADMAP.md](../../ROADMAP.md).
+
 Untuk deep-dive per jenis diagram, lihat file terpisah:
 - [USE-CASE.md](USE-CASE.md) — Use Case Diagram detail
 - [ACTIVITY.md](ACTIVITY.md) — 7 Activity Diagrams detail
