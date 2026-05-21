@@ -120,7 +120,7 @@ Nodes (left to right):
 3. **Laptop Owner (Device)** — `Chrome` hosting `pos-frontend`.
 4. **Router WiFi Restoran (Device)** — connects clients to server.
 5. **Server Restoran (Device)** — `Node.js 20 (Docker)` execution env hosting `server.ts (Express + Prisma)` artifact.
-6. **PostgreSQL 16 (Device or ExecutionEnvironment)** — hosting `pos_db` schema artifact.
+6. **MySQL 8 (Device or ExecutionEnvironment)** — hosting `pos_db` schema artifact.
 7. **Printer Struk (Device, optional)** — connects via USB/Bluetooth to HP Kasir.
 
 Communication paths:
@@ -130,14 +130,14 @@ Communication paths:
 - Laptop Owner ↔ Router : `<<WiFi>>`
 - Router ↔ Server : `<<Ethernet/LAN>>`
 - pos-frontend → server.ts : `<<HTTPS / REST JSON + JWT>>`
-- server.ts ↔ PostgreSQL : `<<TCP/IP SQL>>`
+- server.ts ↔ MySQL : `<<TCP/IP SQL>>`
 - HP Kasir ↔ Printer : `<<USB>>` or `<<Bluetooth>>`
 
 Artifacts deployed:
 
 - `pos-frontend (React + Vite PWA)` deployed on browsers of HP Kasir, HP Kitchen, Laptop Owner.
 - `server.ts (Express + Prisma)` deployed on Server Restoran.
-- `pos_db (PostgreSQL schema)` deployed on PostgreSQL node.
+- `pos_db (MySQL schema)` deployed on MySQL node.
 
 ## 6. Common mistakes to grep for
 

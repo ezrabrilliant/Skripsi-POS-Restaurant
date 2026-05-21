@@ -1,6 +1,6 @@
 # BAB 3 — Analisis dan Desain (Draft Paste-Ready)
 
-Dokumen ini berisi **paragraf paste-ready** untuk Bab 3 skripsi mengikuti **Pedoman Program SIB UK Petra** (`docs/Pedoman Program SIB.pdf`). Semua konten konseptual — tidak menyebut Express/React/PostgreSQL eksplisit di narasi (tech stack ditahan ke Bab 4).
+Dokumen ini berisi **paragraf paste-ready** untuk Bab 3 skripsi mengikuti **Pedoman Program SIB UK Petra** (`docs/Pedoman Program SIB.pdf`). Semua konten konseptual — tidak menyebut Express/React/MySQL eksplisit di narasi (tech stack ditahan ke Bab 4).
 
 > **Cakupan diagram (per arahan pembimbing):** Use Case Diagram + Activity Diagram + Entity Relationship Diagram saja. *Sequence Diagram*, *Block Diagram*, dan *Flowchart Force Order* TIDAK dipakai di Bab 3.
 
@@ -267,7 +267,7 @@ Buka [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) — file itu sudah beris
 - [ ] 3.2.3 Activity Diagram enam sub-bab, masing-masing punya pengantar paragraf + Gambar 3.2 sampai 3.7.
 - [ ] 3.2.4 ERD (Gambar 3.8) dirujuk di paragraf pengantar, lalu narasi delapan entitas + sembilan relasi.
 - [ ] 3.2.5 Data Dictionary: tujuh tabel `users`, `menus`, `daily_menu_stocks`, `shifts`, `transactions`, `transaction_items`, `settlements`, `expenses` di Tabel 3.2 hingga 3.9.
-- [ ] Tidak ada penyebutan eksplisit Express, React, PostgreSQL, JWT — istilah teknologi ditahan ke Bab 4. Yang boleh: "*basis data relasional*", "*aplikasi berbasis web*", "*server berbasis komputasi awan*".
+- [ ] Tidak ada penyebutan eksplisit Express, React, MySQL, JWT — istilah teknologi ditahan ke Bab 4. Yang boleh: "*basis data relasional*", "*aplikasi berbasis web*", "*server berbasis komputasi awan*".
 
 ---
 

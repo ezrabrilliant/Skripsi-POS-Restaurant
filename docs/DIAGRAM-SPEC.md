@@ -16,7 +16,7 @@ Dipakai sebagai referensi ketika build/review diagram di StarUML, dan sebagai su
 **Penyusun:** Ezra Brilliant Konterliem (C14220315) — Sistem Informasi Bisnis, UK Petra
 
 **Tech stack (sesuai Bab 1.4 Ruang Lingkup):**
-- Backend: Node.js 20 + Express 4 + TypeScript + Prisma + PostgreSQL 16
+- Backend: Node.js 20 + Express 4 + TypeScript + Prisma + MySQL 8
 - Frontend: React 18 + Vite (PWA installable — Level A: manifest + static cache, butuh internet untuk data)
 - Auth: JWT (Authorization: Bearer) + PIN 6-digit
 - Platform: Web, optimized untuk desktop (Owner) dan tablet/HP (Kasir, Kitchen)
@@ -129,7 +129,7 @@ Akun semua role. PIN plaintext VARCHAR(6) (bukan hash) agar lookup by PIN di log
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
+| id | INT | PK |
 | name | VARCHAR(100) | |
 | pin | VARCHAR(6) | UNIQUE, index |
 | role | ENUM UserRole | owner / cashier / kitchen |
@@ -142,7 +142,7 @@ Katalog menu (barang siap jual, bukan bahan baku).
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
+| id | INT | PK |
 | name | VARCHAR(100) | |
 | category | VARCHAR(50) | e.g. "Paket Ayam", "Minuman" |
 | price | DECIMAL(10,2) | |
@@ -154,9 +154,9 @@ Stok per-hari per-menu. Kitchen input pagi, kasir decrement saat pay. UNIQUE(dat
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
+| id | INT | PK |
 | date | DATE | |
-| menu_id | UUID | FK → menus |
+| menu_id | INT | FK → menus |
 | opening_stock | INT | stok yang dibawa pagi |
 | current_stock | INT | sisa realtime |
 | updated_at | TIMESTAMP | |
@@ -166,9 +166,9 @@ Siklus buka/tutup kasir per-hari per-cashier. Parent dari transactions + settlem
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
+| id | INT | PK |
 | date | DATE | |
-| cashier_id | UUID | FK → users |
+| cashier_id | INT | FK → users |
 | opening_cash | DECIMAL(12,2) | petty cash awal |
 | closed_at | TIMESTAMP | nullable (null = open) |
 | created_at | TIMESTAMP | |
@@ -178,10 +178,10 @@ Header order per-meja.
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
-| shift_id | UUID | FK → shifts |
+| id | INT | PK |
+| shift_id | INT | FK → shifts |
 | table_number | INT | |
-| cashier_id | UUID | FK → users |
+| cashier_id | INT | FK → users |
 | status | ENUM TransactionStatus | open / paid / void |
 | payment_method | ENUM PaymentMethod | nullable (null saat open) |
 | subtotal | DECIMAL(12,2) | |
@@ -196,9 +196,9 @@ Item dalam transaksi. Composition dari transactions (item lifecycle terikat tran
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
-| transaction_id | UUID | FK → transactions (ON DELETE CASCADE) |
-| menu_id | UUID | FK → menus |
+| id | INT | PK |
+| transaction_id | INT | FK → transactions (ON DELETE CASCADE) |
+| menu_id | INT | FK → menus |
 | qty | INT | |
 | unit_price | DECIMAL(10,2) | snapshot harga saat order |
 | subtotal | DECIMAL(12,2) | qty × unit_price |
@@ -210,11 +210,11 @@ Blind count rekonsiliasi akhir shift. 5 metode bayar × 3 kolom (system/actual/v
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
-| shift_id | UUID | FK → shifts, UNIQUE (satu settlement per shift) |
+| id | INT | PK |
+| shift_id | INT | FK → shifts, UNIQUE (satu settlement per shift) |
 | date | DATE | |
-| cashier_id | UUID | FK → users |
-| reviewer_id | UUID | FK → users, nullable (Owner yang review) |
+| cashier_id | INT | FK → users |
+| reviewer_id | INT | FK → users, nullable (Owner yang review) |
 | system_cash, system_qris, system_transfer, system_debit_credit, system_ojol | DECIMAL(12,2) | total per-method dari sistem |
 | actual_cash, actual_qris, actual_transfer, actual_debit_credit, actual_ojol | DECIMAL(12,2) | input fisik kasir (blind — tanpa lihat system) |
 | variance_cash, variance_qris, variance_transfer, variance_debit_credit, variance_ojol | DECIMAL(12,2) | actual − system (positive=over, negative=short) |
@@ -227,12 +227,12 @@ Pengeluaran harian. Total rupiah + kategori + deskripsi, **tidak per-bahan** (ba
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| id | UUID | PK |
+| id | INT | PK |
 | date | DATE | |
 | category | ENUM ExpenseCategory | ingredients / utilities / salary / transport / other |
 | amount | DECIMAL(12,2) | |
 | description | VARCHAR(255) | |
-| paid_by | UUID | FK → users (Owner yang input) |
+| paid_by | INT | FK → users (Owner yang input) |
 | notes | TEXT | nullable |
 | created_at | TIMESTAMP | |
 
@@ -450,14 +450,14 @@ Per ADSI Bab 10: sequence diagram per use case scenario, pakai stereotype `<<bou
 3. **Laptop Owner** (Device) — Chrome — `pos-frontend`
 4. **Router WiFi Restoran** (Device) — penghubung
 5. **Server Restoran** (Device) — Node.js 20 runtime (Docker opsional) — `server.ts (Express + Prisma)` artifact
-6. **PostgreSQL 16** (ExecutionEnvironment di server atau device terpisah) — `pos_db` schema artifact
+6. **MySQL 8** (ExecutionEnvironment di server atau device terpisah) — `pos_db` schema artifact
 7. **Printer Struk** (Device, opsional) — USB/Bluetooth ke HP Kasir
 
 **Communication paths (protocol stereotype):**
 - HP Kasir/Kitchen/Owner ↔ Router : `<<WiFi>>`
 - Router ↔ Server : `<<Ethernet/LAN>>`
 - pos-frontend → server.ts : `<<HTTPS/REST JSON + JWT>>`
-- server.ts ↔ PostgreSQL : `<<TCP/IP SQL>>` (port 5432)
+- server.ts ↔ MySQL : `<<TCP/IP SQL>>` (port 3306)
 - HP Kasir ↔ Printer : `<<USB>>` atau `<<Bluetooth>>`
 
 ---

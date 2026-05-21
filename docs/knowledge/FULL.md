@@ -34,7 +34,7 @@ File terkait:
 - PWA Level A (installable, tetap butuh internet)
 
 ### 1.3. Stack Teknis (final per plan)
-- Backend: Node.js 20 + Express 4 + TypeScript + Prisma + PostgreSQL 16
+- Backend: Node.js 20 + Express 4 + TypeScript + Prisma + MySQL 8
 - Frontend: React 18 + Vite (PWA Level A)
 - Auth: JWT + PIN 6-digit
 - Role: `owner`, `cashier`, `kitchen`
@@ -305,7 +305,7 @@ docs/
 
 ### Naming Pola
 - Entity ERD: lowercase snake_case (`users`, `daily_menu_stocks`)
-- Primary key: `id` (UUID)
+- Primary key: `id` (INT auto-increment)
 - Foreign key: `<entity>_id` (contoh: `menu_id`, `cashier_id`)
 - Enum values: lowercase underscore (`cash`, `debit_credit`)
 

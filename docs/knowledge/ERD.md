@@ -55,7 +55,7 @@ Di skripsi POS biasanya cukup **ERD saja** untuk struktur data (tidak butuh clas
 - **Foreign key**: `<entity>_id` merujuk ke `<entity>.id`. Tambahkan marker `FK → <entity>` di ERD atau komentar.
 
 ### 4.2. Tipe Data
-- `UUID` untuk primary key & foreign key (di Prisma/Postgres modern)
+- `INT` untuk primary key & foreign key (di Prisma/MySQL)
 - `VARCHAR(n)` untuk string pendek
 - `TEXT` untuk deskripsi panjang
 - `INTEGER` untuk jumlah, qty
@@ -159,13 +159,13 @@ Contoh Mermaid:
 ```
 erDiagram
     users {
-        UUID id PK
+        INT id PK
         VARCHAR pin UK
         VARCHAR role
     }
     transactions {
-        UUID id PK
-        UUID cashier_id FK
+        INT id PK
+        INT cashier_id FK
         DECIMAL total
     }
     users ||--o{ transactions : 'cashier handles'

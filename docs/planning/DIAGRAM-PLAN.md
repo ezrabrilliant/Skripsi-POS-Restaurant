@@ -159,7 +159,7 @@ Revisi plan diagram skripsi (dari rencana awal, dengan tambahan pengeluaran):
 
 | # | Diagram | Isi baru |
 |---|---|---|
-| S.1 | **Blok Diagram Sistem** | HP Kasir (PWA) ↔ HP Kitchen (PWA) ↔ Laptop Owner (browser) ↔ Router WiFi ↔ Server (Node+Express+Prisma) ↔ PostgreSQL 16 ↔ Printer Struk (opt) |
+| S.1 | **Blok Diagram Sistem** | HP Kasir (PWA) ↔ HP Kitchen (PWA) ↔ Laptop Owner (browser) ↔ Router WiFi ↔ Server (Node+Express+Prisma) ↔ MySQL 8 ↔ Printer Struk (opt) |
 | S.2 | **Use Case Diagram** | **Rebuild**: 3 actor (Owner, Kasir, Kitchen), ~18 use case (tambah `Mencatat Pengeluaran`, `Melihat Laporan Pengeluaran`, `Melihat Laporan Laba Kotor`) |
 | S.3 | **ERD** | 8 entity (tambah `shifts` + `expenses` naik dari Phase 13) |
 | S.4 | **Activity — Order & Pay** | Bundle A.3 + A.4 jadi 1 diagram detail (kasir lifecycle lengkap) ATAU split 2 diagram |

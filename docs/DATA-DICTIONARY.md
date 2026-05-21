@@ -12,7 +12,7 @@ Menyimpan data pengguna sistem (owner, cashier, kitchen).
 
 | Field       | Tipe Data                        | Keterangan                                        |
 |-------------|----------------------------------|---------------------------------------------------|
-| id          | UUID – PK                        | ID unik user                                      |
+| id          | INT – PK                        | ID unik user                                      |
 | name        | Varchar(100)                     | Nama lengkap user                                 |
 | pin         | Varchar(6) – UNIQUE              | PIN 6-digit untuk login (unik antar user)         |
 | role        | Enum(owner, cashier, kitchen)    | Peran user dalam sistem                           |
@@ -28,7 +28,7 @@ Katalog menu siap jual yang dijual di restoran.
 
 | Field       | Tipe Data         | Keterangan                                   |
 |-------------|-------------------|----------------------------------------------|
-| id          | UUID – PK         | ID unik menu                                 |
+| id          | INT – PK         | ID unik menu                                 |
 | name        | Varchar(100)      | Nama menu (contoh: "Paket Serasi")           |
 | category    | Varchar(50)       | Kategori menu (ayam / minuman / nasi / dll)  |
 | price       | Decimal(10,2)     | Harga jual satuan                            |
@@ -44,9 +44,9 @@ Stok per menu per hari. Diinput pagi oleh Kitchen, dikurangi otomatis saat pemba
 
 | Field          | Tipe Data         | Keterangan                                                |
 |----------------|-------------------|-----------------------------------------------------------|
-| id             | UUID – PK         | ID unik record stok                                       |
+| id             | INT – PK         | ID unik record stok                                       |
 | date           | Date              | Tanggal stok (bagian dari UNIQUE(date, menu_id))          |
-| menu_id        | UUID – FK → menus | Referensi ke menu                                         |
+| menu_id        | INT – FK → menus | Referensi ke menu                                         |
 | opening_stock  | Integer           | Jumlah stok awal dari rumah pemilik (pagi)                |
 | current_stock  | Integer           | Stok tersisa realtime (berkurang saat transaction paid)   |
 | updated_at     | Timestamp         | Waktu update terakhir                                     |
@@ -61,9 +61,9 @@ Shift buka/tutup kasir per cashier per hari. Parent dari transactions + settleme
 
 | Field         | Tipe Data          | Keterangan                                           |
 |---------------|--------------------|------------------------------------------------------|
-| id            | UUID – PK          | ID unik shift                                        |
+| id            | INT – PK          | ID unik shift                                        |
 | date          | Date               | Tanggal shift                                        |
-| cashier_id    | UUID – FK → users  | Kasir yang membuka shift                             |
+| cashier_id    | INT – FK → users  | Kasir yang membuka shift                             |
 | opening_cash  | Decimal(12,2)      | Modal awal (petty cash) saat Buka Kasir              |
 | closed_at     | Timestamp nullable | Waktu Tutup Kasir (null = shift masih open)          |
 | created_at    | Timestamp          | Waktu shift dibuat                                   |
@@ -76,10 +76,10 @@ Header pesanan per meja. Satu meja = satu transaction sampai dibayar.
 
 | Field            | Tipe Data                                              | Keterangan                                       |
 |------------------|--------------------------------------------------------|--------------------------------------------------|
-| id               | UUID – PK                                              | ID unik transaksi                                |
-| shift_id         | UUID – FK → shifts                                     | Shift di mana transaksi dilakukan                |
+| id               | INT – PK                                              | ID unik transaksi                                |
+| shift_id         | INT – FK → shifts                                     | Shift di mana transaksi dilakukan                |
 | table_number     | Integer                                                | Nomor meja                                       |
-| cashier_id       | UUID – FK → users                                      | Kasir yang menangani transaksi                   |
+| cashier_id       | INT – FK → users                                      | Kasir yang menangani transaksi                   |
 | status           | Enum(open, paid, void)                                 | Status: open=belum bayar, paid=lunas, void=batal |
 | payment_method   | Enum(cash, qris, transfer, debit, credit, ojol) null   | Metode bayar (diisi saat pay; null saat open)    |
 | subtotal         | Decimal(12,2)                                          | Total sebelum diskon                             |
@@ -97,9 +97,9 @@ Detail item dalam satu transaksi (junction menu × transaction). Atribut qty + h
 
 | Field          | Tipe Data                     | Keterangan                                                       |
 |----------------|-------------------------------|------------------------------------------------------------------|
-| id             | UUID – PK                     | ID unik item transaksi                                           |
-| transaction_id | UUID – FK → transactions      | Transaksi parent (ON DELETE CASCADE)                             |
-| menu_id        | UUID – FK → menus             | Menu yang dipesan                                                |
+| id             | INT – PK                     | ID unik item transaksi                                           |
+| transaction_id | INT – FK → transactions      | Transaksi parent (ON DELETE CASCADE)                             |
+| menu_id        | INT – FK → menus             | Menu yang dipesan                                                |
 | qty            | Integer                       | Jumlah porsi                                                     |
 | unit_price     | Decimal(10,2)                 | Harga per satuan saat order (snapshot)                           |
 | subtotal       | Decimal(12,2)                 | qty × unit_price                                                 |
@@ -114,11 +114,11 @@ Hasil blind count rekonsiliasi akhir shift. Satu settlement per shift (1:1 denga
 
 | Field                  | Tipe Data                                 | Keterangan                                                     |
 |------------------------|-------------------------------------------|----------------------------------------------------------------|
-| id                     | UUID – PK                                 | ID unik settlement                                             |
-| shift_id               | UUID – FK → shifts, UNIQUE                | Shift terkait (UNIQUE = 1 settlement per shift)                |
+| id                     | INT – PK                                 | ID unik settlement                                             |
+| shift_id               | INT – FK → shifts, UNIQUE                | Shift terkait (UNIQUE = 1 settlement per shift)                |
 | date                   | Date                                      | Tanggal shift                                                  |
-| cashier_id             | UUID – FK → users                         | Kasir yang submit rekonsiliasi                                 |
-| reviewer_id            | UUID – FK → users, nullable               | Owner yang review; null sampai direview                        |
+| cashier_id             | INT – FK → users                         | Kasir yang submit rekonsiliasi                                 |
+| reviewer_id            | INT – FK → users, nullable               | Owner yang review; null sampai direview                        |
 | system_cash            | Decimal(12,2)                             | Total cash di sistem (sum transaction.total WHERE method=cash) |
 | system_qris            | Decimal(12,2)                             | Total QRIS di sistem                                           |
 | system_transfer        | Decimal(12,2)                             | Total transfer bank di sistem                                  |
@@ -146,12 +146,12 @@ Pengeluaran harian dari Owner. Total rupiah + kategori + deskripsi (tidak per-ba
 
 | Field       | Tipe Data                                                                 | Keterangan                                 |
 |-------------|---------------------------------------------------------------------------|--------------------------------------------|
-| id          | UUID – PK                                                                 | ID unik pengeluaran                        |
+| id          | INT – PK                                                                 | ID unik pengeluaran                        |
 | date        | Date                                                                      | Tanggal pengeluaran                        |
 | category    | Enum(ingredients, utilities, salary, transport, other)                    | Kategori pengeluaran                       |
 | amount      | Decimal(12,2)                                                             | Nominal pengeluaran                        |
 | description | Varchar(255)                                                              | Deskripsi singkat pengeluaran              |
-| paid_by     | UUID – FK → users                                                         | Owner yang menginput (dari session)        |
+| paid_by     | INT – FK → users                                                         | Owner yang menginput (dari session)        |
 | notes       | Text nullable                                                             | Catatan tambahan                           |
 | created_at  | Timestamp                                                                 | Waktu pengeluaran diinput                  |
 
