@@ -1,59 +1,142 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Backend API — POS Restoran Ayam Bakar Banjar Monosuko
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend Express + TypeScript + Prisma + MySQL. Bagian dari skripsi C14220315.
 
-## About Laravel
+## Prasyarat
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Node.js 20+**
+- **MySQL** (Laragon) berjalan, dengan database kosong bernama `pos_restaurant`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Setup Awal (sekali saja)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+cd backend
+npm install                 # install dependency
+cp .env.example .env        # salin konfigurasi, lalu sesuaikan DATABASE_URL
+npm run prisma:migrate      # buat tabel di MySQL
+npm run db:seed             # isi data awal (4 user + 47 menu)
+```
 
-## Learning Laravel
+Pastikan `DATABASE_URL` di `.env` cocok dengan MySQL Laragon kamu. Default Laragon (password root kosong):
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```
+DATABASE_URL="mysql://root:@localhost:3306/pos_restaurant"
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Menjalankan Server
 
-## Laravel Sponsors
+**Penting:** backend baru ada di folder `backend/`, bukan lagi Laravel. Ada dua cara:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+# Cara 1 — dari folder backend
+cd backend
+npm run dev
 
-### Premium Partners
+# Cara 2 — dari folder root (backend + frontend sekaligus)
+npm run dev
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Server berjalan di **http://localhost:8000**. Cek hidup: buka `http://localhost:8000/api/health`.
 
-## Contributing
+## Perintah Lain
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Perintah | Fungsi |
+|---|---|
+| `npm run dev` | Jalankan server mode watch (auto-restart saat file berubah) |
+| `npm run build` | Compile TypeScript ke folder `dist/` |
+| `npm run start` | Jalankan hasil build (produksi) |
+| `npm run prisma:migrate` | Terapkan perubahan skema ke database |
+| `npm run prisma:studio` | Buka Prisma Studio (GUI lihat isi database) |
+| `npm run db:seed` | Isi data awal |
+| `npm run db:fresh` | Reset database + migrasi ulang (hapus semua data) |
 
-## Code of Conduct
+## Akun Seed (untuk login)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Peran | Nama | PIN |
+|---|---|---|
+| owner | Pak Budi | `100000` |
+| cashier | Siti | `200000` |
+| cashier | Dewi | `200001` |
+| kitchen | Joko | `300000` |
 
-## Security Vulnerabilities
+## Daftar API
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Base URL: `http://localhost:8000/api` — semua respons berbentuk `{ success, message, data }`.
+Akses: **publik** / **login** (token apa pun) / **kasir** / **kitchen** / **owner**.
 
-## License
+### Health & Auth
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/health` | publik | Cek server hidup |
+| POST | `/auth/login` | publik | Login PIN → token JWT |
+| GET | `/auth/me` | login | Data user yang sedang login |
+| POST | `/auth/verify-pin` | login | Verifikasi PIN untuk elevasi otorisasi |
+| POST | `/auth/logout` | login | Logout (token dihapus di klien) |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Menu
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/menus` | publik | Daftar menu. Query: `category`, `isActive`, `search` |
+| GET | `/menus/categories` | publik | Daftar kategori unik |
+| GET | `/menus/:id` | publik | Detail menu |
+| POST/PUT/DELETE | `/menus` `/menus/:id` | owner | Tambah / ubah / hapus menu |
+
+### Stok Harian
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/stocks` | login | Daftar stok (query `date`) |
+| GET | `/stocks/status` | login | Cek opname pagi sudah/belum |
+| POST | `/stocks` `/stocks/bulk` | kitchen/owner | Input stok (satu / banyak menu) |
+| PUT | `/stocks/:id` | kitchen/owner | Koreksi stok |
+| POST | `/stocks/reset-today` `/stocks/copy-yesterday` | kitchen/owner | Reset / salin stok |
+
+### Shift (Buka Kasir)
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/shifts/open` | kasir/owner | Buka kasir (input modal awal) |
+| GET | `/shifts/current` | kasir/owner | Shift aktif saat ini |
+
+### Meja & Transaksi
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/tables` | kasir/owner | Daftar meja + status |
+| GET | `/tables/:n/transaction` | kasir/owner | Transaksi terbuka pada meja |
+| POST | `/tables/:n/transfer` | kasir/owner | Pindah pesanan antar meja |
+| POST | `/transactions` | kasir/owner | Buka transaksi meja |
+| GET | `/transactions` `/transactions/:id` | kasir/owner | Daftar terbuka / detail |
+| GET | `/transactions/history` | kasir/owner | Riwayat (query `date`, `status`) |
+| GET | `/transactions/daily-summary` | kasir/owner | Ringkasan penjualan harian |
+| POST | `/transactions/:id/items` | kasir/owner | Tambah item (force order via `forceOrder:true`) |
+| PUT | `/transactions/:id/items` | kasir/owner | Sinkron seluruh keranjang |
+| PUT/DELETE | `/transactions/:id/items/:itemId` | kasir/owner | Ubah / hapus item |
+| POST | `/transactions/:id/pay` | kasir/owner | Bayar |
+| POST | `/transactions/:id/void` | kasir/owner | Batalkan (butuh `ownerPin`) |
+
+### Settlement (Tutup Kasir)
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/settlements/preview` | kasir/owner | Pratinjau tutup kasir (blind) |
+| POST | `/settlements` | kasir/owner | Submit blind count → tutup shift |
+| GET | `/settlements` `/settlements/:id` | kasir/owner | Daftar / detail |
+| POST | `/settlements/:id/review` | owner | Review rekonsiliasi |
+
+### Users, Pengeluaran, Dashboard (owner-only)
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET/POST/PUT/DELETE | `/users` `/users/:id` | Kelola pengguna |
+| GET/POST/PUT/DELETE | `/expenses` `/expenses/:id` | Kelola pengeluaran (query `date`/`month`/`category`) |
+| GET | `/dashboard/daily?date=YYYY-MM-DD` | Ringkasan harian |
+| GET | `/dashboard/summary?month=YYYY-MM` | Ringkasan bulanan (laba kotor) |
+
+## Postman
+
+Import file **`postman_collection.json`** (di folder ini) ke Postman:
+1. Buka Postman → **Import** → pilih `backend/postman_collection.json`
+2. Jalankan request **Auth → POST Login** dulu — token JWT otomatis tersimpan ke variabel koleksi
+3. Request lain (yang butuh login) otomatis memakai token tersebut
+
+## Cara Pakai (alur tipikal)
+
+1. `POST /auth/login` dengan PIN → dapat `token`
+2. Sertakan header `Authorization: Bearer <token>` pada request yang butuh login
+3. Endpoint owner-only (tambah/ubah/hapus menu) hanya bisa diakses token milik user `owner`

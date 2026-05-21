@@ -1,0 +1,621 @@
+{
+  "info": {
+    "name": "POS Restoran Ayam Bakar Banjar Monosuko",
+    "description": "Koleksi lengkap API backend POS. Import ke Postman. Jalankan Auth > Login dulu — token JWT otomatis tersimpan ke variabel koleksi & dipakai request lain.\n\nAkun seed: owner 100000, cashier 200000/200001, kitchen 300000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/api" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('token', res.data.token);",
+                  "  console.log('Token tersimpan.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"pin\": \"100000\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "owner=100000, cashier=200000/200001, kitchen=300000"
+          }
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "POST Verify PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"pin\": \"100000\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/verify-pin", "host": ["{{baseUrl}}"], "path": ["auth", "verify-pin"] }
+          }
+        },
+        {
+          "name": "POST Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu",
+      "item": [
+        {
+          "name": "GET Daftar Menu",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/menus",
+              "host": ["{{baseUrl}}"],
+              "path": ["menus"],
+              "query": [
+                { "key": "category", "value": "Minuman", "disabled": true },
+                { "key": "search", "value": "ayam", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Kategori Menu",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/menus/categories", "host": ["{{baseUrl}}"], "path": ["menus", "categories"] }
+          }
+        },
+        {
+          "name": "GET Detail Menu",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/menus/1", "host": ["{{baseUrl}}"], "path": ["menus", "1"] }
+          }
+        },
+        {
+          "name": "POST Tambah Menu (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Es Teh Spesial\",\n  \"category\": \"Minuman\",\n  \"price\": 9000\n}" },
+            "url": { "raw": "{{baseUrl}}/menus", "host": ["{{baseUrl}}"], "path": ["menus"] }
+          }
+        },
+        {
+          "name": "PUT Ubah Menu (owner)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"price\": 10000\n}" },
+            "url": { "raw": "{{baseUrl}}/menus/48", "host": ["{{baseUrl}}"], "path": ["menus", "48"] }
+          }
+        },
+        {
+          "name": "DELETE Hapus Menu (owner)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/menus/48", "host": ["{{baseUrl}}"], "path": ["menus", "48"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stok Harian",
+      "item": [
+        {
+          "name": "GET Daftar Stok",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/stocks",
+              "host": ["{{baseUrl}}"],
+              "path": ["stocks"],
+              "query": [{ "key": "date", "value": "2026-05-20", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "GET Status Opname",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/stocks/status", "host": ["{{baseUrl}}"], "path": ["stocks", "status"] }
+          }
+        },
+        {
+          "name": "POST Input Stok Pagi (bulk, kitchen)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuId\": 2, \"openingStock\": 20 },\n    { \"menuId\": 3, \"openingStock\": 15 }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/stocks/bulk", "host": ["{{baseUrl}}"], "path": ["stocks", "bulk"] },
+            "description": "Login sebagai kitchen (300000) atau owner."
+          }
+        },
+        {
+          "name": "POST Input Stok Satu Menu",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"menuId\": 5,\n  \"openingStock\": 10\n}" },
+            "url": { "raw": "{{baseUrl}}/stocks", "host": ["{{baseUrl}}"], "path": ["stocks"] }
+          }
+        },
+        {
+          "name": "PUT Koreksi Stok",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentStock\": 8\n}" },
+            "url": { "raw": "{{baseUrl}}/stocks/1", "host": ["{{baseUrl}}"], "path": ["stocks", "1"] }
+          }
+        },
+        {
+          "name": "POST Reset Stok Hari Ini",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/stocks/reset-today", "host": ["{{baseUrl}}"], "path": ["stocks", "reset-today"] }
+          }
+        },
+        {
+          "name": "POST Salin Stok Kemarin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/stocks/copy-yesterday", "host": ["{{baseUrl}}"], "path": ["stocks", "copy-yesterday"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shift (Buka Kasir)",
+      "item": [
+        {
+          "name": "POST Buka Kasir",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"openingCash\": 200000\n}" },
+            "url": { "raw": "{{baseUrl}}/shifts/open", "host": ["{{baseUrl}}"], "path": ["shifts", "open"] }
+          }
+        },
+        {
+          "name": "GET Shift Aktif",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/shifts/current", "host": ["{{baseUrl}}"], "path": ["shifts", "current"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meja",
+      "item": [
+        {
+          "name": "GET Daftar Meja",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tables", "host": ["{{baseUrl}}"], "path": ["tables"] }
+          }
+        },
+        {
+          "name": "GET Transaksi Meja",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tables/5/transaction", "host": ["{{baseUrl}}"], "path": ["tables", "5", "transaction"] }
+          }
+        },
+        {
+          "name": "POST Pindah Meja",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"toTable\": 10\n}" },
+            "url": { "raw": "{{baseUrl}}/tables/5/transfer", "host": ["{{baseUrl}}"], "path": ["tables", "5", "transfer"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transaksi",
+      "item": [
+        {
+          "name": "POST Buka Transaksi Meja",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tableNumber\": 5\n}" },
+            "url": { "raw": "{{baseUrl}}/transactions", "host": ["{{baseUrl}}"], "path": ["transactions"] },
+            "description": "Wajib buka kasir dulu."
+          }
+        },
+        {
+          "name": "GET Daftar Transaksi Terbuka",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/transactions", "host": ["{{baseUrl}}"], "path": ["transactions"] }
+          }
+        },
+        {
+          "name": "GET Detail Transaksi",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/transactions/1", "host": ["{{baseUrl}}"], "path": ["transactions", "1"] }
+          }
+        },
+        {
+          "name": "GET Riwayat Transaksi",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "history"],
+              "query": [
+                { "key": "date", "value": "2026-05-20", "disabled": true },
+                { "key": "status", "value": "paid", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Ringkasan Harian",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/transactions/daily-summary", "host": ["{{baseUrl}}"], "path": ["transactions", "daily-summary"] }
+          }
+        },
+        {
+          "name": "POST Tambah Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"menuId\": 2,\n  \"qty\": 3,\n  \"forceOrder\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/transactions/1/items", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "items"] },
+            "description": "Jika stok kurang & forceOrder=false -> 409. Kirim ulang dengan forceOrder=true."
+          }
+        },
+        {
+          "name": "PUT Sinkron Keranjang",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuId\": 2, \"qty\": 2 },\n    { \"menuId\": 3, \"qty\": 1, \"forceOrder\": true }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/transactions/1/items", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "items"] }
+          }
+        },
+        {
+          "name": "PUT Ubah Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"qty\": 5\n}" },
+            "url": { "raw": "{{baseUrl}}/transactions/1/items/1", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "items", "1"] }
+          }
+        },
+        {
+          "name": "DELETE Hapus Item",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/transactions/1/items/1", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "items", "1"] }
+          }
+        },
+        {
+          "name": "POST Bayar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"paymentMethod\": \"cash\",\n  \"discountAmount\": 0\n}" },
+            "url": { "raw": "{{baseUrl}}/transactions/1/pay", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "pay"] },
+            "description": "paymentMethod: cash | qris | transfer | debit | credit | ojol"
+          }
+        },
+        {
+          "name": "POST Void (PIN owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"ownerPin\": \"100000\"\n}" },
+            "url": { "raw": "{{baseUrl}}/transactions/1/void", "host": ["{{baseUrl}}"], "path": ["transactions", "1", "void"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settlement (Tutup Kasir)",
+      "item": [
+        {
+          "name": "GET Pratinjau Tutup Kasir",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/settlements/preview", "host": ["{{baseUrl}}"], "path": ["settlements", "preview"] }
+          }
+        },
+        {
+          "name": "POST Submit Blind Count",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actualCash\": 165000,\n  \"actualQris\": 0,\n  \"actualTransfer\": 0,\n  \"actualDebitCredit\": 0,\n  \"actualOjol\": 0\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/settlements", "host": ["{{baseUrl}}"], "path": ["settlements"] }
+          }
+        },
+        {
+          "name": "GET Daftar Settlement",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/settlements", "host": ["{{baseUrl}}"], "path": ["settlements"] }
+          }
+        },
+        {
+          "name": "GET Detail Settlement",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/settlements/1", "host": ["{{baseUrl}}"], "path": ["settlements", "1"] }
+          }
+        },
+        {
+          "name": "POST Review Settlement (owner)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/settlements/1/review", "host": ["{{baseUrl}}"], "path": ["settlements", "1", "review"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (owner)",
+      "item": [
+        {
+          "name": "GET Daftar Pengguna",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "GET Detail Pengguna",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/1", "host": ["{{baseUrl}}"], "path": ["users", "1"] }
+          }
+        },
+        {
+          "name": "POST Tambah Pengguna",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Rina (Kasir)\",\n  \"pin\": \"200002\",\n  \"role\": \"cashier\"\n}" },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "PUT Ubah Pengguna",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"isActive\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/users/5", "host": ["{{baseUrl}}"], "path": ["users", "5"] }
+          }
+        },
+        {
+          "name": "DELETE Hapus Pengguna",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/5", "host": ["{{baseUrl}}"], "path": ["users", "5"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pengeluaran (owner)",
+      "item": [
+        {
+          "name": "GET Daftar Pengeluaran",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"],
+              "query": [
+                { "key": "month", "value": "2026-05", "disabled": true },
+                { "key": "category", "value": "ingredients", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Detail Pengeluaran",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/expenses/1", "host": ["{{baseUrl}}"], "path": ["expenses", "1"] }
+          }
+        },
+        {
+          "name": "POST Catat Pengeluaran",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-05-20\",\n  \"category\": \"ingredients\",\n  \"amount\": 350000,\n  \"description\": \"Beli ayam 20kg\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/expenses", "host": ["{{baseUrl}}"], "path": ["expenses"] },
+            "description": "category: ingredients | utilities | salary | transport | other"
+          }
+        },
+        {
+          "name": "PUT Ubah Pengeluaran",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 360000\n}" },
+            "url": { "raw": "{{baseUrl}}/expenses/1", "host": ["{{baseUrl}}"], "path": ["expenses", "1"] }
+          }
+        },
+        {
+          "name": "DELETE Hapus Pengeluaran",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/expenses/1", "host": ["{{baseUrl}}"], "path": ["expenses", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard (owner)",
+      "item": [
+        {
+          "name": "GET Ringkasan Harian",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/daily?date=2026-05-20",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "daily"],
+              "query": [{ "key": "date", "value": "2026-05-20" }]
+            }
+          }
+        },
+        {
+          "name": "GET Ringkasan Bulanan",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/summary?month=2026-05",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "summary"],
+              "query": [{ "key": "month", "value": "2026-05" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

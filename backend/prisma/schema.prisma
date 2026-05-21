@@ -1,0 +1,206 @@
+// Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko.
+// Struktur ini 1:1 dengan ERD pada Bab 3 skripsi (8 entitas, 9 relasi).
+// Sumber kebenaran kolom: docs/DATA-DICTIONARY.md
+// Primary key memakai auto-increment integer (BIGINT/INT MySQL).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ----- Enum -----
+
+enum UserRole {
+  owner
+  cashier
+  kitchen
+}
+
+enum TransactionStatus {
+  open
+  paid
+  void
+}
+
+enum PaymentMethod {
+  cash
+  qris
+  transfer
+  debit
+  credit
+  ojol
+}
+
+enum SettlementStatus {
+  pending
+  submitted
+  reviewed
+}
+
+enum ExpenseCategory {
+  ingredients
+  utilities
+  salary
+  transport
+  other
+}
+
+// ----- Entitas -----
+
+/// Pengguna sistem: owner, cashier, kitchen. Login via PIN 6 digit.
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  pin       String   @unique @db.VarChar(6)
+  role      UserRole
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  transactions       Transaction[]
+  shifts             Shift[]
+  settlementsCashier Settlement[]  @relation("SettlementCashier")
+  settlementsReview  Settlement[]  @relation("SettlementReviewer")
+  expenses           Expense[]
+
+  @@map("users")
+}
+
+/// Katalog menu siap jual.
+model Menu {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  category  String   @db.VarChar(50)
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dailyStocks      DailyMenuStock[]
+  transactionItems TransactionItem[]
+
+  @@map("menus")
+}
+
+/// Stok per menu per hari. Diinput pagi oleh kitchen, berkurang saat pembayaran.
+model DailyMenuStock {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @db.Date
+  menuId       Int      @map("menu_id")
+  openingStock Int      @map("opening_stock")
+  currentStock Int      @map("current_stock")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  menu Menu @relation(fields: [menuId], references: [id])
+
+  @@unique([date, menuId])
+  @@map("daily_menu_stocks")
+}
+
+/// Siklus buka/tutup kasir per cashier per hari. Parent transactions + settlement.
+model Shift {
+  id          Int       @id @default(autoincrement())
+  date        DateTime  @db.Date
+  cashierId   Int       @map("cashier_id")
+  openingCash Decimal   @map("opening_cash") @db.Decimal(12, 2)
+  closedAt    DateTime? @map("closed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  cashier      User          @relation(fields: [cashierId], references: [id])
+  transactions Transaction[]
+  settlement   Settlement?
+
+  @@map("shifts")
+}
+
+/// Header pesanan per meja. Satu meja = satu transaksi hingga dibayar/void.
+model Transaction {
+  id             Int               @id @default(autoincrement())
+  shiftId        Int               @map("shift_id")
+  tableNumber    Int               @map("table_number")
+  cashierId      Int               @map("cashier_id")
+  status         TransactionStatus @default(open)
+  paymentMethod  PaymentMethod?    @map("payment_method")
+  subtotal       Decimal           @default(0) @db.Decimal(12, 2)
+  discountAmount Decimal           @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  total          Decimal           @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  paidAt         DateTime?         @map("paid_at")
+  voidedAt       DateTime?         @map("voided_at")
+
+  shift   Shift             @relation(fields: [shiftId], references: [id])
+  cashier User              @relation(fields: [cashierId], references: [id])
+  items   TransactionItem[]
+
+  @@map("transactions")
+}
+
+/// Detail item dalam transaksi (junction menu x transaction) + harga snapshot.
+model TransactionItem {
+  id            Int      @id @default(autoincrement())
+  transactionId Int      @map("transaction_id")
+  menuId        Int      @map("menu_id")
+  qty           Int
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(12, 2)
+  isForceOrder  Boolean  @default(false) @map("is_force_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  menu        Menu        @relation(fields: [menuId], references: [id])
+
+  @@map("transaction_items")
+}
+
+/// Hasil blind count rekonsiliasi akhir shift. 1:1 dengan shift.
+model Settlement {
+  id                  Int              @id @default(autoincrement())
+  shiftId             Int              @unique @map("shift_id")
+  date                DateTime         @db.Date
+  cashierId           Int              @map("cashier_id")
+  reviewerId          Int?             @map("reviewer_id")
+  systemCash          Decimal          @map("system_cash") @db.Decimal(12, 2)
+  systemQris          Decimal          @map("system_qris") @db.Decimal(12, 2)
+  systemTransfer      Decimal          @map("system_transfer") @db.Decimal(12, 2)
+  systemDebitCredit   Decimal          @map("system_debit_credit") @db.Decimal(12, 2)
+  systemOjol          Decimal          @map("system_ojol") @db.Decimal(12, 2)
+  actualCash          Decimal          @map("actual_cash") @db.Decimal(12, 2)
+  actualQris          Decimal          @map("actual_qris") @db.Decimal(12, 2)
+  actualTransfer      Decimal          @map("actual_transfer") @db.Decimal(12, 2)
+  actualDebitCredit   Decimal          @map("actual_debit_credit") @db.Decimal(12, 2)
+  actualOjol          Decimal          @map("actual_ojol") @db.Decimal(12, 2)
+  varianceCash        Decimal          @map("variance_cash") @db.Decimal(12, 2)
+  varianceQris        Decimal          @map("variance_qris") @db.Decimal(12, 2)
+  varianceTransfer    Decimal          @map("variance_transfer") @db.Decimal(12, 2)
+  varianceDebitCredit Decimal          @map("variance_debit_credit") @db.Decimal(12, 2)
+  varianceOjol        Decimal          @map("variance_ojol") @db.Decimal(12, 2)
+  status              SettlementStatus @default(submitted)
+  submittedAt         DateTime         @default(now()) @map("submitted_at")
+  reviewedAt          DateTime?        @map("reviewed_at")
+
+  shift    Shift @relation(fields: [shiftId], references: [id])
+  cashier  User  @relation("SettlementCashier", fields: [cashierId], references: [id])
+  reviewer User? @relation("SettlementReviewer", fields: [reviewerId], references: [id])
+
+  @@map("settlements")
+}
+
+/// Pengeluaran harian yang diinput owner.
+model Expense {
+  id          Int             @id @default(autoincrement())
+  date        DateTime        @db.Date
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(12, 2)
+  description String          @db.VarChar(255)
+  paidBy      Int             @map("paid_by")
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  payer User @relation(fields: [paidBy], references: [id])
+
+  @@map("expenses")
+}
