@@ -10,7 +10,7 @@ Status pengembangan proyek skripsi. Diperbarui terakhir: sesi pembangunan backen
 | Naskah Bab 3 | 🔄 Draft siap di `docs/knowledge/BAB-3-DRAFT.md`, tinggal disalin ke buku |
 | Backend (Express + Prisma + MySQL) | ✅ Selesai — semua modul, teruji |
 | Frontend (React) | ⏸ Belum disesuaikan ke API baru |
-| PWA | ⏸ Belum |
+| PWA | ✅ Setup selesai (vite-plugin-pwa) — tinggal uji install di HP |
 
 ---
 
@@ -55,9 +55,8 @@ Frontend React masih ditulis untuk API Laravel lama:
 - Belum ada alur **buka kasir / shift** — padahal transaksi sekarang wajib punya shift terbuka
 - Service Axios per resource perlu dicek terhadap endpoint Express baru
 
-### 2. PWA
-- `vite-plugin-pwa` untuk installable + cache aset statis (Level A)
-- Ikon PWA
+### 2. PWA — ✅ setup selesai
+`vite-plugin-pwa` terpasang: service worker autoUpdate, web manifest, ikon 192/512/maskable, PWA Level A (precache app shell; data API tetap ke jaringan). Sisa: uji "Add to Home Screen" di HP setelah frontend berfungsi.
 
 ### 3. Sinkronisasi diagram StarUML (ripple-effect)
 Keputusan "stok opname hanya pagi" belum tercermin di `Skripsi.mdj`:
