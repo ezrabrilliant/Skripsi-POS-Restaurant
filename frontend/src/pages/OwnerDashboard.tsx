@@ -29,6 +29,7 @@ import {
 } from 'recharts'
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService, type DashboardPeriodType } from '@/services/dashboardService'
+import { shiftService } from '@/services/shiftService'
 import { formatCurrency } from '@/lib/utils'
 import { Tabs, Stat, Badge, Skeleton, EmptyState } from '@/design-system/primitives'
 
@@ -63,6 +64,13 @@ export default function OwnerDashboard() {
   const { data: report, isLoading, error } = useQuery({
     queryKey: ['ownerReport', period],
     queryFn: () => dashboardService.getOwnerReport({ period }),
+  })
+
+  // REV 2.3 shift-decoupling: owner perlu awareness shift kasir aktif (untuk
+  // tahu siapa pegang cash hari ini + deteksi overlap yang block input order).
+  const { data: activeShifts = [] } = useQuery({
+    queryKey: ['shifts', 'active'],
+    queryFn: () => shiftService.getActiveShifts(),
   })
 
   const chartData = useMemo(() => {
@@ -149,6 +157,9 @@ export default function OwnerDashboard() {
                 }
               />
             </div>
+
+            {/* Shift panel REV 2.3 shift-decoupling */}
+            <ShiftPanel shifts={activeShifts} />
 
             {/* Revenue chart + bank breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -310,6 +321,69 @@ function QuickLinks() {
           </Link>
         ))}
       </div>
+    </div>
+  )
+}
+
+// REV 2.3 shift-decoupling: panel kecil "Shift hari ini" untuk owner.
+// 3 state:
+//   - 0 shift: info neutral "Belum ada shift kasir aktif hari ini."
+//   - 1 shift: success "Shift aktif hari ini: {nama} · {tipe} · modal {rp}"
+//   - 2+ shift: warning "Ada N shift aktif (overlap)" + note bahwa input
+//     order baru akan ditolak sampai salah satu ditutup.
+function ShiftPanel({
+  shifts,
+}: {
+  shifts: Array<{ id: number; type?: 'pagi' | 'malam'; cashierName?: string; createdAt: string; openingCash: number }>
+}) {
+  if (shifts.length === 0) {
+    return (
+      <div className="bg-white rounded-xl p-3 sm:p-4 border border-neutral-200/60 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center">
+          <Wallet className="w-4 h-4" />
+        </div>
+        <div className="text-body-sm text-neutral-600">
+          Belum ada shift kasir aktif hari ini.
+        </div>
+      </div>
+    )
+  }
+  const isOverlap = shifts.length > 1
+  return (
+    <div
+      className={
+        isOverlap
+          ? 'bg-warning-50 border border-warning-300 rounded-xl p-3 sm:p-4'
+          : 'bg-success-50 border border-success-200 rounded-xl p-3 sm:p-4'
+      }
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {isOverlap ? (
+          <AlertCircle className="w-4 h-4 text-warning-700" />
+        ) : (
+          <Wallet className="w-4 h-4 text-success-700" />
+        )}
+        <h3 className="text-body-sm font-semibold text-neutral-900">
+          {isOverlap ? `Ada ${shifts.length} shift aktif (overlap)` : 'Shift aktif hari ini'}
+        </h3>
+      </div>
+      <ul className="text-body-sm space-y-1 text-neutral-700">
+        {shifts.map((s) => (
+          <li key={s.id} className="flex flex-wrap gap-x-2">
+            <span className="font-medium text-neutral-900">{s.cashierName ?? '—'}</span>
+            <span className="text-neutral-500">·</span>
+            <span>{s.type === 'pagi' ? 'Pagi' : s.type === 'malam' ? 'Malam' : '—'}</span>
+            <span className="text-neutral-500">·</span>
+            <span>modal awal {formatCurrency(s.openingCash)}</span>
+          </li>
+        ))}
+      </ul>
+      {isOverlap && (
+        <p className="mt-2 text-caption text-warning-700">
+          Input order baru akan ditolak sampai salah satu shift ditutup. Owner force-close
+          belum tersedia di UI — minta kasir tutup shift via menu Settlement.
+        </p>
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { shiftService } from '@/services/shiftService'
 import { Link } from 'react-router-dom'
 import {
   Wallet,
@@ -47,6 +48,16 @@ export default function CashierDashboard() {
     queryFn: dashboardService.getCashierDashboard,
   })
 
+  // REV 2.3 shift-decoupling: cek SEMUA shift aktif system-wide. Filter milik
+  // user yang login untuk decide CTA buka shift, dan tampilkan shift kasir
+  // lain (overlap) sebagai info kalau ada.
+  const { data: activeShifts = [] } = useQuery({
+    queryKey: ['shifts', 'active'],
+    queryFn: () => shiftService.getActiveShifts(),
+  })
+  const myActiveShift = activeShifts.find((s) => s.cashierId === user?.id) ?? null
+  const otherActiveShifts = activeShifts.filter((s) => s.cashierId !== user?.id)
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 pt-safe">
@@ -67,15 +78,30 @@ export default function CashierDashboard() {
           </>
         )}
 
-        {dashboard && !dashboard.activeShift && (
-          <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
+        {dashboard && !myActiveShift && (
+          <>
+            <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
+            {otherActiveShifts.length > 0 && (
+              <OtherActiveShiftInfo shifts={otherActiveShifts} />
+            )}
+          </>
         )}
 
-        {dashboard && dashboard.activeShift && (
-          <ActiveShiftPanel
-            activeShift={dashboard.activeShift}
-            today={dashboard.today}
-          />
+        {dashboard && myActiveShift && (
+          <>
+            <ActiveShiftPanel
+              activeShift={{
+                id: myActiveShift.id,
+                type: myActiveShift.type ?? 'pagi',
+                openingCash: myActiveShift.openingCash,
+                createdAt: myActiveShift.createdAt,
+              }}
+              today={dashboard.today}
+            />
+            {otherActiveShifts.length > 0 && (
+              <OtherActiveShiftInfo shifts={otherActiveShifts} />
+            )}
+          </>
         )}
 
         {dashboard && (
@@ -324,3 +350,31 @@ function SecondaryActionsCard() {
 
 // OpenShiftModal sebelumnya di sini — sekarang di-extract ke @/components/OpenShiftDialog
 // supaya POSPage gate (kasir login + 0 active shift) bisa reuse komponen yang sama.
+
+// REV 2.3 shift-decoupling: tampilkan info shift kasir LAIN yang aktif (overlap).
+// Render-nya di bawah CTA / ActiveShiftPanel supaya kasir aware ada multi shift
+// sebelum coba input order — yang akan ditolak backend dengan 409 (lihat Phase 3
+// validasi single active shift di createTransaction).
+function OtherActiveShiftInfo({
+  shifts,
+}: {
+  shifts: Array<{ id: number; type?: ShiftType; cashierName?: string; createdAt: string }>
+}) {
+  return (
+    <div className="bg-info-50 border border-info-200 rounded-xl p-3 sm:p-4 flex items-start gap-3">
+      <AlertCircle className="w-5 h-5 text-info-700 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-body-sm font-semibold text-info-800 mb-0.5">
+          Shift kasir lain aktif
+        </p>
+        <ul className="text-caption text-info-700 space-y-0.5">
+          {shifts.map((s) => (
+            <li key={s.id}>
+              {s.cashierName ?? '—'} · {s.type ?? '—'} · sejak {formatTime(s.createdAt)}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
