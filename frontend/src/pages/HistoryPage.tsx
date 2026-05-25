@@ -303,7 +303,10 @@ function TransactionRow({
             )}
           </div>
           <div className="text-caption text-neutral-500 mt-0.5">
-            {formatDateTime(tx.createdAt)} · {tx.cashierName}
+            {formatDateTime(tx.createdAt)} · oleh {tx.createdByName}
+            {tx.createdByName !== tx.shiftCashierName && (
+              <span className="text-neutral-400"> · shift {tx.shiftCashierName}</span>
+            )}
           </div>
         </div>
         <div className="text-right shrink-0">
