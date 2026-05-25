@@ -136,7 +136,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  transactions         Transaction[]
+  /// REV 2.3 shift-decoupling: rename dari `transactions` jadi `transactionsCreated`
+  /// supaya jelas semantik = transaksi yang USER INI submit (audit trail),
+  /// bukan transaksi shift kasir.
+  transactionsCreated  Transaction[]
   shifts               Shift[]
   settlementsCashier   Settlement[]          @relation("SettlementCashier")
   settlementsReview    Settlement[]          @relation("SettlementReviewer")
@@ -323,12 +326,18 @@ model Shift {
 ///   (untuk laporan rekonsiliasi per bank).
 /// - mergedIntoId: self-ref nullable untuk merge bill. Transaksi sumber yang
 ///   di-merge punya merged_into_id = parent gabungan.
+///
+/// REV 2.3 shift-decoupling:
+/// - createdById (RENAME dari cashier_id) = user yang submit order
+///   (kasir/owner/waiter via fallback). Untuk "kasir pemilik shift" akses
+///   via shift.cashier (denormalize ke view sebagai shiftCashierName).
+/// - shiftId tetap = ID shift fiskal aktif saat order dibuat (rekap uang masuk).
 model Transaction {
   id             Int               @id @default(autoincrement())
   shiftId        Int               @map("shift_id")
   orderType      OrderType         @map("order_type")
   tableNumber    Int?              @map("table_number")
-  cashierId      Int               @map("cashier_id")
+  createdById    Int               @map("created_by_id")
   status         TransactionStatus @default(open)
   paymentMethod  PaymentMethod?    @map("payment_method")
   /// REV 2.1: terisi hanya untuk paymentMethod=edc atau transfer (mis. "BCA", "Mandiri").
@@ -345,7 +354,7 @@ model Transaction {
   voidedAt       DateTime?         @map("voided_at")
 
   shift      Shift             @relation(fields: [shiftId], references: [id])
-  cashier    User              @relation(fields: [cashierId], references: [id])
+  createdBy  User              @relation(fields: [createdById], references: [id])
   items      TransactionItem[]
   mergedInto Transaction?      @relation("MergeBill", fields: [mergedIntoId], references: [id])
   mergedFrom Transaction[]     @relation("MergeBill")
