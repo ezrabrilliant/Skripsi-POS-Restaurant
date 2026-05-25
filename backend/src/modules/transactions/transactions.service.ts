@@ -1,5 +1,13 @@
 // Service modul transactions. REV 2.2/2.3 — core POS flow.
 //
+// REV 2.3 shift-decoupling:
+//   - Field DB `cashier_id` -> `created_by_id` (user yang submit order).
+//   - createTransaction tidak terima `shiftId` lagi dari frontend — auto-resolve
+//     dari single active shift system-wide. 0 atau 2+ active = 409.
+//   - View shape: cashierId/cashierName -> createdById/createdByName + tambah
+//     shiftCashierName (denormalize dari shift.cashier.name untuk display
+//     "oleh {createdByName} · shift {shiftCashierName}" di HistoryPage).
+//
 // Konsep utama:
 //   - Setiap transaksi terikat ke shift yang masih open.
 //   - Decrement PortionStock terjadi saat order di-submit (boleh minus per ground truth).
@@ -62,8 +70,12 @@ export interface TransactionView {
   shiftId: number;
   orderType: OrderType;
   tableNumber: number | null;
-  cashierId: number;
-  cashierName: string;
+  /// REV 2.3 shift-decoupling: user yang submit order (kasir/owner/waiter).
+  createdById: number;
+  createdByName: string;
+  /// REV 2.3: denormalize dari shift.cashier.name supaya HistoryPage bisa display
+  /// "oleh {createdByName} · shift {shiftCashierName}" tanpa extra query.
+  shiftCashierName: string;
   status: TransactionStatus;
   paymentMethod: PaymentMethod | null;
   paymentBank: string | null;
@@ -80,7 +92,8 @@ export interface TransactionView {
 
 type TransactionWithRelations = Prisma.TransactionGetPayload<{
   include: {
-    cashier: true;
+    createdBy: true;
+    shift: { include: { cashier: { select: { name: true } } } };
     items: { include: { menu: { select: { name: true } } } };
   };
 }>;
@@ -91,8 +104,9 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
     shiftId: t.shiftId,
     orderType: t.orderType,
     tableNumber: t.tableNumber,
-    cashierId: t.cashierId,
-    cashierName: t.cashier.name,
+    createdById: t.createdById,
+    createdByName: t.createdBy.name,
+    shiftCashierName: t.shift.cashier.name,
     status: t.status,
     paymentMethod: t.paymentMethod,
     paymentBank: t.paymentBank,
@@ -119,7 +133,8 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
 }
 
 const transactionInclude = {
-  cashier: true,
+  createdBy: true,
+  shift: { include: { cashier: { select: { name: true } } } },
   items: { include: { menu: { select: { name: true } } } },
 } satisfies Prisma.TransactionInclude;
 
@@ -301,12 +316,29 @@ export async function createTransaction(
   userId: number,
   input: CreateTransactionInput,
 ): Promise<TransactionView> {
-  // Validasi shift
-  const shift = await prisma.shift.findUnique({ where: { id: input.shiftId } });
-  if (!shift) throw notFound('Shift');
-  if (shift.closedAt) {
-    throw new AppError('Shift target sudah ditutup, transaksi baru tidak diizinkan', 400);
+  // REV 2.3 shift-decoupling: auto-resolve shift dari single active shift system-wide.
+  // Frontend tidak lagi kirim shiftId — backend yang resolve. Validasi:
+  //   - 0 active shift  -> 409 (kasir harus buka shift dulu)
+  //   - 2+ active shift -> 409 (overlap, tutup salah satu — rekap fiskal ambigu)
+  //   - 1 active shift  -> attach ke shift itu
+  const activeShifts = await prisma.shift.findMany({
+    where: { closedAt: null },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (activeShifts.length === 0) {
+    throw new AppError(
+      'Belum ada shift kasir aktif. Kasir harus buka shift dulu sebelum order bisa dimasukkan.',
+      409,
+    );
   }
+  if (activeShifts.length > 1) {
+    const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
+    throw new AppError(
+      `Ada ${activeShifts.length} shift aktif: ${list}. Tutup salah satu dulu — rekap fiskal jadi ambigu kalau dibiarkan.`,
+      409,
+    );
+  }
+  const shift = activeShifts[0]!;
 
   // Validasi order type vs tableNumber
   if (input.orderType === OrderType.dineIn) {
@@ -328,10 +360,10 @@ export async function createTransaction(
   const transactionId = await prisma.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
-        shiftId: input.shiftId,
+        shiftId: shift.id,
         orderType: input.orderType,
         tableNumber: input.tableNumber ?? null,
-        cashierId: userId,
+        createdById: userId,
         status: TransactionStatus.open,
         subtotal: new Prisma.Decimal(0),
         discountAmount: new Prisma.Decimal(0),

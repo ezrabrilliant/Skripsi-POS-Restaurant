@@ -14,8 +14,10 @@ export const orderItemSchema = z.object({
   subOptionsSelected: z.record(z.string(), z.string()).optional(),
 });
 
+/// REV 2.3 shift-decoupling: shiftId TIDAK lagi di-input frontend.
+/// Backend auto-resolve dari single active shift (lihat transactions.service).
+/// Kalau 0 atau 2+ active shifts, throw 409.
 export const createTransactionSchema = z.object({
-  shiftId: z.number().int().positive(),
   orderType: z.nativeEnum(OrderType, {
     errorMap: () => ({ message: 'orderType harus dineIn atau takeaway' }),
   }),
