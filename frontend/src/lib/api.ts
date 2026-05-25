@@ -1,8 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
-
+// baseURL '/api' diteruskan oleh proxy Vite ke backend Express (lihat vite.config.ts).
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -32,6 +31,15 @@ api.interceptors.response.use(
       // Token expired or invalid
       useAuthStore.getState().logout()
       window.location.href = '/login'
+    }
+    // Normalisasi pesan: backend mengirim { success:false, message:'...' }.
+    // Kita timpa error.message dengan pesan dari backend sehingga semua
+    // `toast.error(err.message)` di mutasi langsung menampilkan pesan asli
+    // (mis. "PIN sudah dipakai pengguna lain") alih-alih "Request failed
+    // with status code 409".
+    const backendMessage = error.response?.data?.message
+    if (typeof backendMessage === 'string' && backendMessage.length > 0) {
+      error.message = backendMessage
     }
     return Promise.reject(error)
   }

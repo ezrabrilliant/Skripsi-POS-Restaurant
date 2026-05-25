@@ -12,12 +12,15 @@ import authRoutes from './modules/auth/auth.routes';
 import menuRoutes from './modules/menus/menus.routes';
 import stockRoutes from './modules/stocks/stocks.routes';
 import shiftRoutes from './modules/shifts/shifts.routes';
-import tableRoutes from './modules/tables/tables.routes';
 import transactionRoutes from './modules/transactions/transactions.routes';
 import settlementRoutes from './modules/settlements/settlements.routes';
 import userRoutes from './modules/users/users.routes';
-import expenseRoutes from './modules/expenses/expenses.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
+import vendorRoutes from './modules/vendors/vendors.routes';
+import purchaseRoutes from './modules/purchases/purchases.routes';
+import billRoutes from './modules/bills/bills.routes';
+// REV 2.2: modul `tables` dihapus (table number jadi field di Transaction, 9 meja fixed)
+// REV 2.2: modul `expenses` dihapus (split jadi `purchases` di Phase 7 + `bills` di Phase 8)
 
 export function createApp() {
   const app = express();
@@ -27,7 +30,7 @@ export function createApp() {
   app.use(express.json());
   app.use(pinoHttp({ logger }));
 
-  // Health check — dipakai untuk memastikan server hidup
+  // Health check - dipakai untuk memastikan server hidup
   app.get('/api/health', (_req, res) => {
     sendSuccess(res, { timestamp: new Date().toISOString() }, 'POS Restaurant API berjalan');
   });
@@ -37,11 +40,12 @@ export function createApp() {
   app.use('/api/menus', menuRoutes);
   app.use('/api/stocks', stockRoutes);
   app.use('/api/shifts', shiftRoutes);
-  app.use('/api/tables', tableRoutes);
   app.use('/api/transactions', transactionRoutes);
   app.use('/api/settlements', settlementRoutes);
   app.use('/api/users', userRoutes);
-  app.use('/api/expenses', expenseRoutes);
+  app.use('/api/vendors', vendorRoutes);
+  app.use('/api/purchases', purchaseRoutes);
+  app.use('/api/bills', billRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 
   // Penangan error harus paling akhir

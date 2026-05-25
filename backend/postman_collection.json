@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "POS Restoran Ayam Bakar Banjar Monosuko",
-    "description": "Koleksi lengkap API backend POS. Import ke Postman. Jalankan Auth > Login dulu — token JWT otomatis tersimpan ke variabel koleksi & dipakai request lain.\n\nAkun seed: owner 100000, cashier 200000/200001, kitchen 300000.",
+    "description": "Koleksi lengkap API backend POS. Import ke Postman. Jalankan Auth > Login dulu - token JWT otomatis tersimpan ke variabel koleksi & dipakai request lain.\n\nAkun seed: owner 100000, cashier 200000/200001, kitchen 300000.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

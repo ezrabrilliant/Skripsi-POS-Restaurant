@@ -1,4 +1,4 @@
-# Backend API — POS Restoran Ayam Bakar Banjar Monosuko
+# Backend API - POS Restoran Ayam Bakar Banjar Monosuko
 
 Backend Express + TypeScript + Prisma + MySQL. Bagian dari skripsi C14220315.
 
@@ -28,11 +28,11 @@ DATABASE_URL="mysql://root:@localhost:3306/pos_restaurant"
 **Penting:** backend baru ada di folder `backend/`, bukan lagi Laravel. Ada dua cara:
 
 ```bash
-# Cara 1 — dari folder backend
+# Cara 1 - dari folder backend
 cd backend
 npm run dev
 
-# Cara 2 — dari folder root (backend + frontend sekaligus)
+# Cara 2 - dari folder root (backend + frontend sekaligus)
 npm run dev
 ```
 
@@ -61,7 +61,7 @@ Server berjalan di **http://localhost:8000**. Cek hidup: buka `http://localhost:
 
 ## Daftar API
 
-Base URL: `http://localhost:8000/api` — semua respons berbentuk `{ success, message, data }`.
+Base URL: `http://localhost:8000/api` - semua respons berbentuk `{ success, message, data }`.
 Akses: **publik** / **login** (token apa pun) / **kasir** / **kitchen** / **owner**.
 
 ### Health & Auth
@@ -132,7 +132,7 @@ Akses: **publik** / **login** (token apa pun) / **kasir** / **kitchen** / **owne
 
 Import file **`postman_collection.json`** (di folder ini) ke Postman:
 1. Buka Postman → **Import** → pilih `backend/postman_collection.json`
-2. Jalankan request **Auth → POST Login** dulu — token JWT otomatis tersimpan ke variabel koleksi
+2. Jalankan request **Auth → POST Login** dulu - token JWT otomatis tersimpan ke variabel koleksi
 3. Request lain (yang butuh login) otomatis memakai token tersebut
 
 ## Cara Pakai (alur tipikal)

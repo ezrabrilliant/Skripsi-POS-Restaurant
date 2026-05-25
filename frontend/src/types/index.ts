@@ -1,8 +1,15 @@
-// User types
-export type UserRole = 'owner' | 'cashier'
+// Tipe data frontend - REV 2.3 aligned dengan backend Express + Prisma.
+// Backend mengirim camelCase + id integer + Decimal sebagai number (di-convert
+// di service mapper). Tipe di sini reflect response shape Phase 1-9 backend.
+
+// ============================================================
+// User
+// ============================================================
+
+export type UserRole = 'owner' | 'cashier' | 'waiter'
 
 export interface User {
-  id: string
+  id: number
   name: string
   role: UserRole
   isActive: boolean
@@ -10,126 +17,394 @@ export interface User {
   updatedAt: string
 }
 
-// Menu types
-export interface Menu {
-  id: string
-  name: string
-  price: number
-  category: string
-  description: string | null
-  defaultStock: number
-  isActive: boolean
+export const ROLE_LABELS: Record<UserRole, string> = {
+  owner: 'Pemilik',
+  cashier: 'Kasir',
+  waiter: 'Pelayan',
 }
 
-export interface MenuWithStock extends Menu {
-  stockStart: number
-  stockSold: number
-  stockRemaining: number
+// ============================================================
+// Menu
+// ============================================================
+
+export type StockType = 'portion' | 'linked' | 'nonStock'
+
+/** REV 2.2 paket subOptions: 2 varian shape. */
+export type LinkedSubOptions = { stockTarget: string }
+export type PaketSubOptionGroup = {
+  key: string
+  label: string
+  options: string[]
 }
-
-// Transaction types
-export type TransactionStatus = 'open' | 'paid' | 'void'
-export type PaymentMethod = 'cash' | 'edc_bca' | 'edc_mandiri' | 'qris' | 'transfer'
-
-export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'cash', label: 'Tunai' },
-  { value: 'edc_bca', label: 'EDC BCA' },
-  { value: 'edc_mandiri', label: 'EDC Mandiri' },
-  { value: 'qris', label: 'QRIS' },
-  { value: 'transfer', label: 'Transfer' },
-]
-
-export interface TransactionItem {
-  id: string
-  transactionId: string
-  menuId: string
-  menuName: string
-  quantity: number
-  priceAtTime: number
-  subtotal: number
-  notes: string | null
-  isForceOrder: boolean
-  createdAt: string
-  menu?: { id: string; name: string; price: number }
+export type PaketSubOptions = {
+  description?: string
+  options: PaketSubOptionGroup[]
+  stockMap: Record<string, string>
 }
+export type SubOptions = LinkedSubOptions | PaketSubOptions | null
 
-export interface Transaction {
-  id: string
-  tableNumber: string
-  status: TransactionStatus
-  paymentMethod: PaymentMethod | null
-  subtotal: number
-  discountAmount: number
-  totalAmount: number
-  amountPaid: number
-  changeAmount: number
-  notes: string | null
-  cashierId: string | null
-  cashierName?: string
-  cashier?: { id: string; name: string }
-  user?: { id: string; name: string }
-  items: TransactionItem[]
-  paidAt: string | null
-  createdAt: string
+export interface MenuPortionStockView {
+  currentQty: number
+  minStock: number
+  openingQtyToday: number
+  openingQtyDate: string
   updatedAt: string
 }
 
-// Cart types (local state)
+export interface Menu {
+  id: number
+  name: string
+  category: string
+  price: number
+  stockType: StockType
+  minStock: number | null
+  imageUrl: string | null
+  subOptions: SubOptions
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  portionStock: MenuPortionStockView | null
+}
+
+// ============================================================
+// Order / Transaction
+// ============================================================
+
+export type OrderType = 'dineIn' | 'takeaway'
+
+export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+  dineIn: 'Dine-in',
+  takeaway: 'Takeaway',
+}
+
+export type TransactionStatus = 'open' | 'paid' | 'void'
+
+/** REV 2.2: 6 metode. edc gabung debit+kredit. gojek/grab untuk merchant app settlement. */
+export type PaymentMethod = 'cash' | 'edc' | 'qris' | 'gojek' | 'grab' | 'transfer'
+
+export const PAYMENT_METHODS: { value: PaymentMethod; label: string; needsBank: boolean }[] = [
+  { value: 'cash', label: 'Tunai', needsBank: false },
+  { value: 'edc', label: 'EDC', needsBank: true },
+  { value: 'qris', label: 'QRIS', needsBank: false },
+  { value: 'gojek', label: 'GoFood', needsBank: false },
+  { value: 'grab', label: 'GrabFood', needsBank: false },
+  { value: 'transfer', label: 'Transfer Bank', needsBank: true },
+]
+
+export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  cash: 'Tunai',
+  edc: 'EDC',
+  qris: 'QRIS',
+  gojek: 'GoFood',
+  grab: 'GrabFood',
+  transfer: 'Transfer',
+}
+
+export interface TransactionItem {
+  id: number
+  menuId: number
+  menuName: string
+  qty: number
+  unitPrice: number
+  subtotal: number
+  /** REV 2.2: hasil pilihan SubOptionsModal untuk paket. */
+  subOptionsSelected: Record<string, string> | null
+  /** REV 2.2: untuk split bill — item dengan partyId sama = 1 struk terpisah. Null = tidak split. */
+  partyId: number | null
+  createdAt: string
+}
+
+export interface Transaction {
+  id: number
+  shiftId: number
+  orderType: OrderType
+  /** Wajib int 1-9 kalau dineIn, null kalau takeaway. */
+  tableNumber: number | null
+  cashierId: number
+  cashierName: string
+  status: TransactionStatus
+  paymentMethod: PaymentMethod | null
+  /** REV 2.1: terisi hanya kalau paymentMethod=edc atau transfer. */
+  paymentBank: string | null
+  /** REV 2.1: self-reference untuk merge bill. */
+  mergedIntoId: number | null
+  subtotal: number
+  discountAmount: number
+  taxAmount: number
+  total: number
+  items: TransactionItem[]
+  createdAt: string
+  paidAt: string | null
+  voidedAt: string | null
+}
+
+// ============================================================
+// Cart (state lokal di cartStore)
+// ============================================================
+
 export interface CartItem {
+  /** Unique id lokal supaya 2 entry menu yang sama dengan subOptions berbeda
+   * tetap bisa dibedakan di cart. */
   id: string
-  menuId: string
+  menuId: number
   menuName: string
   price: number
-  quantity: number
+  qty: number
   notes: string
-  isForceOrder: boolean
+  subOptionsSelected: Record<string, string> | null
   subtotal: number
 }
 
-// Table status
+// ============================================================
+// Meja
+// ============================================================
+
 export interface TableStatus {
-  tableNumber: string
+  tableNumber: number
   status: 'empty' | 'occupied'
-  transactionId?: string
+  transactionId?: number
   totalAmount?: number
   itemCount?: number
   createdAt?: string
 }
 
-// Settlement types
-export interface Settlement {
-  id: string
+// ============================================================
+// Shift
+// ============================================================
+
+export type ShiftType = 'pagi' | 'malam'
+
+export interface Shift {
+  id: number
   date: string
-  cashierId: string
-  cashier?: { id: string; name: string }
-  transactionCount?: number
-  systemCash: number
-  systemEdc: number
-  systemTransfer: number
-  systemTotal: number
-  actualCash: number
-  actualEdc: number
-  actualTransfer: number
-  actualTotal: number
-  variance: number
-  varianceCash?: number
-  varianceEdc?: number
-  varianceTotal?: number
-  varianceReason: string | null
-  status: 'pending' | 'submitted' | 'reviewed'
-  settledBy?: string
-  settledByName?: string
-  reviewedBy?: string
-  reviewedByName?: string
-  notes: string | null
-  createdAt?: string
-  updatedAt?: string
+  type?: ShiftType
+  cashierId: number
+  cashierName?: string
+  openingCash: number
+  closedAt: string | null
+  createdAt: string
 }
 
-// API Response type
+// ============================================================
+// Settlement (REV 2.2 — 6 buckets)
+// ============================================================
+
+export interface MethodTotals {
+  cash: number
+  edc: number
+  qris: number
+  gojek: number
+  grab: number
+  transfer: number
+}
+
+export interface BankBreakdownEntry {
+  method: 'edc' | 'transfer'
+  bank: string
+  total: number
+}
+
+export type SettlementStatus = 'submitted' | 'reviewed'
+
+export interface Settlement {
+  id: number
+  shiftId: number
+  date: string
+  cashierId: number
+  cashierName: string
+  reviewerId: number | null
+  reviewerName: string | null
+  system: MethodTotals
+  actual: MethodTotals
+  variance: MethodTotals
+  totalSystem: number
+  totalActual: number
+  totalVariance: number
+  status: SettlementStatus
+  submittedAt: string
+  reviewedAt: string | null
+  bankBreakdown: BankBreakdownEntry[]
+}
+
+export interface SettlementPreview {
+  shiftId: number
+  shiftType: ShiftType
+  date: string
+  cashierId: number
+  cashierName: string
+  closedAt: string | null
+  system: MethodTotals
+  totalSystem: number
+  bankBreakdown: BankBreakdownEntry[]
+  existingSettlementId: number | null
+}
+
+// ============================================================
+// Stok porsi (REV 2.2)
+// ============================================================
+
+export interface PortionStockView {
+  menuId: number
+  menuName: string
+  category: string
+  currentQty: number
+  minStock: number
+  openingQtyToday: number
+  openingQtyDate: string
+  suggestedRestockMorning: number
+  isLow: boolean
+  updatedAt: string
+}
+
+export type PortionMovementReason =
+  | 'order'
+  | 'restockMorning'
+  | 'restockEmergency'
+  | 'manualAdjust'
+  | 'refundVoid'
+
+export interface PortionMovementView {
+  id: number
+  delta: number
+  reason: PortionMovementReason
+  note: string | null
+  userId: number
+  createdAt: string
+}
+
+export interface PortionStockDetail extends PortionStockView {
+  recentMovements: PortionMovementView[]
+}
+
+// ============================================================
+// Raw materials (REV 2.2)
+// ============================================================
+
+export type RawMaterialCategory =
+  | 'bumbuDasar'
+  | 'bahanSegar'
+  | 'bahanPokok'
+  | 'bahanKering'
+  | 'lainnya'
+
+export const RAW_MATERIAL_CATEGORY_LABEL: Record<RawMaterialCategory, string> = {
+  bumbuDasar: 'Bumbu Dasar',
+  bahanSegar: 'Bahan Segar',
+  bahanPokok: 'Bahan Pokok',
+  bahanKering: 'Bahan Kering',
+  lainnya: 'Lainnya',
+}
+
+export interface RawMaterialView {
+  id: number
+  name: string
+  unit: string
+  category: RawMaterialCategory
+  isTracked: boolean
+  stockQty: number
+  minStock: number | null
+  unitPrice: number | null
+  freshnessDays: number | null
+  lastBuyDate: string | null
+  isLowStock: boolean
+  isNearExpiry: boolean
+  daysUntilExpiry: number | null
+  suggestedAction: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type RawMaterialMovementReason = 'purchase' | 'opname' | 'manualAdjust'
+
+export interface RawMaterialMovementView {
+  id: number
+  delta: number
+  reason: RawMaterialMovementReason
+  note: string | null
+  userId: number
+  createdAt: string
+}
+
+export interface RawMaterialDetail extends RawMaterialView {
+  recentMovements: RawMaterialMovementView[]
+}
+
+// ============================================================
+// Vendor
+// ============================================================
+
+export interface Vendor {
+  id: number
+  name: string
+  type: string
+  phone: string | null
+  note: string | null
+  purchaseCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================
+// Purchase (REV 2.1 normalized)
+// ============================================================
+
+export interface PurchaseItemView {
+  id: number
+  rawMaterialId: number
+  rawMaterialName: string
+  rawMaterialUnit: string
+  isTracked: boolean
+  qty: number
+  unitPrice: number
+  subtotal: number
+  expiredDate: string | null
+  createdAt: string
+}
+
+export interface Purchase {
+  id: number
+  date: string
+  userId: number
+  userName: string
+  vendorId: number | null
+  vendorName: string | null
+  totalAmount: number
+  note: string | null
+  items: PurchaseItemView[]
+  createdAt: string
+}
+
+// ============================================================
+// Bill (owner-only)
+// ============================================================
+
+export type BillCategory = 'kebersihan' | 'listrik' | 'air' | 'parkir' | 'sewa'
+
+export const BILL_CATEGORY_LABEL: Record<BillCategory, string> = {
+  kebersihan: 'Iuran Kebersihan',
+  listrik: 'Listrik',
+  air: 'Air',
+  parkir: 'Iuran Parkir',
+  sewa: 'Sewa Tempat',
+}
+
+export interface Bill {
+  id: number
+  month: string
+  category: BillCategory
+  amount: number
+  note: string | null
+  userId: number
+  userName: string
+  createdAt: string
+}
+
+// ============================================================
+// Common API response
+// ============================================================
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
-  error?: string
   message?: string
 }

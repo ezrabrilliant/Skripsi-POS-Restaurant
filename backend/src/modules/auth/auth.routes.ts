@@ -1,18 +1,17 @@
-// Definisi route modul auth.
+// Routes modul auth.
+//   POST /api/auth/login  -> public, terbitkan JWT
+//   GET  /api/auth/me     -> authenticated, balikkan profil pemilik token
+//
+// REV 2.3 catatan: endpoint /users-public DIHAPUS. Frontend tidak lagi
+// pre-fetch daftar nama; setiap login pegawai ketik nama manual di form.
 
 import { Router } from 'express';
-import * as authController from './auth.controller';
 import { authenticate } from '../../middleware/auth';
-import { asyncHandler } from '../../utils/asyncHandler';
+import { handleLogin, handleMe } from './auth.controller';
 
 const router = Router();
 
-// Publik — tidak butuh token
-router.post('/login', asyncHandler(authController.login));
-
-// Butuh token valid
-router.post('/logout', authenticate, asyncHandler(authController.logout));
-router.get('/me', authenticate, asyncHandler(authController.me));
-router.post('/verify-pin', authenticate, asyncHandler(authController.verifyPin));
+router.post('/login', handleLogin);
+router.get('/me', authenticate, handleMe);
 
 export default router;

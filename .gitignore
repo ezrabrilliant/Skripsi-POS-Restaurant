@@ -19,7 +19,7 @@ out/
 coverage/
 .nyc_output/
 
-# Environment files (berisi rahasia — jangan di-commit)
+# Environment files (berisi rahasia - jangan di-commit)
 .env
 */.env
 

@@ -1,184 +1,154 @@
+// REV 2.3 cart store. Drop: isForceOrder, transactionId (POSPage handles per-session),
+// loadTransaction (per-session, tidak persist). Tambah: subOptionsSelected per CartItem,
+// orderType, tableNumber jadi nullable (null kalau takeaway).
+//
+// CATATAN HYDRATION: Zustand persist hydrate state lama dari localStorage via
+// Object.assign — kalau key di store baru bentrok dengan persisted value lama
+// (mis. fungsi vs number), value lama akan override. Untuk hindari ini:
+//   1. Computed helpers (subtotal, itemCount) DIEKSPOR sebagai standalone util,
+//      bukan property di state. Komponen pakai `cartSubtotal(useCartStore())`.
+//   2. Store name di-bump ke `pos-cart-v2` supaya cache REV 2 (yang punya field
+//      subtotal/total/transactionId) tidak di-hydrate ke shape baru.
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem, MenuWithStock } from '@/types'
+import type { CartItem, OrderType } from '@/types'
 import { generateId } from '@/lib/utils'
 
 interface CartState {
   items: CartItem[]
-  tableNumber: string
-  transactionId: string | null
-  notes: string
-  discountAmount: number
-  subtotal: number
-  total: number
-  
-  // Actions
-  setTableNumber: (tableNumber: string) => void
-  setTransactionId: (id: string | null) => void
-  setNotes: (notes: string) => void
-  setDiscountAmount: (amount: number) => void
-  
-  // Cart operations
-  addItem: (menu: MenuWithStock, forceOrder?: boolean) => void
-  removeItem: (itemId: string) => void
-  updateItemQuantity: (itemId: string, quantity: number) => void
-  updateItemNotes: (itemId: string, notes: string) => void
+  orderType: OrderType
+  tableNumber: number | null
+
+  // Add
+  addItem: (input: {
+    menuId: number
+    menuName: string
+    price: number
+    qty?: number
+    notes?: string
+    subOptionsSelected?: Record<string, string> | null
+  }) => void
+
+  // Mutations per item id
+  updateQty: (id: string, qty: number) => void
+  updateNotes: (id: string, notes: string) => void
+  removeItem: (id: string) => void
+
+  // Order metadata
+  setOrderType: (type: OrderType) => void
+  setTableNumber: (n: number | null) => void
+
+  // Reset
   clearCart: () => void
-  
-  // Load existing transaction
-  loadTransaction: (
-    transactionId: string,
-    tableNumber: string,
-    items: CartItem[],
-    notes: string,
-    discountAmount: number
-  ) => void
-  
-  // Check if needs force order
-  needsForceOrder: (menu: MenuWithStock) => boolean
 }
 
-const calculateTotals = (items: CartItem[], discountAmount: number) => {
-  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-  const total = Math.max(0, subtotal - discountAmount)
-  return { subtotal, total }
+function makeCartItem(input: {
+  menuId: number
+  menuName: string
+  price: number
+  qty?: number
+  notes?: string
+  subOptionsSelected?: Record<string, string> | null
+}): CartItem {
+  const qty = input.qty ?? 1
+  return {
+    id: generateId(),
+    menuId: input.menuId,
+    menuName: input.menuName,
+    price: input.price,
+    qty,
+    notes: input.notes ?? '',
+    subOptionsSelected: input.subOptionsSelected ?? null,
+    subtotal: input.price * qty,
+  }
+}
+
+function recomputeSubtotal(item: CartItem, qty: number): CartItem {
+  return { ...item, qty, subtotal: item.price * qty }
+}
+
+/// 2 item dianggap "sama" kalau: sama menuId + sama subOptionsSelected JSON +
+/// notes kosong di keduanya. Notes berbeda = entry terpisah supaya jelas di struk.
+function isSameAggregable(a: CartItem, b: { menuId: number; subOptionsSelected: Record<string, string> | null; notes: string }): boolean {
+  if (a.menuId !== b.menuId) return false
+  if ((a.notes ?? '') !== '' || (b.notes ?? '') !== '') return false
+  return JSON.stringify(a.subOptionsSelected ?? null) === JSON.stringify(b.subOptionsSelected ?? null)
 }
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      tableNumber: '',
-      transactionId: null,
-      notes: '',
-      discountAmount: 0,
-      subtotal: 0,
-      total: 0,
-      
-      setTableNumber: (tableNumber: string) => set({ tableNumber }),
-      
-      setTransactionId: (id: string | null) => set({ transactionId: id }),
-      
-      setNotes: (notes: string) => set({ notes }),
-      
-      setDiscountAmount: (amount: number) => {
-        const { items } = get()
-        const { subtotal, total } = calculateTotals(items, amount)
-        set({ discountAmount: amount, subtotal, total })
-      },
-      
-      needsForceOrder: (menu: MenuWithStock) => menu.stockRemaining <= 0,
-      
-      addItem: (menu: MenuWithStock, forceOrder: boolean = false) => {
-        const { items, discountAmount } = get()
-        
-        const existingIndex = items.findIndex(
-          (item) => item.menuId === menu.id && !item.notes
+      orderType: 'dineIn',
+      tableNumber: null,
+
+      addItem: (input) => {
+        const items = get().items
+        const idx = items.findIndex((it) =>
+          isSameAggregable(it, {
+            menuId: input.menuId,
+            subOptionsSelected: input.subOptionsSelected ?? null,
+            notes: input.notes ?? '',
+          }),
         )
-        
-        let newItems: CartItem[]
-        
-        if (existingIndex >= 0) {
-          newItems = items.map((item, index) => {
-            if (index === existingIndex) {
-              const newQuantity = item.quantity + 1
-              return {
-                ...item,
-                quantity: newQuantity,
-                subtotal: item.price * newQuantity,
-                isForceOrder: item.isForceOrder || forceOrder,
-              }
-            }
-            return item
-          })
+        if (idx >= 0) {
+          const existing = items[idx]!
+          const updated = recomputeSubtotal(existing, existing.qty + (input.qty ?? 1))
+          set({ items: items.map((it, i) => (i === idx ? updated : it)) })
         } else {
-          const newItem: CartItem = {
-            id: generateId(),
-            menuId: menu.id,
-            menuName: menu.name,
-            price: menu.price,
-            quantity: 1,
-            notes: '',
-            isForceOrder: forceOrder,
-            subtotal: menu.price,
-          }
-          newItems = [...items, newItem]
+          set({ items: [...items, makeCartItem(input)] })
         }
-        
-        const { subtotal, total } = calculateTotals(newItems, discountAmount)
-        set({ items: newItems, subtotal, total })
       },
-      
-      removeItem: (itemId: string) => {
-        const { items, discountAmount } = get()
-        const newItems = items.filter((item) => item.id !== itemId)
-        const { subtotal, total } = calculateTotals(newItems, discountAmount)
-        set({ items: newItems, subtotal, total })
-      },
-      
-      updateItemQuantity: (itemId: string, quantity: number) => {
-        const { items, discountAmount } = get()
-        
-        if (quantity <= 0) {
-          const newItems = items.filter((item) => item.id !== itemId)
-          const { subtotal, total } = calculateTotals(newItems, discountAmount)
-          set({ items: newItems, subtotal, total })
+
+      updateQty: (id, qty) => {
+        if (qty <= 0) {
+          set({ items: get().items.filter((it) => it.id !== id) })
           return
         }
-        
-        const newItems = items.map((item) => {
-          if (item.id === itemId) {
-            return {
-              ...item,
-              quantity,
-              subtotal: item.price * quantity,
-            }
-          }
-          return item
-        })
-        
-        const { subtotal, total } = calculateTotals(newItems, discountAmount)
-        set({ items: newItems, subtotal, total })
-      },
-      
-      updateItemNotes: (itemId: string, notes: string) => {
-        const { items } = get()
-        const newItems = items.map((item) => {
-          if (item.id === itemId) {
-            return { ...item, notes }
-          }
-          return item
-        })
-        set({ items: newItems })
-      },
-      
-      clearCart: () => {
         set({
-          items: [],
-          tableNumber: '',
-          transactionId: null,
-          notes: '',
-          discountAmount: 0,
-          subtotal: 0,
-          total: 0,
+          items: get().items.map((it) => (it.id === id ? recomputeSubtotal(it, qty) : it)),
         })
       },
-      
-      loadTransaction: (transactionId, tableNumber, items, notes, discountAmount) => {
-        const { subtotal, total } = calculateTotals(items, discountAmount)
+
+      updateNotes: (id, notes) => {
         set({
-          transactionId,
-          tableNumber,
-          items,
-          notes,
-          discountAmount,
-          subtotal,
-          total,
+          items: get().items.map((it) => (it.id === id ? { ...it, notes } : it)),
         })
       },
+
+      removeItem: (id) => {
+        set({ items: get().items.filter((it) => it.id !== id) })
+      },
+
+      setOrderType: (type) => {
+        set({ orderType: type, tableNumber: type === 'takeaway' ? null : get().tableNumber })
+      },
+
+      setTableNumber: (n) => set({ tableNumber: n }),
+
+      clearCart: () => set({ items: [], orderType: 'dineIn', tableNumber: null }),
     }),
     {
-      name: 'pos-cart',
-    }
-  )
+      name: 'pos-cart-v2',
+      partialize: (state) => ({
+        items: state.items,
+        orderType: state.orderType,
+        tableNumber: state.tableNumber,
+      }),
+    },
+  ),
 )
+
+// ============================================================
+// Computed selectors (extracted as standalone util — TIDAK di state karena
+// hydration persist bisa override function dengan value lama)
+// ============================================================
+
+export function cartSubtotal(items: CartItem[]): number {
+  return items.reduce((s, it) => s + it.subtotal, 0)
+}
+
+export function cartItemCount(items: CartItem[]): number {
+  return items.reduce((s, it) => s + it.qty, 0)
+}

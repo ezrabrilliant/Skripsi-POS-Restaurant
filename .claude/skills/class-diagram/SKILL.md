@@ -1,20 +1,20 @@
 ---
 name: class-diagram
-description: Build UML Class Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a class diagram — or says "domain model", "diagram kelas", "struktur class", or lists nouns/attributes/methods needing class modeling. Covers ADSI Modul Pembelajaran Bab 8 conventions (key abstraction via CRC noun analysis, class as segi empat 3-compartment: nama/atribut/operasi, visibility +/#/-, stereotypes boundary/entity/control, relations association/aggregation/generalization/dependency/inheritance with multiplicity notations, abstract classes with italic names, package grouping) and programmatic construction via staruml-mcp (`create_diagram UMLClassDiagram`, `create_element_with_view UMLClass/UMLInterface/UMLPackage`, `create_edge_with_view UMLAssociation/UMLAggregation/UMLComposition/UMLGeneralization/UMLDependency`). Do not create a class diagram without consulting this skill first.
+description: Build UML Class Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a class diagram - or says "domain model", "diagram kelas", "struktur class", or lists nouns/attributes/methods needing class modeling. Covers ADSI Modul Pembelajaran Bab 8 conventions (key abstraction via CRC noun analysis, class as segi empat 3-compartment: nama/atribut/operasi, visibility +/#/-, stereotypes boundary/entity/control, relations association/aggregation/generalization/dependency/inheritance with multiplicity notations, abstract classes with italic names, package grouping) and programmatic construction via staruml-mcp (`create_diagram UMLClassDiagram`, `create_element_with_view UMLClass/UMLInterface/UMLPackage`, `create_edge_with_view UMLAssociation/UMLAggregation/UMLComposition/UMLGeneralization/UMLDependency`). Do not create a class diagram without consulting this skill first.
 ---
 
-# Class Diagram — ADSI convention + StarUML MCP
+# Class Diagram - ADSI convention + StarUML MCP
 
-Authoritative source: **Modul Pembelajaran ADSI Bab 8 — Class Diagram** (`docs/extracted/adsi.txt` lines 2148–2900). Class diagrams are the most commonly used UML diagram in object-oriented modeling (ADSI §8).
+Authoritative source: **Modul Pembelajaran ADSI Bab 8 - Class Diagram** (`docs/extracted/adsi.txt` lines 2148–2900). Class diagrams are the most commonly used UML diagram in object-oriented modeling (ADSI §8).
 
 ## 1. Purpose (per ADSI)
 
-> *"Class diagram menggambarkan struktur dan deskripsi class, package dan objek beserta hubungan satu sama lain seperti containment, pewarisan, asosiasi, dan lain-lain."* — ADSI §8
+> *"Class diagram menggambarkan struktur dan deskripsi class, package dan objek beserta hubungan satu sama lain seperti containment, pewarisan, asosiasi, dan lain-lain."* - ADSI §8
 
 - Static view of the system. Shows relationships that exist, not what happens when they interact.
 - Two roles: during **analysis** it shows responsibilities; during **design** it shows the architectural structure.
 
-## 2. Finding classes — Key Abstraction via CRC (ADSI §8.1)
+## 2. Finding classes - Key Abstraction via CRC (ADSI §8.1)
 
 Before drawing: identify candidate classes.
 
@@ -27,15 +27,15 @@ Before drawing: identify candidate classes.
 
 Drawn as a rectangle divided into three compartments (top to bottom):
 
-1. **Nama class** (and optional stereotype) — kata benda tunggal, CamelCase first letter capital. E.g. `Customer`, `FraudAgent`, `DailyMenuStock`.
-2. **Atribut** — properties. camelCase (first word lowercase), e.g. `birthDate`, `totalAmount`.
-3. **Method / Operasi** — what the class can do. camelCase verbs, e.g. `calculateTotal()`, `validatePIN()`.
+1. **Nama class** (and optional stereotype) - kata benda tunggal, CamelCase first letter capital. E.g. `Customer`, `FraudAgent`, `DailyMenuStock`.
+2. **Atribut** - properties. camelCase (first word lowercase), e.g. `birthDate`, `totalAmount`.
+3. **Method / Operasi** - what the class can do. camelCase verbs, e.g. `calculateTotal()`, `validatePIN()`.
 
 ### Visibility (ADSI §8.1.5)
 
-- `+` **Public** — callable from anywhere.
-- `#` **Protected** — only the class + its subclasses.
-- `-` **Private** — only inside the class.
+- `+` **Public** - callable from anywhere.
+- `#` **Protected** - only the class + its subclasses.
+- `-` **Private** - only inside the class.
 
 ### Rendering shortcuts (ADSI §8.1.6)
 - You don't have to show every attribute/method. Show the ones that matter.
@@ -47,7 +47,7 @@ Drawn as a rectangle divided into three compartments (top to bottom):
 - Name written in *italic*.
 - Marked `{abstract}` in some notations.
 
-## 4. Stereotypes (ADSI §8.1.7 — Class Stereotype)
+## 4. Stereotypes (ADSI §8.1.7 - Class Stereotype)
 
 Three main stereotypes for analysis-level class diagrams:
 
@@ -69,9 +69,9 @@ For design-level / implementation class diagrams, stereotypes can be omitted or 
 ### Aggregation (agregasi)
 - "has-a", loose containment. Parent knows parts, but parts can exist independently.
 - **Open diamond** on the whole (parent) side.
-- Example (ADSI Gambar 8.10): `Company ◇— Department`.
+- Example (ADSI Gambar 8.10): `Company ◇- Department`.
 
-### Composition (strong aggregation — UML standard, not explicitly in ADSI but widely used)
+### Composition (strong aggregation - UML standard, not explicitly in ADSI but widely used)
 - "contains-a", parts die with the whole.
 - **Filled diamond** on the whole side.
 
@@ -79,7 +79,7 @@ For design-level / implementation class diagrams, stereotypes can be omitted or 
 - "is-a" / "kind-of" hierarchy. Subclass inherits attributes + operations from superclass.
 - **Hollow triangle** pointing to the superclass (parent).
 - Not named, no multiplicity.
-- Example (ADSI Gambar 8.12): `Person △— Student`, `Person △— Professor`.
+- Example (ADSI Gambar 8.12): `Person △- Student`, `Person △- Professor`.
 
 ### Dependency
 - Dashed arrow. "A uses B temporarily" (e.g. as method parameter).
@@ -102,7 +102,7 @@ Shown at each end of association/aggregation lines (ADSI Tabel 8.2):
 - Group related classes into **packages** (folder-tab rectangle).
 - Helps manage complexity in large models.
 
-## 7. Checklist — verify before saving
+## 7. Checklist - verify before saving
 
 1. Every class name is a **singular kata benda**, PascalCase.
 2. Attributes camelCase; types shown as `name : Type` when helpful.
@@ -113,7 +113,7 @@ Shown at each end of association/aggregation lines (ADSI Tabel 8.2):
 7. Aggregation uses open diamond on whole side; composition uses filled diamond; generalization uses hollow triangle pointing to parent.
 8. Abstract classes have italic names (or `{abstract}`).
 9. Inheritance arrows unnamed, no multiplicity.
-10. No class stands alone unless it's a utility/enum — every class should participate in ≥1 relationship.
+10. No class stands alone unless it's a utility/enum - every class should participate in ≥1 relationship.
 11. Ellipsis `...` used when hiding attributes/methods intentionally.
 12. Packages used to group >10 classes.
 
@@ -121,14 +121,14 @@ Shown at each end of association/aggregation lines (ADSI Tabel 8.2):
 
 Always use `mcp__staruml__*` tools.
 
-### Step 1 — diagram
+### Step 1 - diagram
 
 ```
 mcp__staruml__create_diagram type=UMLClassDiagram parentId=<parent> \
     name="Class Diagram - <Subsystem/Module>"
 ```
 
-### Step 2 — classes
+### Step 2 - classes
 
 ```
 mcp__staruml__create_element_with_view type=UMLClass parentId=<parent> diagramId=<diagramId> \
@@ -147,9 +147,9 @@ mcp__staruml__create_element type=UMLOperation parentId=<classId> \
 
 For stereotype: `mcp__staruml__update_element id=<classId> properties={stereotype: "entity"}` (or set name with angle brackets if the extension supports).
 
-Abstract class: `update_element properties={isAbstract: true}` — StarUML renders name in italic.
+Abstract class: `update_element properties={isAbstract: true}` - StarUML renders name in italic.
 
-### Step 3 — relationships
+### Step 3 - relationships
 
 ```
 # Association with multiplicity
@@ -174,7 +174,7 @@ mcp__staruml__create_edge_with_view type=UMLDependency parentId=<parent> diagram
     tailViewId=<classAView> headViewId=<classBView>
 ```
 
-### Step 4 — save
+### Step 4 - save
 
 ```
 mcp__staruml__save_project
@@ -187,27 +187,27 @@ mcp__staruml__save_project
 - Inheritance stacks arranged top-down (parent on top).
 - Aggregation/composition: whole on left or top.
 
-## 9. Worked example — POS domain
+## 9. Worked example - POS domain
 
 Key abstractions (after CRC analysis on use cases):
 
-- `User` `<<entity>>` — id, name, pin, role, ...
-- `Menu` `<<entity>>` — id, name, category, price, ...
-- `DailyMenuStock` `<<entity>>` — date, menuId, openingStock, currentStock, ...
-- `Transaction` `<<entity>>` — id, tableNumber, status, paymentMethod, total, ...
-- `TransactionItem` `<<entity>>` — transactionId, menuId, qty, subtotal, isForceOrder, ...
-- `Settlement` `<<entity>>` — date, systemCash, systemQris, actualCash, ..., status
+- `User` `<<entity>>` - id, name, pin, role, ...
+- `Menu` `<<entity>>` - id, name, category, price, ...
+- `DailyMenuStock` `<<entity>>` - date, menuId, openingStock, currentStock, ...
+- `Transaction` `<<entity>>` - id, tableNumber, status, paymentMethod, total, ...
+- `TransactionItem` `<<entity>>` - transactionId, menuId, qty, subtotal, isForceOrder, ...
+- `Settlement` `<<entity>>` - date, systemCash, systemQris, actualCash, ..., status
 - `AuthService` `<<control>>`, `TransactionService` `<<control>>`, `SettlementService` `<<control>>`
 - `LoginScreen`, `POSView`, `SettlementForm` `<<boundary>>`
 
 Relationships:
 
-- `Menu 1 — * DailyMenuStock` (association).
-- `Transaction 1 ◇— * TransactionItem` (aggregation; items belong to a transaction).
-- `TransactionItem *—1 Menu` (association).
-- `User 1 — * Transaction` (cashier who created it).
-- `User 1 — * Settlement`.
-- `Transaction △— AbstractTransaction`? (not needed — no subclasses, skip).
+- `Menu 1 - * DailyMenuStock` (association).
+- `Transaction 1 ◇- * TransactionItem` (aggregation; items belong to a transaction).
+- `TransactionItem *-1 Menu` (association).
+- `User 1 - * Transaction` (cashier who created it).
+- `User 1 - * Settlement`.
+- `Transaction △- AbstractTransaction`? (not needed - no subclasses, skip).
 
 ## 10. Common mistakes to grep for
 
@@ -217,9 +217,9 @@ Relationships:
 - Aggregation diamond on wrong end (should be on the whole, not the part).
 - Generalization arrow pointing wrong direction (should point to parent).
 - Using generalization where aggregation is meant (inheritance vs composition confusion).
-- Every actor and use case scenario needs at least one boundary — if missing, add it.
+- Every actor and use case scenario needs at least one boundary - if missing, add it.
 - Mixing analysis stereotypes on the same diagram as implementation details (separate them into two diagrams or one with clear packages).
-- Classes with zero attributes AND zero operations — usually a naming mistake, not a real class.
+- Classes with zero attributes AND zero operations - usually a naming mistake, not a real class.
 - Attributes that should have been classes (e.g. `address` with many sub-fields → extract to `Address` class).
 
 ## 11. When the user says "jelek"

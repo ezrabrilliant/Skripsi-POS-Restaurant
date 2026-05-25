@@ -1,12 +1,12 @@
 ---
 name: activity-diagram
-description: Build UML Activity Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix an activity diagram — even when they say "diagram alur", "workflow", "flow aktivitas", or describe a step-by-step business process across actors. Covers ADSI Modul Pembelajaran Bab 7 + real skripsi conventions observed across 3 POS case studies (restoran cross-channel, supermarket ABC-VED, toko inventory control). Uses staruml-mcp tools (`create_diagram UMLActivityDiagram`, `create_element_with_view UMLAction/UMLInitialNode/UMLActivityFinalNode/UMLDecisionNode/UMLMergeNode/UMLForkNode/UMLJoinNode/UMLActivityPartition`, `create_edge_with_view UMLControlFlow`). Do not create an activity diagram without consulting this skill first.
+description: Build UML Activity Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix an activity diagram - even when they say "diagram alur", "workflow", "flow aktivitas", or describe a step-by-step business process across actors. Covers ADSI Modul Pembelajaran Bab 7 + real skripsi conventions observed across 3 POS case studies (restoran cross-channel, supermarket ABC-VED, toko inventory control). Uses staruml-mcp tools (`create_diagram UMLActivityDiagram`, `create_element_with_view UMLAction/UMLInitialNode/UMLActivityFinalNode/UMLDecisionNode/UMLMergeNode/UMLForkNode/UMLJoinNode/UMLActivityPartition`, `create_edge_with_view UMLControlFlow`). Do not create an activity diagram without consulting this skill first.
 ---
 
-# Activity Diagram — ADSI + skripsi-praktis convention + StarUML MCP
+# Activity Diagram - ADSI + skripsi-praktis convention + StarUML MCP
 
 Sumber otoritatif:
-- **ADSI Bab 7** — Modul Pembelajaran ADSI (`docs/extracted/adsi.txt` §7)
+- **ADSI Bab 7** - Modul Pembelajaran ADSI (`docs/extracted/adsi.txt` §7)
 - **3 contoh skripsi POS** observed at `docs/pdf-pages/`: resto (cross-channel Gobiz), super (supermarket ABC-VED), toko (market basket). Semua dari UK Petra.
 
 **Prinsip dasar** (ADSI §7 verbatim):
@@ -21,7 +21,7 @@ Aktivitas = **apa yang sistem dan aktor lakukan** dalam bahasa bisnis, bukan imp
 | Simbol | Nama | Catatan |
 |---|---|---|
 | ● (filled solid circle) | Start / Initial Node | Hanya 1 per diagram (per ADSI §7 rule) |
-| ◉ (bullseye — circle dengan dot di dalam) | End / ActivityFinalNode | Boleh lebih dari 1 (lihat §4 pattern CRUD) |
+| ◉ (bullseye - circle dengan dot di dalam) | End / ActivityFinalNode | Boleh lebih dari 1 (lihat §4 pattern CRUD) |
 | ⬭ (rounded rectangle / lozenge) | Action | Verb phrase, bahasa bisnis |
 | ◇ (diamond) | Decision atau Merge | Lihat §3 cara labeling |
 | ▬ (solid bar) | Fork (split parallel) atau Join (sync parallel) | Jarang dipakai di skripsi POS, biasanya alur sequential |
@@ -29,38 +29,55 @@ Aktivitas = **apa yang sistem dan aktor lakukan** dalam bahasa bisnis, bukan imp
 
 ---
 
-## 2. Action naming — business language, BUKAN code (CRITICAL)
+## 2. Action naming - BAHASA MANUSIA, BUKAN code (CRITICAL — paling penting!)
 
-**Style yang dipakai di skripsi:** Title Case Indonesian, verb phrase, kalimat pendek, self-explanatory untuk orang awam.
+**Audiens activity diagram = manusia non-teknis** (kasir, waiter, owner, dosen, penguji). Bukan developer. Action name harus enak dibaca seperti instruksi di buku manual pelatihan pegawai.
 
-**Contoh konkret dari 3 contoh skripsi:**
-- resto: *"Menampilkan daftar transaksi"*, *"Memilih jenis transaksi offline"*, *"Menginputkan data menu baru"*
-- super: *"Membuka Halaman Supplier"*, *"Menampilkan Data Supplier"*, *"Menginput Data Supplier"*, *"Menyimpan Data Supplier"*
-- toko: *"Input username and password"*, *"Validate user data"*, *"Direct to dashboard page"* (boleh English kalau konsisten)
+**Aturan keras:**
+1. Title Case Indonesian, verb phrase 2-5 kata
+2. **DILARANG**: nama tabel/kolom (`portion_stocks`, `current_qty`), nama field/enum (`payment_method`, `reason=order`), nama property (`status=open`), istilah teknis (`localStorage`, `cache`, `array`, `JSON`, `endpoint`), formula (`qty × price`, `roundup((min-current)/5)*5`), implementasi detail (`grid 9 meja`, `lookup nama + cek PIN`)
+3. **Hindari parenthesis penjelasan teknis** seperti `(existing kalau terisi, baru kalau kosong)` — kalau perlu detail itu, pecah jadi action terpisah atau pakai decision
+4. Kalau 1 action ngerjain 2 hal beda, pecah jadi 2 action (mis. "Mengurangi Stok Porsi" + "Mencatat Log Perubahan Stok")
 
-**Rules:**
-- Pilih 1 gaya dan stick: (a) lowercase Indonesian, ATAU (b) Title Case Indonesian, ATAU (c) Title Case English
-- Verb phrase (kata kerja + obyek pendek)
-- Fokus ke **WHAT**, bukan HOW
+**Smell test sebelum tulis nama action:**
+- Baca nama keras-keras. Apa kasir Amel (lulusan SMA, bukan programmer) bisa paham? Kalau ngerasa harus jelasin "ini maksudnya program X", **nama jelek — rename**.
+- Cek: ada nama teknis di nama action? (`localStorage`, `portion_stocks`, `decrement`, `JSON`, `cache`, `SubOptionsModal`, `dashboard component`) → bukan bahasa manusia.
 
-**❌ Jangan pakai dalam UMLAction:**
+**Contoh konkret rename (PENTING dipakai sebagai template):**
 
-| Technical (don't) | Business (do) |
+| ❌ Technical (jangan) | ✅ Bahasa manusia (pakai ini) |
 |---|---|
-| `Query daily_menu_stocks (date, menu_id)` | `Cek ketersediaan stok hari ini` |
-| `Insert Item (is_force_order=false) + decrement current_stock` | `Catat pesanan & kurangi stok` |
-| `UPDATE transaction SET status=paid, paid_at=NOW()` | `Tandai pesanan sebagai lunas` |
-| `POST /api/transactions/{id}/pay` | `Kirim data pembayaran` |
-| `Hitung variance_X = actual_X - system_X` | `Hitung selisih per metode pembayaran` |
-| `Insert expenses (paid_by=session.user.id, ...)` | `Simpan data pengeluaran` |
+| `Cek user terakhir di localStorage` | `Mengecek Sesi Login Sebelumnya` |
+| `Tampilkan list nama user aktif` | `Menampilkan Daftar Pegawai` |
+| `Tampilkan layar input PIN` | `Menampilkan Form PIN` |
+| `Validasi (lookup nama + cek PIN)` | `Memvalidasi PIN` |
+| `Simpan user ke localStorage + redirect ke dashboard sesuai role` | `Membuka Dashboard Sesuai Peran` |
+| `Tampilkan pesan PIN salah` | `Menampilkan Pesan PIN Salah` |
+| `Pilih nomor meja dari grid 9 meja` | `Memilih Nomor Meja` |
+| `Buka transaksi meja (existing kalau terisi, baru kalau kosong)` | `Membuka Transaksi Meja` |
+| `Buat transaksi takeaway tanpa meja` | `Membuat Transaksi Takeaway` |
+| `Tampilkan grid menu sesuai kategori` | `Menampilkan Daftar Menu` |
+| `Pilih item menu dari grid` | `Memilih Item Menu` |
+| `Tampilkan SubOptionsModal + Kasir pilih variant (Paha/Dada, Bakar/Goreng)` | `Memilih Pilihan Paket` |
+| `Tambah item ke cart` | `Menambahkan Item ke Pesanan` |
+| `Submit pesanan` | `Mengirim Pesanan` |
+| `Decrement portion_stocks (boleh minus) + log portion_movements reason=order` | **PECAH 2**: `Mengurangi Stok Porsi` + `Mencatat Log Perubahan Stok` |
+| `Simpan transaksi status=open` | `Menyimpan Pesanan` |
+| `Query daily_menu_stocks WHERE date=today` | `Mengecek Stok Hari Ini` |
+| `Insert Item (is_force_order=false) + decrement current_stock` | `Mencatat Pesanan` + `Mengurangi Stok` |
+| `UPDATE transaction SET status=paid, paid_at=NOW()` | `Menandai Pesanan Lunas` |
+| `POST /api/transactions/{id}/pay` | `Mengirim Data Pembayaran` |
+| `Hitung variance_X = actual_X - system_X` | `Menghitung Selisih per Metode` |
 
-**Smell check:** baca nama action keras-keras. Kalau terdengar seperti SQL/komentar kode → rename. Kalau terdengar seperti langkah di buku manual pelatihan kasir → OK.
+**Decision label sama:** "Item paket dengan sub-options?" → "Item Paket?". "PIN valid?" → "PIN Benar?". Pendek, jelas, tanpa technical jargon.
+
+**Pengecualian:** istilah technical yang sudah masuk vocabulary user resto (mis. "PIN", "Dine-in", "Takeaway", "PB1", "EDC", "QRIS") boleh dipakai apa adanya karena familiar.
 
 ---
 
-## 3. Decision labeling — 3 style yang VALID (semua dipakai di skripsi)
+## 3. Decision labeling - 3 style yang VALID (semua dipakai di skripsi)
 
-Simbol diamond tidak otomatis menampilkan "pertanyaan" — harus dikasih label jelas agar orang yang lihat screenshot paham. 3 style dari skripsi:
+Simbol diamond tidak otomatis menampilkan "pertanyaan" - harus dikasih label jelas agar orang yang lihat screenshot paham. 3 style dari skripsi:
 
 ### Style A: Text DI DALAM diamond (kalau pendek)
 Dipakai super + toko. Contoh: `Login Benar`, `Apakah Data duplikat`, `Product arrived`, `Stok habis?`
@@ -77,7 +94,7 @@ Dipakai toko. Decision polos, outgoing arrows pakai guard descriptive: `User dat
 
 StarUML: guard di `name` property edge.
 
-**Semua 3 style OK** — pilih satu dan konsisten dalam 1 diagram.
+**Semua 3 style OK** - pilih satu dan konsisten dalam 1 diagram.
 
 ### Guard syntax
 Dari skripsi: **plain text, tanpa bracket `[]`**:
@@ -87,11 +104,11 @@ Dari skripsi: **plain text, tanpa bracket `[]`**:
 - `Lebih dari 3 kali`
 - `Confirm to Save` / `Not confirm save`
 
-**ADSI versi strict** tulis `[...]` seperti UML spec. **Skripsi praktis** tulis plain. Saran: **ikuti skripsi** (tanpa bracket) — lebih enak dibaca, dosen terima.
+**ADSI versi strict** tulis `[...]` seperti UML spec. **Skripsi praktis** tulis plain. Saran: **ikuti skripsi** (tanpa bracket) - lebih enak dibaca, dosen terima.
 
 ---
 
-## 4. Multi-branch decision + multiple end nodes — VALID
+## 4. Multi-branch decision + multiple end nodes - VALID
 
 **Temuan penting dari skripsi:**
 
@@ -105,12 +122,12 @@ Dari skripsi: **plain text, tanpa bracket `[]`**:
    ```
    Contoh di super: Master Supplier/User/EDC/Bank/Departement/Satuan semua pakai pola ini dengan decision "View/Add Edit" + sub-decision "Apakah Data duplikat Ya/Tidak".
 
-2. **Multiple ActivityFinalNode per diagram** sangat umum — CRUD pattern biasanya punya 2-3 end node:
+2. **Multiple ActivityFinalNode per diagram** sangat umum - CRUD pattern biasanya punya 2-3 end node:
    - End 1: setelah View (tampilkan → selesai)
    - End 2: setelah Add/Edit save
    - End 3: loop-exit atau error path
 
-   **Bukan melanggar ADSI** — ADSI §7 bilang "bisa lebih dari satu end state pada sebuah activity diagram" (verbatim Tabel 7.1).
+   **Bukan melanggar ADSI** - ADSI §7 bilang "bisa lebih dari satu end state pada sebuah activity diagram" (verbatim Tabel 7.1).
 
 3. **Start node tetap 1** (ADSI strict: "Hanya ada satu start state dalam sebuah workflow").
 
@@ -149,18 +166,18 @@ Kalau ada Action yang dapat 2+ incoming → sisipkan MergeNode dulu. Kalau kelua
 
 ---
 
-## 7. Merge vs Join — jangan tertukar
+## 7. Merge vs Join - jangan tertukar
 
 - **Merge (diamond)** = gabung alur **exclusive** (cuma 1 path aktif, yg lain tidak dijalani). Dipasang setelah Decision.
 - **Join (solid bar)** = sinkronisasi alur **parallel** (semua path harus selesai). Dipasang setelah Fork.
 
 **Ambiguitas visual:** Decision dan Merge sama-sama diamond. Bedakan dari jumlah edge: Decision 1-in N-out, Merge N-in 1-out.
 
-**Hindari redundant merge:** kalau 3 path eksklusif konvergen ke node yang sama (misal sebelum Decision "Tambah lagi?"), pakai **1 Merge saja** — bukan rantai Merge→Merge. Lihat §4b.
+**Hindari redundant merge:** kalau 3 path eksklusif konvergen ke node yang sama (misal sebelum Decision "Tambah lagi?"), pakai **1 Merge saja** - bukan rantai Merge→Merge. Lihat §4b.
 
 ---
 
-## 7b. Konsolidasi merge — jangan tumpuk
+## 7b. Konsolidasi merge - jangan tumpuk
 
 Kalau ada beberapa exclusive path yang akhirnya ke node yang sama, **1 Merge cukup**. Contoh bad:
 ```
@@ -179,41 +196,163 @@ Bad karena MergeA tidak menambah semantic value. Fix:
 
 ---
 
-## 8. Build di StarUML via staruml-mcp
+## 8. Build di StarUML via staruml-mcp — STRICT SEQUENCE
 
-### Step 1 — container
-```
-mcp__staruml__create_diagram type=UMLActivityDiagram parentId=<parent> name="Activity Diagram - <nama>"
-```
-StarUML auto-create UMLActivity yg owns diagram. Find via `find_elements type=UMLActivity`, rename jadi `<nama> Activity`.
+**CRITICAL: harus urutan ini karena partition assignment, parent constraint, dan bug update_element.**
 
-### Step 2 — swimlanes
+### Step 1 — create diagram & find UMLActivity wrapper
 ```
-mcp__staruml__create_element_with_view type=UMLActivityPartition parentId=<activityId> diagramId=<diagramId> name="User" x=40 y=40 x2=480 y2=1000
+mcp__staruml__create_diagram type=UMLActivityDiagram parentId=<UMLModel> name="Activity Diagram - <nama>"
 ```
-Spacing antar swimlane 20px.
+StarUML auto-create UMLActivity wrapper yang owns diagram. **WAJIB** find via:
+```
+mcp__staruml__find_elements type=UMLActivity name="Activity1"
+```
+Simpan ID-nya — pakai sebagai `parentId` untuk SEMUA nodes & edges berikutnya.
 
-### Step 3 — nodes
-Semua parent = UMLActivity id (bukan UMLModel).
+Rename Activity ke `<Nama> Activity` di akhir (langkah save).
 
+### Step 2 — create swimlanes (UMLActivityPartition) DULU, SEBELUM nodes apapun
 ```
-type=UMLInitialNode          # start, 20x20
-type=UMLActivityFinalNode    # end, 20x20 (boleh >1)
-type=UMLAction name="..."    # action, ~160x50, TITLE CASE INDONESIAN
-type=UMLDecisionNode name="Stok cukup?"   # diamond with question, 40x40
-type=UMLMergeNode            # diamond polos, 40x40
+mcp__staruml__create_element_with_view type=UMLActivityPartition parentId=<UMLActivity> diagramId=<diagram> name="User" x=20 y=20 x2=380 y2=1300
+mcp__staruml__create_element_with_view type=UMLActivityPartition parentId=<UMLActivity> diagramId=<diagram> name="Sistem" x=400 y=20 x2=780 y2=1300
 ```
 
-### Step 4 — edges
+**WHY this order matters:** Saat nodes di-create, StarUML auto-assign `containerView` ke partition berdasarkan posisi x/y. Kalau partitions belum ada saat node create, node akan jadi `containerView: null` (orphan, render di kolom yang salah). Susah di-fix later — `update_element` pada view coords punya bug serius (lihat §8c).
+
+Sebaiknya jangan batch partition + nodes dalam 1 message. Send partition creates SAJA, tunggu response, lalu send nodes batch.
+
+Spacing 20px antar swimlane (mis. col 1 x=20-380, col 2 x=400-780).
+
+### Step 3 — create nodes
+Semua `parentId` = UMLActivity ID (BUKAN UMLModel — kalau pakai UMLModel, InitialNode/DecisionNode akan fail dengan "cannot be placed here").
+
 ```
-type=UMLControlFlow tailViewId=<from> headViewId=<to> name="Ya"
+type=UMLInitialNode          # start, 30x30 px
+type=UMLActivityFinalNode    # end, 30x30 px (bullseye/mata sapi). NB: PAKAI ini, bukan UMLFinalNode.
+type=UMLAction name="..."    # action, ~280x50 px, Title Case Indonesian, NO [Aktor] prefix
+type=UMLDecisionNode name="Stok cukup?"   # diamond with label, MINIMAL 100x60 (kalau lebih kecil label tidak render — bug StarUML)
+type=UMLMergeNode            # diamond polos, ~60x60
 ```
 
-Guard plain text tanpa `[]` (ikuti skripsi) di `name`.
+**Positioning nodes inside swimlanes:** set `x` di tengah swimlane column-nya. Mis. swimlane "User" x=20-380, taruh action di x=60-340 (centered + margin 40px tiap sisi).
 
-### Step 5 — save
+**Action name = pure verb phrase, NO prefix `[Aktor]`.** Swimlane sudah menunjukkan aktor. Prefix di action name = redundancy + bad style.
+
+**Decision label visibility:** untuk decision label terlihat di body diamond, kasih ukuran minimal **100x60** (StarUML hide label kalau shape lebih kecil dari label). Atau pakai Style C (decision polos, guards di edge saja — `name`-nya dikosongkan, label semantik via "Cek X" action sebelumnya).
+
+### Step 4 — create edges (UMLControlFlow)
 ```
-mcp__staruml__save_project filename="..."
+mcp__staruml__create_edge_with_view type=UMLControlFlow parentId=<UMLActivity> diagramId=<diagram> tailViewId=<from> headViewId=<to> name="Ya"
+```
+
+Guard plain text tanpa `[]` (ikuti skripsi) di `name`. Untuk edge tanpa guard, omit `name`.
+
+### Step 5 — rename activity + switch + fit + save
+```
+mcp__staruml__update_element id=<UMLActivity> field=name value="<Nama> Activity"
+mcp__staruml__switch_diagram id=<diagram>
+mcp__staruml__execute_command id="view:fit-to-window"
+mcp__staruml__save_project filename="<absolute path .mdj>"
+```
+
+`save_project` REQUIRES `filename` parameter (extension bug — empty filename crashes dengan "path must be string").
+
+## 8b. Decision label visibility — fix patterns
+
+UMLDecisionNode `name` property hanya muncul visually kalau:
+1. **Shape cukup besar**: minimal 100×60 px (default 40×40 terlalu kecil, label hidden)
+2. **wordWrap=true** kadang membantu untuk label multi-line
+3. **Style C fallback**: decision polos (no name), tulis pertanyaan via action "Cek X" sebelum decision; guards `Ya`/`Tidak` di edge sudah jelas semantic-nya
+
+Pilih style C kalau ragu — paling robust di StarUML rendering.
+
+## 8c. ⚠️ Bug: update_element pada view coords concat string
+
+**JANGAN PERNAH update_element pada view properties `left`/`top`/`width`/`height` dengan value STRING** — StarUML extension melakukan string concatenation, bukan numeric assignment:
+
+```
+# BAD — width akan jadi corrupted (e.g., "440440440438520" lalu meledak jadi 4.4e+86)
+update_element id=<view> field=left value="440"   # ❌ STRING
+update_element id=<view> field=width value="280"  # ❌ STRING
+```
+
+Bahkan kalau kita pass NUMERIC integer dari client-side, JSON serialization atau extension internal mungkin convert ke string. Saya verify: bahkan dengan numeric value, hasilnya tetap corrupt setelah multiple update.
+
+**Workaround:** kalau salah position, **DELETE element + edges yang connect ke-nya + RECREATE** dengan `create_element_with_view` di posisi yang benar. JANGAN coba patch via update_element.
+
+Atau lebih aman: positioning yang benar SEJAK CREATE, jangan reposition setelah.
+
+## 8d. ContainerView assignment heuristic
+
+Saat `create_element_with_view` di diagram yang sudah ada partitions, StarUML auto-assign view `containerView` ke partition berdasarkan posisi center node (x_center, y_center).
+
+`containerView` adalah **visual containment** (canvas-level): action tampil di area swimlane. **BUKAN model-level membership**. Untuk action benar-benar terdaftar di partition's `nodes` array (yang bikin action muncul di explorer tree di bawah partition), perlu update `partition.nodes` array juga.
+
+## 8e. ⚠️ CRITICAL: Move action ke partition (proper)
+
+Untuk pindah action ke swimlane PROPERLY (visual + model + explorer tree), butuh **2 update via direct HTTP POST** (BUKAN mcp__staruml__update_element — tool itu stringify value, lihat §8c bug):
+
+```bash
+# Step 1: Update view's containerView ke partition view ID (cosmetic — visual placement in canvas)
+curl -X POST http://127.0.0.1:58322/update_element \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<action_view_id>","field":"containerView","value":"<partition_view_id>"}'
+
+# Step 2: Update partition's nodes array dengan array of action MODEL IDs (model-level membership)
+curl -X POST http://127.0.0.1:58322/update_element \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<partition_model_id>","field":"nodes","value":["<action_model_id_1>","<action_model_id_2>",...]}'
+
+# Step 3 (optional but recommended): Update action's _parent ke partition object reference
+# WAJIB pass sebagai OBJECT {_id, name}, BUKAN string ID.
+curl -X POST http://127.0.0.1:58322/update_element \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<action_model_id>","field":"_parent","value":{"_id":"<partition_model_id>","name":"<partition_name>"}}'
+```
+
+**Why HTTP direct, bukan mcp__staruml__update_element?**
+MCP tool's `update_element` JSON-encodes `value` field menjadi string saat send. Server stores string literal. Akibatnya:
+- `value: ["id1", "id2"]` → stored as `"[\"id1\",\"id2\"]"` (string)
+- `value: {"_id":"x","name":"y"}` → stored as `"{\"_id\":\"x\",\"name\":\"y\"}"` (string)
+
+Server BUTUH actual array/object untuk membership work. Gunakan curl/direct HTTP untuk type preservation.
+
+## 8f. UMLInitialNode tidak bisa nest di partition
+
+Empirical finding: UMLInitialNode (start) tidak dapat di-nest sebagai child partition (UMLActivityPartition.nodes). StarUML treat Init sebagai diagram-level node yang muncul terpisah dari partition.
+
+**Konsekuensi**: di explorer tree, InitialNode selalu sibling dengan partition di bawah UMLActivity. Bukan child of partition.
+
+Visually: Init bullet hitam tetap di posisi yang kita set (visually di area swimlane), tapi di tree tidak di-nest.
+
+**Best practice**: posisi Init di top center activity diagram (biasanya di posisi swimlane pertama untuk semantic clarity), abaikan model tree position.
+
+UMLAction, UMLDecisionNode, UMLMergeNode, UMLActivityFinalNode SEMUA bisa di-nest di partition.
+
+## 8g. Workflow pattern lengkap (proven)
+
+Untuk activity diagram dengan 2 swimlane "User | Sistem":
+
+```
+1. Create UMLActivityDiagram (auto-create UMLActivity Activity1)
+2. Find_elements UMLActivity name="Activity1" → simpan ID
+3. Create 2 UMLActivityPartition (User, Sistem) — paralel OK
+   - parent = UMLActivity ID
+   - Simpan partition model IDs + view IDs
+4. Create N UMLAction + decisions + Init + Final
+   - parent = UMLActivity ID
+   - x positioned dalam kolom partition yang sesuai (margin 20-40px dari edge)
+   - Simpan model + view IDs per node
+5. Untuk setiap partition, set `nodes` array via direct HTTP POST:
+   - User.nodes = [action_model_ids in User column]
+   - Sistem.nodes = [action_model_ids in Sistem column + decisions + Final]
+   - (Init dikecualikan — tidak bisa nest, lihat §8f)
+6. Optional: update setiap action's _parent ke partition object reference via HTTP
+7. Create UMLControlFlow edges (parent = UMLActivity ID, paralel OK)
+8. Rename UMLActivity "Activity1" → "<Nama> Activity"
+9. switch_diagram + view:fit-to-window
+10. save_project dengan filename argument
 ```
 
 ---
@@ -223,19 +362,19 @@ mcp__staruml__save_project filename="..."
 Sebelum selesai, cek:
 
 1. ✅ **1 Initial node** (start)
-2. ✅ **Min 1 Activity Final node** (end) — >1 OK untuk CRUD / branching exit
+2. ✅ **Min 1 Activity Final node** (end) - >1 OK untuk CRUD / branching exit
 3. ✅ Semua **action name = verb phrase bahasa bisnis**, bukan SQL/field/formula
 4. ✅ Style action consistent (semua Title Case Indonesian ATAU semua lowercase, jangan campur)
-5. ✅ Semua **Decision punya label jelas** (Style A/B/C) — orang yg screenshot bisa paham
+5. ✅ Semua **Decision punya label jelas** (Style A/B/C) - orang yg screenshot bisa paham
 6. ✅ Semua **guards terisi** di setiap outgoing edge decision (`Ya`/`Tidak`/dll, plain text tanpa bracket)
 7. ✅ Action punya **1 incoming & 1 outgoing** (exception: looping via merge)
-8. ✅ **Merge tidak berantai** — multiple exclusive path langsung ke 1 merge sebelum next
+8. ✅ **Merge tidak berantai** - multiple exclusive path langsung ke 1 merge sebelum next
 9. ✅ Swimlane label jelas (`User`, `Sistem`, `Admin`, dst)
 10. ✅ Diagram title di StarUML Navigator: `Activity Diagram - <proses>`
 
 ---
 
-## 10. Worked example — Order Flow (POS Ayam Bakar)
+## 10. Worked example - Order Flow (POS Ayam Bakar)
 
 Swimlanes: `Kasir | Sistem`
 
@@ -262,7 +401,7 @@ Start
                                              End (bullseye)
 ```
 
-3 Decisions (`Stok cukup?`, `Force order?`, `Tambah item lagi?`) — semua diberi nama pertanyaan yang jelas.
+3 Decisions (`Stok cukup?`, `Force order?`, `Tambah item lagi?`) - semua diberi nama pertanyaan yang jelas.
 
 ---
 

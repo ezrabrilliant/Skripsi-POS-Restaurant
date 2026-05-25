@@ -1,16 +1,23 @@
-// Route modul dashboard — owner-only.
+// Routes modul dashboard. Permission per matrix REV 2.3:
+//   - GET /owner   -> OWNER only (laporan finansial penuh dengan period filter)
+//   - GET /cashier -> owner + kasir (kasir laporan hari ini saja per matrix)
+//   - GET /waiter  -> semua authenticated (waiter primary, owner+kasir juga bisa)
 
 import { Router } from 'express';
-import * as dashboardController from './dashboard.controller';
+import { UserRole } from '@prisma/client';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
-import { asyncHandler } from '../../utils/asyncHandler';
+import {
+  handleOwnerReport,
+  handleCashierDashboard,
+  handleWaiterDashboard,
+} from './dashboard.controller';
 
 const router = Router();
+router.use(authenticate);
 
-router.use(authenticate, requireRole('owner'));
-
-router.get('/daily', asyncHandler(dashboardController.daily));
-router.get('/summary', asyncHandler(dashboardController.summary));
+router.get('/owner', requireRole(UserRole.owner), handleOwnerReport);
+router.get('/cashier', requireRole(UserRole.owner, UserRole.cashier), handleCashierDashboard);
+router.get('/waiter', handleWaiterDashboard);
 
 export default router;

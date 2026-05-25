@@ -32,10 +32,26 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // PWA Level A: cache aset statis (app shell) saja — data API tetap ke jaringan.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // PWA Level A: precache app shell + foto menu (.webp) di build time.
+        // Data API tetap ke jaringan - hanya aset statis yang offline-ready.
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,ico,woff,woff2}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
+        // Fallback runtime: foto /menu/* yang ditambahkan owner setelah
+        // install (mis. via halaman Menu) akan ke-cache otomatis pada
+        // request pertama -> kunjungan berikutnya tampil dari device cache
+        // tanpa hit jaringan. Stale-while-revalidate: tampilkan cache,
+        // perbarui di background.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/menu/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'menu-images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
     }),
   ],

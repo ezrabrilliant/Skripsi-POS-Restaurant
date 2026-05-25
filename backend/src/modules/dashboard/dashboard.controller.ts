@@ -1,31 +1,25 @@
-// Controller modul dashboard.
+// Controller modul dashboard. Tipis - delegate ke service.
 
 import type { Request, Response } from 'express';
-import { z } from 'zod';
-import * as dashboardService from './dashboard.service';
+import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { unauthorized } from '../../utils/errors';
+import { ownerReportQuerySchema } from './dashboard.schema';
+import * as dashboardService from './dashboard.service';
 
-const dailyQuery = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD')
-    .optional(),
+export const handleOwnerReport = asyncHandler(async (req: Request, res: Response) => {
+  const query = ownerReportQuerySchema.parse(req.query);
+  const report = await dashboardService.getOwnerReport(query);
+  sendSuccess(res, { report }, 'Laporan owner');
 });
 
-const monthlyQuery = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, 'Format bulan harus YYYY-MM'),
+export const handleCashierDashboard = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
+  const dashboard = await dashboardService.getCashierDashboard(req.user.id);
+  sendSuccess(res, { dashboard }, 'Dashboard kasir');
 });
 
-/** GET /api/dashboard/daily?date=YYYY-MM-DD — ringkasan harian. */
-export async function daily(req: Request, res: Response): Promise<void> {
-  const { date } = dailyQuery.parse(req.query);
-  const data = await dashboardService.getDailySummary(date);
-  sendSuccess(res, data, 'Ringkasan harian');
-}
-
-/** GET /api/dashboard/summary?month=YYYY-MM — ringkasan bulanan. */
-export async function summary(req: Request, res: Response): Promise<void> {
-  const { month } = monthlyQuery.parse(req.query);
-  const data = await dashboardService.getMonthlySummary(month);
-  sendSuccess(res, data, 'Ringkasan bulanan');
-}
+export const handleWaiterDashboard = asyncHandler(async (_req: Request, res: Response) => {
+  const dashboard = await dashboardService.getWaiterDashboard();
+  sendSuccess(res, { dashboard }, 'Dashboard waiter');
+});

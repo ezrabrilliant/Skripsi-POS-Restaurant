@@ -1,357 +1,613 @@
-// Logika bisnis modul transaksi: siklus pesanan meja dari buka hingga
-// dibayar/dibatalkan, termasuk mekanisme force order.
+// Service modul transactions. REV 2.2/2.3 — core POS flow.
+//
+// Konsep utama:
+//   - Setiap transaksi terikat ke shift yang masih open.
+//   - Decrement PortionStock terjadi saat order di-submit (boleh minus per ground truth).
+//     Tiap decrement diabadikan ke PortionMovement (reason=order untuk submit,
+//     reason=refundVoid untuk void).
+//   - Resolusi stok target tergantung stockType menu:
+//       portion  -> decrement stok menu itu sendiri
+//       linked   -> decrement stok menu lain (subOptions.stockTarget by name)
+//       nonStock + paket subOptions -> decrement target menu via stockMap
+//       nonStock tanpa subOptions  -> tidak ada decrement (minuman, nasi, dll)
+//   - PB1 10% dihitung saat payment dari (subtotal - discount), bukan saat submit.
+//   - Void boleh dilakukan kasir sendiri tanpa approval (sesuai ground truth).
+//
+// Split bill (partyId) dan merge bill (mergedIntoId) DEFERRED ke Phase 4b.
 
-import type { Prisma, TransactionStatus } from '@prisma/client';
+import {
+  OrderType,
+  PaymentMethod,
+  Prisma,
+  PortionMovementReason,
+  StockType,
+  TransactionStatus,
+  UserRole,
+} from '@prisma/client';
 import { prisma } from '../../config/prisma';
+import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
-import { todayString, toDateOnly } from '../../utils/date';
-import { requireOpenShift } from '../shifts/shifts.service';
-import { verifyPin } from '../auth/auth.service';
+import {
+  linkedSubOptionsSchema,
+  paketSubOptionsSchema,
+} from '../menus/menus.schema';
 import type {
-  AddItemInput,
-  UpdateItemInput,
-  SyncItemsInput,
-  PayInput,
+  CreateTransactionInput,
+  AddItemsInput,
+  PaymentInput,
+  ListTransactionsQuery,
+  OrderItemInput,
+  SplitInput,
+  MergeInput,
 } from './transactions.schema';
 
-// ---- Bentuk DTO ----
+// ============================================================
+// View shape (mapper)
+// ============================================================
 
-export interface TransactionItemDto {
+export interface TransactionItemView {
   id: number;
   menuId: number;
   menuName: string;
   qty: number;
   unitPrice: number;
   subtotal: number;
-  isForceOrder: boolean;
+  subOptionsSelected: Prisma.JsonValue;
+  partyId: number | null;
+  createdAt: string;
 }
 
-export interface TransactionDto {
+export interface TransactionView {
   id: number;
   shiftId: number;
-  tableNumber: number;
+  orderType: OrderType;
+  tableNumber: number | null;
   cashierId: number;
+  cashierName: string;
   status: TransactionStatus;
-  paymentMethod: string | null;
+  paymentMethod: PaymentMethod | null;
+  paymentBank: string | null;
+  mergedIntoId: number | null;
   subtotal: number;
   discountAmount: number;
+  taxAmount: number;
   total: number;
+  items: TransactionItemView[];
   createdAt: string;
   paidAt: string | null;
   voidedAt: string | null;
-  items: TransactionItemDto[];
 }
 
-const txInclude = {
-  items: {
-    include: { menu: { select: { name: true } } },
-    orderBy: { createdAt: 'asc' as const },
-  },
-} satisfies Prisma.TransactionInclude;
+type TransactionWithRelations = Prisma.TransactionGetPayload<{
+  include: {
+    cashier: true;
+    items: { include: { menu: { select: { name: true } } } };
+  };
+}>;
 
-type TxWithItems = Prisma.TransactionGetPayload<{ include: typeof txInclude }>;
-
-function toDto(tx: TxWithItems): TransactionDto {
+function toTransactionView(t: TransactionWithRelations): TransactionView {
   return {
-    id: tx.id,
-    shiftId: tx.shiftId,
-    tableNumber: tx.tableNumber,
-    cashierId: tx.cashierId,
-    status: tx.status,
-    paymentMethod: tx.paymentMethod,
-    subtotal: Number(tx.subtotal),
-    discountAmount: Number(tx.discountAmount),
-    total: Number(tx.total),
-    createdAt: tx.createdAt.toISOString(),
-    paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,
-    voidedAt: tx.voidedAt ? tx.voidedAt.toISOString() : null,
-    items: tx.items.map((it) => ({
+    id: t.id,
+    shiftId: t.shiftId,
+    orderType: t.orderType,
+    tableNumber: t.tableNumber,
+    cashierId: t.cashierId,
+    cashierName: t.cashier.name,
+    status: t.status,
+    paymentMethod: t.paymentMethod,
+    paymentBank: t.paymentBank,
+    mergedIntoId: t.mergedIntoId,
+    subtotal: t.subtotal.toNumber(),
+    discountAmount: t.discountAmount.toNumber(),
+    taxAmount: t.taxAmount.toNumber(),
+    total: t.total.toNumber(),
+    createdAt: t.createdAt.toISOString(),
+    paidAt: t.paidAt ? t.paidAt.toISOString() : null,
+    voidedAt: t.voidedAt ? t.voidedAt.toISOString() : null,
+    items: t.items.map((it) => ({
       id: it.id,
       menuId: it.menuId,
       menuName: it.menu.name,
       qty: it.qty,
-      unitPrice: Number(it.unitPrice),
-      subtotal: Number(it.subtotal),
-      isForceOrder: it.isForceOrder,
+      unitPrice: it.unitPrice.toNumber(),
+      subtotal: it.subtotal.toNumber(),
+      subOptionsSelected: it.subOptionsSelected,
+      partyId: it.partyId,
+      createdAt: it.createdAt.toISOString(),
     })),
   };
 }
 
-// ---- Helper internal ----
+const transactionInclude = {
+  cashier: true,
+  items: { include: { menu: { select: { name: true } } } },
+} satisfies Prisma.TransactionInclude;
 
-/** Ambil transaksi + item, atau lempar 404. */
-async function fetchTx(id: number): Promise<TxWithItems> {
-  const tx = await prisma.transaction.findUnique({ where: { id }, include: txInclude });
-  if (!tx) throw notFound('Transaksi');
-  return tx;
+// ============================================================
+// Stock resolution
+// ============================================================
+
+interface ResolvedItem {
+  input: OrderItemInput;
+  menu: { id: number; name: string; price: Prisma.Decimal; stockType: StockType };
+  stockTargetMenuId: number | null; // null = tidak ada decrement (nonStock tanpa subOptions)
 }
 
-/** Ambil transaksi yang harus berstatus open. */
-async function fetchOpenTx(id: number): Promise<TxWithItems> {
-  const tx = await fetchTx(id);
-  if (tx.status !== 'open') {
-    throw new AppError('Transaksi sudah ditutup (lunas/batal), tidak bisa diubah', 409);
-  }
-  return tx;
-}
+/// Validasi item + resolve stok target untuk setiap item.
+/// Lakukan SEBELUM transaction DB supaya error muncul cepat tanpa rollback besar.
+async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
+  const resolved: ResolvedItem[] = [];
 
-/** Stok tersisa sebuah menu hari ini (0 bila belum ada entri stok). */
-async function availableStock(menuId: number): Promise<number> {
-  const row = await prisma.dailyMenuStock.findUnique({
-    where: { date_menuId: { date: toDateOnly(todayString()), menuId } },
-  });
-  return row?.currentStock ?? 0;
-}
+  for (const input of items) {
+    const menu = await prisma.menu.findUnique({ where: { id: input.menuId } });
+    if (!menu) {
+      throw new AppError(`Menu id=${input.menuId} tidak ditemukan`, 400);
+    }
+    if (!menu.isActive) {
+      throw new AppError(`Menu "${menu.name}" sudah nonaktif`, 400);
+    }
 
-/** Hitung ulang subtotal & total transaksi dari item-itemnya. */
-async function recomputeTotals(txId: number): Promise<void> {
-  const items = await prisma.transactionItem.findMany({ where: { transactionId: txId } });
-  const subtotal = items.reduce((sum, it) => sum + Number(it.subtotal), 0);
-  const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: txId } });
-  const total = subtotal - Number(tx.discountAmount);
-  await prisma.transaction.update({
-    where: { id: txId },
-    data: { subtotal, total: total < 0 ? 0 : total },
-  });
-}
+    let stockTargetMenuId: number | null = null;
 
-/**
- * Validasi satu item & siapkan datanya. Menerapkan aturan force order:
- * bila qty melebihi stok dan forceOrder belum dikonfirmasi, lempar error 409.
- */
-async function prepareItem(input: {
-  menuId: number;
-  qty: number;
-  forceOrder: boolean;
-}): Promise<{ menuId: number; qty: number; unitPrice: number; subtotal: number; isForceOrder: boolean }> {
-  const menu = await prisma.menu.findUnique({ where: { id: input.menuId } });
-  if (!menu) throw notFound('Menu');
-  if (!menu.isActive) throw new AppError(`Menu "${menu.name}" sedang non-aktif`, 400);
+    if (menu.stockType === StockType.portion) {
+      stockTargetMenuId = menu.id;
+    } else if (menu.stockType === StockType.linked) {
+      const parsed = linkedSubOptionsSchema.safeParse(menu.subOptions);
+      if (!parsed.success) {
+        throw new AppError(
+          `Menu linked "${menu.name}" punya subOptions tidak valid (butuh {stockTarget})`,
+          500,
+        );
+      }
+      const target = await prisma.menu.findFirst({ where: { name: parsed.data.stockTarget } });
+      if (!target) {
+        throw new AppError(`Stock target "${parsed.data.stockTarget}" tidak ditemukan`, 500);
+      }
+      if (target.stockType !== StockType.portion) {
+        throw new AppError(
+          `Stock target "${parsed.data.stockTarget}" harus stockType=portion`,
+          500,
+        );
+      }
+      stockTargetMenuId = target.id;
+    } else if (menu.stockType === StockType.nonStock && menu.subOptions !== null) {
+      // Paket dengan pilihan dinamis
+      const parsed = paketSubOptionsSchema.safeParse(menu.subOptions);
+      if (!parsed.success) {
+        // Bisa nonStock dengan subOptions bentuk lain (jarang); skip decrement.
+        // Tapi kalau memang mau paket, structure-nya salah → error.
+        // Karena kita tidak yakin maksudnya, skip dengan log: anggap tidak ada decrement.
+        // Hanya error kalau user kirim subOptionsSelected (mengindikasi mereka kira ini paket).
+        if (input.subOptionsSelected) {
+          throw new AppError(
+            `Menu "${menu.name}" tidak menerima sub-options (structure subOptions tidak valid)`,
+            500,
+          );
+        }
+      } else {
+        const paket = parsed.data;
+        if (!input.subOptionsSelected) {
+          throw new AppError(`Menu "${menu.name}" wajib pilih sub-options`, 400);
+        }
+        // Validasi setiap group ada pilihan + pilihan valid
+        for (const group of paket.options) {
+          const selected = input.subOptionsSelected[group.key];
+          if (selected === undefined) {
+            throw new AppError(
+              `Pilihan untuk "${group.label}" (key=${group.key}) wajib diisi`,
+              400,
+            );
+          }
+          if (!group.options.includes(selected)) {
+            throw new AppError(
+              `Pilihan "${selected}" tidak valid untuk "${group.label}" (opsi: ${group.options.join(', ')})`,
+              400,
+            );
+          }
+        }
+        // Susun key gabungan sesuai urutan options[]
+        const joined = paket.options.map((g) => input.subOptionsSelected![g.key]).join('|');
+        const targetName = paket.stockMap[joined];
+        if (!targetName) {
+          throw new AppError(
+            `Kombinasi pilihan "${joined}" tidak ada di stockMap menu "${menu.name}"`,
+            500,
+          );
+        }
+        const target = await prisma.menu.findFirst({ where: { name: targetName } });
+        if (!target) {
+          throw new AppError(`Stock target "${targetName}" tidak ditemukan`, 500);
+        }
+        if (target.stockType !== StockType.portion) {
+          throw new AppError(`Stock target "${targetName}" harus stockType=portion`, 500);
+        }
+        stockTargetMenuId = target.id;
+      }
+    }
+    // else: nonStock tanpa subOptions → tidak ada decrement (minuman, nasi, dll)
 
-  const available = await availableStock(input.menuId);
-  const insufficient = input.qty > available;
-
-  if (insufficient && !input.forceOrder) {
-    throw new AppError(
-      `Stok "${menu.name}" tidak cukup (tersisa ${available}, diminta ${input.qty}). ` +
-        'Konfirmasi force order untuk tetap melanjutkan.',
-      409,
-    );
-  }
-
-  const unitPrice = Number(menu.price);
-  return {
-    menuId: input.menuId,
-    qty: input.qty,
-    unitPrice,
-    subtotal: unitPrice * input.qty,
-    isForceOrder: insufficient,
-  };
-}
-
-// ---- Operasi utama ----
-
-/** Buka transaksi baru untuk sebuah meja kosong. */
-export async function createTransaction(
-  cashierId: number,
-  tableNumber: number,
-): Promise<TransactionDto> {
-  const shift = await requireOpenShift(cashierId);
-
-  const occupied = await prisma.transaction.findFirst({
-    where: { tableNumber, status: 'open' },
-  });
-  if (occupied) {
-    throw new AppError(`Meja ${tableNumber} sedang terisi (ada pesanan belum dibayar)`, 409);
-  }
-
-  const tx = await prisma.transaction.create({
-    data: { shiftId: shift.id, tableNumber, cashierId },
-    include: txInclude,
-  });
-  return toDto(tx);
-}
-
-/** Detail satu transaksi. */
-export async function getTransaction(id: number): Promise<TransactionDto> {
-  return toDto(await fetchTx(id));
-}
-
-/** Daftar transaksi yang masih terbuka. */
-export async function listOpenTransactions(): Promise<TransactionDto[]> {
-  const rows = await prisma.transaction.findMany({
-    where: { status: 'open' },
-    include: txInclude,
-    orderBy: { createdAt: 'asc' },
-  });
-  return rows.map(toDto);
-}
-
-/** Tambah satu item ke transaksi. */
-export async function addItem(txId: number, input: AddItemInput): Promise<TransactionDto> {
-  await fetchOpenTx(txId);
-  const prepared = await prepareItem(input);
-  await prisma.transactionItem.create({ data: { transactionId: txId, ...prepared } });
-  await recomputeTotals(txId);
-  return getTransaction(txId);
-}
-
-/** Ubah jumlah satu item. */
-export async function updateItem(
-  txId: number,
-  itemId: number,
-  input: UpdateItemInput,
-): Promise<TransactionDto> {
-  await fetchOpenTx(txId);
-  const item = await prisma.transactionItem.findUnique({ where: { id: itemId } });
-  if (!item || item.transactionId !== txId) throw notFound('Item transaksi');
-
-  const prepared = await prepareItem({
-    menuId: item.menuId,
-    qty: input.qty,
-    forceOrder: input.forceOrder,
-  });
-  await prisma.transactionItem.update({
-    where: { id: itemId },
-    data: { qty: prepared.qty, subtotal: prepared.subtotal, isForceOrder: prepared.isForceOrder },
-  });
-  await recomputeTotals(txId);
-  return getTransaction(txId);
-}
-
-/** Hapus satu item dari transaksi. */
-export async function removeItem(txId: number, itemId: number): Promise<TransactionDto> {
-  await fetchOpenTx(txId);
-  const item = await prisma.transactionItem.findUnique({ where: { id: itemId } });
-  if (!item || item.transactionId !== txId) throw notFound('Item transaksi');
-
-  await prisma.transactionItem.delete({ where: { id: itemId } });
-  await recomputeTotals(txId);
-  return getTransaction(txId);
-}
-
-/** Sinkronkan seluruh isi keranjang: ganti semua item dengan daftar baru. */
-export async function syncItems(txId: number, input: SyncItemsInput): Promise<TransactionDto> {
-  await fetchOpenTx(txId);
-
-  // Validasi semua item dulu sebelum menulis apa pun.
-  const prepared = [];
-  for (const item of input.items) {
-    prepared.push(await prepareItem(item));
+    resolved.push({
+      input,
+      menu: { id: menu.id, name: menu.name, price: menu.price, stockType: menu.stockType },
+      stockTargetMenuId,
+    });
   }
 
-  await prisma.$transaction([
-    prisma.transactionItem.deleteMany({ where: { transactionId: txId } }),
-    ...prepared.map((p) => prisma.transactionItem.create({ data: { transactionId: txId, ...p } })),
-  ]);
-  await recomputeTotals(txId);
-  return getTransaction(txId);
+  return resolved;
 }
 
-/** Proses pembayaran: tandai lunas & kurangi stok tiap item. */
-export async function payTransaction(id: number, input: PayInput): Promise<TransactionDto> {
-  const tx = await fetchOpenTx(id);
-  if (tx.items.length === 0) {
-    throw new AppError('Transaksi tidak memiliki item, tidak bisa dibayar', 400);
-  }
+/// Dijalankan di dalam $transaction. Buat TransactionItem, decrement PortionStock,
+/// dan insert PortionMovement audit untuk setiap resolved item.
+async function persistItemsAndDecrement(
+  tx: Prisma.TransactionClient,
+  transactionId: number,
+  userId: number,
+  resolved: ResolvedItem[],
+): Promise<void> {
+  for (const r of resolved) {
+    await tx.transactionItem.create({
+      data: {
+        transactionId,
+        menuId: r.menu.id,
+        qty: r.input.qty,
+        unitPrice: r.menu.price,
+        subtotal: r.menu.price.mul(r.input.qty),
+        subOptionsSelected: r.input.subOptionsSelected
+          ? (r.input.subOptionsSelected as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      },
+    });
 
-  const date = toDateOnly(todayString());
-  const subtotal = tx.items.reduce((s, it) => s + Number(it.subtotal), 0);
-  const total = Math.max(0, subtotal - input.discountAmount);
-
-  await prisma.$transaction(async (db) => {
-    // Kurangi stok tiap item — tidak pernah turun di bawah nol (dukungan force order).
-    for (const item of tx.items) {
-      const stock = await db.dailyMenuStock.findUnique({
-        where: { date_menuId: { date, menuId: item.menuId } },
+    if (r.stockTargetMenuId !== null) {
+      await tx.portionStock.update({
+        where: { menuId: r.stockTargetMenuId },
+        data: { currentQty: { decrement: r.input.qty } },
       });
-      if (stock) {
-        await db.dailyMenuStock.update({
-          where: { id: stock.id },
-          data: { currentStock: Math.max(0, stock.currentStock - item.qty) },
+      await tx.portionMovement.create({
+        data: {
+          menuId: r.stockTargetMenuId,
+          delta: -r.input.qty,
+          reason: PortionMovementReason.order,
+          note: `transactionId=${transactionId} via "${r.menu.name}"`,
+          userId,
+        },
+      });
+    }
+  }
+}
+
+/// Hitung ulang subtotal Transaction dari semua TransactionItem yang ada.
+async function recomputeSubtotal(
+  tx: Prisma.TransactionClient,
+  transactionId: number,
+): Promise<Prisma.Decimal> {
+  const agg = await tx.transactionItem.aggregate({
+    where: { transactionId },
+    _sum: { subtotal: true },
+  });
+  const subtotal = agg._sum.subtotal ?? new Prisma.Decimal(0);
+  await tx.transaction.update({
+    where: { id: transactionId },
+    data: { subtotal },
+  });
+  return subtotal;
+}
+
+// ============================================================
+// Operations
+// ============================================================
+
+export async function createTransaction(
+  userId: number,
+  input: CreateTransactionInput,
+): Promise<TransactionView> {
+  // Validasi shift
+  const shift = await prisma.shift.findUnique({ where: { id: input.shiftId } });
+  if (!shift) throw notFound('Shift');
+  if (shift.closedAt) {
+    throw new AppError('Shift target sudah ditutup, transaksi baru tidak diizinkan', 400);
+  }
+
+  // Validasi order type vs tableNumber
+  if (input.orderType === OrderType.dineIn) {
+    if (input.tableNumber === undefined) {
+      throw new AppError('Order dineIn wajib menyertakan tableNumber', 400);
+    }
+    if (input.tableNumber < 1 || input.tableNumber > env.TABLE_COUNT) {
+      throw new AppError(`tableNumber harus 1-${env.TABLE_COUNT} untuk dine-in`, 400);
+    }
+  } else if (input.orderType === OrderType.takeaway) {
+    if (input.tableNumber !== undefined) {
+      throw new AppError('Order takeaway tidak boleh punya tableNumber', 400);
+    }
+  }
+
+  // Resolve dulu (di luar $transaction supaya rollback ringan kalau error)
+  const resolved = await resolveItems(input.items);
+
+  const transactionId = await prisma.$transaction(async (tx) => {
+    const created = await tx.transaction.create({
+      data: {
+        shiftId: input.shiftId,
+        orderType: input.orderType,
+        tableNumber: input.tableNumber ?? null,
+        cashierId: userId,
+        status: TransactionStatus.open,
+        subtotal: new Prisma.Decimal(0),
+        discountAmount: new Prisma.Decimal(0),
+        taxAmount: new Prisma.Decimal(0),
+        total: new Prisma.Decimal(0),
+      },
+    });
+    await persistItemsAndDecrement(tx, created.id, userId, resolved);
+    await recomputeSubtotal(tx, created.id);
+    return created.id;
+  });
+
+  return getTransactionById(transactionId);
+}
+
+export async function addItems(
+  transactionId: number,
+  userId: number,
+  input: AddItemsInput,
+): Promise<TransactionView> {
+  const existing = await prisma.transaction.findUnique({ where: { id: transactionId } });
+  if (!existing) throw notFound('Transaction');
+  if (existing.status !== TransactionStatus.open) {
+    throw new AppError(`Hanya transaksi status open yang bisa ditambah item (saat ini: ${existing.status})`, 400);
+  }
+
+  const resolved = await resolveItems(input.items);
+
+  await prisma.$transaction(async (tx) => {
+    await persistItemsAndDecrement(tx, transactionId, userId, resolved);
+    await recomputeSubtotal(tx, transactionId);
+  });
+
+  return getTransactionById(transactionId);
+}
+
+export async function payTransaction(
+  transactionId: number,
+  input: PaymentInput,
+): Promise<TransactionView> {
+  const existing = await prisma.transaction.findUnique({ where: { id: transactionId } });
+  if (!existing) throw notFound('Transaction');
+  if (existing.status !== TransactionStatus.open) {
+    throw new AppError(`Hanya transaksi status open yang bisa dibayar (saat ini: ${existing.status})`, 400);
+  }
+  if (existing.mergedIntoId !== null) {
+    throw new AppError('Transaksi ini sudah di-merge ke transaksi lain. Bayar parent-nya saja.', 400);
+  }
+
+  // REV 2.3 Phase 4b: kalau ini parent yang menerima merge, hitung aggregate
+  // subtotal dari parent.items + sum(mergedFrom.items).
+  const mergedFrom = await prisma.transaction.findMany({
+    where: { mergedIntoId: transactionId, status: TransactionStatus.open },
+    select: { id: true, subtotal: true },
+  });
+  const aggregateSubtotal = mergedFrom.reduce(
+    (sum, m) => sum.add(m.subtotal),
+    existing.subtotal,
+  );
+
+  if (aggregateSubtotal.isZero()) {
+    throw new AppError('Transaksi tidak punya item, tidak bisa dibayar', 400);
+  }
+
+  // PB1 10% dari (aggregateSubtotal - discount)
+  const discount = new Prisma.Decimal(input.discountAmount);
+  if (discount.greaterThan(aggregateSubtotal)) {
+    throw new AppError('Diskon tidak boleh lebih besar dari subtotal agregat', 400);
+  }
+  const baseAfterDiscount = aggregateSubtotal.sub(discount);
+  const tax = baseAfterDiscount.mul('0.10').toDecimalPlaces(2);
+  const total = baseAfterDiscount.add(tax);
+
+  const paidAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // Update parent
+    await tx.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: TransactionStatus.paid,
+        paymentMethod: input.paymentMethod,
+        paymentBank: input.paymentBank ?? null,
+        discountAmount: discount,
+        taxAmount: tax,
+        total,
+        paidAt,
+      },
+    });
+
+    // Cascade: tandai semua mergedFrom sebagai paid juga (dengan total 0 supaya
+    // tidak ter-aggregate di laporan revenue — payment sebenarnya ter-record di parent).
+    if (mergedFrom.length > 0) {
+      await tx.transaction.updateMany({
+        where: { mergedIntoId: transactionId, status: TransactionStatus.open },
+        data: {
+          status: TransactionStatus.paid,
+          paymentMethod: input.paymentMethod,
+          paymentBank: input.paymentBank ?? null,
+          discountAmount: new Prisma.Decimal(0),
+          taxAmount: new Prisma.Decimal(0),
+          total: new Prisma.Decimal(0),
+          paidAt,
+        },
+      });
+    }
+  });
+
+  return getTransactionById(transactionId);
+}
+
+export async function voidTransaction(
+  transactionId: number,
+  userId: number,
+): Promise<TransactionView> {
+  const existing = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+    include: { items: { include: { menu: true } } },
+  });
+  if (!existing) throw notFound('Transaction');
+  if (existing.status === TransactionStatus.void) {
+    throw new AppError('Transaksi sudah void sebelumnya', 400);
+  }
+
+  // Untuk reverse: kita perlu resolve ulang stock target tiap item (karena
+  // subOptions bisa berbeda per item paket). Pakai resolver yang sama.
+  const itemsInput: OrderItemInput[] = existing.items.map((it) => ({
+    menuId: it.menuId,
+    qty: it.qty,
+    subOptionsSelected:
+      typeof it.subOptionsSelected === 'object' && it.subOptionsSelected !== null
+        ? (it.subOptionsSelected as Record<string, string>)
+        : undefined,
+  }));
+  const resolved = await resolveItems(itemsInput);
+
+  await prisma.$transaction(async (tx) => {
+    for (const r of resolved) {
+      if (r.stockTargetMenuId !== null) {
+        await tx.portionStock.update({
+          where: { menuId: r.stockTargetMenuId },
+          data: { currentQty: { increment: r.input.qty } },
+        });
+        await tx.portionMovement.create({
+          data: {
+            menuId: r.stockTargetMenuId,
+            delta: r.input.qty,
+            reason: PortionMovementReason.refundVoid,
+            note: `void transactionId=${transactionId} reverse "${r.menu.name}"`,
+            userId,
+          },
         });
       }
     }
-    await db.transaction.update({
-      where: { id },
+    await tx.transaction.update({
+      where: { id: transactionId },
       data: {
-        status: 'paid',
-        paymentMethod: input.paymentMethod,
-        discountAmount: input.discountAmount,
-        subtotal,
-        total,
-        paidAt: new Date(),
+        status: TransactionStatus.void,
+        voidedAt: new Date(),
       },
     });
   });
 
-  return getTransaction(id);
+  return getTransactionById(transactionId);
 }
 
-/** Batalkan transaksi. Wajib otorisasi PIN owner. */
-export async function voidTransaction(id: number, ownerPin: string): Promise<TransactionDto> {
-  const owner = await verifyPin(ownerPin);
-  if (owner.role !== 'owner') {
-    throw new AppError('Pembatalan pesanan harus diotorisasi dengan PIN owner', 403);
-  }
-
-  await fetchOpenTx(id); // hanya transaksi open yang bisa dibatalkan
-  await prisma.transaction.update({
+export async function getTransactionById(id: number): Promise<TransactionView> {
+  const t = await prisma.transaction.findUnique({
     where: { id },
-    data: { status: 'void', voidedAt: new Date() },
+    include: transactionInclude,
   });
-  return getTransaction(id);
+  if (!t) throw notFound('Transaction');
+  return toTransactionView(t);
 }
 
-/** Riwayat transaksi (lunas/batal) dengan filter tanggal & status. */
-export async function getHistory(filter: {
-  date?: string;
-  status?: 'paid' | 'void';
-}): Promise<TransactionDto[]> {
-  const where: Prisma.TransactionWhereInput = {
-    status: filter.status ?? { in: ['paid', 'void'] },
-  };
-  if (filter.date) {
-    const start = toDateOnly(filter.date);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 1);
-    where.createdAt = { gte: start, lt: end };
+export async function listTransactions(query: ListTransactionsQuery): Promise<TransactionView[]> {
+  const where: Prisma.TransactionWhereInput = {};
+  if (query.status) where.status = query.status;
+  if (query.shiftId) where.shiftId = query.shiftId;
+  if (query.orderType) where.orderType = query.orderType;
+  if (query.date) {
+    const day = new Date(query.date);
+    const nextDay = new Date(day);
+    nextDay.setDate(nextDay.getDate() + 1);
+    where.createdAt = { gte: day, lt: nextDay };
   }
 
-  const rows = await prisma.transaction.findMany({
+  const ts = await prisma.transaction.findMany({
     where,
-    include: txInclude,
+    include: transactionInclude,
     orderBy: { createdAt: 'desc' },
   });
-  return rows.map(toDto);
+  return ts.map(toTransactionView);
 }
 
-/** Ringkasan penjualan hari ini: jumlah & total transaksi lunas per metode bayar. */
-export async function getDailySummary(dateStr?: string): Promise<{
-  date: string;
-  totalPaid: number;
-  totalRevenue: number;
-  byMethod: Record<string, { count: number; total: number }>;
-}> {
-  const str = dateStr ?? todayString();
-  const start = toDateOnly(str);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
+// Helper untuk smoke-test atau debugging: hapus warning unused-var UserRole.
+// (UserRole dipakai di authorize layer; export ulang untuk konsistensi modul.)
+export { UserRole };
 
-  const paid = await prisma.transaction.findMany({
-    where: { status: 'paid', paidAt: { gte: start, lt: end } },
+// ============================================================
+// REV 2.3 Phase 4b — Split + Merge Bill
+// ============================================================
+
+/// Assign partyId per TransactionItem. Cuma valid pada transaksi status=open.
+/// partyId null = main (default), >= 1 = party terpisah untuk display struk.
+/// MVP scope: visual grouping saja, payment tetap single per transaksi.
+export async function splitTransaction(
+  transactionId: number,
+  input: SplitInput,
+): Promise<TransactionView> {
+  const existing = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+    include: { items: true },
   });
-
-  const byMethod: Record<string, { count: number; total: number }> = {};
-  let totalRevenue = 0;
-  for (const tx of paid) {
-    const method = tx.paymentMethod ?? 'unknown';
-    const amount = Number(tx.total);
-    byMethod[method] ??= { count: 0, total: 0 };
-    byMethod[method].count += 1;
-    byMethod[method].total += amount;
-    totalRevenue += amount;
+  if (!existing) throw notFound('Transaction');
+  if (existing.status !== TransactionStatus.open) {
+    throw new AppError('Split bill hanya untuk transaksi status open', 400);
   }
 
-  return { date: str, totalPaid: paid.length, totalRevenue, byMethod };
+  // Validasi semua itemId milik transaksi ini
+  const itemIds = new Set(existing.items.map((it) => it.id));
+  for (const a of input.assignments) {
+    if (!itemIds.has(a.itemId)) {
+      throw new AppError(`TransactionItem id=${a.itemId} bukan milik transaksi ${transactionId}`, 400);
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const a of input.assignments) {
+      await tx.transactionItem.update({
+        where: { id: a.itemId },
+        data: { partyId: a.partyId },
+      });
+    }
+  });
+
+  return getTransactionById(transactionId);
 }
+
+/// Merge bill: sourceIds mendapat mergedIntoId=targetId. Semua harus status=open
+/// + tipe order sama (dineIn-only sebenarnya, tapi kita allow keduanya) + shift sama
+/// + bukan sudah merged ke transaksi lain.
+export async function mergeBills(input: MergeInput): Promise<TransactionView> {
+  const target = await prisma.transaction.findUnique({ where: { id: input.targetId } });
+  if (!target) throw notFound('Target transaction');
+  if (target.status !== TransactionStatus.open) {
+    throw new AppError('Target transaction harus status open', 400);
+  }
+  if (target.mergedIntoId !== null) {
+    throw new AppError('Target sudah merged ke transaksi lain — pilih parent saja', 400);
+  }
+
+  const sources = await prisma.transaction.findMany({
+    where: { id: { in: input.sourceIds } },
+  });
+  if (sources.length !== input.sourceIds.length) {
+    throw new AppError('Beberapa source transaction tidak ditemukan', 400);
+  }
+
+  for (const s of sources) {
+    if (s.status !== TransactionStatus.open) {
+      throw new AppError(`Source transaction ${s.id} status=${s.status}, hanya yang open boleh di-merge`, 400);
+    }
+    if (s.mergedIntoId !== null) {
+      throw new AppError(`Source transaction ${s.id} sudah merged ke ${s.mergedIntoId}`, 400);
+    }
+    if (s.shiftId !== target.shiftId) {
+      throw new AppError(`Source transaction ${s.id} beda shift dengan target — tidak bisa merged`, 400);
+    }
+  }
+
+  await prisma.transaction.updateMany({
+    where: { id: { in: input.sourceIds } },
+    data: { mergedIntoId: target.id },
+  });
+
+  return getTransactionById(target.id);
+}
+

@@ -1,29 +1,40 @@
-// Skema validasi input modul manajemen pengguna.
+// Zod schema untuk modul users. REV 2.3:
+//   - PIN boleh duplikat antar pegawai (drop unique validation di service).
+//   - 3 role: owner / cashier / waiter (kitchen sudah dihapus).
 
 import { z } from 'zod';
+import { UserRole } from '@prisma/client';
+
+const nameField = z
+  .string()
+  .trim()
+  .min(1, 'Nama wajib diisi')
+  .max(100, 'Nama maksimal 100 karakter');
 
 const pinField = z
   .string()
-  .length(6, 'PIN harus 6 digit')
-  .regex(/^\d{6}$/, 'PIN hanya boleh berisi angka');
+  .regex(/^\d{6}$/, 'PIN harus 6 digit angka');
 
-const roleField = z.enum(['owner', 'cashier', 'kitchen']);
+const roleField = z.nativeEnum(UserRole, {
+  errorMap: () => ({ message: 'Role harus owner, cashier, atau waiter' }),
+});
 
 export const createUserSchema = z.object({
-  name: z.string().min(1, 'Nama wajib diisi').max(100),
+  name: nameField,
   pin: pinField,
   role: roleField,
-  isActive: z.boolean().optional().default(true),
 });
 
 export const updateUserSchema = z
   .object({
-    name: z.string().min(1).max(100).optional(),
+    name: nameField.optional(),
     pin: pinField.optional(),
     role: roleField.optional(),
     isActive: z.boolean().optional(),
   })
-  .refine((d) => Object.keys(d).length > 0, { message: 'Minimal satu field harus diisi' });
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: 'Minimal satu field harus diisi untuk update',
+  });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

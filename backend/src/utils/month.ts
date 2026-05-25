@@ -2,7 +2,7 @@
 
 import { toDateOnly } from './date';
 
-/** Rentang [start, end) sebuah bulan — start tanggal 1, end tanggal 1 bulan berikutnya. */
+/** Rentang [start, end) sebuah bulan - start tanggal 1, end tanggal 1 bulan berikutnya. */
 export function monthRange(month: string): { start: Date; end: Date } {
   const start = toDateOnly(`${month}-01`);
   const end = new Date(start);

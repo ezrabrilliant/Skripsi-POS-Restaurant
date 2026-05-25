@@ -1,3 +1,6 @@
+// REV 2.3 pages index. Drop ReportsPage (OwnerDashboard covers reporting).
+// New: PurchasesPage, BillsPage, 3 dashboard per role.
+
 export { default as LoginPage } from './LoginPage'
 export { default as POSPage } from './POSPage'
 export { default as TablesPage } from './TablesPage'
@@ -6,4 +9,10 @@ export { default as SettlementPage } from './SettlementPage'
 export { default as StockPage } from './StockPage'
 export { default as MenuPage } from './MenuPage'
 export { default as UsersPage } from './UsersPage'
-export { default as ReportsPage } from './ReportsPage'
+export { default as PurchasesPage } from './PurchasesPage'
+export { default as BillsPage } from './BillsPage'
+
+// REV 2.3: 3 dashboard per role
+export { default as OwnerDashboard } from './OwnerDashboard'
+export { default as CashierDashboard } from './CashierDashboard'
+export { default as WaiterDashboard } from './WaiterDashboard'

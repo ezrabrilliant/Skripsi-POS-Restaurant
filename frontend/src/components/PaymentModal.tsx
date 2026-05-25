@@ -1,205 +1,246 @@
-import { useState } from 'react'
-import { X, Check } from 'lucide-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
-import { transactionService } from '@/services/transactionService'
-import { useCartStore } from '@/stores/cartStore'
-import { formatCurrency, cn } from '@/lib/utils'
-import { PAYMENT_METHODS, PaymentMethod } from '@/types'
+// REV 2.3 PaymentModal — 6 payment methods + bank picker (EDC/transfer).
+// PB1 10% precision via calculatePB1 helper. Bank picker pakai datalist
+// dengan recent-banks localStorage. Mobile: grid 2-col vertical icon-label
+// supaya label tidak truncated.
 
-interface PaymentModalProps {
-  isOpen: boolean
-  totalAmount: number
-  onClose: () => void
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  Receipt,
+  Banknote,
+  CreditCard,
+  QrCode,
+  Bike,
+  Truck,
+  ArrowLeftRight,
+} from 'lucide-react'
+import { PAYMENT_METHODS, type PaymentMethod } from '@/types'
+import { formatCurrency, cn } from '@/lib/utils'
+import { calculatePB1 } from '@/lib/decimal'
+import { Dialog, Button, Input } from '@/design-system/primitives'
+
+interface PaymentFormData {
+  paymentMethod: PaymentMethod
+  paymentBank?: string
+  discountAmount: number
 }
 
-export default function PaymentModal({ isOpen, totalAmount, onClose }: PaymentModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [amountPaid, setAmountPaid] = useState<string>('')
-  const queryClient = useQueryClient()
-  
-  const { items, tableNumber, transactionId, notes, clearCart } = useCartStore()
-  
-  const saveAndPayMutation = useMutation({
-    mutationFn: async () => {
-      let txId = transactionId
-      
-      // Prepare items for API
-      const apiItems = items.map(item => ({
-        menuId: item.menuId,
-        quantity: item.quantity,
-        notes: item.notes,
-        forceOrder: item.isForceOrder,
-      }))
-      
-      // If no transaction exists, create one first
-      if (!txId) {
-        const tx = await transactionService.createTransaction({
-          tableNumber,
-          notes,
-        })
-        txId = tx.id
-        // Sync items if any
-        if (apiItems.length > 0) {
-          await transactionService.syncItems(txId, apiItems)
-        }
-      } else {
-        // Update existing transaction - sync all items at once
-        await transactionService.syncItems(txId, apiItems)
-      }
-      
-      // Process payment
-      const paid = await transactionService.processPayment(txId, {
-        paymentMethod,
-        amountPaid: Number(amountPaid) || totalAmount,
-      })
-      
-      return paid
-    },
-    onSuccess: (data) => {
-      toast.success('Pembayaran berhasil!')
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['tableStatuses'] })
-      queryClient.invalidateQueries({ queryKey: ['menus'] })
-      clearCart()
-      onClose()
-      
-      // Show change amount for cash
-      if (paymentMethod === 'cash' && data.changeAmount > 0) {
-        toast(`Kembalian: ${formatCurrency(data.changeAmount)}`, {
-          duration: 5000,
-          icon: '💵',
-        })
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Gagal memproses pembayaran')
-    },
-  })
-  
-  const handlePayment = () => {
-    const paid = Number(amountPaid) || totalAmount
-    
-    if (paymentMethod === 'cash' && paid < totalAmount) {
-      toast.error('Jumlah bayar kurang dari total')
-      return
-    }
-    
-    saveAndPayMutation.mutate()
+interface Props {
+  subtotal: number
+  knownBanks?: string[]
+  onClose: () => void
+  onConfirm: (data: PaymentFormData) => void
+  isSubmitting?: boolean
+}
+
+const METHOD_ICON: Record<PaymentMethod, typeof Banknote> = {
+  cash: Banknote,
+  edc: CreditCard,
+  qris: QrCode,
+  gojek: Bike,
+  grab: Truck,
+  transfer: ArrowLeftRight,
+}
+
+const RECENT_BANKS_KEY = 'pos.recent-banks'
+const RECENT_BANKS_MAX = 6
+
+function loadRecentBanks(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_BANKS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : []
+  } catch {
+    return []
   }
-  
-  const quickAmounts = [
-    totalAmount,
-    Math.ceil(totalAmount / 10000) * 10000,
-    Math.ceil(totalAmount / 50000) * 50000,
-    Math.ceil(totalAmount / 100000) * 100000,
-  ].filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
-  
-  const changeAmount = Math.max(0, (Number(amountPaid) || 0) - totalAmount)
-  
-  if (!isOpen) return null
-  
+}
+
+function saveRecentBank(bank: string) {
+  const cur = loadRecentBanks()
+  const next = [bank, ...cur.filter((b) => b.toLowerCase() !== bank.toLowerCase())].slice(
+    0,
+    RECENT_BANKS_MAX
+  )
+  try {
+    localStorage.setItem(RECENT_BANKS_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function PaymentModal({
+  subtotal,
+  knownBanks: defaultBanks = ['BCA', 'Mandiri', 'BNI', 'BRI', 'CIMB'],
+  onClose,
+  onConfirm,
+  isSubmitting,
+}: Props) {
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [paymentBank, setPaymentBank] = useState('')
+  const [discountAmount, setDiscountAmount] = useState(0)
+  const [recentBanks, setRecentBanks] = useState<string[]>([])
+
+  useEffect(() => {
+    setRecentBanks(loadRecentBanks())
+  }, [])
+
+  const selectedMethodMeta = PAYMENT_METHODS.find((m) => m.value === paymentMethod)
+  const needsBank = selectedMethodMeta?.needsBank ?? false
+
+  const { tax, total, base } = useMemo(
+    () => calculatePB1(subtotal, discountAmount),
+    [subtotal, discountAmount]
+  )
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (discountAmount > subtotal) return
+    if (needsBank && !paymentBank.trim()) return
+    const finalBank = needsBank ? paymentBank.trim() : undefined
+    if (finalBank) saveRecentBank(finalBank)
+    onConfirm({
+      paymentMethod,
+      paymentBank: finalBank,
+      discountAmount,
+    })
+  }
+
+  // Merge recent + default tanpa duplikat
+  const bankSuggestions = useMemo(() => {
+    const merged: string[] = []
+    for (const b of [...recentBanks, ...defaultBanks]) {
+      if (!merged.some((x) => x.toLowerCase() === b.toLowerCase())) merged.push(b)
+    }
+    return merged
+  }, [recentBanks, defaultBanks])
+
+  const submitDisabled =
+    isSubmitting || (needsBank && !paymentBank.trim()) || discountAmount > subtotal
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-200">
-          <h3 className="text-lg font-semibold text-neutral-800">
-            Pembayaran
-          </h3>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div className="p-4">
-          {/* Total */}
-          <div className="text-center mb-6">
-            <p className="text-sm text-neutral-500 mb-1">Total Tagihan</p>
-            <p className="text-3xl font-bold text-neutral-800">
-              {formatCurrency(totalAmount)}
-            </p>
-          </div>
-          
-          {/* Payment Methods */}
-          <div className="mb-6">
-            <p className="text-sm font-medium text-neutral-600 mb-2">Metode Pembayaran</p>
-            <div className="grid grid-cols-2 gap-2">
-              {PAYMENT_METHODS.map((method) => (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Pembayaran"
+      description={<><Receipt className="inline w-4 h-4 mr-1 -mt-0.5 text-primary-600" />Subtotal {formatCurrency(subtotal)}</>}
+      size="md"
+      preventOutsideClose={isSubmitting}
+      footer={
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          form="payment-form"
+          type="submit"
+          loading={isSubmitting}
+          disabled={submitDisabled}
+        >
+          {isSubmitting ? 'Memproses…' : `Konfirmasi · ${formatCurrency(total)}`}
+        </Button>
+      }
+    >
+      <form id="payment-form" onSubmit={handleSubmit} className="space-y-4">
+        {/* Payment method grid */}
+        <div>
+          <p className="text-label text-neutral-700 mb-2">Metode Pembayaran</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {PAYMENT_METHODS.map((m) => {
+              const Icon = METHOD_ICON[m.value]
+              const active = paymentMethod === m.value
+              return (
                 <button
-                  key={method.value}
-                  onClick={() => setPaymentMethod(method.value)}
+                  key={m.value}
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod(m.value)
+                    if (!m.needsBank) setPaymentBank('')
+                  }}
+                  aria-pressed={active}
                   className={cn(
-                    'px-4 py-3 rounded-lg border-2 font-medium transition-colors text-sm',
-                    paymentMethod === method.value
-                      ? 'border-primary-500 bg-primary-50 text-primary-600'
-                      : 'border-neutral-200 hover:border-neutral-300'
+                    'min-h-[72px] py-3 px-2 rounded-lg border text-body-sm font-medium transition-colors',
+                    'flex flex-col items-center justify-center gap-1.5',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+                    active
+                      ? 'bg-primary-50 border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
+                      : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100'
                   )}
                 >
-                  {method.label}
+                  <Icon className={cn('w-5 h-5', active ? 'text-primary-600' : 'text-neutral-500')} />
+                  <span className="leading-tight text-center">{m.label}</span>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
-          
-          {/* Amount Input (for cash) */}
-          {paymentMethod === 'cash' && (
-            <div className="mb-6">
-              <p className="text-sm font-medium text-neutral-600 mb-2">Jumlah Diterima</p>
-              <input
-                type="number"
-                value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
-                placeholder={formatCurrency(totalAmount)}
-                className="w-full px-4 py-3 text-xl font-semibold text-center bg-neutral-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              
-              {/* Quick Amount Buttons */}
-              <div className="flex gap-2 mt-2">
-                {quickAmounts.map((amount) => (
-                  <button
-                    key={amount}
-                    onClick={() => setAmountPaid(String(amount))}
-                    className="flex-1 px-2 py-2 text-sm bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-                  >
-                    {formatCurrency(amount)}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Change Amount */}
-              {changeAmount > 0 && (
-                <div className="mt-4 p-3 bg-success-50 rounded-lg text-center">
-                  <p className="text-sm text-success-600">Kembalian</p>
-                  <p className="text-xl font-bold text-success-700">
-                    {formatCurrency(changeAmount)}
-                  </p>
-                </div>
-              )}
-            </div>
+        </div>
+
+        {/* Bank picker (EDC/transfer) */}
+        {needsBank && (
+          <div>
+            <Input
+              label={`Bank (${selectedMethodMeta?.label})`}
+              list="known-banks"
+              type="text"
+              value={paymentBank}
+              onChange={(e) => setPaymentBank(e.target.value)}
+              placeholder="Mis. BCA, Mandiri…"
+              autoComplete="off"
+              required
+              helper={recentBanks.length > 0 ? 'Bank terakhir muncul di list autocomplete' : undefined}
+            />
+            <datalist id="known-banks">
+              {bankSuggestions.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
+          </div>
+        )}
+
+        {/* Discount */}
+        <Input
+          label="Diskon (opsional)"
+          type="number"
+          inputMode="numeric"
+          value={discountAmount || ''}
+          onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value) || 0))}
+          min={0}
+          max={subtotal}
+          step={1000}
+          placeholder="0"
+          error={discountAmount > subtotal ? 'Diskon tidak boleh melebihi subtotal.' : undefined}
+          helper="Pakai untuk pelanggan langganan / promo manual."
+        />
+
+        {/* Breakdown summary */}
+        <div className="bg-primary-50/50 border border-primary-100 rounded-xl p-3.5 space-y-1.5 tabular-nums">
+          <Row label="Subtotal" value={formatCurrency(subtotal)} muted />
+          {discountAmount > 0 && (
+            <Row label="Diskon" value={`− ${formatCurrency(discountAmount)}`} muted />
           )}
+          <Row label="Setelah diskon" value={formatCurrency(base)} muted />
+          <Row label="PB1 10%" value={formatCurrency(tax)} muted />
+          <div className="pt-2 mt-1 border-t border-primary-200">
+            <Row label="Total Bayar" value={formatCurrency(total)} bold />
+          </div>
         </div>
-        
-        {/* Footer */}
-        <div className="p-4 bg-neutral-50 border-t border-neutral-200">
-          <button
-            onClick={handlePayment}
-            disabled={saveAndPayMutation.isPending}
-            className="w-full px-4 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {saveAndPayMutation.isPending ? (
-              'Memproses...'
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                Konfirmasi Pembayaran
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function Row({ label, value, muted, bold }: { label: string; value: string; muted?: boolean; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-baseline">
+      <span className={cn('text-body-sm', muted ? 'text-neutral-600' : 'text-neutral-900', bold && 'font-semibold')}>
+        {label}
+      </span>
+      <span
+        className={cn(
+          'text-body',
+          bold ? 'font-bold text-primary-700 text-title' : 'font-medium text-neutral-900'
+        )}
+      >
+        {value}
+      </span>
     </div>
   )
 }

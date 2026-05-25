@@ -1,20 +1,17 @@
-// Skema validasi input untuk modul auth.
+// Zod schema untuk modul auth. REV 2.3: login form 2 field input nama + PIN murni.
+// Tidak ada lagi pre-fetch list pegawai atau "pilih dari daftar".
 
 import { z } from 'zod';
 
-// PIN: tepat 6 digit angka.
-const pinField = z
-  .string()
-  .length(6, 'PIN harus 6 digit')
-  .regex(/^\d{6}$/, 'PIN hanya boleh berisi angka');
-
 export const loginSchema = z.object({
-  pin: pinField,
-});
-
-export const verifyPinSchema = z.object({
-  pin: pinField,
+  name: z
+    .string({ required_error: 'Nama pengguna wajib diisi' })
+    .trim()
+    .min(1, 'Nama pengguna wajib diisi')
+    .max(100, 'Nama pengguna maksimal 100 karakter'),
+  pin: z
+    .string({ required_error: 'PIN wajib diisi' })
+    .regex(/^\d{6}$/, 'PIN harus 6 digit angka'),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type VerifyPinInput = z.infer<typeof verifyPinSchema>;

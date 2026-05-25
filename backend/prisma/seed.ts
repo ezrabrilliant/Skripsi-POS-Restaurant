@@ -1,107 +1,184 @@
-// Seeder data awal. Dijalankan dengan: npm run db:seed
-// Idempotent — user pakai upsert berdasarkan PIN; menu di-seed hanya bila tabel kosong.
+// Seeder data awal REV 2.2. Dijalankan dengan: npm run db:seed
+//
+// Yang di-seed:
+//   1. Users riil (Owner + 3 kasir + 2 waiter) dengan PIN default (boleh duplikat).
+//   2. Menu catalog (60 item: stok porsi + linked + non-stok + 5 paket).
+//   3. PortionStock untuk setiap menu stockType=portion (currentQty=0 awal, opening=0).
+//   4. RawMaterial awal (13 item: bahan_pokok/bahan_segar yang di-track + bumbu_dasar yang log only).
+//   5. Vendor awal (3 vendor contoh: Pasar Pagi, Bu Sari, Toko Pak Budi).
+//
+// REV 2.2 catatan: BulkStock + BulkStockKind dihapus. Diganti RawMaterial fleksibel
+// dengan is_tracked + category enum + unit varchar. Lihat docs/operasional-resto.md
+// seksi "Raw Materials" untuk daftar seed lengkap.
+//
+// Seed idempotent: user upserted by (name), menu hanya di-seed kalau tabel kosong,
+// raw_material upserted by (name), vendor upserted by (name+type).
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, StockType, RawMaterialCategory } from '@prisma/client';
+import { MENU_CATALOG } from './menu-catalog';
 
 const prisma = new PrismaClient();
 
+// 6 user riil. PIN boleh duplikat antar pegawai (identifikasi via nama).
+// REV 2.3 catatan: setiap login pegawai ketik nama manual (no list picker).
 const users = [
-  { name: 'Pak Budi (Pemilik)', pin: '100000', role: UserRole.owner },
-  { name: 'Siti (Kasir)', pin: '200000', role: UserRole.cashier },
-  { name: 'Dewi (Kasir)', pin: '200001', role: UserRole.cashier },
-  { name: 'Joko (Dapur)', pin: '300000', role: UserRole.kitchen },
+  { name: 'Owner', pin: '123456', role: UserRole.owner },
+  { name: 'Jason', pin: '111111', role: UserRole.cashier },
+  { name: 'Bryant', pin: '111111', role: UserRole.cashier },
+  { name: 'Chen Hong', pin: '111111', role: UserRole.cashier },
+  { name: 'Amel', pin: '222222', role: UserRole.waiter },
+  { name: 'Yanti', pin: '222222', role: UserRole.waiter },
 ];
 
-// Katalog menu Ayam Bakar Banjar Monosuko (docs/menu-ayam-bakar-banjar-monosuko.md)
-const menus: { name: string; category: string; price: number }[] = [
-  // Ayam Bakar
-  { name: '1 Ekor Ayam Bakar', category: 'Ayam Bakar', price: 120000 },
-  { name: 'Paha Ayam Bakar', category: 'Ayam Bakar', price: 30000 },
-  { name: 'Dada Ayam Bakar', category: 'Ayam Bakar', price: 30000 },
-  { name: 'Ati / Ampela Bakar', category: 'Ayam Bakar', price: 5000 },
-  { name: 'Kepala Ayam Bakar', category: 'Ayam Bakar', price: 2500 },
-  // Ayam Goreng
-  { name: '1 Ekor Ayam Goreng', category: 'Ayam Goreng', price: 120000 },
-  { name: 'Paha Ayam Goreng', category: 'Ayam Goreng', price: 30000 },
-  { name: 'Dada Ayam Goreng', category: 'Ayam Goreng', price: 30000 },
-  { name: 'Ati / Ampela Goreng', category: 'Ayam Goreng', price: 5000 },
-  { name: 'Kepala Ayam Goreng', category: 'Ayam Goreng', price: 2500 },
-  // Daging Sapi
-  { name: 'Daging Sapi Yakiniku', category: 'Daging Sapi', price: 125000 },
-  { name: 'Empal Goreng', category: 'Daging Sapi', price: 25000 },
-  // Aneka Seafood
-  { name: 'Udang Bakar', category: 'Aneka Seafood', price: 150000 },
-  { name: 'Gurame Bakar', category: 'Aneka Seafood', price: 125000 },
-  // Aneka Kuah
-  { name: 'Ayam Kuah Tauco', category: 'Aneka Kuah', price: 35000 },
-  { name: 'Semur Daging', category: 'Aneka Kuah', price: 30000 },
-  { name: 'Gulai Daging', category: 'Aneka Kuah', price: 30000 },
-  { name: 'Rawon', category: 'Aneka Kuah', price: 30000 },
-  { name: 'Garang Asem', category: 'Aneka Kuah', price: 30000 },
-  // Aneka Sayur
-  { name: 'Urap - Urap', category: 'Aneka Sayur', price: 12000 },
-  { name: 'Cah Kangkung', category: 'Aneka Sayur', price: 10000 },
-  { name: 'Sayur Asem', category: 'Aneka Sayur', price: 10000 },
-  // Penyetan
-  { name: 'Bakwan Penyet', category: 'Penyetan', price: 25000 },
-  { name: 'Empal Penyet', category: 'Penyetan', price: 25000 },
-  { name: '3T (Tahu Tempe Telur)', category: 'Penyetan', price: 20000 },
-  { name: 'Tahu Tempe Penyet', category: 'Penyetan', price: 15000 },
-  // Paketan
-  {
-    name: 'Paket A (Makan Ditempat) - Paha/Dada, Tahu Tempe, Sayur Asem, Nasi, Air Mineral/Teh Tawar',
-    category: 'Paketan',
-    price: 50000,
-  },
-  {
-    name: 'Paket B (TakeAway) - Paha/Dada, Tahu Tempe, Nasi Putih',
-    category: 'Paketan',
-    price: 40000,
-  },
-  // Lainnya
-  { name: 'Petai Goreng', category: 'Lainnya', price: 20000 },
-  { name: 'Tahu & Tempe Goreng', category: 'Lainnya', price: 12000 },
-  { name: 'Tahu Goreng', category: 'Lainnya', price: 10000 },
-  { name: 'Tempe Goreng', category: 'Lainnya', price: 10000 },
-  { name: 'Telur Mata Sapi', category: 'Lainnya', price: 10000 },
-  { name: 'Nasi', category: 'Lainnya', price: 10000 },
-  // Minuman
-  { name: 'Air Mineral', category: 'Minuman', price: 5000 },
-  { name: 'Teh Tawar Biasa', category: 'Minuman', price: 8000 },
-  { name: 'Teh Tawar Jumbo', category: 'Minuman', price: 12000 },
-  { name: 'Teh Manis Biasa', category: 'Minuman', price: 10000 },
-  { name: 'Teh Manis Jumbo', category: 'Minuman', price: 15000 },
-  { name: 'Es Sirup', category: 'Minuman', price: 10000 },
-  { name: 'Jeruk Nipis', category: 'Minuman', price: 10000 },
-  { name: 'Susu Kedelai', category: 'Minuman', price: 12000 },
-  { name: 'Teh Kendur/Tebu/Cincau', category: 'Minuman', price: 12000 },
-  { name: 'Es Degan', category: 'Minuman', price: 15000 },
-  { name: 'Jeruk Peras', category: 'Minuman', price: 15000 },
-  { name: 'Jeruk Murni', category: 'Minuman', price: 25000 },
-  { name: 'Minuman Sarang Burung', category: 'Minuman', price: 80000 },
+// Mapping string ke enum Prisma untuk MENU_CATALOG.stockType.
+const STOCK_TYPE_MAP: Record<string, StockType> = {
+  portion: StockType.portion,
+  linked: StockType.linked,
+  nonStock: StockType.nonStock,
+};
+
+// Raw materials awal sesuai tabel di docs/operasional-resto.md REV 2.3 seksi
+// "Raw Materials (Stok Bahan Baku) dan Reminder" + "Contoh raw materials (seed awal)".
+//
+// is_tracked=true  : muncul di reminder (Beras, Kangkung, Petai, Tahu, Tempe, Telur)
+// is_tracked=false : hanya log pengeluaran (Cabai, Bawang, Kemiri, Minyak, Daun Jeruk, Sereh)
+interface RawMaterialSeed {
+  name: string;
+  unit: string;
+  category: RawMaterialCategory;
+  isTracked: boolean;
+  minStock?: number;
+  freshnessDays?: number;
+}
+
+const rawMaterials: RawMaterialSeed[] = [
+  // is_tracked=true (muncul di reminder)
+  { name: 'Beras', unit: 'skala', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 1 },
+  { name: 'Kangkung', unit: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
+  { name: 'Petai', unit: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
+  { name: 'Tahu', unit: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
+  { name: 'Tempe', unit: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
+  { name: 'Telur', unit: 'butir', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 3 },
+
+  // is_tracked=false (hanya log pengeluaran, tidak monitoring stok)
+  { name: 'Cabai Rawit', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Bawang Merah', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Bawang Putih', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Kemiri', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Daun Jeruk', unit: 'ikat', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Sereh', unit: 'batang', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Minyak Goreng', unit: 'liter', category: RawMaterialCategory.bahanKering, isTracked: false },
 ];
 
-async function main() {
-  console.log('Menanam data user awal...');
+// Vendor awal sebagai contoh (opsional, bisa ditambah inline saat input purchase).
+const vendors = [
+  { name: 'Pasar Pagi Blok A', type: 'pasar' },
+  { name: 'Bu Sari', type: 'individu' },
+  { name: 'Toko Pak Budi', type: 'toko' },
+];
+
+async function seedUsers() {
+  console.log('Menanam user awal...');
   for (const u of users) {
-    await prisma.user.upsert({
-      where: { pin: u.pin },
-      update: { name: u.name, role: u.role },
-      create: u,
-    });
+    // PIN boleh duplikat, upsert by name (asumsi nama unik per resto).
+    const existing = await prisma.user.findFirst({ where: { name: u.name } });
+    if (existing) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { pin: u.pin, role: u.role, isActive: true },
+      });
+    } else {
+      await prisma.user.create({ data: u });
+    }
     console.log(`  ✓ ${u.name} (PIN ${u.pin}, role ${u.role})`);
   }
+}
 
+async function seedMenus() {
   const menuCount = await prisma.menu.count();
-  if (menuCount === 0) {
-    console.log('Menanam katalog menu...');
-    await prisma.menu.createMany({ data: menus });
-    console.log(`  ✓ ${menus.length} menu ditambahkan`);
-  } else {
+  if (menuCount > 0) {
     console.log(`Katalog menu sudah berisi ${menuCount} item — seed menu dilewati.`);
+    return;
   }
 
-  console.log('Seed selesai.');
+  console.log('Menanam katalog menu...');
+  for (const item of MENU_CATALOG) {
+    const menu = await prisma.menu.create({
+      data: {
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        stockType: STOCK_TYPE_MAP[item.stockType],
+        minStock: item.minStock ?? null,
+        imageUrl: item.imageUrl ?? null,
+        subOptions: item.subOptions ?? undefined,
+      },
+    });
+    if (item.stockType === 'portion') {
+      // REV 2.2: tambah minStock duplicate + opening_qty_today/date default 0/today.
+      await prisma.portionStock.create({
+        data: {
+          menuId: menu.id,
+          currentQty: 0,
+          minStock: item.minStock ?? 0,
+        },
+      });
+    }
+  }
+  console.log(`  ✓ ${MENU_CATALOG.length} menu ditambahkan`);
+  const portionCount = MENU_CATALOG.filter((m) => m.stockType === 'portion').length;
+  console.log(`  ✓ ${portionCount} PortionStock dibuat (qty awal 0)`);
+}
+
+async function seedRawMaterials() {
+  console.log('Menanam RawMaterial awal (REV 2.2)...');
+  for (const rm of rawMaterials) {
+    const existing = await prisma.rawMaterial.findFirst({ where: { name: rm.name } });
+    if (existing) {
+      console.log(`  · ${rm.name} sudah ada, dilewati`);
+      continue;
+    }
+    await prisma.rawMaterial.create({
+      data: {
+        name: rm.name,
+        unit: rm.unit,
+        category: rm.category,
+        isTracked: rm.isTracked,
+        stockQty: 0,
+        minStock: rm.minStock ?? null,
+        freshnessDays: rm.freshnessDays ?? null,
+      },
+    });
+    const trackMark = rm.isTracked ? 'tracked' : 'log-only';
+    console.log(`  ✓ ${rm.name} (${rm.unit}, ${rm.category}, ${trackMark})`);
+  }
+}
+
+async function seedVendors() {
+  console.log('Menanam Vendor awal (REV 2.1)...');
+  for (const v of vendors) {
+    const existing = await prisma.vendor.findFirst({
+      where: { name: v.name, type: v.type },
+    });
+    if (existing) {
+      console.log(`  · ${v.name} sudah ada, dilewati`);
+      continue;
+    }
+    await prisma.vendor.create({ data: v });
+    console.log(`  ✓ ${v.name} (${v.type})`);
+  }
+}
+
+async function main() {
+  await seedUsers();
+  await seedMenus();
+  await seedRawMaterials();
+  await seedVendors();
+  console.log('\nSeed selesai (REV 2.2). Login default:');
+  console.log('  Owner    → nama "Owner", PIN 123456');
+  console.log('  Kasir    → nama Jason/Bryant/Chen Hong, PIN 111111');
+  console.log('  Waiter   → nama Amel/Yanti, PIN 222222');
+  console.log('\nREV 2.3 catatan: form login = input nama + PIN murni (no list picker).');
 }
 
 main()

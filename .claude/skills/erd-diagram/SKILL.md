@@ -1,9 +1,9 @@
 ---
 name: erd-diagram
-description: Build Entity-Relationship Diagrams (ERD) in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix an ERD — or says "diagram relasi", "skema database", "model data", or lists tables/columns/foreign keys. Covers skripsi-typical conventions observed across 3 POS case studies (restoran cross-channel, supermarket ABC-VED, toko inventory control): crow's-foot notation, PK/FK markers in left column, snake_case field naming, supplementary data dictionary tables. Uses StarUML's native ER modeling types via staruml-mcp (`create_diagram ERDDiagram`, `create_element_with_view ERDEntity/ERDColumn`, `create_edge_with_view ERDRelationship`). Do not create an ERD without consulting this skill first.
+description: Build Entity-Relationship Diagrams (ERD) in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix an ERD - or says "diagram relasi", "skema database", "model data", or lists tables/columns/foreign keys. Covers skripsi-typical conventions observed across 3 POS case studies (restoran cross-channel, supermarket ABC-VED, toko inventory control): crow's-foot notation, PK/FK markers in left column, snake_case field naming, supplementary data dictionary tables. Uses StarUML's native ER modeling types via staruml-mcp (`create_diagram ERDDiagram`, `create_element_with_view ERDEntity/ERDColumn`, `create_edge_with_view ERDRelationship`). Do not create an ERD without consulting this skill first.
 ---
 
-# ERD Diagram — skripsi-praktis convention + StarUML MCP
+# ERD Diagram - skripsi-praktis convention + StarUML MCP
 
 Sumber:
 - 3 contoh skripsi POS di UK Petra (`docs/pdf-pages/`)
@@ -17,7 +17,7 @@ Sumber:
 
 ---
 
-## 1. Notasi — Crow's-foot (bukan Chen)
+## 1. Notasi - Crow's-foot (bukan Chen)
 
 **Semua 3 skripsi POS pakai crow's-foot notation**. Chen's (diamond relationship) tidak populer di skripsi database.
 
@@ -36,7 +36,7 @@ Artinya:
 
 ---
 
-## 2. Entity box — 2-column layout
+## 2. Entity box - 2-column layout
 
 **Observed dari 3 skripsi:**
 
@@ -53,9 +53,9 @@ Artinya:
 ```
 
 **Marker di kolom kiri:**
-- `PK` — Primary Key
-- `FK` — Foreign Key
-- (kosong) — atribut biasa
+- `PK` - Primary Key
+- `FK` - Foreign Key
+- (kosong) - atribut biasa
 - Jarang: `PK/FK` dual (composite key yang juga FK)
 
 **Field naming:**
@@ -79,7 +79,7 @@ Artinya:
 | Jenis | Notation | Contoh di skripsi |
 |---|---|---|
 | 1 : N | `||─────<` | `kategori 1 ── N menu` (satu kategori punya banyak menu) |
-| 1 : 1 | `||─────||` | `user 1 ── 1 profile` (jarang — biasanya digabung 1 tabel) |
+| 1 : 1 | `||─────||` | `user 1 ── 1 profile` (jarang - biasanya digabung 1 tabel) |
 | M : N | Harus via **junction/associative entity** | `menu M ── N promo` via `detail_promo` |
 
 **Wajib:** semua M:N di-resolve jadi 2x 1:N via junction entity. Crow's foot tidak support langsung M:N.
@@ -88,11 +88,11 @@ Artinya:
 - resto: `detail_promo` = junction (menu × promo) dengan kolom `detail_id PK`, `menu_id FK`, `promo_id FK`
 - resto: `detail_transaksi` = junction (transaksi × menu) dengan kolom `detail_id PK`, `menu_id FK`, `transaksi_id FK`, `qty`, `subtotal`, `harga`, `detail_diskon`
 
-Junction boleh punya atribut tambahan (qty, price_at_moment) — **sangat umum** di POS.
+Junction boleh punya atribut tambahan (qty, price_at_moment) - **sangat umum** di POS.
 
 ---
 
-## 4. Tipe data — simple SQL types
+## 4. Tipe data - simple SQL types
 
 Dari skripsi observed:
 
@@ -105,9 +105,9 @@ Dari skripsi observed:
 | `Timestamp` atau `DATETIME` | Tanggal + jam: `created_at`, `paid_at`, `tgl_transaksi` |
 | `Boolean` | Flag yes/no |
 | `Decimal(p,s)` | Nominal uang presisi: `harga Decimal(10,2)`, `total Decimal(12,2)` |
-| `Enum('a','b','c')` | Status, tipe: `role ENUM('owner','cashier','kitchen')` — implementasi sebagai Varchar kalau DBMS tidak support |
+| `Enum('a','b','c')` | Status, tipe: `role ENUM('owner','cashier','kitchen')` - implementasi sebagai Varchar kalau DBMS tidak support |
 
-**Skripsi lebih prefer** `Integer` buat harga/total (bukan Decimal). Acceptable — tapi untuk production prefer Decimal. Ikuti scope skripsi.
+**Skripsi lebih prefer** `Integer` buat harga/total (bukan Decimal). Acceptable - tapi untuk production prefer Decimal. Ikuti scope skripsi.
 
 ---
 
@@ -154,7 +154,7 @@ Di StarUML kita hanya bangun ERD; data dictionary ditulis manual di naskah Bab 3
 
 ---
 
-## 7. Build di StarUML via staruml-mcp — PAKAI MERMAID
+## 7. Build di StarUML via staruml-mcp - PAKAI MERMAID
 
 **CRITICAL:** Untuk ERD, **gunakan `generate_diagram` dengan Mermaid code**, JANGAN build manual via `create_element_with_view` + `create_element` per-kolom. Alasan: `ERDColumn` yang dibuat via `create_element` tersimpan di `ownedElements` field, BUKAN `columns` field yang dipakai compartment view → kolom tidak render di diagram, entity box terlihat kosong.
 
@@ -194,13 +194,13 @@ mcp__staruml__generate_diagram code="erDiagram
 ```
 
 **Syntax Mermaid erDiagram:**
-- `entity_name { TYPE field_name MARKER }` — MARKER: `PK`, `FK`, `UK` (atau kombinasi `PK,FK`)
+- `entity_name { TYPE field_name MARKER }` - MARKER: `PK`, `FK`, `UK` (atau kombinasi `PK,FK`)
 - Tipe data umum: `UUID`, `VARCHAR`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `DATE`, `TIMESTAMP`, `TEXT`, `FLOAT`
 - Relasi cardinality:
     - `||--||` = 1:1 (exactly one : exactly one)
     - `||--o{` = 1:N (exactly one : zero-or-many)
     - `||--|{` = 1:N (exactly one : one-or-many)
-    - `}o--o{` = M:N (many to many — tapi di ERD proper harus di-resolve via junction entity)
+    - `}o--o{` = M:N (many to many - tapi di ERD proper harus di-resolve via junction entity)
 - Label: `: 'relation label'` (pakai single quote kalau ada spasi)
 
 ### Workflow lengkap
@@ -210,7 +210,7 @@ mcp__staruml__generate_diagram code="erDiagram
    mcp__staruml__create_element type=ERDDataModel parentId=<projectId> name="Data Model"
    ```
 
-2. **Generate ERD via Mermaid** — akan membuat ERDDiagram baru otomatis dengan nama default "ER Diagram by Mermaid" dan parent "Data Model by Mermaid".
+2. **Generate ERD via Mermaid** - akan membuat ERDDiagram baru otomatis dengan nama default "ER Diagram by Mermaid" dan parent "Data Model by Mermaid".
 
 3. **Rename ke nama yang meaningful**:
    ```
@@ -247,15 +247,15 @@ Approach ini menghasilkan entity box kosong. **Memory `feedback_erd_use_mermaid.
 4. ✅ Field **snake_case konsisten**
 5. ✅ **Tipe data set** (Integer / Varchar / Decimal / Date / Timestamp / Boolean)
 6. ✅ **Cardinality crow's-foot** di kedua endpoint relasi
-7. ✅ Tidak ada entity terpisah (disconnected) — kecuali tabel master yang memang standalone (contoh: kategori)
+7. ✅ Tidak ada entity terpisah (disconnected) - kecuali tabel master yang memang standalone (contoh: kategori)
 8. ✅ ID pattern konsisten (semua `id_x` ATAU semua `x_id`, jangan campur)
-9. ✅ Nama entity **singular noun snake_case** (`menu`, `user`, `transaksi`) — ATAU plural (`menus`, `users`) — pilih satu dan konsisten
+9. ✅ Nama entity **singular noun snake_case** (`menu`, `user`, `transaksi`) - ATAU plural (`menus`, `users`) - pilih satu dan konsisten
 10. ✅ Layout: related entity ditempatkan berdekatan, minim line crossing
 11. ✅ Data dictionary tables sudah drafted (di-output sebagai MD/docx terpisah, tidak di diagram)
 
 ---
 
-## 9. Worked example — POS Ayam Bakar Banjar Monosuko (backend plan)
+## 9. Worked example - POS Ayam Bakar Banjar Monosuko (backend plan)
 
 **8 entities** (dari DIAGRAM-SPEC.md):
 
@@ -309,7 +309,7 @@ PK: `id`, FK `paid_by → users`, category Enum(ingredients/utilities/salary/tra
 6. `shifts 1 ── 1 settlements` (shift_id UNIQUE)
 7. `menus 1 ──< daily_menu_stocks`
 8. `menus 1 ──< transaction_items`
-9. `transactions 1 ──< transaction_items` (composition — weak entity)
+9. `transactions 1 ──< transaction_items` (composition - weak entity)
 
 ---
 

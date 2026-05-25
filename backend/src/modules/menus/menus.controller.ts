@@ -1,46 +1,49 @@
-// Controller modul menu.
+// Controller modul menus. Tipis - parse query/body dengan Zod, delegasi ke service.
 
 import type { Request, Response } from 'express';
-import { createMenuSchema, updateMenuSchema, listMenuQuerySchema } from './menus.schema';
-import * as menuService from './menus.service';
+import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { parseId } from '../../utils/parseId';
+import {
+  createMenuSchema,
+  updateMenuSchema,
+  listQuerySchema,
+} from './menus.schema';
+import * as menusService from './menus.service';
 
-/** GET /api/menus — daftar menu (publik). */
-export async function list(req: Request, res: Response): Promise<void> {
-  const query = listMenuQuerySchema.parse(req.query);
-  const menus = await menuService.listMenus(query);
-  sendSuccess(res, menus, 'Daftar menu');
-}
+export const handleList = asyncHandler(async (req: Request, res: Response) => {
+  const query = listQuerySchema.parse(req.query);
+  const menus = await menusService.listMenus(query);
+  sendSuccess(res, { menus }, 'Daftar menu');
+});
 
-/** GET /api/menus/categories — daftar kategori unik (publik). */
-export async function categories(_req: Request, res: Response): Promise<void> {
-  const list = await menuService.getCategories();
-  sendSuccess(res, list, 'Daftar kategori menu');
-}
+export const handleDetail = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const menu = await menusService.getMenuById(id);
+  sendSuccess(res, { menu }, 'Detail menu');
+});
 
-/** GET /api/menus/:id — detail menu (publik). */
-export async function show(req: Request, res: Response): Promise<void> {
-  const menu = await menuService.getMenuById(parseId(req.params.id, 'ID menu'));
-  sendSuccess(res, menu, 'Detail menu');
-}
-
-/** POST /api/menus — tambah menu (owner). */
-export async function create(req: Request, res: Response): Promise<void> {
+export const handleCreate = asyncHandler(async (req: Request, res: Response) => {
   const input = createMenuSchema.parse(req.body);
-  const menu = await menuService.createMenu(input);
-  sendSuccess(res, menu, 'Menu berhasil ditambahkan', 201);
-}
+  const menu = await menusService.createMenu(input);
+  sendSuccess(res, { menu }, 'Menu berhasil dibuat', 201);
+});
 
-/** PUT /api/menus/:id — ubah menu (owner). */
-export async function update(req: Request, res: Response): Promise<void> {
+export const handleUpdate = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
   const input = updateMenuSchema.parse(req.body);
-  const menu = await menuService.updateMenu(parseId(req.params.id, 'ID menu'), input);
-  sendSuccess(res, menu, 'Menu berhasil diperbarui');
-}
+  const menu = await menusService.updateMenu(id, input);
+  sendSuccess(res, { menu }, 'Menu berhasil diperbarui');
+});
 
-/** DELETE /api/menus/:id — hapus menu (owner). */
-export async function remove(req: Request, res: Response): Promise<void> {
-  await menuService.deleteMenu(parseId(req.params.id, 'ID menu'));
-  sendSuccess(res, null, 'Menu berhasil dihapus');
-}
+export const handleDeactivate = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const menu = await menusService.deactivateMenu(id);
+  sendSuccess(res, { menu }, 'Menu berhasil dinonaktifkan');
+});
+
+export const handleReactivate = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const menu = await menusService.reactivateMenu(id);
+  sendSuccess(res, { menu }, 'Menu berhasil diaktifkan kembali');
+});

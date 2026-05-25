@@ -1,76 +1,189 @@
-// Logika bisnis modul menu: katalog menu siap jual.
+// Service modul menus. REV 2.2: 3 stockType (portion / linked / nonStock) +
+// subOptions JSON untuk paket. Sinkronisasi PortionStock saat:
+//   - create menu stockType=portion -> auto-create PortionStock {qty: 0, minStock}
+//   - update minStock pada menu portion -> sync ke PortionStock.minStock
+//   - update stockType beralih dari non-portion ke portion -> create PortionStock
+//   - update stockType beralih dari portion ke non-portion -> biarkan PortionStock
+//     (history tetap utuh; tidak akan auto-decrement lagi karena menu tidak portion)
+//   - soft delete (isActive=false) -> tidak menyentuh PortionStock
 
-import type { Menu, Prisma } from '@prisma/client';
+import { Prisma, StockType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError, notFound } from '../../utils/errors';
 import type { CreateMenuInput, UpdateMenuInput, ListMenuQuery } from './menus.schema';
 
-/** Bentuk menu untuk respons API — Decimal price diubah jadi number. */
-export type MenuDto = Omit<Menu, 'price'> & { price: number };
+// ============================================================
+// Public response shape (mapper)
+// ============================================================
 
-function toDto(menu: Menu): MenuDto {
-  return { ...menu, price: Number(menu.price) };
+interface MenuPortionStockView {
+  currentQty: number;
+  minStock: number;
+  openingQtyToday: number;
+  openingQtyDate: string; // YYYY-MM-DD
+  updatedAt: string;
 }
 
-/** Daftar menu dengan filter opsional kategori / status / pencarian nama. */
-export async function listMenus(query: ListMenuQuery): Promise<MenuDto[]> {
-  const where: Prisma.MenuWhereInput = {};
-  if (query.category) where.category = query.category;
-  if (query.isActive !== undefined) where.isActive = query.isActive;
-  if (query.search) where.name = { contains: query.search };
+export interface MenuView {
+  id: number;
+  name: string;
+  category: string;
+  price: number; // konversi dari Decimal supaya frontend bisa pakai langsung
+  stockType: StockType;
+  minStock: number | null;
+  imageUrl: string | null;
+  subOptions: Prisma.JsonValue;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  portionStock: MenuPortionStockView | null;
+}
 
+type MenuWithStock = Prisma.MenuGetPayload<{ include: { portionStock: true } }>;
+
+function toMenuView(menu: MenuWithStock): MenuView {
+  return {
+    id: menu.id,
+    name: menu.name,
+    category: menu.category,
+    price: menu.price.toNumber(),
+    stockType: menu.stockType,
+    minStock: menu.minStock,
+    imageUrl: menu.imageUrl,
+    subOptions: menu.subOptions,
+    isActive: menu.isActive,
+    createdAt: menu.createdAt.toISOString(),
+    updatedAt: menu.updatedAt.toISOString(),
+    portionStock: menu.portionStock
+      ? {
+          currentQty: menu.portionStock.currentQty,
+          minStock: menu.portionStock.minStock,
+          openingQtyToday: menu.portionStock.openingQtyToday,
+          openingQtyDate: menu.portionStock.openingQtyDate.toISOString().substring(0, 10),
+          updatedAt: menu.portionStock.updatedAt.toISOString(),
+        }
+      : null,
+  };
+}
+
+// ============================================================
+// CRUD
+// ============================================================
+
+export async function listMenus(query: ListMenuQuery): Promise<MenuView[]> {
   const menus = await prisma.menu.findMany({
-    where,
+    where: {
+      isActive: query.activeOnly ? true : undefined,
+      category: query.category,
+    },
     orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    include: { portionStock: true },
   });
-  return menus.map(toDto);
+  return menus.map(toMenuView);
 }
 
-/** Ambil satu menu berdasarkan id. */
-export async function getMenuById(id: number): Promise<MenuDto> {
-  const menu = await prisma.menu.findUnique({ where: { id } });
+export async function getMenuById(id: number): Promise<MenuView> {
+  const menu = await prisma.menu.findUnique({
+    where: { id },
+    include: { portionStock: true },
+  });
   if (!menu) throw notFound('Menu');
-  return toDto(menu);
+  return toMenuView(menu);
 }
 
-/** Daftar kategori unik yang ada di katalog. */
-export async function getCategories(): Promise<string[]> {
-  const rows = await prisma.menu.findMany({
-    distinct: ['category'],
-    select: { category: true },
-    orderBy: { category: 'asc' },
+export async function createMenu(input: CreateMenuInput): Promise<MenuView> {
+  const created = await prisma.$transaction(async (tx) => {
+    const menu = await tx.menu.create({
+      data: {
+        name: input.name,
+        category: input.category,
+        price: new Prisma.Decimal(input.price),
+        stockType: input.stockType,
+        minStock: input.minStock ?? null,
+        imageUrl: input.imageUrl ?? null,
+        subOptions: input.subOptions === undefined ? Prisma.JsonNull : (input.subOptions as Prisma.InputJsonValue),
+        isActive: input.isActive ?? true,
+      },
+    });
+    if (input.stockType === StockType.portion) {
+      await tx.portionStock.create({
+        data: {
+          menuId: menu.id,
+          currentQty: 0,
+          minStock: input.minStock ?? 0,
+        },
+      });
+    }
+    return menu.id;
   });
-  return rows.map((r) => r.category);
+  return getMenuById(created);
 }
 
-/** Tambah menu baru. */
-export async function createMenu(input: CreateMenuInput): Promise<MenuDto> {
-  const menu = await prisma.menu.create({ data: input });
-  return toDto(menu);
+export async function updateMenu(id: number, input: UpdateMenuInput): Promise<MenuView> {
+  const existing = await prisma.menu.findUnique({
+    where: { id },
+    include: { portionStock: true },
+  });
+  if (!existing) throw notFound('Menu');
+
+  const nextStockType = input.stockType ?? existing.stockType;
+  const nextMinStock = input.minStock ?? existing.minStock ?? 0;
+
+  await prisma.$transaction(async (tx) => {
+    const data: Prisma.MenuUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.price !== undefined) data.price = new Prisma.Decimal(input.price);
+    if (input.stockType !== undefined) data.stockType = input.stockType;
+    if (input.minStock !== undefined) data.minStock = input.minStock;
+    if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl;
+    if (input.subOptions !== undefined) {
+      data.subOptions =
+        input.subOptions === null ? Prisma.JsonNull : (input.subOptions as Prisma.InputJsonValue);
+    }
+    if (input.isActive !== undefined) data.isActive = input.isActive;
+
+    await tx.menu.update({ where: { id }, data });
+
+    // Sync PortionStock kalau stockType=portion (atau baru beralih jadi portion)
+    if (nextStockType === StockType.portion) {
+      if (existing.portionStock) {
+        await tx.portionStock.update({
+          where: { menuId: id },
+          data: { minStock: nextMinStock },
+        });
+      } else {
+        await tx.portionStock.create({
+          data: {
+            menuId: id,
+            currentQty: 0,
+            minStock: nextMinStock,
+          },
+        });
+      }
+    }
+    // Bila beralih dari portion -> non-portion: TIDAK menghapus PortionStock
+    // (data historis tetap diakses untuk laporan). Stok tidak akan ter-decrement
+    // lagi karena flow order akan skip menu non-portion.
+  });
+
+  return getMenuById(id);
 }
 
-/** Ubah menu. */
-export async function updateMenu(id: number, input: UpdateMenuInput): Promise<MenuDto> {
-  await getMenuById(id); // pastikan ada
-  const menu = await prisma.menu.update({ where: { id }, data: input });
-  return toDto(menu);
+export async function deactivateMenu(id: number): Promise<MenuView> {
+  const existing = await prisma.menu.findUnique({ where: { id } });
+  if (!existing) throw notFound('Menu');
+  await prisma.menu.update({ where: { id }, data: { isActive: false } });
+  return getMenuById(id);
 }
 
-/**
- * Hapus menu. Ditolak bila menu sudah dipakai pada transaksi atau stok harian
- * — untuk menjaga integritas riwayat. Sarankan non-aktifkan (isActive=false).
- */
-export async function deleteMenu(id: number): Promise<void> {
-  await getMenuById(id); // pastikan ada
-
-  const usedInItems = await prisma.transactionItem.count({ where: { menuId: id } });
-  const usedInStock = await prisma.dailyMenuStock.count({ where: { menuId: id } });
-  if (usedInItems > 0 || usedInStock > 0) {
-    throw new AppError(
-      'Menu sudah dipakai dalam transaksi atau stok harian. Non-aktifkan menu (isActive=false), jangan dihapus.',
-      409,
-    );
+// Reactivate disediakan terpisah untuk membedakan dengan update field lain
+export async function reactivateMenu(id: number): Promise<MenuView> {
+  const existing = await prisma.menu.findUnique({ where: { id } });
+  if (!existing) throw notFound('Menu');
+  if (existing.isActive) {
+    throw new AppError('Menu sudah aktif', 400);
   }
-
-  await prisma.menu.delete({ where: { id } });
+  await prisma.menu.update({ where: { id }, data: { isActive: true } });
+  return getMenuById(id);
 }

@@ -1,22 +1,30 @@
-// Route modul menu. Baca bersifat publik; tulis butuh peran owner.
+// Routes modul menus. REV 2.3 permission matrix:
+//   - GET (list/detail) -> public; semua role butuh lihat menu untuk POS.
+//   - POST / PUT / DELETE / reactivate -> owner only (CRUD master).
 
 import { Router } from 'express';
-import * as menuController from './menus.controller';
+import { UserRole } from '@prisma/client';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
-import { asyncHandler } from '../../utils/asyncHandler';
+import {
+  handleList,
+  handleDetail,
+  handleCreate,
+  handleUpdate,
+  handleDeactivate,
+  handleReactivate,
+} from './menus.controller';
 
 const router = Router();
 
-// Publik (read-only). '/categories' harus didaftarkan sebelum '/:id'
-// agar tidak tertangkap sebagai parameter id.
-router.get('/', asyncHandler(menuController.list));
-router.get('/categories', asyncHandler(menuController.categories));
-router.get('/:id', asyncHandler(menuController.show));
+// Public reads
+router.get('/', handleList);
+router.get('/:id', handleDetail);
 
-// Owner-only (write)
-router.post('/', authenticate, requireRole('owner'), asyncHandler(menuController.create));
-router.put('/:id', authenticate, requireRole('owner'), asyncHandler(menuController.update));
-router.delete('/:id', authenticate, requireRole('owner'), asyncHandler(menuController.remove));
+// Owner-only mutations
+router.post('/', authenticate, requireRole(UserRole.owner), handleCreate);
+router.put('/:id', authenticate, requireRole(UserRole.owner), handleUpdate);
+router.delete('/:id', authenticate, requireRole(UserRole.owner), handleDeactivate);
+router.post('/:id/reactivate', authenticate, requireRole(UserRole.owner), handleReactivate);
 
 export default router;

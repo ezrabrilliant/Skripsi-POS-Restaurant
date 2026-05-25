@@ -1,249 +1,395 @@
+// HistoryPage — REV 2.3 owner+kasir. List transaksi dengan filter status/date/orderType.
+// Mobile-first DataTable dengan card view + DropdownMenu actions (split/merge/void).
+// Click row untuk expand detail items + payment breakdown.
+
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Calendar, Receipt, ChevronRight, ArrowLeft } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  ChevronRight,
+  ChevronDown,
+  Ban,
+  Users,
+  GitMerge,
+  MoreVertical,
+  Filter,
+  Receipt,
+} from 'lucide-react'
 import { transactionService } from '@/services/transactionService'
-import { formatCurrency, formatDateTime, getTodayDate, cn } from '@/lib/utils'
-import type { Transaction } from '@/types'
+import SplitBillModal from '@/components/SplitBillModal'
+import MergeBillModal from '@/components/MergeBillModal'
+import { PAYMENT_LABEL, ORDER_TYPE_LABELS } from '@/types'
+import type { TransactionStatus, OrderType, Transaction } from '@/types'
+import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
+import {
+  Button,
+  Input,
+  Select,
+  Badge,
+  Skeleton,
+  EmptyState,
+  Sheet,
+  DropdownMenu,
+  type SelectOption,
+  type DropdownItem,
+} from '@/design-system/primitives'
+import { useToast } from '@/design-system/hooks/useToast'
+import { useConfirm } from '@/design-system/hooks/useConfirm'
+import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
+
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'Semua status' },
+  { value: 'open', label: 'Open' },
+  { value: 'paid', label: 'Dibayar' },
+  { value: 'void', label: 'Void' },
+]
+
+const ORDER_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'Semua tipe' },
+  { value: 'dineIn', label: 'Dine-in' },
+  { value: 'takeaway', label: 'Takeaway' },
+]
+
+const STATUS_TONE: Record<TransactionStatus, 'success' | 'warning' | 'neutral'> = {
+  paid: 'success',
+  open: 'warning',
+  void: 'neutral',
+}
 
 export default function HistoryPage() {
-  const [selectedDate, setSelectedDate] = useState(getTodayDate())
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [showMobileDetail, setShowMobileDetail] = useState(false)
-  
+  const qc = useQueryClient()
+  const toast = useToast()
+  const confirm = useConfirm()
+  const isMobile = useIsMobile()
+  const today = new Date().toISOString().substring(0, 10)
+  const [filterDate, setFilterDate] = useState(today)
+  const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all')
+  const [filterOrderType, setFilterOrderType] = useState<OrderType | 'all'>('all')
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
+  const [mergeTarget, setMergeTarget] = useState<Transaction | null>(null)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', selectedDate, statusFilter],
-    queryFn: () => transactionService.getTransactions({
-      date: selectedDate,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
+    queryKey: ['transactions', filterDate, filterStatus, filterOrderType],
+    queryFn: () =>
+      transactionService.list({
+        date: filterDate,
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        orderType: filterOrderType === 'all' ? undefined : filterOrderType,
+      }),
   })
-  
-  const { data: summary } = useQuery({
-    queryKey: ['todaySummary'],
-    queryFn: () => transactionService.getDailySummary(),
+
+  const voidMutation = useMutation({
+    mutationFn: (id: number) => transactionService.void(id),
+    onSuccess: () => {
+      toast.success('Transaksi dibatalkan (stok dikembalikan)')
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+    onError: (err: Error) => toast.error(err.message),
   })
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return <span className="px-2 py-0.5 bg-success-100 text-success-700 text-xs rounded-full">Lunas</span>
-      case 'open':
-        return <span className="px-2 py-0.5 bg-warning-100 text-warning-700 text-xs rounded-full">Open</span>
-      case 'void':
-        return <span className="px-2 py-0.5 bg-danger-100 text-danger-700 text-xs rounded-full">Batal</span>
-      default:
-        return null
+
+  const handleVoid = async (tx: Transaction) => {
+    if (tx.status === 'void') {
+      toast.info(`Tx #${tx.id} sudah void`)
+      return
     }
+    const ok = await confirm({
+      title: `Batalkan transaksi #${tx.id}?`,
+      description: 'Stok akan dikembalikan otomatis dan audit log tercatat. Tindakan tidak bisa di-undo.',
+      confirmText: 'Ya, Batalkan',
+      tone: 'danger',
+    })
+    if (!ok) return
+    voidMutation.mutate(tx.id)
   }
-  
-  const handleSelectTransaction = (tx: Transaction) => {
-    setSelectedTransaction(tx)
-    setShowMobileDetail(true)
-  }
-  
+
+  const totalRevenue = transactions
+    .filter((t) => t.status === 'paid')
+    .reduce((s, t) => s + t.total, 0)
+
+  const activeFilterCount =
+    (filterStatus !== 'all' ? 1 : 0) + (filterOrderType !== 'all' ? 1 : 0)
+
+  const filterContent = (
+    <div className="space-y-3">
+      <Input
+        label="Tanggal"
+        type="date"
+        value={filterDate}
+        onChange={(e) => setFilterDate(e.target.value)}
+      />
+      <Select
+        label="Status"
+        value={filterStatus}
+        onChange={(e) => setFilterStatus(e.target.value as TransactionStatus | 'all')}
+        options={STATUS_OPTIONS}
+      />
+      <Select
+        label="Tipe Order"
+        value={filterOrderType}
+        onChange={(e) => setFilterOrderType(e.target.value as OrderType | 'all')}
+        options={ORDER_TYPE_OPTIONS}
+      />
+    </div>
+  )
+
   return (
-    <div className="h-full flex flex-col md:flex-row">
-      {/* Left - Transaction List */}
-      <div className={cn(
-        "flex-1 md:w-1/2 md:border-r border-neutral-200 flex flex-col",
-        showMobileDetail && "hidden md:flex"
-      )}>
-        {/* Header */}
-        <div className="p-3 sm:p-4 bg-white border-b border-neutral-200">
-          <h1 className="text-lg sm:text-xl font-semibold text-neutral-800 mb-3 sm:mb-4">Riwayat Transaksi</h1>
-          
-          {/* Date Filter */}
-          <div className="flex gap-2 mb-3">
-            <div className="relative flex-1">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-neutral-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
+        <header className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="text-headline font-semibold text-neutral-900">Riwayat Transaksi</h1>
+            <p className="text-body-sm text-neutral-600">
+              {transactions.length} transaksi · total dibayar{' '}
+              <span className="font-medium text-neutral-900 tabular-nums">
+                {formatCurrency(totalRevenue)}
+              </span>
+            </p>
           </div>
-          
-          {/* Status Filter */}
-          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
-            {['all', 'paid', 'open', 'void'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={cn(
-                  'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap',
-                  statusFilter === status
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                )}
-              >
-                {status === 'all' ? 'Semua' : status === 'paid' ? 'Lunas' : status === 'open' ? 'Open' : 'Batal'}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Summary Cards */}
-        {selectedDate === getTodayDate() && summary && (
-          <div className="p-3 sm:p-4 bg-neutral-50 border-b border-neutral-200">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white p-2.5 sm:p-3 rounded-lg">
-                <p className="text-[10px] sm:text-xs text-neutral-500">Total Transaksi</p>
-                <p className="font-semibold text-neutral-800 text-sm sm:text-base">{summary.totalTransactions}</p>
-              </div>
-              <div className="bg-white p-2.5 sm:p-3 rounded-lg">
-                <p className="text-[10px] sm:text-xs text-neutral-500">Total Penjualan</p>
-                <p className="font-semibold text-primary-600 text-sm sm:text-base">{formatCurrency(summary.grandTotal)}</p>
-              </div>
-            </div>
+          {isMobile && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Filter className="w-4 h-4" />}
+              onClick={() => setFilterSheetOpen(true)}
+            >
+              Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </Button>
+          )}
+        </header>
+
+        {/* Filter desktop inline */}
+        {!isMobile && (
+          <div className="bg-white rounded-xl p-3 border border-neutral-200/60 grid grid-cols-3 gap-3">
+            {filterContent}
           </div>
         )}
-        
-        {/* Transaction List */}
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-neutral-200 h-16 sm:h-20 rounded-lg animate-pulse" />
-              ))}
+
+        {/* List */}
+        {isLoading ? (
+          <Skeleton className="h-64" />
+        ) : transactions.length === 0 ? (
+          <EmptyState
+            icon={<Receipt />}
+            title="Tidak ada transaksi"
+            description="Tidak ditemukan transaksi pada filter di atas."
+          />
+        ) : (
+          <div className="bg-white rounded-xl divide-y divide-neutral-100 border border-neutral-200/60 overflow-hidden">
+            {transactions.map((tx) => (
+              <TransactionRow
+                key={tx.id}
+                tx={tx}
+                expanded={expandedId === tx.id}
+                onToggle={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
+                onVoid={() => handleVoid(tx)}
+                onSplit={() => setSplitTarget(tx)}
+                onMerge={() => setMergeTarget(tx)}
+              />
+            ))}
+          </div>
+        )}
+
+        {splitTarget && (
+          <SplitBillModal
+            transaction={splitTarget}
+            onClose={() => setSplitTarget(null)}
+            onSuccess={() => {
+              setSplitTarget(null)
+              qc.invalidateQueries({ queryKey: ['transactions'] })
+            }}
+          />
+        )}
+        {mergeTarget && (
+          <MergeBillModal
+            targetTransaction={mergeTarget}
+            onClose={() => setMergeTarget(null)}
+            onSuccess={() => {
+              setMergeTarget(null)
+              qc.invalidateQueries({ queryKey: ['transactions'] })
+            }}
+          />
+        )}
+
+        {/* Filter Sheet mobile */}
+        <Sheet
+          open={filterSheetOpen}
+          onOpenChange={setFilterSheetOpen}
+          title="Filter Transaksi"
+          description="Sesuaikan kriteria pencarian."
+        >
+          <div className="px-4 py-3 space-y-3">
+            {filterContent}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="md"
+                fullWidth
+                onClick={() => {
+                  setFilterStatus('all')
+                  setFilterOrderType('all')
+                }}
+              >
+                Reset
+              </Button>
+              <Button variant="primary" size="md" fullWidth onClick={() => setFilterSheetOpen(false)}>
+                Terapkan
+              </Button>
             </div>
-          ) : transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-neutral-400">
-              <Receipt className="w-10 h-10 sm:w-12 sm:h-12 mb-2" />
-              <p className="text-sm">Tidak ada transaksi</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-neutral-100">
-              {transactions.map((tx) => (
-                <li key={tx.id}>
-                  <button
-                    onClick={() => handleSelectTransaction(tx)}
-                    className={cn(
-                      'w-full p-3 sm:p-4 text-left hover:bg-neutral-50 transition-colors flex items-center justify-between active:bg-neutral-100',
-                      selectedTransaction?.id === tx.id && 'bg-primary-50'
+          </div>
+        </Sheet>
+      </div>
+    </div>
+  )
+}
+
+function TransactionRow({
+  tx,
+  expanded,
+  onToggle,
+  onVoid,
+  onSplit,
+  onMerge,
+}: {
+  tx: Transaction
+  expanded: boolean
+  onToggle: () => void
+  onVoid: () => void
+  onSplit: () => void
+  onMerge: () => void
+}) {
+  const canSplitMerge = tx.status === 'open' && tx.mergedIntoId === null
+  const canVoid = tx.status !== 'void'
+
+  const menuItems: DropdownItem[] = []
+  if (canSplitMerge) {
+    menuItems.push(
+      { label: 'Split Bill', icon: <Users />, onSelect: onSplit },
+      { label: 'Merge Bill', icon: <GitMerge />, onSelect: onMerge }
+    )
+  }
+  if (canVoid) {
+    if (menuItems.length > 0) menuItems.push({ label: '', separator: true })
+    menuItems.push({ label: 'Batalkan Transaksi', icon: <Ban />, onSelect: onVoid, danger: true })
+  }
+
+  return (
+    <div className={cn(expanded && 'bg-neutral-50/50')}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left p-3 sm:p-4 flex items-center gap-2 hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-inset"
+      >
+        {expanded ? (
+          <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-neutral-900 tabular-nums">#{tx.id}</span>
+            <Badge tone="neutral" size="sm">
+              {ORDER_TYPE_LABELS[tx.orderType]}
+              {tx.tableNumber && ` · Meja ${tx.tableNumber}`}
+            </Badge>
+            <Badge tone={STATUS_TONE[tx.status]} size="sm">
+              {tx.status}
+            </Badge>
+            {tx.paymentMethod && (
+              <span className="text-caption text-neutral-500">
+                {PAYMENT_LABEL[tx.paymentMethod]}
+                {tx.paymentBank && ` · ${tx.paymentBank}`}
+              </span>
+            )}
+          </div>
+          <div className="text-caption text-neutral-500 mt-0.5">
+            {formatDateTime(tx.createdAt)} · {tx.cashierName}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-semibold text-neutral-900 tabular-nums">
+            {formatCurrency(tx.total || tx.subtotal)}
+          </p>
+          <p className="text-caption text-neutral-500">{tx.items.length} item</p>
+        </div>
+        {menuItems.length > 0 && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu
+              trigger={
+                <button
+                  type="button"
+                  aria-label="Aksi"
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              }
+              items={menuItems}
+              align="end"
+            />
+          </div>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="px-3 sm:px-4 pb-4 pl-9 sm:pl-10 -mt-1">
+          <div className="rounded-lg border border-neutral-200/60 bg-white p-3">
+            <ul className="text-body-sm space-y-1.5 mb-3">
+              {tx.items.map((it) => (
+                <li key={it.id} className="flex justify-between text-neutral-800 gap-2">
+                  <span className="min-w-0">
+                    {it.menuName} <span className="text-neutral-500 tabular-nums">× {it.qty}</span>
+                    {it.subOptionsSelected && (
+                      <span className="ml-1.5 text-caption text-primary-700">
+                        ({Object.values(it.subOptionsSelected).join(', ')})
+                      </span>
                     )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                        <span className="font-medium text-neutral-800 text-sm sm:text-base">Meja {tx.tableNumber}</span>
-                        {getStatusBadge(tx.status)}
-                      </div>
-                      <p className="text-xs sm:text-sm text-neutral-500 truncate">
-                        {formatDateTime(tx.createdAt)}
-                      </p>
-                      {tx.paymentMethod && (
-                        <p className="text-[10px] sm:text-xs text-neutral-400 mt-0.5 sm:mt-1">
-                          {tx.paymentMethod === 'cash' ? 'Tunai' : tx.paymentMethod.toUpperCase()}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right ml-2">
-                      <p className="font-semibold text-neutral-800 text-sm sm:text-base">
-                        {formatCurrency(tx.totalAmount)}
-                      </p>
-                      <ChevronRight className="w-4 h-4 text-neutral-400 mt-1 ml-auto" />
-                    </div>
-                  </button>
+                  </span>
+                  <span className="text-neutral-900 tabular-nums shrink-0">
+                    {formatCurrency(it.subtotal)}
+                  </span>
                 </li>
               ))}
             </ul>
-          )}
-        </div>
-      </div>
-      
-      {/* Right - Transaction Detail (Desktop: side panel, Mobile: full screen overlay) */}
-      <div className={cn(
-        "md:w-1/2 bg-white",
-        // Mobile: Full screen when shown
-        "fixed inset-0 z-50 md:relative md:z-auto",
-        showMobileDetail ? "block" : "hidden md:block"
-      )}>
-        {selectedTransaction ? (
-          <div className="h-full flex flex-col">
-            <div className="p-3 sm:p-4 border-b border-neutral-200">
-              {/* Mobile Back Button */}
-              <button
-                onClick={() => setShowMobileDetail(false)}
-                className="md:hidden flex items-center gap-2 text-neutral-600 mb-3"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Kembali</span>
-              </button>
-              
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base sm:text-lg font-semibold text-neutral-800">
-                  Detail Transaksi
-                </h2>
-                {getStatusBadge(selectedTransaction.status)}
+            <div className="text-body-sm text-neutral-700 space-y-0.5 pt-3 border-t border-neutral-100 tabular-nums">
+              <Row label="Subtotal" value={formatCurrency(tx.subtotal)} />
+              {tx.discountAmount > 0 && (
+                <Row label="Diskon" value={`− ${formatCurrency(tx.discountAmount)}`} tone="warning" />
+              )}
+              {tx.taxAmount > 0 && <Row label="PB1 10%" value={formatCurrency(tx.taxAmount)} />}
+              <div className="pt-1.5 mt-1 border-t border-neutral-100">
+                <Row label="Total" value={formatCurrency(tx.total)} bold />
               </div>
-              <p className="text-xs sm:text-sm text-neutral-500">
-                Meja {selectedTransaction.tableNumber} • {formatDateTime(selectedTransaction.createdAt)}
+            </div>
+            {tx.mergedIntoId !== null && (
+              <p className="mt-2 text-caption text-neutral-500 italic">
+                Merged ke transaksi #{tx.mergedIntoId}
               </p>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-              {/* Items */}
-              <h3 className="font-medium text-neutral-600 mb-2 text-sm sm:text-base">Items</h3>
-              <ul className="space-y-2 mb-6">
-                {selectedTransaction.items.map((item) => (
-                  <li key={item.id} className="flex justify-between text-sm sm:text-base">
-                    <div className="min-w-0 flex-1">
-                      <span className="text-neutral-800">{item.menuName}</span>
-                      <span className="text-neutral-500 ml-2">x{item.quantity}</span>
-                      {item.notes && (
-                        <p className="text-xs text-neutral-400 truncate">{item.notes}</p>
-                      )}
-                    </div>
-                    <span className="text-neutral-800 ml-2">{formatCurrency(item.subtotal)}</span>
-                  </li>
-                ))}
-              </ul>
-              
-              {/* Summary */}
-              <div className="border-t border-neutral-200 pt-4 space-y-2">
-                <div className="flex justify-between text-xs sm:text-sm">
-                  <span className="text-neutral-500">Subtotal</span>
-                  <span>{formatCurrency(selectedTransaction.subtotal)}</span>
-                </div>
-                {selectedTransaction.discountAmount > 0 && (
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-neutral-500">Diskon</span>
-                    <span className="text-danger-500">-{formatCurrency(selectedTransaction.discountAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-semibold text-base sm:text-lg pt-2 border-t border-neutral-200">
-                  <span>Total</span>
-                  <span className="text-primary-600">{formatCurrency(selectedTransaction.totalAmount)}</span>
-                </div>
-                
-                {selectedTransaction.status === 'paid' && (
-                  <>
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-neutral-500">Dibayar</span>
-                      <span>{formatCurrency(selectedTransaction.amountPaid)}</span>
-                    </div>
-                    {selectedTransaction.changeAmount > 0 && (
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-neutral-500">Kembalian</span>
-                        <span>{formatCurrency(selectedTransaction.changeAmount)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div className="h-full hidden md:flex items-center justify-center text-neutral-400">
-            <div className="text-center">
-              <Receipt className="w-12 h-12 mx-auto mb-2" />
-              <p>Pilih transaksi untuk melihat detail</p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Row({
+  label,
+  value,
+  bold,
+  tone,
+}: {
+  label: string
+  value: string
+  bold?: boolean
+  tone?: 'warning'
+}) {
+  return (
+    <div className="flex justify-between">
+      <span className={cn(bold && 'font-semibold')}>{label}</span>
+      <span className={cn(bold && 'font-semibold text-neutral-900', tone === 'warning' && 'text-warning-700')}>
+        {value}
+      </span>
     </div>
   )
 }

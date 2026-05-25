@@ -1,9 +1,9 @@
 ---
 name: flowchart
-description: Build classical Flowcharts in StarUML for Indonesian skripsi — algorithmic decision-tree diagrams that Bab 3 often requires alongside UML activity diagrams. Use this skill whenever the user asks for "flowchart", "diagram alir", "bagan alir", or wants to show a decision algorithm (force-order logic, validation pipeline, payment routing) step-by-step. Distinct from activity diagram (ADSI Bab 7 — UML, swimlanes, fork/join) — flowchart is classical ANSI/ISO 5807 notation with terminator ovals, process rectangles, decision diamonds with Yes/No branches, data parallelograms, no swimlanes. Uses StarUML flowchart shapes via staruml-mcp (`create_diagram UMLActivityDiagram` as the carrier, `create_element_with_view` with flowchart primitive types). Do not create a flowchart without consulting this skill first.
+description: Build classical Flowcharts in StarUML for Indonesian skripsi - algorithmic decision-tree diagrams that Bab 3 often requires alongside UML activity diagrams. Use this skill whenever the user asks for "flowchart", "diagram alir", "bagan alir", or wants to show a decision algorithm (force-order logic, validation pipeline, payment routing) step-by-step. Distinct from activity diagram (ADSI Bab 7 - UML, swimlanes, fork/join) - flowchart is classical ANSI/ISO 5807 notation with terminator ovals, process rectangles, decision diamonds with Yes/No branches, data parallelograms, no swimlanes. Uses StarUML flowchart shapes via staruml-mcp (`create_diagram UMLActivityDiagram` as the carrier, `create_element_with_view` with flowchart primitive types). Do not create a flowchart without consulting this skill first.
 ---
 
-# Flowchart — skripsi convention + StarUML MCP
+# Flowchart - skripsi convention + StarUML MCP
 
 Flowchart and activity diagram are **different artifacts**. Dosen sometimes ask for both:
 
@@ -60,7 +60,7 @@ See `activity-diagram` skill for the UML variant. This skill is for the classica
 
 StarUML doesn't have a dedicated Flowchart diagram type, but its extension library provides flowchart shapes. The practical approach: use `UMLActivityDiagram` as the **carrier** diagram type and populate it with flowchart-shape types from the Flowchart extension if available, OR fall back to plain rectangles/diamonds/ovals styled to match flowchart notation.
 
-### Step 1 — diagram
+### Step 1 - diagram
 
 ```
 mcp__staruml__create_diagram type=UMLActivityDiagram parentId=<parent> \
@@ -69,7 +69,7 @@ mcp__staruml__create_diagram type=UMLActivityDiagram parentId=<parent> \
 
 (If the StarUML Flowchart extension is installed, prefer `type=FCFlowchartDiagram` when available.)
 
-### Step 2 — nodes
+### Step 2 - nodes
 
 Use these types (flowchart extension preferred, fall back to UML activity types):
 
@@ -97,7 +97,7 @@ mcp__staruml__create_element_with_view type=UMLActivityFinalNode parentId=<paren
     x=200 y=700 x2=220 y2=720   # End
 ```
 
-### Step 3 — edges
+### Step 3 - edges
 
 ```
 mcp__staruml__create_edge_with_view type=UMLControlFlow parentId=<parent> diagramId=<diagramId> \
@@ -106,7 +106,7 @@ mcp__staruml__create_edge_with_view type=UMLControlFlow parentId=<parent> diagra
 
 For decision branches, set edge `name = "Yes"` or `"No"` via `update_element`.
 
-### Step 4 — save
+### Step 4 - save
 
 ```
 mcp__staruml__save_project
@@ -118,7 +118,7 @@ mcp__staruml__save_project
 - Decisions at the center of the column; `Yes` branch typically goes straight down, `No` branch goes right then rejoins.
 - Keep flow top-to-bottom.
 
-## 5. Worked example — POS Force Order Logic (S.8)
+## 5. Worked example - POS Force Order Logic (S.8)
 
 Pseudocode the flowchart implements:
 
@@ -150,15 +150,15 @@ Flowchart nodes:
 
 ## 6. Common mistakes to grep for
 
-- Drawing a flowchart when the advisor wants an activity diagram (has swimlanes, fork/join) — use `activity-diagram` skill instead.
+- Drawing a flowchart when the advisor wants an activity diagram (has swimlanes, fork/join) - use `activity-diagram` skill instead.
 - Decision branches missing Yes/No labels.
-- Using a rectangle for database access — use cylinder.
-- Using a rectangle for input/output — use parallelogram.
+- Using a rectangle for database access - use cylinder.
+- Using a rectangle for input/output - use parallelogram.
 - Multiple start terminators.
 - Arrows without direction arrowhead.
-- Process boxes named as nouns (`Stok`) — rename to verb phrase (`Cek stok harian`).
-- Loops without a decision to exit — you'll get an infinite loop on paper.
-- Crossing lines everywhere — use on-page connectors to jump.
+- Process boxes named as nouns (`Stok`) - rename to verb phrase (`Cek stok harian`).
+- Loops without a decision to exit - you'll get an infinite loop on paper.
+- Crossing lines everywhere - use on-page connectors to jump.
 
 ## 7. When the user says "jelek"
 

@@ -1,48 +1,47 @@
-// Logika bisnis autentikasi: login via PIN, penerbitan JWT, dan verifikasi PIN.
+// Service modul auth. Bertanggung jawab atas otentikasi (verifikasi nama + PIN)
+// dan penerbitan JWT. REV 2.3 spec:
+//   - Login satu langkah: form input nama + PIN, server cari user yang cocok.
+//   - PIN boleh duplikat antar pegawai - identifikasi via nama.
+//   - User non-aktif tidak boleh login (isActive=false).
 
 import jwt from 'jsonwebtoken';
-import type { User } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
-import { AppError, unauthorized, notFound } from '../../utils/errors';
+import { unauthorized } from '../../utils/errors';
+import { toPublicUser, type PublicUser } from '../../utils/mapPublicUser';
+import type { LoginInput } from './auth.schema';
 
-/** Bentuk user yang aman dikirim ke klien (tanpa PIN). */
-export type PublicUser = Omit<User, 'pin'>;
-
-function toPublicUser(user: User): PublicUser {
-  const { pin: _pin, ...rest } = user;
-  return rest;
+interface LoginResult {
+  user: PublicUser;
+  token: string;
 }
 
-/** Menandatangani JWT berisi id user dan perannya. */
-function signToken(user: User): string {
-  return jwt.sign({ userId: user.id, role: user.role }, env.JWT_SECRET, {
+interface JwtPayload {
+  userId: number;
+  role: PublicUser['role'];
+}
+
+export async function login(input: LoginInput): Promise<LoginResult> {
+  const user = await prisma.user.findFirst({
+    where: { name: input.name, pin: input.pin, isActive: true },
+  });
+
+  if (!user) {
+    throw unauthorized('Nama atau PIN salah');
+  }
+
+  const payload: JwtPayload = { userId: user.id, role: user.role };
+  const token = jwt.sign(payload, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
   });
+
+  return { user: toPublicUser(user), token };
 }
 
-/** Login dengan PIN. Mengembalikan token + data user. */
-export async function login(pin: string): Promise<{ token: string; user: PublicUser }> {
-  const user = await prisma.user.findUnique({ where: { pin } });
-  if (!user) throw unauthorized('PIN tidak terdaftar');
-  if (!user.isActive) throw new AppError('Akun pengguna sedang non-aktif', 403);
-
-  return { token: signToken(user), user: toPublicUser(user) };
-}
-
-/** Mengambil data user berdasarkan id (untuk endpoint /auth/me). */
-export async function getUserById(id: number): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw notFound('Pengguna');
-  return toPublicUser(user);
-}
-
-/**
- * Verifikasi PIN untuk elevasi otorisasi (mis. konfirmasi owner saat void).
- * Mengembalikan data user pemilik PIN bila valid.
- */
-export async function verifyPin(pin: string): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { pin } });
-  if (!user || !user.isActive) throw unauthorized('PIN tidak valid');
+export async function getCurrentUser(userId: number): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) {
+    throw unauthorized('Akun tidak ditemukan atau tidak aktif');
+  }
   return toPublicUser(user);
 }

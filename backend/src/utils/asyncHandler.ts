@@ -1,5 +1,5 @@
 // Pembungkus handler async. Express 4 tidak otomatis menangkap error dari
-// fungsi async — wrapper ini meneruskan error yang dilempar ke errorHandler.
+// fungsi async - wrapper ini meneruskan error yang dilempar ke errorHandler.
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 

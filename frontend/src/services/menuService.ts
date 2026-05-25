@@ -1,60 +1,61 @@
-import api from '@/lib/api'
-import type { MenuWithStock, ApiResponse } from '@/types'
+// Service modul menus. REV 2.3:
+//   - GET public (semua role bisa lihat menu untuk POS)
+//   - POST/PUT/DELETE/reactivate owner-only
 
-// Transform snake_case to camelCase for frontend
-const transformMenu = (menu: any): MenuWithStock => ({
-  id: menu.id,
-  name: menu.name,
-  price: menu.price,
-  category: menu.category,
-  description: menu.description,
-  defaultStock: menu.default_stock || 0,
-  isActive: menu.is_active,
-  stockStart: menu.stock_start,
-  stockSold: menu.stock_sold,
-  stockRemaining: menu.stock_remaining,
-})
+import api from '@/lib/api'
+import type { ApiResponse, Menu, StockType, SubOptions } from '@/types'
+
+export interface ListMenuQuery {
+  activeOnly?: boolean
+  category?: string
+  includeStock?: boolean
+}
+
+export interface CreateMenuPayload {
+  name: string
+  category: string
+  price: number
+  stockType: StockType
+  minStock?: number
+  imageUrl?: string | null
+  subOptions?: SubOptions
+  isActive?: boolean
+}
+
+export type UpdateMenuPayload = Partial<CreateMenuPayload>
 
 export const menuService = {
-  getMenus: async (category?: string): Promise<MenuWithStock[]> => {
-    const params = category ? { category } : {}
-    const response = await api.get<ApiResponse<any[]>>('/menus', { params })
-    return response.data.data.map(transformMenu)
+  list: async (query: ListMenuQuery = {}): Promise<Menu[]> => {
+    const params: Record<string, string> = {}
+    if (query.activeOnly !== undefined) params.activeOnly = String(query.activeOnly)
+    if (query.category) params.category = query.category
+    if (query.includeStock) params.includeStock = 'true'
+    const res = await api.get<ApiResponse<{ menus: Menu[] }>>('/menus', { params })
+    return res.data.data.menus
   },
-  
-  getAllMenu: async (): Promise<MenuWithStock[]> => {
-    const response = await api.get<ApiResponse<any[]>>('/menus')
-    return response.data.data.map(transformMenu)
+
+  byId: async (id: number): Promise<Menu> => {
+    const res = await api.get<ApiResponse<{ menu: Menu }>>(`/menus/${id}`)
+    return res.data.data.menu
   },
-  
-  getCategories: async () => {
-    const response = await api.get<ApiResponse<string[]>>('/menus/categories')
-    return response.data.data
+
+  create: async (payload: CreateMenuPayload): Promise<Menu> => {
+    const res = await api.post<ApiResponse<{ menu: Menu }>>('/menus', payload)
+    return res.data.data.menu
   },
-  
-  getMenu: async (id: string) => {
-    const response = await api.get<ApiResponse<any>>(`/menus/${id}`)
-    return transformMenu(response.data.data)
+
+  update: async (id: number, payload: UpdateMenuPayload): Promise<Menu> => {
+    const res = await api.put<ApiResponse<{ menu: Menu }>>(`/menus/${id}`, payload)
+    return res.data.data.menu
   },
-  
-  createMenu: async (data: { name: string; price: number; category: string; description?: string }) => {
-    const response = await api.post<ApiResponse<any>>('/menus', data)
-    return transformMenu(response.data.data)
+
+  deactivate: async (id: number): Promise<Menu> => {
+    const res = await api.delete<ApiResponse<{ menu: Menu }>>(`/menus/${id}`)
+    return res.data.data.menu
   },
-  
-  updateMenu: async (id: string, data: Partial<{ name: string; price: number; category: string; description: string; isActive: boolean }>) => {
-    // Transform camelCase to snake_case for API
-    const apiData: any = { ...data }
-    if ('isActive' in data) {
-      apiData.is_active = data.isActive
-      delete apiData.isActive
-    }
-    const response = await api.put<ApiResponse<any>>(`/menus/${id}`, apiData)
-    return transformMenu(response.data.data)
-  },
-  
-  deleteMenu: async (id: string) => {
-    const response = await api.delete<ApiResponse<{ message: string }>>(`/menus/${id}`)
-    return response.data
+
+  reactivate: async (id: number): Promise<Menu> => {
+    const res = await api.post<ApiResponse<{ menu: Menu }>>(`/menus/${id}/reactivate`)
+    return res.data.data.menu
   },
 }

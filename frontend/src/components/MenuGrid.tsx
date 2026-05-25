@@ -1,159 +1,145 @@
-import { useState } from 'react'
-import { Search, AlertTriangle } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { menuService } from '@/services/menuService'
-import { useCartStore } from '@/stores/cartStore'
-import { formatCurrency, getStockStatus, cn } from '@/lib/utils'
-import type { MenuWithStock } from '@/types'
-import ForceOrderModal from './ForceOrderModal'
+// REV 2.3 MenuGrid — display menu cards grouped per category dengan filter pencarian.
+// onClick delegate ke parent (POSPage): paket dgn subOptions → buka modal;
+// menu biasa → langsung addItem.
 
-export default function MenuGrid() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [forceOrderMenu, setForceOrderMenu] = useState<MenuWithStock | null>(null)
-  
-  const { addItem, needsForceOrder } = useCartStore()
-  
-  // Fetch menus
-  const { data: menus = [], isLoading } = useQuery({
-    queryKey: ['menus'],
-    queryFn: () => menuService.getMenus(),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  })
-  
-  // Fetch categories
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => menuService.getCategories(),
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
-  })
-  
-  // Filter menus
-  const filteredMenus = menus.filter((menu) => {
-    if (!menu.isActive) return false
-    
-    const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = !selectedCategory || menu.category === selectedCategory
-    
-    return matchesSearch && matchesCategory
-  })
-  
-  const handleMenuClick = (menu: MenuWithStock) => {
-    if (needsForceOrder(menu)) {
-      setForceOrderMenu(menu)
-    } else {
-      addItem(menu, false)
+import { useMemo, useState } from 'react'
+import { Search, UtensilsCrossed } from 'lucide-react'
+import type { Menu } from '@/types'
+import { formatCurrency, cn } from '@/lib/utils'
+import { Input, EmptyState, Skeleton, Badge, Tabs } from '@/design-system/primitives'
+import { useDebounce } from '@/design-system/hooks/useDebounce'
+
+interface Props {
+  menus: Menu[]
+  onMenuClick: (menu: Menu) => void
+  loading?: boolean
+}
+
+function stockBadge(menu: Menu): { text: string; tone: 'success' | 'warning' | 'danger' } | null {
+  if (menu.stockType !== 'portion') return null
+  const qty = menu.portionStock?.currentQty ?? 0
+  const min = menu.portionStock?.minStock ?? 0
+  if (qty <= 0) return { text: 'Habis', tone: 'danger' }
+  if (qty <= min) return { text: `Sisa ${qty}`, tone: 'warning' }
+  return { text: `${qty}`, tone: 'success' }
+}
+
+export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
+  const [searchRaw, setSearchRaw] = useState('')
+  const search = useDebounce(searchRaw, 180)
+  const [activeCategory, setActiveCategory] = useState<string | 'all'>('all')
+
+  const categories = useMemo(() => {
+    const set = new Set(menus.map((m) => m.category))
+    return Array.from(set).sort()
+  }, [menus])
+
+  const filtered = useMemo(() => {
+    let list = menus.filter((m) => m.isActive)
+    if (activeCategory !== 'all') list = list.filter((m) => m.category === activeCategory)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter((m) => m.name.toLowerCase().includes(q))
     }
-  }
-  
-  const handleForceOrder = () => {
-    if (forceOrderMenu) {
-      addItem(forceOrderMenu, true)
-      setForceOrderMenu(null)
-    }
-  }
-  
+    return list
+  }, [menus, activeCategory, search])
+
+  const categoryItems = useMemo(
+    () => [
+      { value: 'all', label: 'Semua' },
+      ...categories.map((c) => ({ value: c, label: c })),
+    ],
+    [categories]
+  )
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Search Bar */}
-      <div className="p-4 bg-white border-b border-neutral-200">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Cari menu..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-neutral-100 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
+    <div className="h-full flex flex-col">
+      {/* Sticky filter bar */}
+      <div className="sticky top-0 bg-neutral-100/95 backdrop-blur z-sticky px-3 py-2.5 space-y-2 border-b border-neutral-200/60">
+        <Input
+          type="search"
+          inputMode="search"
+          value={searchRaw}
+          onChange={(e) => setSearchRaw(e.target.value)}
+          placeholder="Cari menu…"
+          leftIcon={<Search />}
+          aria-label="Cari menu"
+        />
+        <Tabs
+          value={activeCategory}
+          onValueChange={(v) => setActiveCategory(v as string)}
+          items={categoryItems}
+          variant="segmented"
+          scrollable
+        />
       </div>
-      
-      {/* Category Tabs */}
-      <div className="px-4 py-3 bg-white border-b border-neutral-200 overflow-x-auto no-scrollbar">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-              !selectedCategory
-                ? 'bg-primary-500 text-white'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            )}
-          >
-            Semua
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                selectedCategory === category
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-              )}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Menu Grid */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg p-3 sm:p-4 animate-pulse">
-                <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-neutral-200 rounded w-1/2" />
-              </div>
+
+      {/* Grid content */}
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-44" rounded="lg" />
             ))}
           </div>
-        ) : filteredMenus.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500">
-            <p>Tidak ada menu ditemukan</p>
-          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<UtensilsCrossed />}
+            title={search ? 'Tidak ada menu cocok' : 'Belum ada menu di kategori ini'}
+            description={search ? 'Coba kata kunci lain.' : 'Owner bisa tambah menu di halaman Menu.'}
+          />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-            {filteredMenus.map((menu) => {
-              const stockStatus = getStockStatus(menu.stockRemaining)
-              
+          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {filtered.map((menu) => {
+              const badge = stockBadge(menu)
+              const isPaket = !!(menu.subOptions && 'options' in menu.subOptions)
+              const isOutOfStock = menu.stockType === 'portion' && (menu.portionStock?.currentQty ?? 0) <= 0
               return (
                 <button
                   key={menu.id}
-                  onClick={() => handleMenuClick(menu)}
+                  onClick={() => onMenuClick(menu)}
+                  disabled={isOutOfStock}
                   className={cn(
-                    'relative bg-white rounded-lg p-3 sm:p-4 text-left transition-all hover:shadow-md border-2 active:scale-95',
-                    stockStatus === 'available' && 'border-primary-500',
-                    stockStatus === 'low' && 'border-warning-400',
-                    stockStatus === 'empty' && 'border-warning-500 bg-warning-50'
+                    'group bg-white rounded-xl p-3 text-left border border-neutral-200/60',
+                    'transition-all duration-fast active:scale-[0.97]',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-1',
+                    isOutOfStock
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'hover:border-primary-300 hover:shadow-sm'
                   )}
                 >
-                  {/* Stock Badge */}
-                  {stockStatus === 'empty' && (
-                    <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 sm:px-2 py-0.5 bg-warning-500 text-white text-[10px] sm:text-xs font-medium rounded">
-                      Habis
-                    </span>
-                  )}
-                  {stockStatus === 'low' && (
-                    <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 sm:px-2 py-0.5 bg-warning-400 text-white text-[10px] sm:text-xs font-medium rounded">
-                      Sisa {menu.stockRemaining}
-                    </span>
-                  )}
-                  
-                  <h3 className="font-medium text-neutral-800 mb-1 pr-8 sm:pr-12 line-clamp-2 text-sm sm:text-base">
+                  <div className="aspect-square w-full mb-2 bg-neutral-100 rounded-lg overflow-hidden">
+                    {menu.imageUrl ? (
+                      <img
+                        src={menu.imageUrl}
+                        alt={menu.name}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-300">
+                        <UtensilsCrossed className="w-7 h-7" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-body-sm font-medium text-neutral-900 line-clamp-2 min-h-[2.5rem]">
                     {menu.name}
-                  </h3>
-                  <p className="text-primary-600 font-semibold text-sm sm:text-base">
+                  </p>
+                  <p className="text-body font-semibold text-primary-700 mt-1 tabular-nums">
                     {formatCurrency(menu.price)}
                   </p>
-                  
-                  {stockStatus === 'empty' && (
-                    <div className="mt-1.5 sm:mt-2 flex items-center gap-1 text-warning-600 text-[10px] sm:text-xs">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>Force Order</span>
+                  {(isPaket || badge) && (
+                    <div className="mt-2 flex items-center gap-1 flex-wrap">
+                      {isPaket && (
+                        <Badge tone="primary" size="sm" variant="soft">
+                          Paket
+                        </Badge>
+                      )}
+                      {badge && (
+                        <Badge tone={badge.tone} size="sm" variant="soft">
+                          {badge.text}
+                        </Badge>
+                      )}
                     </div>
                   )}
                 </button>
@@ -162,14 +148,6 @@ export default function MenuGrid() {
           </div>
         )}
       </div>
-      
-      {/* Force Order Modal */}
-      <ForceOrderModal
-        isOpen={!!forceOrderMenu}
-        menu={forceOrderMenu}
-        onClose={() => setForceOrderMenu(null)}
-        onConfirm={handleForceOrder}
-      />
     </div>
   )
 }

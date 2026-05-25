@@ -1,21 +1,30 @@
-// Route modul settlement.
-// Submit & lihat: kasir + owner. Review: owner saja.
+// Routes modul settlements. Permission per matrix REV 2.3:
+//   - GET /preview, POST /, GET /, GET /:id -> owner + kasir
+//     (kasir-malam-own enforcement inline di service untuk POST)
+//   - PUT /:id/review                       -> OWNER ONLY
 
 import { Router } from 'express';
-import * as settlementController from './settlements.controller';
+import { UserRole } from '@prisma/client';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
-import { asyncHandler } from '../../utils/asyncHandler';
+import {
+  handlePreview,
+  handleCreate,
+  handleList,
+  handleDetail,
+  handleReview,
+} from './settlements.controller';
 
 const router = Router();
+router.use(authenticate);
 
-router.use(authenticate, requireRole('cashier', 'owner'));
+const ownerOrCashier = requireRole(UserRole.owner, UserRole.cashier);
+const ownerOnly = requireRole(UserRole.owner);
 
-// Route literal sebelum '/:id'.
-router.get('/preview', asyncHandler(settlementController.preview));
-router.get('/', asyncHandler(settlementController.list));
-router.post('/', asyncHandler(settlementController.create));
-router.get('/:id', asyncHandler(settlementController.show));
-router.post('/:id/review', requireRole('owner'), asyncHandler(settlementController.review));
+router.get('/preview', ownerOrCashier, handlePreview);
+router.post('/', ownerOrCashier, handleCreate);
+router.get('/', ownerOrCashier, handleList);
+router.get('/:id', ownerOrCashier, handleDetail);
+router.put('/:id/review', ownerOnly, handleReview);
 
 export default router;

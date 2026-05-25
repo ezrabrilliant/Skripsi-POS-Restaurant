@@ -1,327 +1,457 @@
-import { useState } from 'react'
+// MenuPage — REV 2.3 owner-only CRUD menu.
+// DataTable responsive + Dialog form dgn subOptions JSON editor.
+
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, X, Save } from 'lucide-react'
-import { menuService } from '@/services'
-import { formatCurrency } from '@/lib/utils'
-import { MenuWithStock } from '@/types'
+import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { menuService, type CreateMenuPayload, type UpdateMenuPayload } from '@/services/menuService'
+import type { Menu, StockType } from '@/types'
+import { formatCurrency, cn } from '@/lib/utils'
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Badge,
+  Skeleton,
+  Dialog,
+  DataTable,
+  type DataTableColumn,
+  type SelectOption,
+} from '@/design-system/primitives'
+import { useToast } from '@/design-system/hooks/useToast'
+import { useConfirm } from '@/design-system/hooks/useConfirm'
 
-type MenuFormData = {
-  name: string
-  category: string
-  price: number
-  defaultStock: number
-  isActive: boolean
+const STOCK_TYPE_LABEL: Record<StockType, string> = {
+  portion: 'Stok Porsi',
+  linked: 'Linked',
+  nonStock: 'Tidak ditrack',
 }
 
-const initialFormData: MenuFormData = {
-  name: '',
-  category: '',
-  price: 0,
-  defaultStock: 10,
-  isActive: true,
-}
-
-const CATEGORIES = [
-  'Makanan Utama',
-  'Lauk',
-  'Sayur',
-  'Minuman',
-  'Snack',
-  'Tambahan',
+const STOCK_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'nonStock', label: 'Tidak ditrack (minuman/nasi/paket)' },
+  { value: 'portion', label: 'Stok Porsi (auto-decrement)' },
+  { value: 'linked', label: 'Linked (varian, decrement menu lain)' },
 ]
 
 export default function MenuPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingMenu, setEditingMenu] = useState<MenuWithStock | null>(null)
-  const [formData, setFormData] = useState<MenuFormData>(initialFormData)
-  const [filterCategory, setFilterCategory] = useState<string>('')
-  
-  const queryClient = useQueryClient()
-  
-  // Fetch menu
-  const { data: menuItems = [], isLoading } = useQuery<MenuWithStock[]>({
-    queryKey: ['menu'],
-    queryFn: menuService.getAllMenu,
+  const qc = useQueryClient()
+  const toast = useToast()
+  const confirm = useConfirm()
+  const [showInactive, setShowInactive] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
+  const [creatingNew, setCreatingNew] = useState(false)
+
+  const { data: menus = [], isLoading } = useQuery({
+    queryKey: ['menus', 'admin', showInactive],
+    queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true }),
   })
-  
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: menuService.createMenu,
+
+  const categories = useMemo(() => {
+    const set = new Set(menus.map((m) => m.category))
+    return Array.from(set).sort()
+  }, [menus])
+
+  const filtered = useMemo(() => {
+    if (categoryFilter === 'all') return menus
+    return menus.filter((m) => m.category === categoryFilter)
+  }, [menus, categoryFilter])
+
+  const deactivate = useMutation({
+    mutationFn: (id: number) => menuService.deactivate(id),
     onSuccess: () => {
-      toast.success('Menu berhasil ditambahkan')
-      queryClient.invalidateQueries({ queryKey: ['menu'] })
-      closeModal()
+      toast.success('Menu dinonaktifkan')
+      qc.invalidateQueries({ queryKey: ['menus'] })
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
+    onError: (err: Error) => toast.error(err.message),
   })
-  
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: Partial<MenuFormData> }) =>
-      menuService.updateMenu(id, data),
+
+  const reactivate = useMutation({
+    mutationFn: (id: number) => menuService.reactivate(id),
     onSuccess: () => {
-      toast.success('Menu berhasil diupdate')
-      queryClient.invalidateQueries({ queryKey: ['menu'] })
-      closeModal()
+      toast.success('Menu diaktifkan kembali')
+      qc.invalidateQueries({ queryKey: ['menus'] })
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
+    onError: (err: Error) => toast.error(err.message),
   })
-  
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: menuService.deleteMenu,
-    onSuccess: () => {
-      toast.success('Menu berhasil dihapus')
-      queryClient.invalidateQueries({ queryKey: ['menu'] })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
-  
-  const openCreateModal = () => {
-    setEditingMenu(null)
-    setFormData(initialFormData)
-    setIsModalOpen(true)
-  }
-  
-  const openEditModal = (menu: MenuWithStock) => {
-    setEditingMenu(menu)
-    setFormData({
-      name: menu.name,
-      category: menu.category,
-      price: menu.price,
-      defaultStock: menu.stockStart || 10,
-      isActive: menu.isActive,
+
+  const handleDeactivate = async (m: Menu) => {
+    const ok = await confirm({
+      title: `Nonaktifkan "${m.name}"?`,
+      description: 'Menu tidak akan tampil di POS sampai diaktifkan kembali.',
+      confirmText: 'Ya, Nonaktifkan',
+      tone: 'danger',
     })
-    setIsModalOpen(true)
+    if (!ok) return
+    deactivate.mutate(m.id)
   }
-  
-  const closeModal = () => {
-    setIsModalOpen(false)
-    setEditingMenu(null)
-    setFormData(initialFormData)
-  }
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editingMenu) {
-      updateMutation.mutate({ id: editingMenu.id, data: formData })
-    } else {
-      createMutation.mutate(formData)
-    }
-  }
-  
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`Hapus menu "${name}"?`)) {
-      deleteMutation.mutate(id)
-    }
-  }
-  
-  // Filter menu
-  const filteredMenu = filterCategory
-    ? menuItems.filter((m) => m.category === filterCategory)
-    : menuItems
-  
-  // Group by category
-  const categories = [...new Set(menuItems.map((m) => m.category))]
-  
+
+  const categoryOptions: SelectOption[] = [
+    { value: 'all', label: 'Semua kategori' },
+    ...categories.map((c) => ({ value: c, label: c })),
+  ]
+
+  const columns: DataTableColumn<Menu>[] = [
+    {
+      key: 'name',
+      header: 'Menu',
+      cell: (m) => (
+        <div className={cn(!m.isActive && 'opacity-60')}>
+          <div className="font-medium text-neutral-900">{m.name}</div>
+          <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {m.subOptions && 'options' in m.subOptions && (
+              <Badge tone="primary" size="sm">
+                Paket · {m.subOptions.options.length} pilihan
+              </Badge>
+            )}
+            {m.subOptions && 'stockTarget' in m.subOptions && (
+              <Badge tone="warning" size="sm">
+                Linked → {m.subOptions.stockTarget}
+              </Badge>
+            )}
+            {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Kategori',
+      hideMobile: true,
+      cell: (m) => <span className="text-neutral-700">{m.category}</span>,
+    },
+    {
+      key: 'price',
+      header: 'Harga',
+      align: 'right',
+      cell: (m) => (
+        <span className="font-medium text-neutral-900 tabular-nums">
+          {formatCurrency(m.price)}
+        </span>
+      ),
+    },
+    {
+      key: 'stock',
+      header: 'Stok',
+      cell: (m) => (
+        <div>
+          <div className="text-caption text-neutral-500">{STOCK_TYPE_LABEL[m.stockType]}</div>
+          {m.stockType === 'portion' && (
+            <div className="text-body-sm text-neutral-700 tabular-nums">
+              {m.portionStock?.currentQty ?? '—'} / min {m.minStock ?? 0}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (m) => (
+        <div className="inline-flex items-center gap-1">
+          <IconButton
+            label={`Edit ${m.name}`}
+            icon={<Pencil />}
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditingMenu(m)}
+          />
+          {m.isActive ? (
+            <IconButton
+              label={`Nonaktifkan ${m.name}`}
+              icon={<Trash2 />}
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeactivate(m)}
+              className="text-danger-700 hover:bg-danger-50"
+            />
+          ) : (
+            <IconButton
+              label={`Aktifkan ${m.name}`}
+              icon={<RotateCcw />}
+              variant="ghost"
+              size="sm"
+              onClick={() => reactivate.mutate(m.id)}
+              className="text-success-700 hover:bg-success-50"
+            />
+          )}
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
+        <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-neutral-800">Manajemen Menu</h1>
-            <p className="text-neutral-500">Tambah, edit, atau hapus menu</p>
+            <h1 className="text-headline font-semibold text-neutral-900">Kelola Menu</h1>
+            <p className="text-body-sm text-neutral-600">{filtered.length} menu</p>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-          >
-            <Plus className="w-5 h-5" />
-            Tambah Menu
-          </button>
-        </div>
-        
-        {/* Filter */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          <button
-            onClick={() => setFilterCategory('')}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-              filterCategory === ''
-                ? 'bg-primary-500 text-white'
-                : 'bg-white text-neutral-600 hover:bg-neutral-100'
-            }`}
-          >
-            Semua
-          </button>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                filterCategory === cat
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-white text-neutral-600 hover:bg-neutral-100'
-              }`}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              hideLabel
+              label="Filter kategori"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              options={categoryOptions}
+              containerClassName="min-w-[160px]"
+            />
+            <label className="flex items-center gap-2 text-body-sm text-neutral-700 cursor-pointer select-none px-2">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="w-4 h-4 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
+              />
+              Tampilkan nonaktif
+            </label>
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => setCreatingNew(true)}
             >
-              {cat}
-            </button>
-          ))}
-        </div>
-        
-        {/* Menu List */}
+              Menu
+            </Button>
+          </div>
+        </header>
+
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-24 bg-neutral-200 rounded-lg animate-pulse" />
-            ))}
-          </div>
+          <Skeleton className="h-64" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMenu.map((menu) => (
-              <div
-                key={menu.id}
-                className={`bg-white rounded-lg p-4 flex items-center justify-between ${
-                  !menu.isActive ? 'opacity-50' : ''
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-neutral-800">{menu.name}</p>
-                    {!menu.isActive && (
-                      <span className="px-2 py-0.5 bg-neutral-200 text-neutral-600 text-xs rounded">
-                        Nonaktif
-                      </span>
-                    )}
+          <DataTable
+            columns={columns}
+            data={filtered}
+            rowKey={(m) => m.id}
+            emptyTitle="Tidak ada menu"
+            emptyDescription="Klik tombol Menu di atas untuk menambah."
+            mobileCard={(m) => (
+              <div className={cn(!m.isActive && 'opacity-60', 'space-y-1.5')}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-neutral-900">{m.name}</p>
+                    <p className="text-caption text-neutral-500">{m.category}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {m.subOptions && 'options' in m.subOptions && (
+                        <Badge tone="primary" size="sm">Paket</Badge>
+                      )}
+                      {m.subOptions && 'stockTarget' in m.subOptions && (
+                        <Badge tone="warning" size="sm">Linked</Badge>
+                      )}
+                      {m.stockType === 'portion' && (
+                        <Badge tone="neutral" size="sm">
+                          {m.portionStock?.currentQty ?? 0}/{m.minStock ?? 0}
+                        </Badge>
+                      )}
+                      {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+                    </div>
                   </div>
-                  <p className="text-sm text-neutral-500">{menu.category}</p>
-                  <p className="text-primary-600 font-semibold">{formatCurrency(menu.price)}</p>
+                  <p className="font-semibold text-neutral-900 tabular-nums shrink-0">
+                    {formatCurrency(m.price)}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(menu)}
-                    className="p-2 bg-neutral-100 rounded-lg hover:bg-neutral-200"
-                  >
-                    <Pencil className="w-4 h-4 text-neutral-600" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(menu.id, menu.name)}
-                    className="p-2 bg-danger-50 rounded-lg hover:bg-danger-100"
-                  >
-                    <Trash2 className="w-4 h-4 text-danger-500" />
-                  </button>
+                <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
+                  <IconButton label="Edit" icon={<Pencil />} variant="ghost" size="sm" onClick={() => setEditingMenu(m)} />
+                  {m.isActive ? (
+                    <IconButton
+                      label="Nonaktifkan"
+                      icon={<Trash2 />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeactivate(m)}
+                      className="text-danger-700"
+                    />
+                  ) : (
+                    <IconButton
+                      label="Aktifkan"
+                      icon={<RotateCcw />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => reactivate.mutate(m.id)}
+                      className="text-success-700"
+                    />
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
-        
-        {/* Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold">
-                  {editingMenu ? 'Edit Menu' : 'Tambah Menu Baru'}
-                </h2>
-                <button onClick={closeModal} className="p-2 hover:bg-neutral-100 rounded-lg">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm text-neutral-600 mb-1">Nama Menu</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 bg-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-neutral-600 mb-1">Kategori</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2 bg-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  >
-                    <option value="">Pilih Kategori</option>
-                    {CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-neutral-600 mb-1">Harga</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full px-4 py-2 bg-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                    min="0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-neutral-600 mb-1">Stok Default Harian</label>
-                  <input
-                    type="number"
-                    value={formData.defaultStock}
-                    onChange={(e) => setFormData({ ...formData, defaultStock: Number(e.target.value) })}
-                    className="w-full px-4 py-2 bg-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                    min="0"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="w-4 h-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
-                  />
-                  <label htmlFor="isActive" className="text-sm text-neutral-600">
-                    Menu Aktif
-                  </label>
-                </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="flex-1 px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center justify-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {createMutation.isPending || updateMutation.isPending ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+
+        {(creatingNew || editingMenu) && (
+          <MenuFormModal
+            existing={editingMenu}
+            onClose={() => {
+              setCreatingNew(false)
+              setEditingMenu(null)
+            }}
+            onSuccess={() => {
+              setCreatingNew(false)
+              setEditingMenu(null)
+              qc.invalidateQueries({ queryKey: ['menus'] })
+            }}
+          />
         )}
       </div>
     </div>
+  )
+}
+
+function MenuFormModal({
+  existing,
+  onClose,
+  onSuccess,
+}: {
+  existing: Menu | null
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const toast = useToast()
+  const [name, setName] = useState(existing?.name ?? '')
+  const [category, setCategory] = useState(existing?.category ?? '')
+  const [price, setPrice] = useState(existing?.price ?? 0)
+  const [stockType, setStockType] = useState<StockType>(existing?.stockType ?? 'nonStock')
+  const [minStock, setMinStock] = useState(existing?.minStock ?? 5)
+  const [imageUrl, setImageUrl] = useState(existing?.imageUrl ?? '')
+  const [subOptionsJson, setSubOptionsJson] = useState(
+    existing?.subOptions ? JSON.stringify(existing.subOptions, null, 2) : ''
+  )
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      let subOptions: CreateMenuPayload['subOptions'] = null
+      if (subOptionsJson.trim()) {
+        try {
+          subOptions = JSON.parse(subOptionsJson)
+        } catch {
+          throw new Error('subOptions JSON tidak valid')
+        }
+      }
+      const payload: CreateMenuPayload = {
+        name,
+        category,
+        price,
+        stockType,
+        minStock: stockType === 'portion' ? minStock : undefined,
+        imageUrl: imageUrl || null,
+        subOptions,
+      }
+      if (existing) {
+        const updatePayload: UpdateMenuPayload = {
+          name: payload.name,
+          category: payload.category,
+          price: payload.price,
+          stockType: payload.stockType,
+          minStock: payload.minStock,
+          imageUrl: payload.imageUrl,
+          subOptions: payload.subOptions,
+        }
+        return menuService.update(existing.id, updatePayload)
+      }
+      return menuService.create(payload)
+    },
+    onSuccess: () => {
+      toast.success(existing ? 'Menu diperbarui' : 'Menu dibuat')
+      onSuccess()
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={existing ? `Edit: ${existing.name}` : 'Tambah Menu'}
+      size="lg"
+      footer={
+        <Button
+          variant="primary"
+          size="md"
+          fullWidth
+          onClick={() => mutation.mutate()}
+          disabled={!name || !category || price <= 0}
+          loading={mutation.isPending}
+        >
+          Simpan
+        </Button>
+      }
+    >
+      <div className="space-y-3">
+        <Input
+          label="Nama"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Kategori"
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Signature Ayam Bakar"
+            required
+          />
+          <Input
+            label="Harga (Rp)"
+            type="number"
+            inputMode="numeric"
+            value={price || ''}
+            onChange={(e) => setPrice(Number(e.target.value) || 0)}
+            min={0}
+            step={1000}
+            required
+          />
+        </div>
+        <Select
+          label="Stock Type"
+          value={stockType}
+          onChange={(e) => setStockType(e.target.value as StockType)}
+          options={STOCK_TYPE_OPTIONS}
+        />
+        {stockType === 'portion' && (
+          <Input
+            label="Min Stock"
+            type="number"
+            inputMode="numeric"
+            value={minStock}
+            onChange={(e) => setMinStock(Number(e.target.value) || 0)}
+            min={0}
+            helper="Reminder muncul di dashboard saat qty ≤ min."
+          />
+        )}
+        <Input
+          label="Image URL (opsional)"
+          type="text"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="/menu/ayam-bakar.webp"
+        />
+        <div>
+          <label className="text-label text-neutral-700 block mb-1.5">
+            subOptions JSON{' '}
+            <span className="text-caption text-neutral-500 font-normal">
+              (linked / paket — kosongkan kalau tidak relevan)
+            </span>
+          </label>
+          <textarea
+            value={subOptionsJson}
+            onChange={(e) => setSubOptionsJson(e.target.value)}
+            rows={6}
+            placeholder={`{"stockTarget":"Empal"}\natau\n{"options":[{"key":"cook","label":"Cara","options":["Bakar","Goreng"]}],"stockMap":{"Bakar":"X","Goreng":"Y"}}`}
+            className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-md font-mono text-caption text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+          />
+          <p className="text-caption text-neutral-500 mt-1">
+            <strong>Linked:</strong> <code>{`{"stockTarget":"NamaMenu"}`}</code>.{' '}
+            <strong>Paket:</strong> <code>{`{"options":[...],"stockMap":{...}}`}</code> — pakai key
+            gabungan dgn separator <code>|</code> sesuai urutan.
+          </p>
+        </div>
+      </div>
+    </Dialog>
   )
 }

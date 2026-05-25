@@ -1,42 +1,49 @@
-// Controller modul settlement.
+// Controller modul settlements. Tipis - delegate ke service.
 
 import type { Request, Response } from 'express';
-import { createSettlementSchema, listSettlementQuerySchema } from './settlements.schema';
-import * as settlementService from './settlements.service';
+import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { parseId } from '../../utils/parseId';
+import { unauthorized } from '../../utils/errors';
+import {
+  createSettlementSchema,
+  listSettlementsQuerySchema,
+  previewQuerySchema,
+} from './settlements.schema';
+import * as settlementsService from './settlements.service';
 
-/** GET /api/settlements/preview — cek kesiapan tutup kasir (blind, tanpa total sistem). */
-export async function preview(req: Request, res: Response): Promise<void> {
-  const data = await settlementService.previewSettlement(req.user!.id);
-  sendSuccess(res, data, 'Pratinjau tutup kasir');
-}
+export const handlePreview = asyncHandler(async (req: Request, res: Response) => {
+  const { shiftId } = previewQuerySchema.parse(req.query);
+  const preview = await settlementsService.previewSettlement(shiftId);
+  sendSuccess(res, { preview }, 'Preview settlement');
+});
 
-/** POST /api/settlements — submit blind count & tutup shift. */
-export async function create(req: Request, res: Response): Promise<void> {
+export const handleCreate = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
   const input = createSettlementSchema.parse(req.body);
-  const data = await settlementService.createSettlement(req.user!.id, input);
-  sendSuccess(res, data, 'Rekonsiliasi tersimpan, kasir ditutup', 201);
-}
-
-/** GET /api/settlements — daftar settlement. */
-export async function list(req: Request, res: Response): Promise<void> {
-  const filter = listSettlementQuerySchema.parse(req.query);
-  const data = await settlementService.listSettlements(filter);
-  sendSuccess(res, data, 'Daftar settlement');
-}
-
-/** GET /api/settlements/:id — detail settlement. */
-export async function show(req: Request, res: Response): Promise<void> {
-  const data = await settlementService.getSettlement(parseId(req.params.id, 'ID settlement'));
-  sendSuccess(res, data, 'Detail settlement');
-}
-
-/** POST /api/settlements/:id/review — owner menandai settlement sudah diperiksa. */
-export async function review(req: Request, res: Response): Promise<void> {
-  const data = await settlementService.reviewSettlement(
-    parseId(req.params.id, 'ID settlement'),
-    req.user!.id,
+  const settlement = await settlementsService.createSettlement(
+    req.user.id,
+    req.user.role,
+    input,
   );
-  sendSuccess(res, data, 'Settlement berhasil direview');
-}
+  sendSuccess(res, { settlement }, 'Settlement berhasil dibuat', 201);
+});
+
+export const handleList = asyncHandler(async (req: Request, res: Response) => {
+  const query = listSettlementsQuerySchema.parse(req.query);
+  const settlements = await settlementsService.listSettlements(query);
+  sendSuccess(res, { settlements }, 'Daftar settlement');
+});
+
+export const handleDetail = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const settlement = await settlementsService.getSettlementById(id);
+  sendSuccess(res, { settlement }, 'Detail settlement');
+});
+
+export const handleReview = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
+  const id = parseId(req.params.id);
+  const settlement = await settlementsService.reviewSettlement(id, req.user.id);
+  sendSuccess(res, { settlement }, 'Settlement di-review');
+});

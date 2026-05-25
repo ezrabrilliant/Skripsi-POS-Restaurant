@@ -1,224 +1,352 @@
-// Logika bisnis modul settlement: rekonsiliasi kas akhir shift dengan
-// metode blind count, lalu direview oleh owner.
+// Service modul settlements. REV 2.2/2.3:
+//   - Settlement = rekap akhir hari per shift (1:1 dengan Shift via UNIQUE shiftId).
+//   - 6 buckets: cash, edc, qris, gojek, grab, transfer (system + actual disimpan).
+//   - Per matrix REV 2.3:
+//       * Submit settlement -> owner + kasir (kasir hanya shift MALAM sendiri,
+//         dicek inline di service karena route layer tidak tahu shift type)
+//       * Review settlement -> owner only
+//   - Variance dihitung runtime di view (bukan disimpan ke DB).
+//   - Bank breakdown (untuk EDC + transfer) dihitung runtime via GROUP BY
+//     paymentBank pada transaksi shift terkait.
 
-import type { Settlement, Prisma } from '@prisma/client';
+import {
+  PaymentMethod,
+  Prisma,
+  SettlementStatus,
+  ShiftType,
+  TransactionStatus,
+  UserRole,
+} from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { AppError, notFound } from '../../utils/errors';
-import { toDateOnly } from '../../utils/date';
-import { requireOpenShift } from '../shifts/shifts.service';
-import type { CreateSettlementInput } from './settlements.schema';
+import { AppError, forbidden, notFound } from '../../utils/errors';
+import type {
+  CreateSettlementInput,
+  ListSettlementsQuery,
+} from './settlements.schema';
 
-// Total penjualan sistem dikelompokkan ke lima metode (debit + credit digabung).
-interface MethodTotals {
+// ============================================================
+// View shape
+// ============================================================
+
+export interface SettlementMethodTotals {
   cash: number;
+  edc: number;
   qris: number;
+  gojek: number;
+  grab: number;
   transfer: number;
-  debitCredit: number;
-  ojol: number;
 }
 
-export interface SettlementDto {
+export interface BankBreakdownEntry {
+  method: 'edc' | 'transfer';
+  bank: string;
+  total: number;
+}
+
+export interface SettlementView {
   id: number;
   shiftId: number;
-  date: string;
+  date: string; // YYYY-MM-DD
   cashierId: number;
+  cashierName: string;
   reviewerId: number | null;
-  system: MethodTotals;
-  actual: MethodTotals;
-  variance: MethodTotals;
+  reviewerName: string | null;
+  system: SettlementMethodTotals;
+  actual: SettlementMethodTotals;
+  variance: SettlementMethodTotals;
   totalSystem: number;
   totalActual: number;
   totalVariance: number;
-  status: string;
+  status: SettlementStatus;
   submittedAt: string;
   reviewedAt: string | null;
+  bankBreakdown: BankBreakdownEntry[];
 }
 
-function sumTotals(t: MethodTotals): number {
-  return t.cash + t.qris + t.transfer + t.debitCredit + t.ojol;
+export interface SettlementPreview {
+  shiftId: number;
+  shiftType: ShiftType;
+  date: string;
+  cashierId: number;
+  cashierName: string;
+  closedAt: string | null;
+  system: SettlementMethodTotals;
+  totalSystem: number;
+  bankBreakdown: BankBreakdownEntry[];
+  existingSettlementId: number | null;
 }
 
-function toDto(s: Settlement): SettlementDto {
-  const system: MethodTotals = {
-    cash: Number(s.systemCash),
-    qris: Number(s.systemQris),
-    transfer: Number(s.systemTransfer),
-    debitCredit: Number(s.systemDebitCredit),
-    ojol: Number(s.systemOjol),
+type SettlementWithRelations = Prisma.SettlementGetPayload<{
+  include: {
+    cashier: { select: { name: true } };
+    reviewer: { select: { name: true } };
   };
-  const actual: MethodTotals = {
-    cash: Number(s.actualCash),
-    qris: Number(s.actualQris),
-    transfer: Number(s.actualTransfer),
-    debitCredit: Number(s.actualDebitCredit),
-    ojol: Number(s.actualOjol),
+}>;
+
+function toMethodTotalsZero(): SettlementMethodTotals {
+  return { cash: 0, edc: 0, qris: 0, gojek: 0, grab: 0, transfer: 0 };
+}
+
+function sumMethodTotals(totals: SettlementMethodTotals): number {
+  return totals.cash + totals.edc + totals.qris + totals.gojek + totals.grab + totals.transfer;
+}
+
+function diffMethodTotals(
+  a: SettlementMethodTotals,
+  b: SettlementMethodTotals,
+): SettlementMethodTotals {
+  return {
+    cash: a.cash - b.cash,
+    edc: a.edc - b.edc,
+    qris: a.qris - b.qris,
+    gojek: a.gojek - b.gojek,
+    grab: a.grab - b.grab,
+    transfer: a.transfer - b.transfer,
   };
-  const variance: MethodTotals = {
-    cash: Number(s.varianceCash),
-    qris: Number(s.varianceQris),
-    transfer: Number(s.varianceTransfer),
-    debitCredit: Number(s.varianceDebitCredit),
-    ojol: Number(s.varianceOjol),
+}
+
+function toSettlementView(s: SettlementWithRelations, bankBreakdown: BankBreakdownEntry[]): SettlementView {
+  const system: SettlementMethodTotals = {
+    cash: s.systemCash.toNumber(),
+    edc: s.systemEdc.toNumber(),
+    qris: s.systemQris.toNumber(),
+    gojek: s.systemGojek.toNumber(),
+    grab: s.systemGrab.toNumber(),
+    transfer: s.systemTransfer.toNumber(),
   };
+  const actual: SettlementMethodTotals = {
+    cash: s.actualCash.toNumber(),
+    edc: s.actualEdc.toNumber(),
+    qris: s.actualQris.toNumber(),
+    gojek: s.actualGojek.toNumber(),
+    grab: s.actualGrab.toNumber(),
+    transfer: s.actualTransfer.toNumber(),
+  };
+  const variance = diffMethodTotals(actual, system);
   return {
     id: s.id,
     shiftId: s.shiftId,
-    date: s.date.toISOString().slice(0, 10),
+    date: s.date.toISOString().substring(0, 10),
     cashierId: s.cashierId,
+    cashierName: s.cashier.name,
     reviewerId: s.reviewerId,
+    reviewerName: s.reviewer?.name ?? null,
     system,
     actual,
     variance,
-    totalSystem: sumTotals(system),
-    totalActual: sumTotals(actual),
-    totalVariance: sumTotals(variance),
+    totalSystem: sumMethodTotals(system),
+    totalActual: sumMethodTotals(actual),
+    totalVariance: sumMethodTotals(variance),
     status: s.status,
     submittedAt: s.submittedAt.toISOString(),
     reviewedAt: s.reviewedAt ? s.reviewedAt.toISOString() : null,
+    bankBreakdown,
   };
 }
 
-/** Hitung total penjualan sistem per metode bayar dari transaksi lunas sebuah shift. */
-async function computeSystemTotals(shiftId: number): Promise<MethodTotals> {
-  const paid = await prisma.transaction.findMany({
-    where: { shiftId, status: 'paid' },
-    select: { paymentMethod: true, total: true },
+// ============================================================
+// System totals + bank breakdown (computed from transactions)
+// ============================================================
+
+async function computeSystemTotals(shiftId: number): Promise<SettlementMethodTotals> {
+  const grouped = await prisma.transaction.groupBy({
+    by: ['paymentMethod'],
+    // mergedIntoId=null filter mencegah double-count: merged sources punya total=0
+    // tapi tetap exclude untuk konsistensi (parent yang mewakili payment penuh).
+    where: { shiftId, status: TransactionStatus.paid, mergedIntoId: null },
+    _sum: { total: true },
   });
 
-  const totals: MethodTotals = { cash: 0, qris: 0, transfer: 0, debitCredit: 0, ojol: 0 };
-  for (const tx of paid) {
-    const amount = Number(tx.total);
-    switch (tx.paymentMethod) {
-      case 'cash':
-        totals.cash += amount;
-        break;
-      case 'qris':
-        totals.qris += amount;
-        break;
-      case 'transfer':
-        totals.transfer += amount;
-        break;
-      case 'debit':
-      case 'credit':
-        totals.debitCredit += amount;
-        break;
-      case 'ojol':
-        totals.ojol += amount;
-        break;
-      default:
-        break;
-    }
+  const totals = toMethodTotalsZero();
+  for (const g of grouped) {
+    if (!g.paymentMethod) continue;
+    const amount = g._sum.total?.toNumber() ?? 0;
+    totals[g.paymentMethod] = amount;
   }
   return totals;
 }
 
-/**
- * Pratinjau sebelum tutup kasir. Sesuai prinsip blind count, TIDAK
- * mengembalikan total sistem — hanya memastikan tidak ada pesanan terbuka.
- */
-export async function previewSettlement(cashierId: number): Promise<{
-  shiftId: number;
-  date: string;
-  openTransactionCount: number;
-  hasUnpaidTransactions: boolean;
-}> {
-  const shift = await requireOpenShift(cashierId);
-  const openCount = await prisma.transaction.count({
-    where: { shiftId: shift.id, status: 'open' },
+async function computeBankBreakdown(shiftId: number): Promise<BankBreakdownEntry[]> {
+  const rows = await prisma.transaction.groupBy({
+    by: ['paymentMethod', 'paymentBank'],
+    where: {
+      shiftId,
+      status: TransactionStatus.paid,
+      mergedIntoId: null,
+      paymentMethod: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
+      paymentBank: { not: null },
+    },
+    _sum: { total: true },
   });
+
+  return rows
+    .filter((r) => r.paymentMethod && r.paymentBank)
+    .map((r) => ({
+      method: r.paymentMethod as 'edc' | 'transfer',
+      bank: r.paymentBank!,
+      total: r._sum.total?.toNumber() ?? 0,
+    }))
+    .sort((a, b) => a.method.localeCompare(b.method) || a.bank.localeCompare(b.bank));
+}
+
+// ============================================================
+// Operations
+// ============================================================
+
+export async function previewSettlement(shiftId: number): Promise<SettlementPreview> {
+  const shift = await prisma.shift.findUnique({
+    where: { id: shiftId },
+    include: { cashier: { select: { name: true } } },
+  });
+  if (!shift) throw notFound('Shift');
+
+  const [system, bankBreakdown, existing] = await Promise.all([
+    computeSystemTotals(shiftId),
+    computeBankBreakdown(shiftId),
+    prisma.settlement.findUnique({ where: { shiftId }, select: { id: true } }),
+  ]);
+
   return {
     shiftId: shift.id,
-    date: shift.date.toISOString().slice(0, 10),
-    openTransactionCount: openCount,
-    hasUnpaidTransactions: openCount > 0,
+    shiftType: shift.type,
+    date: shift.date.toISOString().substring(0, 10),
+    cashierId: shift.cashierId,
+    cashierName: shift.cashier.name,
+    closedAt: shift.closedAt ? shift.closedAt.toISOString() : null,
+    system,
+    totalSystem: sumMethodTotals(system),
+    bankBreakdown,
+    existingSettlementId: existing?.id ?? null,
   };
 }
 
-/** Submit blind count: simpan settlement, hitung selisih, tutup shift. */
 export async function createSettlement(
-  cashierId: number,
+  userId: number,
+  userRole: UserRole,
   input: CreateSettlementInput,
-): Promise<SettlementDto> {
-  const shift = await requireOpenShift(cashierId);
-
-  const openCount = await prisma.transaction.count({
-    where: { shiftId: shift.id, status: 'open' },
-  });
-  if (openCount > 0) {
-    throw new AppError(
-      `Masih ada ${openCount} pesanan belum dibayar. Selesaikan dulu sebelum tutup kasir.`,
-      409,
-    );
+): Promise<SettlementView> {
+  // Validasi shift
+  const shift = await prisma.shift.findUnique({ where: { id: input.shiftId } });
+  if (!shift) throw notFound('Shift');
+  if (!shift.closedAt) {
+    throw new AppError('Shift belum ditutup, settlement tidak bisa dibuat', 400);
   }
 
-  const existing = await prisma.settlement.findUnique({ where: { shiftId: shift.id } });
-  if (existing) throw new AppError('Shift ini sudah memiliki settlement', 409);
+  // Permission inline (matrix REV 2.3):
+  //   - Owner boleh settle shift siapapun.
+  //   - Kasir hanya boleh settle shift MALAM miliknya sendiri.
+  if (userRole === UserRole.cashier) {
+    if (shift.cashierId !== userId) {
+      throw forbidden('Kasir hanya bisa settle shift miliknya sendiri');
+    }
+    if (shift.type !== ShiftType.malam) {
+      throw forbidden('Kasir hanya bisa settle shift malam (per matrix REV 2.3)');
+    }
+  }
 
-  const system = await computeSystemTotals(shift.id);
+  // Cek tidak ada settlement sebelumnya untuk shift ini (UNIQUE constraint juga
+  // proteksi di DB level, tapi kita berikan pesan ramah di app layer).
+  const existing = await prisma.settlement.findUnique({ where: { shiftId: input.shiftId } });
+  if (existing) {
+    throw new AppError(`Settlement untuk shift id=${input.shiftId} sudah ada (id=${existing.id})`, 409);
+  }
 
-  const settlement = await prisma.$transaction(async (db) => {
-    const created = await db.settlement.create({
-      data: {
-        shiftId: shift.id,
-        date: shift.date,
-        cashierId,
-        systemCash: system.cash,
-        systemQris: system.qris,
-        systemTransfer: system.transfer,
-        systemDebitCredit: system.debitCredit,
-        systemOjol: system.ojol,
-        actualCash: input.actualCash,
-        actualQris: input.actualQris,
-        actualTransfer: input.actualTransfer,
-        actualDebitCredit: input.actualDebitCredit,
-        actualOjol: input.actualOjol,
-        varianceCash: input.actualCash - system.cash,
-        varianceQris: input.actualQris - system.qris,
-        varianceTransfer: input.actualTransfer - system.transfer,
-        varianceDebitCredit: input.actualDebitCredit - system.debitCredit,
-        varianceOjol: input.actualOjol - system.ojol,
-        status: 'submitted',
-      },
-    });
-    // Tutup shift bersamaan dengan submit settlement.
-    await db.shift.update({ where: { id: shift.id }, data: { closedAt: new Date() } });
-    return created;
+  // Compute system totals dari transactions
+  const system = await computeSystemTotals(input.shiftId);
+
+  const created = await prisma.settlement.create({
+    data: {
+      shiftId: input.shiftId,
+      date: shift.date,
+      cashierId: shift.cashierId,
+      systemCash: new Prisma.Decimal(system.cash),
+      systemEdc: new Prisma.Decimal(system.edc),
+      systemQris: new Prisma.Decimal(system.qris),
+      systemGojek: new Prisma.Decimal(system.gojek),
+      systemGrab: new Prisma.Decimal(system.grab),
+      systemTransfer: new Prisma.Decimal(system.transfer),
+      actualCash: new Prisma.Decimal(input.actualCash),
+      actualEdc: new Prisma.Decimal(input.actualEdc),
+      actualQris: new Prisma.Decimal(input.actualQris),
+      actualGojek: new Prisma.Decimal(input.actualGojek),
+      actualGrab: new Prisma.Decimal(input.actualGrab),
+      actualTransfer: new Prisma.Decimal(input.actualTransfer),
+      status: SettlementStatus.submitted,
+    },
+    include: {
+      cashier: { select: { name: true } },
+      reviewer: { select: { name: true } },
+    },
   });
 
-  return toDto(settlement);
+  const bankBreakdown = await computeBankBreakdown(input.shiftId);
+  return toSettlementView(created, bankBreakdown);
 }
 
-/** Review settlement oleh owner — menandai rekonsiliasi sudah diperiksa. */
-export async function reviewSettlement(id: number, reviewerId: number): Promise<SettlementDto> {
-  const settlement = await prisma.settlement.findUnique({ where: { id } });
-  if (!settlement) throw notFound('Settlement');
-  if (settlement.status === 'reviewed') {
-    throw new AppError('Settlement ini sudah direview', 409);
+export async function getSettlementById(id: number): Promise<SettlementView> {
+  const s = await prisma.settlement.findUnique({
+    where: { id },
+    include: {
+      cashier: { select: { name: true } },
+      reviewer: { select: { name: true } },
+    },
+  });
+  if (!s) throw notFound('Settlement');
+  const bankBreakdown = await computeBankBreakdown(s.shiftId);
+  return toSettlementView(s, bankBreakdown);
+}
+
+export async function listSettlements(query: ListSettlementsQuery): Promise<SettlementView[]> {
+  const where: Prisma.SettlementWhereInput = {};
+  if (query.date) where.date = new Date(query.date);
+  else if (query.month) {
+    const [y, m] = query.month.split('-').map(Number);
+    where.date = {
+      gte: new Date(Date.UTC(y!, m! - 1, 1)),
+      lt: new Date(Date.UTC(y!, m!, 1)),
+    };
+  }
+  if (query.cashierId) where.cashierId = query.cashierId;
+  if (query.status) where.status = query.status;
+
+  const settlements = await prisma.settlement.findMany({
+    where,
+    include: {
+      cashier: { select: { name: true } },
+      reviewer: { select: { name: true } },
+    },
+    orderBy: [{ date: 'desc' }, { submittedAt: 'desc' }],
+  });
+
+  // Bank breakdown per-settlement (paralel)
+  const withBreakdowns = await Promise.all(
+    settlements.map(async (s) => {
+      const bb = await computeBankBreakdown(s.shiftId);
+      return toSettlementView(s, bb);
+    }),
+  );
+  return withBreakdowns;
+}
+
+export async function reviewSettlement(id: number, reviewerId: number): Promise<SettlementView> {
+  const existing = await prisma.settlement.findUnique({ where: { id } });
+  if (!existing) throw notFound('Settlement');
+  if (existing.status === SettlementStatus.reviewed) {
+    throw new AppError('Settlement sudah pernah di-review', 400);
   }
 
   const updated = await prisma.settlement.update({
     where: { id },
-    data: { reviewerId, reviewedAt: new Date(), status: 'reviewed' },
+    data: {
+      reviewerId,
+      reviewedAt: new Date(),
+      status: SettlementStatus.reviewed,
+    },
+    include: {
+      cashier: { select: { name: true } },
+      reviewer: { select: { name: true } },
+    },
   });
-  return toDto(updated);
-}
-
-/** Daftar settlement dengan filter tanggal & status. */
-export async function listSettlements(filter: {
-  date?: string;
-  status?: 'submitted' | 'reviewed';
-}): Promise<SettlementDto[]> {
-  const where: Prisma.SettlementWhereInput = {};
-  if (filter.date) where.date = toDateOnly(filter.date);
-  if (filter.status) where.status = filter.status;
-
-  const rows = await prisma.settlement.findMany({ where, orderBy: { submittedAt: 'desc' } });
-  return rows.map(toDto);
-}
-
-/** Detail satu settlement. */
-export async function getSettlement(id: number): Promise<SettlementDto> {
-  const settlement = await prisma.settlement.findUnique({ where: { id } });
-  if (!settlement) throw notFound('Settlement');
-  return toDto(settlement);
+  const bankBreakdown = await computeBankBreakdown(updated.shiftId);
+  return toSettlementView(updated, bankBreakdown);
 }

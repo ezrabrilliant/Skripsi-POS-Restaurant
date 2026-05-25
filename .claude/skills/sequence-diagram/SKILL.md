@@ -1,15 +1,15 @@
 ---
 name: sequence-diagram
-description: Build UML Sequence Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a sequence diagram — or says "diagram interaksi", "urutan pesan", "MVC flow per use case", or describes object-to-object messages over time. Covers ADSI Modul Pembelajaran Bab 10 (Interaction Diagram) conventions — Boundary/Service(Control)/Entity class roles, synchronous vs asynchronous message arrows, numbered messages, return parameters, conditional messages in brackets, and fragments (loop/alt/ref) — plus programmatic construction via staruml-mcp (`create_diagram UMLSequenceDiagram`, `create_element_with_view UMLLifeline`, `create_edge_with_view UMLMessage`). Do not create a sequence diagram without consulting this skill first.
+description: Build UML Sequence Diagrams in StarUML for Indonesian ADSI (Analisis Design Sistem Informasi) skripsi. Use this skill whenever the user asks to create, rebuild, review, or fix a sequence diagram - or says "diagram interaksi", "urutan pesan", "MVC flow per use case", or describes object-to-object messages over time. Covers ADSI Modul Pembelajaran Bab 10 (Interaction Diagram) conventions - Boundary/Service(Control)/Entity class roles, synchronous vs asynchronous message arrows, numbered messages, return parameters, conditional messages in brackets, and fragments (loop/alt/ref) - plus programmatic construction via staruml-mcp (`create_diagram UMLSequenceDiagram`, `create_element_with_view UMLLifeline`, `create_edge_with_view UMLMessage`). Do not create a sequence diagram without consulting this skill first.
 ---
 
-# Sequence Diagram — ADSI convention + StarUML MCP
+# Sequence Diagram - ADSI convention + StarUML MCP
 
-Authoritative source: **Modul Pembelajaran ADSI Bab 10 — Interaction Diagram** (`docs/extracted/adsi.txt` lines 2904–3035). Interaction diagrams in ADSI split into **sequence** + **communication** diagrams — this skill covers sequence.
+Authoritative source: **Modul Pembelajaran ADSI Bab 10 - Interaction Diagram** (`docs/extracted/adsi.txt` lines 2904–3035). Interaction diagrams in ADSI split into **sequence** + **communication** diagrams - this skill covers sequence.
 
 ## 1. What sequence diagram is (per ADSI)
 
-> *"Interaction diagram adalah diagram yang menggambarkan urutan interaksi yang terjadi antar obyek dalam satu atau dua buah use case scenario maupun dalam sebuah fragment dari suatu use scenario."* — ADSI §10
+> *"Interaction diagram adalah diagram yang menggambarkan urutan interaksi yang terjadi antar obyek dalam satu atau dua buah use case scenario maupun dalam sebuah fragment dari suatu use scenario."* - ADSI §10
 
 Consequences:
 
@@ -17,25 +17,25 @@ Consequences:
 - Input: use case + use case scenario + (optional) activity diagram + domain model (class diagram).
 - Output: design model showing how boundary, service, and entity classes collaborate.
 
-## 2. The three stereotyped classes (ADSI §10 — "Analisis Ketahanan")
+## 2. The three stereotyped classes (ADSI §10 - "Analisis Ketahanan")
 
 Every object (lifeline) on a sequence diagram should be one of:
 
-### Boundary class — `<<boundary>>`
-> *"Boundary class digunakan untuk menggambarkan interaksi antara sistem dan aktor."* — ADSI §10
+### Boundary class - `<<boundary>>`
+> *"Boundary class digunakan untuk menggambarkan interaksi antara sistem dan aktor."* - ADSI §10
 
 - Represents UI forms, external-system interfaces, sensors.
 - **Each boundary must associate with at least one actor.**
 - Example names: `ReservationUI`, `LoginScreen`, `PaymentForm`, `POSCashierView`.
 
-### Service / Control class — `<<control>>`
-> *"Service (atau control) class merepresentasikan koordinasi, urutan, transaksi, dan kontrol."* — ADSI §10
+### Service / Control class - `<<control>>`
+> *"Service (atau control) class merepresentasikan koordinasi, urutan, transaksi, dan kontrol."* - ADSI §10
 
 - Orchestrates flow between boundary and entity. Encapsulates per-use-case logic. Isolates UI from data.
 - Example names: `ReservationService`, `TransactionController`, `AuthService`.
 
-### Entity class — `<<entity>>`
-> *"Entity class digunakan untuk memodelkan data yang harus disimpan (persistent)."* — ADSI §10
+### Entity class - `<<entity>>`
+> *"Entity class digunakan untuk memodelkan data yang harus disimpan (persistent)."* - ADSI §10
 
 - Represents persistent domain data.
 - Example names: `Room`, `Reservation`, `Menu`, `Transaction`, `DailyMenuStock`.
@@ -44,35 +44,35 @@ Every object (lifeline) on a sequence diagram should be one of:
 
 ## 3. Messages (ADSI §10)
 
-> *"Message mempunyai nama mempunyai arah panah (panah solid untuk message synchronous dan panah terbuka untuk message asynchronous). Untuk mempermudah melihat urutan relasinya, message dilengkapi juga dengan penomoran."* — ADSI §10
+> *"Message mempunyai nama mempunyai arah panah (panah solid untuk message synchronous dan panah terbuka untuk message asynchronous). Untuk mempermudah melihat urutan relasinya, message dilengkapi juga dengan penomoran."* - ADSI §10
 
-- **Synchronous message** — filled (solid) arrowhead. Caller waits for return. Most common.
-- **Asynchronous message** — open (stick) arrowhead. Fire-and-forget.
-- **Return message** — dashed line with open arrowhead. Optional but helpful.
-- **Self-message** — loop arrow to same lifeline.
+- **Synchronous message** - filled (solid) arrowhead. Caller waits for return. Most common.
+- **Asynchronous message** - open (stick) arrowhead. Fire-and-forget.
+- **Return message** - dashed line with open arrowhead. Optional but helpful.
+- **Self-message** - loop arrow to same lifeline.
 - Messages are numbered (1, 2, 2.1, 2.2, 3) to show order.
-- **Conditional message** — wrap the message name in square brackets: `[stok cukup] decrementStock()`.
+- **Conditional message** - wrap the message name in square brackets: `[stok cukup] decrementStock()`.
 - Messages can carry **parameters** and **return values**: `findRoom(type, checkIn, checkOut) : List<Room>`.
 
 ## 4. Fragments (ADSI §10)
 
 Fragments wrap a region of messages to express control flow:
 
-- `loop` — repeat while condition holds. Label: `loop [while cartHasItems]`.
-- `alt` — alternative branches. Label: `alt [stok cukup] / [else]`.
-- `opt` — optional block (single branch). Label: `opt [wantsReceipt]`.
-- `ref` — reference to another sequence diagram (lets you split a big one). Label: `ref MencariMejaKosong`.
-- `par` — parallel (rare at skripsi level).
+- `loop` - repeat while condition holds. Label: `loop [while cartHasItems]`.
+- `alt` - alternative branches. Label: `alt [stok cukup] / [else]`.
+- `opt` - optional block (single branch). Label: `opt [wantsReceipt]`.
+- `ref` - reference to another sequence diagram (lets you split a big one). Label: `ref MencariMejaKosong`.
+- `par` - parallel (rare at skripsi level).
 
 Use `ref` to split oversized diagrams (ADSI §10 explicitly allows this: *"Dapat memecah diagram yang besar menjadi beberapa diagram kecil."*).
 
-## 5. Checklist — verify before saving
+## 5. Checklist - verify before saving
 
 1. The diagram corresponds to **one use case scenario**. Name it: `Sequence Diagram - <Use Case> (<Scenario>)`, e.g. `Sequence Diagram - Login (Success)`.
 2. The actor appears as the leftmost lifeline. They only call boundary classes.
 3. Every lifeline has a stereotype: `<<boundary>>`, `<<control>>`, or `<<entity>>` (except the actor lifeline).
 4. At least one boundary associated to the actor (per ADSI rule).
-5. Boundary does not call entity directly — route through a control.
+5. Boundary does not call entity directly - route through a control.
 6. Messages are numbered in execution order.
 7. Conditional messages wrapped in `[...]` guards, or put inside `alt` / `opt` fragments.
 8. Loops use `loop` fragments, not ad-hoc back-arrows.
@@ -85,7 +85,7 @@ Use `ref` to split oversized diagrams (ADSI §10 explicitly allows this: *"Dapat
 
 Only use registered `mcp__staruml__*` tools.
 
-### Step 1 — diagram
+### Step 1 - diagram
 
 ```
 mcp__staruml__create_diagram type=UMLSequenceDiagram parentId=<parent> \
@@ -93,7 +93,7 @@ mcp__staruml__create_diagram type=UMLSequenceDiagram parentId=<parent> \
     → returns diagramId (StarUML creates the owning UMLCollaboration/Interaction as parent of lifelines)
 ```
 
-### Step 2 — actor lifeline
+### Step 2 - actor lifeline
 
 ```
 mcp__staruml__create_element_with_view type=UMLActor parentId=<collabId> diagramId=<diagramId> \
@@ -106,7 +106,7 @@ mcp__staruml__create_element_with_view type=UMLLifeline parentId=<collabId> diag
     name=":Kasir" x=60 y=40 x2=120 y2=80
 ```
 
-### Step 3 — object lifelines (boundary / control / entity)
+### Step 3 - object lifelines (boundary / control / entity)
 
 ```
 mcp__staruml__create_element_with_view type=UMLLifeline parentId=<collabId> diagramId=<diagramId> \
@@ -121,7 +121,7 @@ mcp__staruml__create_element_with_view type=UMLLifeline parentId=<collabId> diag
 
 If `stereotype=` parameter isn't supported by your version of the MCP extension, set it after creation via `mcp__staruml__update_element id=<lifelineId> properties={stereotype: "boundary"}`.
 
-### Step 4 — messages
+### Step 4 - messages
 
 ```
 # synchronous call: Kasir → LoginScreen
@@ -137,7 +137,7 @@ mcp__staruml__create_edge_with_view type=UMLMessage parentId=<collabId> diagramI
 
 For asynchronous messages, set `messageSort=asynchCall` via `update_element`. For return messages, use `messageSort=reply` and dashed line (StarUML renders dashed automatically on reply).
 
-### Step 5 — fragments (loop / alt / opt / ref)
+### Step 5 - fragments (loop / alt / opt / ref)
 
 Use StarUML's `UMLCombinedFragment` with `interactionOperator`:
 
@@ -148,7 +148,7 @@ mcp__staruml__create_element_with_view type=UMLCombinedFragment parentId=<collab
 
 Then set `interactionOperator` = `loop` / `alt` / `opt` / `ref` / `par` on the fragment. Operands go inside.
 
-### Step 6 — save
+### Step 6 - save
 
 ```
 mcp__staruml__save_project
@@ -165,7 +165,7 @@ mcp__staruml__save_project
 | Vertical axis | y from 40 (head) to 600+ (tail) | Time flows downward |
 | Message spacing | 30 px vertical between messages | |
 
-## 7. Worked example — POS "Login (Happy Path)"
+## 7. Worked example - POS "Login (Happy Path)"
 
 Lifelines (left to right):
 
@@ -186,7 +186,7 @@ Numbered messages:
 
 Alt-fragment `alt [user found] / [else]`: if `findByPin` returns null, return error 401; wrap steps 3-7 in the alt.
 
-## 8. Worked example — POS "Pay Transaction"
+## 8. Worked example - POS "Pay Transaction"
 
 Lifelines:
 
@@ -207,7 +207,7 @@ Messages:
 6. TransactionController →→ PaymentForm : return receipt data
 7. `opt [customer wants receipt]` → PaymentForm → Kasir : print receipt
 
-## 8b. StarUML sizing pitfalls (MCP-specific — critical)
+## 8b. StarUML sizing pitfalls (MCP-specific - critical)
 
 When building via `staruml-mcp` tools, watch two traps that StarUML's defaults do not save you from:
 
@@ -215,13 +215,13 @@ When building via `staruml-mcp` tools, watch two traps that StarUML's defaults d
 StarUML's `lifelineFn` auto-extends the box (`y2 = y1 + 200` minimum) but does **not** constrain `linePart.height` (the dashed vertical tail below the box). If messages are created without explicit `y`, or if the diagram mutates in certain orders, linePart grows to thousands of px (observed 14,802 / 14,056 / 9,753 px) and is not shrunk back by StarUML. The diagram becomes absurdly tall.
 
 **Fix at build time:**
-1. Create every UMLMessage with explicit `y` (40 px spacing — e.g. 130, 170, 210, …).
+1. Create every UMLMessage with explicit `y` (40 px spacing - e.g. 130, 170, 210, …).
 2. After all messages exist, `update_element` each lifeline's `linePart._id` with `field: "height", value: <lastMessageY - 40>`. The linePart id is in the lifeline view's `linePart._id` attribute (read via `get_element_by_id`).
 
 ### Wrong parent → wrong view type
 UMLLifeline and UMLMessage **must** be parented to `UMLInteraction`, not `UMLCollaboration` (even though Collaboration is the Interaction's parent). If you use Collaboration, `lifelineFn`'s assert fails and the extension silently falls back to `defaultModelAndViewFn`, which creates a generic `UMLLifelineView` instead of `UMLSeqLifelineView`. Later `UMLMessage` creation will then fail with "Invalid connection (UMLMessage)" because messages require `UMLSeqLifelineView` endpoints.
 
-**Check:** after creating lifelines, the returned `method` should be `"createModelAndView"`. If it says `"defaultModelAndViewFn"`, you have the wrong parent — delete and recreate with the Interaction as `parentId`.
+**Check:** after creating lifelines, the returned `method` should be `"createModelAndView"`. If it says `"defaultModelAndViewFn"`, you have the wrong parent - delete and recreate with the Interaction as `parentId`.
 
 ## 9. Common mistakes to grep for
 

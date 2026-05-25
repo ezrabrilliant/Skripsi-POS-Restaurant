@@ -1,27 +1,43 @@
-// Route modul transaksi. Operasional POS — kasir & owner.
+// Routes modul transactions. Permission per matrix REV 2.3:
+//   - POST /                  -> semua authenticated (kasir primary, waiter fallback)
+//   - GET /                   -> semua authenticated
+//   - GET /:id                -> semua authenticated
+//   - POST /:id/items         -> semua authenticated (multi-round order)
+//   - POST /:id/payment       -> owner + cashier (payment menyangkut uang nyata)
+//   - POST /:id/void          -> owner + cashier (void = transaksi batal, dampak stok)
 
 import { Router } from 'express';
-import * as txController from './transactions.controller';
+import { UserRole } from '@prisma/client';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
-import { asyncHandler } from '../../utils/asyncHandler';
+import {
+  handleCreate,
+  handleAddItems,
+  handlePayment,
+  handleVoid,
+  handleDetail,
+  handleList,
+  handleSplit,
+  handleMerge,
+} from './transactions.controller';
 
 const router = Router();
 
-router.use(authenticate, requireRole('cashier', 'owner'));
+router.use(authenticate);
 
-// Route literal didaftarkan sebelum '/:id' agar tidak tertangkap sebagai parameter.
-router.get('/history', asyncHandler(txController.history));
-router.get('/daily-summary', asyncHandler(txController.dailySummary));
-router.get('/', asyncHandler(txController.listOpen));
-router.post('/', asyncHandler(txController.create));
+// Semua authenticated boleh
+router.post('/', handleCreate);
+router.get('/', handleList);
+router.get('/:id', handleDetail);
+router.post('/:id/items', handleAddItems);
 
-router.get('/:id', asyncHandler(txController.show));
-router.put('/:id/items', asyncHandler(txController.syncItems));
-router.post('/:id/items', asyncHandler(txController.addItem));
-router.put('/:id/items/:itemId', asyncHandler(txController.updateItem));
-router.delete('/:id/items/:itemId', asyncHandler(txController.removeItem));
-router.post('/:id/pay', asyncHandler(txController.pay));
-router.post('/:id/void', asyncHandler(txController.voidTx));
+// Owner + cashier saja
+const ownerOrCashier = requireRole(UserRole.owner, UserRole.cashier);
+router.post('/:id/payment', ownerOrCashier, handlePayment);
+router.post('/:id/void', ownerOrCashier, handleVoid);
+
+// REV 2.3 Phase 4b — split + merge bill (owner + cashier per matrix)
+router.put('/:id/split', ownerOrCashier, handleSplit);
+router.post('/merge', ownerOrCashier, handleMerge);
 
 export default router;

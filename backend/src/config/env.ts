@@ -1,6 +1,6 @@
 // Memuat & memvalidasi environment variable dengan Zod.
 // Jika ada variable wajib yang hilang/salah, server gagal start dengan pesan jelas
-// — lebih baik daripada error misterius saat runtime.
+// - lebih baik daripada error misterius saat runtime.
 
 import { z } from 'zod';
 
@@ -11,7 +11,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(8000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
-  TABLE_COUNT: z.coerce.number().int().positive().default(20),
+  // REV 2.2: resto memiliki 9 meja fixed (2 kapasitas 6 + 7 kapasitas 4).
+  TABLE_COUNT: z.coerce.number().int().positive().default(9),
 });
 
 const parsed = envSchema.safeParse(process.env);

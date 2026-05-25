@@ -1,4 +1,4 @@
-# Sistem POS Restoran — Ayam Bakar Banjar Monosuko
+# Sistem POS Restoran - Ayam Bakar Banjar Monosuko
 
 Sistem Point of Sale (POS) berbasis web untuk restoran. Proyek skripsi Ezra Brilliant Konterliem (C14220315), Sistem Informasi Bisnis UK Petra.
 
@@ -12,7 +12,7 @@ Sistem Point of Sale (POS) berbasis web untuk restoran. Proyek skripsi Ezra Bril
 ## Prasyarat
 
 - Node.js 20+
-- MySQL (mis. via Laragon) — buat database kosong `pos_restaurant`
+- MySQL (mis. via Laragon) - buat database kosong `pos_restaurant`
 
 ## Setup
 
@@ -23,7 +23,7 @@ npm run install:all
 # 2. Siapkan konfigurasi backend
 cd backend
 cp .env.example .env
-# Edit .env — sesuaikan DATABASE_URL dengan MySQL kamu
+# Edit .env - sesuaikan DATABASE_URL dengan MySQL kamu
 # Laragon default: mysql://root:@localhost:3306/pos_restaurant
 
 # 3. Migrasi + seed database
@@ -55,11 +55,11 @@ Cek backend hidup: buka `http://localhost:8000/api/health`.
 
 - Autentikasi PIN + tiga peran (owner / kasir / kitchen)
 - Manajemen menu (katalog + kategori)
-- Stok harian — input pagi oleh kitchen + status opname
+- Stok harian - input pagi oleh kitchen + status opname
 - Buka kasir (shift), manajemen meja & pesanan
-- **Force order** — pesan meski stok kurang, dengan konfirmasi
+- **Force order** - pesan meski stok kurang, dengan konfirmasi
 - Pembayaran 6 metode + cetak struk + pembatalan (void) ber-PIN owner
-- **Tutup kasir blind count** — rekonsiliasi kas + deteksi selisih
+- **Tutup kasir blind count** - rekonsiliasi kas + deteksi selisih
 - Pencatatan pengeluaran harian
 - Dashboard & laporan (pendapatan, pengeluaran, laba kotor)
 
@@ -68,16 +68,16 @@ Cek backend hidup: buka `http://localhost:8000/api/health`.
 ```
 backend/    API Express + Prisma (lihat backend/README.md untuk daftar API)
 frontend/   Aplikasi React (PWA)
-docs/       Dokumentasi skripsi — diagram, knowledge base, Bab 3
+docs/       Dokumentasi skripsi - diagram, knowledge base, Bab 3
 ROADMAP.md  Status & rencana pengembangan proyek
 ```
 
 ## Dokumentasi
 
-- **API backend** — [backend/README.md](backend/README.md) + `backend/postman_collection.json`
-- **Status proyek** — [ROADMAP.md](ROADMAP.md)
-- **Diagram & knowledge skripsi** — [docs/knowledge/](docs/knowledge/)
-- **Panduan Claude Code** — [CLAUDE.md](CLAUDE.md)
+- **API backend** - [backend/README.md](backend/README.md) + `backend/postman_collection.json`
+- **Status proyek** - [ROADMAP.md](ROADMAP.md)
+- **Diagram & knowledge skripsi** - [docs/knowledge/](docs/knowledge/)
+- **Panduan Claude Code** - [CLAUDE.md](CLAUDE.md)
 
 ## Catatan
 
@@ -86,4 +86,4 @@ ROADMAP.md  Status & rencana pengembangan proyek
 
 ## Penyusun
 
-Ezra Brilliant Konterliem — C14220315
+Ezra Brilliant Konterliem - C14220315

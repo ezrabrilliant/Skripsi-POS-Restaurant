@@ -1,4 +1,4 @@
-# ROADMAP — Sistem POS Ayam Bakar Banjar Monosuko
+# ROADMAP - Sistem POS Ayam Bakar Banjar Monosuko
 
 Status pengembangan proyek skripsi. Diperbarui terakhir: sesi pembangunan backend Express.
 
@@ -6,11 +6,11 @@ Status pengembangan proyek skripsi. Diperbarui terakhir: sesi pembangunan backen
 
 | Bagian | Status |
 |---|---|
-| Diagram skripsi (Bab 3) | ✅ Selesai — di `Skripsi.mdj` |
+| Diagram skripsi (Bab 3) | ✅ Selesai - di `Skripsi.mdj` |
 | Naskah Bab 3 | 🔄 Draft siap di `docs/knowledge/BAB-3-DRAFT.md`, tinggal disalin ke buku |
-| Backend (Express + Prisma + MySQL) | ✅ Selesai — semua modul, teruji |
+| Backend (Express + Prisma + MySQL) | ✅ Selesai - semua modul, teruji |
 | Frontend (React) | ⏸ Belum disesuaikan ke API baru |
-| PWA | ✅ Setup selesai (vite-plugin-pwa) — tinggal uji install di HP |
+| PWA | ✅ Setup selesai (vite-plugin-pwa) - tinggal uji install di HP |
 
 ---
 
@@ -21,12 +21,12 @@ Perubahan yang memengaruhi naskah skripsi & diagram:
 1. **Stack backend: Laravel → Express + TypeScript + Prisma.** Naskah Bab 1.4 & 2.4 perlu menyebut Express/Node, bukan PHP/Laravel.
 2. **Database: PostgreSQL → MySQL.** Sudah disesuaikan di semua dokumen `docs/`.
 3. **Primary key: UUID → integer auto-increment.** Sudah disesuaikan di ERD doc + data dictionary.
-4. **Stok opname hanya pagi** (oleh Kitchen). Stok opname sore (oleh Kasir) **dihapus** dari desain — lihat catatan ripple-effect di bawah.
-5. **Server di-host di VPS cloud** (Tencent), karena resto tidak punya WiFi internal — tiap perangkat pakai paket data.
+4. **Stok opname hanya pagi** (oleh Kitchen). Stok opname sore (oleh Kasir) **dihapus** dari desain - lihat catatan ripple-effect di bawah.
+5. **Server di-host di VPS cloud** (Tencent), karena resto tidak punya WiFi internal - tiap perangkat pakai paket data.
 
 ---
 
-## Backend — Selesai ✅
+## Backend - Selesai ✅
 
 Branch: `feat/backend-express`. Dibangun per fase, tiap fase teruji end-to-end.
 
@@ -50,12 +50,12 @@ Branch: `feat/backend-express`. Dibangun per fase, tiap fase teruji end-to-end.
 
 ### 1. Integrasi Frontend
 Frontend React masih ditulis untuk API Laravel lama:
-- Auth header Sanctum (perlu jadi JWT — sebenarnya sama-sama Bearer, perlu verifikasi)
+- Auth header Sanctum (perlu jadi JWT - sebenarnya sama-sama Bearer, perlu verifikasi)
 - Peran `kasir` (perlu `cashier`), belum ada peran `kitchen`
-- Belum ada alur **buka kasir / shift** — padahal transaksi sekarang wajib punya shift terbuka
+- Belum ada alur **buka kasir / shift** - padahal transaksi sekarang wajib punya shift terbuka
 - Service Axios per resource perlu dicek terhadap endpoint Express baru
 
-### 2. PWA — ✅ setup selesai
+### 2. PWA - ✅ setup selesai
 `vite-plugin-pwa` terpasang: service worker autoUpdate, web manifest, ikon 192/512/maskable, PWA Level A (precache app shell; data API tetap ke jaringan). Sisa: uji "Add to Home Screen" di HP setelah frontend berfungsi.
 
 ### 3. Sinkronisasi diagram StarUML (ripple-effect)

@@ -1,7 +1,14 @@
-// Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko.
-// Struktur ini 1:1 dengan ERD pada Bab 3 skripsi (8 entitas, 9 relasi).
-// Sumber kebenaran kolom: docs/DATA-DICTIONARY.md
-// Primary key memakai auto-increment integer (BIGINT/INT MySQL).
+// Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko (REV 2.2).
+// Sumber kebenaran alur bisnis: docs/operasional-resto.md REV 2.3
+// Sumber struktur data: docs/knowledge/ERD.md REV 2.3 (schema identik REV 2.2)
+// Refactor plan: ~/.claude/plans/ubah-backend-dari-laravel-crystalline-wilkes.md REV 2.3
+//
+// 14 entitas, 19 relasi. Primary key memakai auto-increment integer (INT MySQL),
+// kecuali PortionStock yang PK-nya menu_id (1:1 dengan Menu).
+//
+// REV 2.3 catatan: tidak ada perubahan schema dari REV 2.2 — permission per role
+// ditangani di app layer (middleware backend + frontend conditional UI), bukan di DB.
+// users.role enum tetap single source of truth.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,12 +19,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ----- Enum -----
+// ============================================================
+// ENUMS
+// ============================================================
 
+/// 3 role: owner, kasir, waiter. Tidak ada "kitchen" — masak out of scope.
 enum UserRole {
   owner
   cashier
-  kitchen
+  waiter
 }
 
 enum TransactionStatus {
@@ -26,85 +36,269 @@ enum TransactionStatus {
   void
 }
 
+/// 2 tipe order saja (REV 2.1: disederhanakan dari 5). Sumber takeaway
+/// (walk-in, GoFood, GrabFood, gosend) dibedakan via metode pembayaran.
+enum OrderType {
+  dineIn   @map("dine_in")
+  takeaway
+}
+
+/// 6 metode pembayaran. EDC dan transfer dipisah per bank via field
+/// Transaction.payment_bank nullable.
+///
+/// cash/edc/qris   -> dine-in & takeaway walk-in
+/// gojek/grab      -> takeaway via aggregator merchant app (settlement)
+/// transfer        -> dine-in / takeaway / gosend teman owner
 enum PaymentMethod {
   cash
+  edc
   qris
+  gojek
+  grab
   transfer
-  debit
-  credit
-  ojol
 }
 
 enum SettlementStatus {
-  pending
   submitted
   reviewed
 }
 
-enum ExpenseCategory {
-  ingredients
-  utilities
-  salary
-  transport
-  other
+/// 2 shift fixed per hari per kasir. Pagi mulai sebelum 10:00, malam mulai 18:00.
+enum ShiftType {
+  pagi
+  malam
 }
 
-// ----- Entitas -----
+/// Klasifikasi menu berdasarkan apakah ditrack stok porsi.
+/// - portion  = menu sendiri yang punya PortionStock (auto-decrement saat order).
+/// - linked   = menu varian yang men-decrement stok porsi menu lain (subOptions.stockTarget).
+/// - nonStock = tetap tampil di POS tapi tidak decrement (minuman, nasi, sambal, paket dengan subOptions.stockMap).
+enum StockType {
+  portion  @map("portion")
+  linked   @map("linked")
+  nonStock @map("non_stock")
+}
 
-/// Pengguna sistem: owner, cashier, kitchen. Login via PIN 6 digit.
+/// REV 2.2: RENAME dari StockMovementReason. Audit log perubahan PortionStock.
+/// refund_void ditambah untuk antisipasi void transaksi yang sudah submit.
+enum PortionMovementReason {
+  order            @map("order")
+  restockMorning   @map("restock_morning")
+  restockEmergency @map("restock_emergency")
+  manualAdjust     @map("manual_adjust")
+  refundVoid       @map("refund_void")
+}
+
+/// REV 2.2: BARU. Audit log perubahan RawMaterial.stock_qty.
+/// purchase auto-insert saat PurchaseItem submit; opname saat opname raw materials;
+/// manual_adjust untuk koreksi langsung via halaman Raw Materials.
+enum RawMaterialMovementReason {
+  purchase
+  opname
+  manualAdjust @map("manual_adjust")
+}
+
+/// REV 2.1: BARU (ganti BulkStockKind rigid).
+/// Pengelompokan raw material untuk laporan owner. Item is_tracked=false
+/// kategori bumbu_dasar di-grouping jadi 1 baris "Bumbu Dasar" di laporan
+/// agregat dengan drill-down detail per item.
+enum RawMaterialCategory {
+  bumbuDasar  @map("bumbu_dasar")
+  bahanSegar  @map("bahan_segar")
+  bahanPokok  @map("bahan_pokok")
+  bahanKering @map("bahan_kering")
+  lainnya
+}
+
+/// Kategori tagihan operasional bulanan (owner only).
+enum BillCategory {
+  kebersihan
+  listrik
+  air
+  parkir
+  sewa
+}
+
+// ============================================================
+// ENTITAS UTAMA (14 entitas REV 2.2)
+// ============================================================
+
+/// 1. Pengguna sistem: owner, cashier, waiter. Login via (nama, PIN 6 digit).
+/// PIN BOLEH DUPLIKAT antar pegawai — identifikasi via nama, PIN cuma password.
+/// REV 2.3 catatan: tidak ada layar pilih nama dari daftar. Form 2 field input
+/// nama + PIN murni setiap login (no localStorage remember last user).
 model User {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(100)
-  pin       String   @unique @db.VarChar(6)
+  pin       String   @db.VarChar(6)
   role      UserRole
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  transactions       Transaction[]
-  shifts             Shift[]
-  settlementsCashier Settlement[]  @relation("SettlementCashier")
-  settlementsReview  Settlement[]  @relation("SettlementReviewer")
-  expenses           Expense[]
+  transactions         Transaction[]
+  shifts               Shift[]
+  settlementsCashier   Settlement[]          @relation("SettlementCashier")
+  settlementsReview    Settlement[]          @relation("SettlementReviewer")
+  purchases            Purchase[]
+  bills                Bill[]
+  portionMovements     PortionMovement[]
+  rawMaterialMovements RawMaterialMovement[]
 
   @@map("users")
 }
 
-/// Katalog menu siap jual.
+/// 2. Katalog menu siap jual (target 60 item: 25 stok porsi + linked + non-stok + 5 paket).
+/// stockType=portion  -> link 1:1 ke PortionStock (auto-decrement saat order).
+/// stockType=linked   -> share stok porsi menu lain via subOptions.stockTarget.
+/// stockType=nonStock -> tampil di POS tapi tidak pengaruh stok.
+/// subOptions=non-null -> menu adalah paket dengan pilihan dinamis (Paket A/B/C/D/Keluarga).
 model Menu {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(100)
-  category  String   @db.VarChar(50)
-  price     Decimal  @db.Decimal(10, 2)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  category   String    @db.VarChar(50)
+  price      Decimal   @db.Decimal(10, 2)
+  stockType  StockType @default(nonStock) @map("stock_type")
+  /// Minimum stok untuk reminder restock. Hanya bermakna jika stockType=portion.
+  minStock   Int?      @map("min_stock")
+  /// Path relatif foto menu (mis. /menu/ayam-bakar.webp) atau URL absolut.
+  imageUrl   String?   @map("image_url") @db.VarChar(255)
+  /// Definisi sub-pilihan untuk paket. Struktur JSON dengan options[] + stockMap.
+  subOptions Json?     @map("sub_options")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  dailyStocks      DailyMenuStock[]
+  portionStock     PortionStock?
   transactionItems TransactionItem[]
+  portionMovements PortionMovement[]
 
   @@map("menus")
 }
 
-/// Stok per menu per hari. Diinput pagi oleh kitchen, berkurang saat pembayaran.
-model DailyMenuStock {
-  id           Int      @id @default(autoincrement())
-  date         DateTime @db.Date
-  menuId       Int      @map("menu_id")
-  openingStock Int      @map("opening_stock")
-  currentStock Int      @map("current_stock")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+/// 3. Live count stok porsi per menu (1:1 dengan Menu yang stockType=portion).
+/// Tidak per-tanggal — currentQty adalah snapshot saat ini yang terus berubah.
+/// Boleh negatif (stok minus dibolehkan; restock via "Barang Masuk" akan menambah).
+///
+/// REV 2.1 BARU: openingQtyToday + openingQtyDate auto-snapshot saat user pertama
+/// login pagi. Dipakai untuk metric "terjual hari ini" di dashboard.
+/// Metric = opening_qty_today + sum(restock_today_movements) − current_qty
+model PortionStock {
+  menuId          Int      @id @map("menu_id")
+  currentQty      Int      @map("current_qty")
+  /// Duplicate dari Menu.min_stock untuk kemudahan query reminder.
+  minStock        Int      @default(0) @map("min_stock")
+  /// Snapshot otomatis qty saat user pertama login pagi. Trigger auto-snapshot
+  /// di middleware backend saat openingQtyDate < today.
+  openingQtyToday Int      @default(0) @map("opening_qty_today")
+  openingQtyDate  DateTime @default(dbgenerated("(CURRENT_DATE)")) @map("opening_qty_date") @db.Date
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  menu Menu @relation(fields: [menuId], references: [id])
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
-  @@unique([date, menuId])
-  @@map("daily_menu_stocks")
+  @@map("portion_stocks")
 }
 
-/// Siklus buka/tutup kasir per cashier per hari. Parent transactions + settlement.
+/// 4. Log audit semua perubahan PortionStock (REV 2.2: RENAME dari stock_movements).
+/// delta bisa negatif (order, opname turun) atau positif (restock, opname naik).
+/// Wajib referensi user yang melakukan untuk akuntabilitas.
+model PortionMovement {
+  id        Int                   @id @default(autoincrement())
+  menuId    Int                   @map("menu_id")
+  delta     Int
+  reason    PortionMovementReason
+  /// Catatan opsional. Untuk order: "transactionId=123". Untuk restock_emergency:
+  /// "Antar via Gojek 18:30". Untuk manual_adjust: "Opname pagi selisih +1/-2".
+  note      String?               @db.VarChar(255)
+  userId    Int                   @map("user_id")
+  createdAt DateTime              @default(now()) @map("created_at")
+
+  menu Menu @relation(fields: [menuId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([menuId, createdAt])
+  @@map("portion_movements")
+}
+
+/// 5. Master bahan baku (REV 2.1: ganti BulkStock rigid). Struktur fleksibel
+/// dengan is_tracked untuk membedakan:
+/// - is_tracked=true  : stok di-update saat purchase + muncul di reminder (Beras, Kangkung, Petai, Tahu, Tempe, Telur)
+/// - is_tracked=false : hanya log pengeluaran tanpa monitoring stok (Cabai, Bawang, Kemiri, Minyak, dll)
+///
+/// Field freshness_days opsional untuk perishable: reminder mendekati basi
+/// (freshness_days − 3) hari setelah last_buy_date.
+model RawMaterial {
+  id            Int                 @id @default(autoincrement())
+  name          String              @db.VarChar(100)
+  /// Satuan ukur bebas: ikat, karung, balok, butir, gram, liter, skala, pcs
+  unit          String              @db.VarChar(20)
+  category      RawMaterialCategory
+  isTracked     Boolean             @default(true) @map("is_tracked")
+  stockQty      Decimal             @default(0) @map("stock_qty") @db.Decimal(10, 2)
+  /// Ambang reminder restock (kalau is_tracked=true).
+  minStock      Int?                @map("min_stock")
+  /// Harga per unit terakhir, auto-update saat purchase baru.
+  unitPrice     Decimal?            @map("unit_price") @db.Decimal(10, 2)
+  /// Untuk perishable (mis. 10 untuk kangkung). Reminder muncul (freshness − 3) hari setelah last_buy_date.
+  freshnessDays Int?                @map("freshness_days")
+  /// Tanggal pembelian terakhir, auto-update saat purchase_items submit.
+  lastBuyDate   DateTime?           @map("last_buy_date") @db.Date
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  purchaseItems        PurchaseItem[]
+  rawMaterialMovements RawMaterialMovement[]
+
+  @@map("raw_materials")
+}
+
+/// 6. Log audit perubahan RawMaterial.stock_qty (REV 2.2: BARU).
+/// Auto-insert oleh sistem di 3 trigger:
+/// - purchase: tiap PurchaseItem submit dengan raw_material is_tracked=true → delta=+qty
+/// - opname  : tiap submit opname raw materials yang ubah stock_qty → delta=selisih
+/// - manualAdjust: koreksi manual via halaman Raw Materials (owner/kasir)
+model RawMaterialMovement {
+  id            Int                       @id @default(autoincrement())
+  rawMaterialId Int                       @map("raw_material_id")
+  delta         Decimal                   @db.Decimal(10, 2)
+  reason        RawMaterialMovementReason
+  /// Catatan opsional. Untuk purchase: "Purchase id=X dari Vendor Y".
+  /// Untuk opname: "Opname malam: dari 2 ikat jadi 0 ikat".
+  note          String?                   @db.VarChar(255)
+  userId        Int                       @map("user_id")
+  createdAt     DateTime                  @default(now()) @map("created_at")
+
+  rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@index([rawMaterialId, createdAt])
+  @@map("raw_material_movements")
+}
+
+/// 7. Master vendor/toko/pasar tempat belanja (REV 2.1: BARU, opsional di Purchase).
+/// Phone dan note opsional karena di pasar kadang kasir lupa nama penjual atau
+/// penjualnya perorangan tanpa nomor telepon.
+model Vendor {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  /// Jenis vendor: "toko" / "pasar" / "individu"
+  type      String   @db.VarChar(50)
+  phone     String?  @db.VarChar(20)
+  note      String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  purchases Purchase[]
+
+  @@map("vendors")
+}
+
+/// 8. Siklus shift per kasir per hari per tipe. 1 kasir maksimal 1 shift pagi + 1 shift malam per hari.
+/// closedAt null = shift masih terbuka. Settlement (kasir malam) menutup shift.
 model Shift {
   id          Int       @id @default(autoincrement())
   date        DateTime  @db.Date
+  type        ShiftType
   cashierId   Int       @map("cashier_id")
   openingCash Decimal   @map("opening_cash") @db.Decimal(12, 2)
   closedAt    DateTime? @map("closed_at")
@@ -114,41 +308,66 @@ model Shift {
   transactions Transaction[]
   settlement   Settlement?
 
+  @@unique([date, cashierId, type])
   @@map("shifts")
 }
 
-/// Header pesanan per meja. Satu meja = satu transaksi hingga dibayar/void.
+/// 9. Header pesanan.
+/// - Dine-in: wajib tableNumber. Multi-round per sesi meja.
+/// - Takeaway: tableNumber null. Sumber order dibedakan via payment method.
+/// - taxAmount = PB1 10% dari (subtotal - discountAmount).
+/// - total = subtotal - discountAmount + taxAmount.
+///
+/// REV 2.1 BARU:
+/// - paymentBank: terisi hanya kalau payment_method=edc atau transfer
+///   (untuk laporan rekonsiliasi per bank).
+/// - mergedIntoId: self-ref nullable untuk merge bill. Transaksi sumber yang
+///   di-merge punya merged_into_id = parent gabungan.
 model Transaction {
   id             Int               @id @default(autoincrement())
   shiftId        Int               @map("shift_id")
-  tableNumber    Int               @map("table_number")
+  orderType      OrderType         @map("order_type")
+  tableNumber    Int?              @map("table_number")
   cashierId      Int               @map("cashier_id")
   status         TransactionStatus @default(open)
   paymentMethod  PaymentMethod?    @map("payment_method")
+  /// REV 2.1: terisi hanya untuk paymentMethod=edc atau transfer (mis. "BCA", "Mandiri").
+  paymentBank    String?           @map("payment_bank") @db.VarChar(50)
+  /// REV 2.1: self-reference untuk merge bill. Null = transaksi normal/parent.
+  /// Non-null = transaksi sumber yang sudah di-merge ke parent (id parent).
+  mergedIntoId   Int?              @map("merged_into_id")
   subtotal       Decimal           @default(0) @db.Decimal(12, 2)
   discountAmount Decimal           @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount      Decimal           @default(0) @map("tax_amount") @db.Decimal(12, 2)
   total          Decimal           @default(0) @db.Decimal(12, 2)
   createdAt      DateTime          @default(now()) @map("created_at")
   paidAt         DateTime?         @map("paid_at")
   voidedAt       DateTime?         @map("voided_at")
 
-  shift   Shift             @relation(fields: [shiftId], references: [id])
-  cashier User              @relation(fields: [cashierId], references: [id])
-  items   TransactionItem[]
+  shift      Shift             @relation(fields: [shiftId], references: [id])
+  cashier    User              @relation(fields: [cashierId], references: [id])
+  items      TransactionItem[]
+  mergedInto Transaction?      @relation("MergeBill", fields: [mergedIntoId], references: [id])
+  mergedFrom Transaction[]     @relation("MergeBill")
 
   @@map("transactions")
 }
 
-/// Detail item dalam transaksi (junction menu x transaction) + harga snapshot.
+/// 10. Detail item dalam transaksi. unitPrice = snapshot saat order.
+/// subOptionsSelected (JSON): hasil pilihan SubOptionsModal untuk paket
+///   format: { ayamPart: "Paha", cook: "Bakar", minuman: "Teh Tawar" }
+/// partyId: untuk split bill, item dengan partyId sama = 1 struk terpisah.
+///   Null = tidak split (default).
 model TransactionItem {
-  id            Int      @id @default(autoincrement())
-  transactionId Int      @map("transaction_id")
-  menuId        Int      @map("menu_id")
-  qty           Int
-  unitPrice     Decimal  @map("unit_price") @db.Decimal(10, 2)
-  subtotal      Decimal  @db.Decimal(12, 2)
-  isForceOrder  Boolean  @default(false) @map("is_force_order")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id                 Int      @id @default(autoincrement())
+  transactionId      Int      @map("transaction_id")
+  menuId             Int      @map("menu_id")
+  qty                Int
+  unitPrice          Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal           Decimal  @db.Decimal(12, 2)
+  subOptionsSelected Json?    @map("sub_options_selected")
+  partyId            Int?     @map("party_id")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   menu        Menu        @relation(fields: [menuId], references: [id])
@@ -156,31 +375,33 @@ model TransactionItem {
   @@map("transaction_items")
 }
 
-/// Hasil blind count rekonsiliasi akhir shift. 1:1 dengan shift.
+/// 11. Rekap akhir hari (kasir shift malam saja). 1:1 dengan Shift (shift malam).
+/// Bukan blind count rumit — simpel 6 totals (sistem) + 6 totals (fisik) + variance di runtime.
+/// Modal awal kasir di-track di Shift, ditampilkan di summary tapi tidak ikut variance.
+///
+/// Breakdown per bank untuk EDC dan transfer dihitung di runtime dari
+/// transactions GROUP BY payment_bank di tanggal yang sama, tidak disimpan duplikat.
 model Settlement {
-  id                  Int              @id @default(autoincrement())
-  shiftId             Int              @unique @map("shift_id")
-  date                DateTime         @db.Date
-  cashierId           Int              @map("cashier_id")
-  reviewerId          Int?             @map("reviewer_id")
-  systemCash          Decimal          @map("system_cash") @db.Decimal(12, 2)
-  systemQris          Decimal          @map("system_qris") @db.Decimal(12, 2)
-  systemTransfer      Decimal          @map("system_transfer") @db.Decimal(12, 2)
-  systemDebitCredit   Decimal          @map("system_debit_credit") @db.Decimal(12, 2)
-  systemOjol          Decimal          @map("system_ojol") @db.Decimal(12, 2)
-  actualCash          Decimal          @map("actual_cash") @db.Decimal(12, 2)
-  actualQris          Decimal          @map("actual_qris") @db.Decimal(12, 2)
-  actualTransfer      Decimal          @map("actual_transfer") @db.Decimal(12, 2)
-  actualDebitCredit   Decimal          @map("actual_debit_credit") @db.Decimal(12, 2)
-  actualOjol          Decimal          @map("actual_ojol") @db.Decimal(12, 2)
-  varianceCash        Decimal          @map("variance_cash") @db.Decimal(12, 2)
-  varianceQris        Decimal          @map("variance_qris") @db.Decimal(12, 2)
-  varianceTransfer    Decimal          @map("variance_transfer") @db.Decimal(12, 2)
-  varianceDebitCredit Decimal          @map("variance_debit_credit") @db.Decimal(12, 2)
-  varianceOjol        Decimal          @map("variance_ojol") @db.Decimal(12, 2)
-  status              SettlementStatus @default(submitted)
-  submittedAt         DateTime         @default(now()) @map("submitted_at")
-  reviewedAt          DateTime?        @map("reviewed_at")
+  id             Int              @id @default(autoincrement())
+  shiftId        Int              @unique @map("shift_id")
+  date           DateTime         @db.Date
+  cashierId      Int              @map("cashier_id")
+  reviewerId     Int?             @map("reviewer_id")
+  systemCash     Decimal          @map("system_cash") @db.Decimal(12, 2)
+  systemEdc      Decimal          @map("system_edc") @db.Decimal(12, 2)
+  systemQris     Decimal          @map("system_qris") @db.Decimal(12, 2)
+  systemGojek    Decimal          @map("system_gojek") @db.Decimal(12, 2)
+  systemGrab     Decimal          @map("system_grab") @db.Decimal(12, 2)
+  systemTransfer Decimal          @map("system_transfer") @db.Decimal(12, 2)
+  actualCash     Decimal          @map("actual_cash") @db.Decimal(12, 2)
+  actualEdc      Decimal          @map("actual_edc") @db.Decimal(12, 2)
+  actualQris     Decimal          @map("actual_qris") @db.Decimal(12, 2)
+  actualGojek    Decimal          @map("actual_gojek") @db.Decimal(12, 2)
+  actualGrab     Decimal          @map("actual_grab") @db.Decimal(12, 2)
+  actualTransfer Decimal          @map("actual_transfer") @db.Decimal(12, 2)
+  status         SettlementStatus @default(submitted)
+  submittedAt    DateTime         @default(now()) @map("submitted_at")
+  reviewedAt     DateTime?        @map("reviewed_at")
 
   shift    Shift @relation(fields: [shiftId], references: [id])
   cashier  User  @relation("SettlementCashier", fields: [cashierId], references: [id])
@@ -189,18 +410,63 @@ model Settlement {
   @@map("settlements")
 }
 
-/// Pengeluaran harian yang diinput owner.
-model Expense {
-  id          Int             @id @default(autoincrement())
-  date        DateTime        @db.Date
-  category    ExpenseCategory
-  amount      Decimal         @db.Decimal(12, 2)
-  description String          @db.VarChar(255)
-  paidBy      Int             @map("paid_by")
-  notes       String?         @db.Text
-  createdAt   DateTime        @default(now()) @map("created_at")
+/// 12. Header log belanja kasir di pasar (REV 2.1: normalized, no more JSON items).
+/// Vendor opsional karena di pasar kadang lupa nama penjual.
+/// Detail per item di tabel PurchaseItem.
+model Purchase {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @db.Date
+  userId      Int      @map("user_id")
+  vendorId    Int?     @map("vendor_id")
+  totalAmount Decimal  @map("total_amount") @db.Decimal(12, 2)
+  note        String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  payer User @relation(fields: [paidBy], references: [id])
+  user   User           @relation(fields: [userId], references: [id])
+  vendor Vendor?        @relation(fields: [vendorId], references: [id])
+  items  PurchaseItem[]
 
-  @@map("expenses")
+  @@index([date])
+  @@map("purchases")
+}
+
+/// 13. Detail per baris item dalam satu Purchase (REV 2.1: BARU, normalized).
+/// FK ke RawMaterial. Saat submit, sistem auto-update:
+/// - raw_materials.stock_qty += qty (kalau is_tracked=true)
+/// - raw_materials.last_buy_date = purchase.date
+/// - raw_materials.unit_price = item.unit_price
+/// Plus REV 2.2: auto-insert ke raw_material_movements reason=`purchase`.
+model PurchaseItem {
+  id            Int       @id @default(autoincrement())
+  purchaseId    Int       @map("purchase_id")
+  rawMaterialId Int       @map("raw_material_id")
+  qty           Decimal   @db.Decimal(10, 2)
+  unitPrice     Decimal   @map("unit_price") @db.Decimal(10, 2)
+  subtotal      Decimal   @db.Decimal(12, 2)
+  /// Opsional, untuk perishable.
+  expiredDate   DateTime? @map("expired_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  purchase    Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
+
+  @@map("purchase_items")
+}
+
+/// 14. Tagihan operasional bulanan — owner only (validasi di service layer).
+/// REV 2.3: month tetap VARCHAR(7) format "YYYY-MM".
+model Bill {
+  id        Int          @id @default(autoincrement())
+  /// Format YYYY-MM (mis. "2026-05")
+  month     String       @db.VarChar(7)
+  category  BillCategory
+  amount    Decimal      @db.Decimal(12, 2)
+  note      String?      @db.VarChar(255)
+  userId    Int          @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([month])
+  @@map("bills")
 }

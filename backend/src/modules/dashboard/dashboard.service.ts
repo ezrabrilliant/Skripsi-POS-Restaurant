@@ -1,109 +1,466 @@
-// Logika bisnis modul dashboard: ringkasan harian & bulanan untuk owner.
-// Laba kotor = total pendapatan - total pengeluaran (bukan HPP, sesuai batasan skripsi).
+// Service modul dashboard. REV 2.3 — 3 endpoint untuk 3 role.
+//
+// Konsep:
+//   - Owner: laporan finansial penuh periode (today/month/year/custom). Pendapatan
+//     total dari transactions paid, pengeluaran = sum(purchases) + sum(bills),
+//     laba kotor = pendapatan − pengeluaran. Plus bank breakdown EDC/transfer
+//     dan reminder counts dari semua sumber.
+//   - Cashier: ringkasan today (per matrix "kasir laporan hari ini saja, untuk
+//     verifikasi shift"). Tampilkan active shift (kalau ada), today's revenue,
+//     open transactions, reminders.
+//   - Waiter: dashboard primary stok porsi + raw materials reminders, plus active
+//     shifts hari ini (supaya tahu shift mana yang attach kalau fallback input order).
 
+import {
+  PaymentMethod,
+  Prisma,
+  ShiftType,
+  TransactionStatus,
+} from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { todayString, toDateOnly } from '../../utils/date';
-import { dayRange, monthRange } from '../../utils/month';
+import type { OwnerReportQuery } from './dashboard.schema';
 
-const LOW_STOCK_THRESHOLD = 5;
+// ============================================================
+// View shape
+// ============================================================
 
-/** Jumlahkan nilai number per kunci dari sederet baris. */
-function groupSum<T extends string>(rows: { key: T; value: number }[]): Record<string, number> {
-  const acc: Record<string, number> = {};
-  for (const r of rows) acc[r.key] = (acc[r.key] ?? 0) + r.value;
-  return acc;
+export interface MethodTotals {
+  cash: number;
+  edc: number;
+  qris: number;
+  gojek: number;
+  grab: number;
+  transfer: number;
 }
 
-/** Ringkasan operasional satu hari. */
-export async function getDailySummary(dateStr?: string) {
-  const date = dateStr ?? todayString();
-  const { start, end } = dayRange(date);
-  const dateOnly = toDateOnly(date);
+export interface BankBreakdownEntry {
+  method: 'edc' | 'transfer';
+  bank: string;
+  total: number;
+}
 
-  const paid = await prisma.transaction.findMany({
-    where: { status: 'paid', paidAt: { gte: start, lt: end } },
-    select: { total: true, paymentMethod: true },
-  });
-  const revenue = paid.reduce((s, t) => s + Number(t.total), 0);
-  const revenueByMethod = groupSum(
-    paid.map((t) => ({ key: t.paymentMethod ?? 'unknown', value: Number(t.total) })),
-  );
+export interface ReminderCounts {
+  portionLowCount: number;
+  rawMaterialLowCount: number;
+  rawMaterialNearExpiryCount: number;
+}
 
-  const expenses = await prisma.expense.findMany({
-    where: { date: dateOnly },
-    select: { amount: true, category: true },
-  });
-  const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const expenseByCategory = groupSum(
-    expenses.map((e) => ({ key: e.category, value: Number(e.amount) })),
-  );
+export interface OwnerReportView {
+  period: {
+    type: 'today' | 'month' | 'year' | 'custom';
+    label: string; // human-readable (e.g. "Hari ini (2026-05-24)" / "Mei 2026")
+    fromDate: string; // YYYY-MM-DD
+    toDate: string; // YYYY-MM-DD
+  };
+  revenue: {
+    total: number;
+    transactionCount: number;
+    byMethod: MethodTotals;
+    bankBreakdown: BankBreakdownEntry[];
+  };
+  expense: {
+    purchaseTotal: number;
+    billTotal: number;
+    total: number;
+  };
+  profit: number; // revenue.total - expense.total
+  reminders: ReminderCounts;
+}
 
-  const lowStockRows = await prisma.dailyMenuStock.findMany({
-    where: { date: dateOnly, currentStock: { lte: LOW_STOCK_THRESHOLD } },
-    include: { menu: { select: { name: true } } },
-    orderBy: { currentStock: 'asc' },
-  });
-  const lowStock = lowStockRows.map((s) => ({
-    menuId: s.menuId,
-    menuName: s.menu.name,
-    currentStock: s.currentStock,
-  }));
+export interface CashierDashboardView {
+  activeShift: {
+    id: number;
+    type: ShiftType;
+    openingCash: number;
+    createdAt: string;
+  } | null;
+  today: {
+    revenue: number;
+    transactionCount: number;
+    byMethod: MethodTotals;
+    openTransactionCount: number;
+  };
+  reminders: ReminderCounts;
+}
 
-  const settlements = await prisma.settlement.findMany({ where: { date: dateOnly } });
-  const totalVariance = settlements.reduce(
-    (s, st) =>
-      s +
-      (Number(st.varianceCash) +
-        Number(st.varianceQris) +
-        Number(st.varianceTransfer) +
-        Number(st.varianceDebitCredit) +
-        Number(st.varianceOjol)),
-    0,
-  );
+export interface WaiterDashboardView {
+  portionStocks: {
+    totalCount: number;
+    lowCount: number;
+    lowSamples: { menuId: number; menuName: string; currentQty: number; minStock: number; suggestedRestock: number }[];
+  };
+  rawMaterials: {
+    lowCount: number;
+    nearExpiryCount: number;
+    lowSamples: { id: number; name: string; stockQty: number; minStock: number | null; unit: string }[];
+  };
+  activeShiftsToday: {
+    id: number;
+    type: ShiftType;
+    cashierId: number;
+    cashierName: string;
+  }[];
+}
 
+// ============================================================
+// Date helpers (sama strategi dengan shifts/transactions: UTC midnight dari local)
+// ============================================================
+
+function todayDateOnly(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+function tomorrowDateOnly(): Date {
+  const d = todayDateOnly();
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d;
+}
+
+function parseDateUtcMidnight(yyyymmdd: string): Date {
+  const [y, m, d] = yyyymmdd.split('-').map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d!));
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().substring(0, 10);
+}
+
+function todayMonthString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+interface PeriodRange {
+  fromDate: Date;
+  toDateExclusive: Date; // half-open [from, to)
+  monthFilter?: string; // YYYY-MM untuk filter bills
+  label: string;
+  type: 'today' | 'month' | 'year' | 'custom';
+}
+
+function resolvePeriod(query: OwnerReportQuery): PeriodRange {
+  if (query.period === 'today') {
+    const anchor = query.date ? parseDateUtcMidnight(query.date) : todayDateOnly();
+    const next = new Date(anchor);
+    next.setUTCDate(next.getUTCDate() + 1);
+    return {
+      fromDate: anchor,
+      toDateExclusive: next,
+      label: `Hari ini (${isoDate(anchor)})`,
+      type: 'today',
+    };
+  }
+  if (query.period === 'month') {
+    const monthStr = query.month ?? todayMonthString();
+    const [y, m] = monthStr.split('-').map(Number);
+    const from = new Date(Date.UTC(y!, m! - 1, 1));
+    const to = new Date(Date.UTC(y!, m!, 1));
+    return {
+      fromDate: from,
+      toDateExclusive: to,
+      monthFilter: monthStr,
+      label: `Bulan ${monthStr}`,
+      type: 'month',
+    };
+  }
+  if (query.period === 'year') {
+    const yearStr = query.year ?? String(new Date().getFullYear());
+    const y = Number(yearStr);
+    return {
+      fromDate: new Date(Date.UTC(y, 0, 1)),
+      toDateExclusive: new Date(Date.UTC(y + 1, 0, 1)),
+      label: `Tahun ${yearStr}`,
+      type: 'year',
+    };
+  }
+  // custom
+  const from = parseDateUtcMidnight(query.fromDate!);
+  const to = parseDateUtcMidnight(query.toDate!);
+  const toEx = new Date(to);
+  toEx.setUTCDate(toEx.getUTCDate() + 1); // inclusive to → exclusive
   return {
-    date,
-    revenue,
-    revenueByMethod,
-    transactionCount: paid.length,
-    expenseTotal,
-    expenseByCategory,
-    grossProfit: revenue - expenseTotal,
-    lowStock,
-    settlementCount: settlements.length,
-    settlementVariance: totalVariance,
+    fromDate: from,
+    toDateExclusive: toEx,
+    label: `${query.fromDate} → ${query.toDate}`,
+    type: 'custom',
   };
 }
 
-/** Ringkasan keuangan satu bulan (YYYY-MM). */
-export async function getMonthlySummary(month: string) {
-  const { start, end } = monthRange(month);
+// ============================================================
+// Aggregation helpers
+// ============================================================
 
-  const paid = await prisma.transaction.findMany({
-    where: { status: 'paid', paidAt: { gte: start, lt: end } },
-    select: { total: true, paymentMethod: true },
-  });
-  const revenue = paid.reduce((s, t) => s + Number(t.total), 0);
-  const revenueByMethod = groupSum(
-    paid.map((t) => ({ key: t.paymentMethod ?? 'unknown', value: Number(t.total) })),
-  );
+function emptyMethodTotals(): MethodTotals {
+  return { cash: 0, edc: 0, qris: 0, gojek: 0, grab: 0, transfer: 0 };
+}
 
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: start, lt: end } },
-    select: { amount: true, category: true },
+async function revenueByMethod(
+  where: Prisma.TransactionWhereInput,
+): Promise<{ total: number; count: number; byMethod: MethodTotals }> {
+  const grouped = await prisma.transaction.groupBy({
+    by: ['paymentMethod'],
+    // REV 2.3 Phase 4b: exclude merged sources supaya tidak double-count revenue.
+    where: { ...where, mergedIntoId: null },
+    _sum: { total: true },
+    _count: { _all: true },
   });
-  const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const expenseByCategory = groupSum(
-    expenses.map((e) => ({ key: e.category, value: Number(e.amount) })),
-  );
+  const byMethod = emptyMethodTotals();
+  let total = 0;
+  let count = 0;
+  for (const g of grouped) {
+    if (!g.paymentMethod) continue;
+    const amount = g._sum.total?.toNumber() ?? 0;
+    byMethod[g.paymentMethod] = amount;
+    total += amount;
+    count += g._count._all;
+  }
+  return { total, count, byMethod };
+}
+
+async function bankBreakdown(
+  where: Prisma.TransactionWhereInput,
+): Promise<BankBreakdownEntry[]> {
+  const rows = await prisma.transaction.groupBy({
+    by: ['paymentMethod', 'paymentBank'],
+    where: {
+      ...where,
+      mergedIntoId: null,
+      paymentMethod: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
+      paymentBank: { not: null },
+    },
+    _sum: { total: true },
+  });
+  return rows
+    .filter((r) => r.paymentMethod && r.paymentBank)
+    .map((r) => ({
+      method: r.paymentMethod as 'edc' | 'transfer',
+      bank: r.paymentBank!,
+      total: r._sum.total?.toNumber() ?? 0,
+    }))
+    .sort((a, b) => a.method.localeCompare(b.method) || a.bank.localeCompare(b.bank));
+}
+
+async function reminderCounts(): Promise<ReminderCounts> {
+  // Portion low: currentQty <= minStock (PortionStock)
+  const portionRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
+    SELECT COUNT(*) as cnt FROM portion_stocks WHERE current_qty <= min_stock
+  `;
+  const portionLowCount = Number(portionRaw[0]?.cnt ?? 0);
+
+  // Raw material low: isTracked AND stockQty <= minStock
+  const rmLowRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
+    SELECT COUNT(*) as cnt FROM raw_materials
+    WHERE is_tracked = 1 AND min_stock IS NOT NULL AND stock_qty <= min_stock
+  `;
+  const rawMaterialLowCount = Number(rmLowRaw[0]?.cnt ?? 0);
+
+  // Raw material near expiry: isTracked AND freshness_days set AND last_buy_date set
+  //   AND DATEDIFF(NOW, last_buy_date) >= freshness_days - 3
+  const rmNearRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
+    SELECT COUNT(*) as cnt FROM raw_materials
+    WHERE is_tracked = 1
+      AND freshness_days IS NOT NULL
+      AND last_buy_date IS NOT NULL
+      AND DATEDIFF(CURDATE(), last_buy_date) >= freshness_days - 3
+  `;
+  const rawMaterialNearExpiryCount = Number(rmNearRaw[0]?.cnt ?? 0);
+
+  return { portionLowCount, rawMaterialLowCount, rawMaterialNearExpiryCount };
+}
+
+// ============================================================
+// Owner report
+// ============================================================
+
+export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerReportView> {
+  const period = resolvePeriod(query);
+
+  const txWhere: Prisma.TransactionWhereInput = {
+    status: TransactionStatus.paid,
+    paidAt: { gte: period.fromDate, lt: period.toDateExclusive },
+  };
+
+  const [{ total: revenue, count: txCount, byMethod }, banks, purchasesAgg, billsAgg, reminders] =
+    await Promise.all([
+      revenueByMethod(txWhere),
+      bankBreakdown(txWhere),
+      prisma.purchase.aggregate({
+        where: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
+        _sum: { totalAmount: true },
+      }),
+      period.type === 'month'
+        ? prisma.bill.aggregate({
+            where: { month: period.monthFilter },
+            _sum: { amount: true },
+          })
+        : period.type === 'year'
+          ? prisma.bill.aggregate({
+              where: { month: { startsWith: String(period.fromDate.getUTCFullYear()) + '-' } },
+              _sum: { amount: true },
+            })
+          : prisma.bill.aggregate({
+              // 'today' & 'custom' — pakai bills bulan saat ini sebagai approx
+              // (bills bersifat bulanan, jadi untuk laporan harian tampilkan bills bulan saat ini)
+              where: { month: todayMonthString() },
+              _sum: { amount: true },
+            }),
+      reminderCounts(),
+    ]);
+
+  const purchaseTotal = purchasesAgg._sum.totalAmount?.toNumber() ?? 0;
+  const billTotal = billsAgg._sum.amount?.toNumber() ?? 0;
+  const expenseTotal = purchaseTotal + billTotal;
+  const profit = revenue - expenseTotal;
 
   return {
-    month,
-    revenue,
-    revenueByMethod,
-    transactionCount: paid.length,
-    expenseTotal,
-    expenseByCategory,
-    grossProfit: revenue - expenseTotal,
+    period: {
+      type: period.type,
+      label: period.label,
+      fromDate: isoDate(period.fromDate),
+      toDate: isoDate(new Date(period.toDateExclusive.getTime() - 24 * 60 * 60 * 1000)),
+    },
+    revenue: {
+      total: revenue,
+      transactionCount: txCount,
+      byMethod,
+      bankBreakdown: banks,
+    },
+    expense: {
+      purchaseTotal,
+      billTotal,
+      total: expenseTotal,
+    },
+    profit,
+    reminders,
+  };
+}
+
+// ============================================================
+// Cashier dashboard
+// ============================================================
+
+export async function getCashierDashboard(cashierId: number): Promise<CashierDashboardView> {
+  const today = todayDateOnly();
+  const tomorrow = tomorrowDateOnly();
+
+  const [activeShiftRow, todayPaid, openTxCount, reminders] = await Promise.all([
+    prisma.shift.findFirst({
+      where: { cashierId, closedAt: null },
+      orderBy: { createdAt: 'desc' },
+    }),
+    revenueByMethod({
+      status: TransactionStatus.paid,
+      paidAt: { gte: today, lt: tomorrow },
+    }),
+    prisma.transaction.count({
+      where: {
+        status: TransactionStatus.open,
+        createdAt: { gte: today, lt: tomorrow },
+      },
+    }),
+    reminderCounts(),
+  ]);
+
+  return {
+    activeShift: activeShiftRow
+      ? {
+          id: activeShiftRow.id,
+          type: activeShiftRow.type,
+          openingCash: activeShiftRow.openingCash.toNumber(),
+          createdAt: activeShiftRow.createdAt.toISOString(),
+        }
+      : null,
+    today: {
+      revenue: todayPaid.total,
+      transactionCount: todayPaid.count,
+      byMethod: todayPaid.byMethod,
+      openTransactionCount: openTxCount,
+    },
+    reminders,
+  };
+}
+
+// ============================================================
+// Waiter dashboard
+// ============================================================
+
+export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
+  const today = todayDateOnly();
+  const tomorrow = tomorrowDateOnly();
+
+  const [portionTotal, portionLowRows, rmReminders, activeShifts] = await Promise.all([
+    prisma.portionStock.count({ where: { menu: { isActive: true } } }),
+    prisma.portionStock.findMany({
+      where: { menu: { isActive: true } },
+      include: { menu: { select: { name: true } } },
+      orderBy: { currentQty: 'asc' },
+    }),
+    prisma.rawMaterial.findMany({
+      where: { isTracked: true },
+    }),
+    prisma.shift.findMany({
+      where: {
+        closedAt: null,
+        createdAt: { gte: today, lt: tomorrow },
+      },
+      include: { cashier: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  const portionLow = portionLowRows.filter((p) => p.currentQty <= p.minStock);
+  const portionLowSamples = portionLow.slice(0, 5).map((p) => ({
+    menuId: p.menuId,
+    menuName: p.menu.name,
+    currentQty: p.currentQty,
+    minStock: p.minStock,
+    suggestedRestock:
+      p.currentQty >= p.minStock ? 0 : Math.ceil((p.minStock - p.currentQty) / 5) * 5,
+  }));
+
+  let rmLowCount = 0;
+  let rmNearExpiryCount = 0;
+  const rmLowSamples: WaiterDashboardView['rawMaterials']['lowSamples'] = [];
+  const now = new Date();
+  for (const rm of rmReminders) {
+    const stockQty = rm.stockQty.toNumber();
+    const isLow = rm.minStock !== null && stockQty <= rm.minStock;
+    let isNear = false;
+    if (rm.freshnessDays !== null && rm.lastBuyDate !== null) {
+      const daysSince = Math.floor((now.getTime() - rm.lastBuyDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntil = rm.freshnessDays - daysSince;
+      if (daysUntil <= 3) isNear = true;
+    }
+    if (isLow) rmLowCount++;
+    if (isNear) rmNearExpiryCount++;
+    if ((isLow || isNear) && rmLowSamples.length < 5) {
+      rmLowSamples.push({
+        id: rm.id,
+        name: rm.name,
+        stockQty,
+        minStock: rm.minStock,
+        unit: rm.unit,
+      });
+    }
+  }
+
+  return {
+    portionStocks: {
+      totalCount: portionTotal,
+      lowCount: portionLow.length,
+      lowSamples: portionLowSamples,
+    },
+    rawMaterials: {
+      lowCount: rmLowCount,
+      nearExpiryCount: rmNearExpiryCount,
+      lowSamples: rmLowSamples,
+    },
+    activeShiftsToday: activeShifts.map((s) => ({
+      id: s.id,
+      type: s.type,
+      cashierId: s.cashierId,
+      cashierName: s.cashier.name,
+    })),
   };
 }
