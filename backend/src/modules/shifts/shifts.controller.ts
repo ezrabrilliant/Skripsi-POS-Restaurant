@@ -22,10 +22,20 @@ export const handleClose = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, { shift }, 'Shift berhasil ditutup');
 });
 
+// REV 2.3 shift-decoupling: return SEMUA shift aktif system-wide.
+// Frontend POSPage + dashboards yang filter sendiri untuk presentasi per-role.
 export const handleActive = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw unauthorized();
-  const shift = await shiftsService.getActiveShift(req.user.id);
-  sendSuccess(res, { shift }, shift ? 'Shift aktif ditemukan' : 'Tidak ada shift aktif');
+  const shifts = await shiftsService.getActiveShifts();
+  sendSuccess(
+    res,
+    { shifts },
+    shifts.length === 0
+      ? 'Tidak ada shift aktif'
+      : shifts.length === 1
+        ? 'Satu shift aktif'
+        : `Ada ${shifts.length} shift aktif (overlap, perlu tutup salah satu)`,
+  );
 });
 
 export const handleDetail = asyncHandler(async (req: Request, res: Response) => {

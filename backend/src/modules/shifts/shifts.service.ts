@@ -2,7 +2,9 @@
 //   - openShift: kasir buka kasir dengan modal awal. Per matrix REV 2.3, mutasi
 //     buka/tutup kasir = kasir-only (validasi role di route layer).
 //   - closeShift: kasir tutup sendiri ATAU owner tutup paksa.
-//   - getActiveShift: ambil shift aktif (closedAt=null) milik cashier tertentu.
+//   - getActiveShifts: REV 2.3 shift-decoupling — return SEMUA shift dengan
+//     closedAt=null (system-wide, bukan per-user). Frontend yang filter sendiri
+//     untuk display "shift sendiri" vs "shift kasir lain (overlap)".
 //   - Permission view (list/detail): semua authenticated (waiter butuh tahu shift
 //     mana yang aktif untuk fallback input order).
 //
@@ -113,13 +115,19 @@ export async function closeShift(
   return toShiftView(updated);
 }
 
-export async function getActiveShift(cashierId: number): Promise<ShiftView | null> {
-  const shift = await prisma.shift.findFirst({
-    where: { cashierId, closedAt: null },
+/// REV 2.3 shift-decoupling: active shift adalah konsep SYSTEM-WIDE, bukan per-user.
+/// Return semua shift dengan closedAt=null.
+/// - 0 row : belum ada kasir buka shift
+/// - 1 row : happy path
+/// - 2+ row: pergantian shift overlap — input order akan ditolak sampai
+///           salah satu ditutup (validasi di transactions.service)
+export async function getActiveShifts(): Promise<ShiftView[]> {
+  const shifts = await prisma.shift.findMany({
+    where: { closedAt: null },
     orderBy: { createdAt: 'desc' },
     include: { cashier: true },
   });
-  return shift ? toShiftView(shift) : null;
+  return shifts.map(toShiftView);
 }
 
 export async function getShiftById(id: number): Promise<ShiftView> {
