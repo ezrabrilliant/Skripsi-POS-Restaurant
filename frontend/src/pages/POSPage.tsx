@@ -1,23 +1,33 @@
 // REV 2.3 POSPage — orchestrator untuk POS flow.
 // Layout: 2 column (menu grid + cart panel) di desktop, stacked dengan toggle
 // mobile (cart sebagai Sheet bottom). Gate: kasir+owner+waiter authenticated.
-// Waiter access fallback untuk kalau kasir tidak available. Wajib ada active
-// shift (kalau tidak → CTA buka shift via /dashboard).
+// Waiter access fallback untuk kalau kasir tidak available.
+//
+// REV 2.3 shift-decoupling (Phase 6): gate berdasarkan COUNT active shifts
+// system-wide (dari /shifts/active), bukan shift milik user yang login.
+// 3-case render:
+//   - 0 shift: kasir lihat CTA "Buka Kasir" (inline dialog tanpa redirect),
+//              owner+waiter lihat card info "Hubungi kasir".
+//   - 1 shift: grid menu normal (happy path), header header tampil
+//              "Shift {type} · {pemilik shift}".
+//   - 2+ shift: card warning + list shift + link ke Settlement.
 
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ShoppingCart, Wallet, ArrowLeft } from 'lucide-react'
+import { ShoppingCart, Wallet, ArrowLeft, Info, AlertTriangle } from 'lucide-react'
 import MenuGrid from '@/components/MenuGrid'
 import CartPanel from '@/components/CartPanel'
 import SubOptionsModal from '@/components/SubOptionsModal'
 import PaymentModal from '@/components/PaymentModal'
+import OpenShiftDialog from '@/components/OpenShiftDialog'
 import { menuService } from '@/services/menuService'
 import { shiftService } from '@/services/shiftService'
 import { transactionService } from '@/services/transactionService'
 import { useCartStore, cartSubtotal, cartItemCount } from '@/stores/cartStore'
-import type { Menu, PaketSubOptions, Transaction } from '@/types'
-import { formatCurrency } from '@/lib/utils'
+import { useAuthStore } from '@/stores/authStore'
+import type { Menu, PaketSubOptions, Shift, Transaction, UserRole } from '@/types'
+import { formatCurrency, cn } from '@/lib/utils'
 import { Button, IconButton, Sheet } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 
@@ -26,9 +36,11 @@ export default function POSPage() {
   const { tableNumber: urlTable } = useParams<{ tableNumber?: string }>()
   const qc = useQueryClient()
   const toast = useToast()
+  const { user } = useAuthStore()
   const [showMobileCart, setShowMobileCart] = useState(false)
   const [paketMenuOpen, setPaketMenuOpen] = useState<{ menu: Menu; paket: PaketSubOptions } | null>(null)
   const [createdTransactionId, setCreatedTransactionId] = useState<number | null>(null)
+  const [showOpenShiftDialog, setShowOpenShiftDialog] = useState(false)
 
   const cart = useCartStore()
 
@@ -49,10 +61,13 @@ export default function POSPage() {
     queryFn: () => menuService.list({ activeOnly: true, includeStock: true }),
   })
 
-  const { data: activeShift, isLoading: shiftLoading } = useQuery({
-    queryKey: ['shift', 'active'],
-    queryFn: () => shiftService.getActiveShift(),
+  const { data: activeShifts = [], isLoading: shiftLoading } = useQuery({
+    queryKey: ['shifts', 'active'],
+    queryFn: () => shiftService.getActiveShifts(),
   })
+  // REV 2.3 shift-decoupling: pakai single active shift untuk header info + create payload.
+  // Kalau 0 atau 2+ active shift, gate render card khusus (lihat ShiftGate di bawah).
+  const singleActiveShift = activeShifts.length === 1 ? activeShifts[0]! : null
 
   const createMutation = useMutation({
     mutationFn: transactionService.create,
@@ -109,9 +124,9 @@ export default function POSPage() {
   }
 
   const buildCreatePayload = () => {
-    if (!activeShift) return null
+    if (!singleActiveShift) return null
+    // REV 2.3 shift-decoupling: payload TIDAK include shiftId — backend auto-resolve.
     return {
-      shiftId: activeShift.id,
       orderType: cart.orderType,
       tableNumber: cart.orderType === 'dineIn' && cart.tableNumber ? cart.tableNumber : undefined,
       items: cart.items.map((it) => ({
@@ -156,28 +171,30 @@ export default function POSPage() {
 
   const totalItems = cartItemCount(cart.items)
 
-  // Gate: belum buka shift
-  if (!shiftLoading && !activeShift) {
+  // REV 2.3 shift-decoupling: gate 3-case per active shift count.
+  // - 0 shift: card "Belum ada shift kasir aktif" (kasir lihat tombol Buka Kasir,
+  //   owner/waiter cuma info "Hubungi kasir")
+  // - 1 shift: lanjut ke layout grid menu di bawah
+  // - 2+ shift: card warning "Ada N shift aktif" + link ke Settlement
+  if (!shiftLoading && activeShifts.length !== 1) {
     return (
-      <div className="h-full flex items-center justify-center px-4 py-8">
-        <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-sm border border-neutral-200/60">
-          <div className="w-14 h-14 bg-warning-100 text-warning-700 rounded-full mx-auto mb-3 flex items-center justify-center">
-            <Wallet className="w-7 h-7" />
-          </div>
-          <h2 className="text-title font-semibold text-neutral-900 mb-1">Kasir belum dibuka</h2>
-          <p className="text-body-sm text-neutral-600 mb-4">
-            Buka shift kasir dengan modal awal lebih dulu sebelum menerima transaksi.
-          </p>
-          <Button
-            variant="primary"
-            size="md"
-            fullWidth
-            onClick={() => navigate('/dashboard')}
-          >
-            Ke Dashboard
-          </Button>
-        </div>
-      </div>
+      <>
+        <ShiftGate
+          activeShifts={activeShifts}
+          role={user?.role ?? 'waiter'}
+          onOpenShift={() => setShowOpenShiftDialog(true)}
+          onGoToSettlement={() => navigate('/settlement')}
+        />
+        {showOpenShiftDialog && (
+          <OpenShiftDialog
+            onClose={() => setShowOpenShiftDialog(false)}
+            onSuccess={() => {
+              setShowOpenShiftDialog(false)
+              qc.invalidateQueries({ queryKey: ['shifts', 'active'] })
+            }}
+          />
+        )}
+      </>
     )
   }
 
@@ -199,7 +216,7 @@ export default function POSPage() {
               Input Order
             </h1>
             <p className="text-caption text-neutral-500 truncate">
-              Shift {activeShift?.type ?? '—'} · {activeShift?.cashierName ?? ''}
+              Shift {singleActiveShift?.type ?? '—'} · {singleActiveShift?.cashierName ?? ''}
             </p>
           </div>
         </header>
@@ -265,6 +282,86 @@ export default function POSPage() {
           isSubmitting={payMutation.isPending}
         />
       )}
+    </div>
+  )
+}
+
+// REV 2.3 shift-decoupling: gate render 3-case per active shift count × role.
+// - 0 shift: kasir lihat tombol "Buka Kasir" (trigger OpenShiftDialog),
+//            owner/waiter info "Hubungi kasir" tanpa CTA (per matrix REV 2.3).
+// - 2+ shift: card warning + list shift aktif + link ke Settlement page.
+// (Case 1 shift = grid menu normal, di-render di komponen utama.)
+function ShiftGate({
+  activeShifts,
+  role,
+  onOpenShift,
+  onGoToSettlement,
+}: {
+  activeShifts: Shift[]
+  role: UserRole
+  onOpenShift: () => void
+  onGoToSettlement: () => void
+}) {
+  const count = activeShifts.length
+
+  if (count === 0) {
+    const isCashier = role === 'cashier'
+    return (
+      <div className="h-full flex items-center justify-center px-4 py-8">
+        <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-sm border border-neutral-200/60">
+          <div
+            className={cn(
+              'w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center',
+              isCashier
+                ? 'bg-warning-100 text-warning-700'
+                : 'bg-info-50 text-info-700'
+            )}
+          >
+            {isCashier ? <Wallet className="w-7 h-7" /> : <Info className="w-7 h-7" />}
+          </div>
+          <h2 className="text-title font-semibold text-neutral-900 mb-1">
+            Belum ada shift kasir aktif
+          </h2>
+          <p className="text-body-sm text-neutral-600 mb-4">
+            {isCashier
+              ? 'Buka kasir dengan modal awal cash sebelum bisa menerima order.'
+              : 'Kasir harus buka shift dulu sebelum order bisa dimasukkan. Hubungi salah satu kasir.'}
+          </p>
+          {isCashier && (
+            <Button variant="primary" size="md" fullWidth onClick={onOpenShift}>
+              Buka Kasir Sekarang
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Case C: 2+ active shifts → block input sampai salah satu ditutup.
+  return (
+    <div className="h-full flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-sm border border-warning-200">
+        <div className="w-14 h-14 bg-warning-100 text-warning-700 rounded-full mx-auto mb-3 flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7" />
+        </div>
+        <h2 className="text-title font-semibold text-neutral-900 mb-1 text-center">
+          Ada {count} shift aktif
+        </h2>
+        <p className="text-body-sm text-neutral-600 mb-3 text-center">
+          Rekap fiskal jadi ambigu kalau ada lebih dari satu shift terbuka. Tutup salah satu
+          shift dulu sebelum input order baru.
+        </p>
+        <ul className="text-body-sm text-neutral-700 space-y-1 mb-4">
+          {activeShifts.map((s) => (
+            <li key={s.id}>
+              · Shift #{s.id} {s.type ? `(${s.type})` : ''} — {s.cashierName ?? 'kasir'}
+            </li>
+          ))}
+        </ul>
+        <Button variant="primary" size="md" fullWidth onClick={onGoToSettlement}>
+          Ke Halaman Tutup Shift
+        </Button>
+      </div>
     </div>
   )
 }
