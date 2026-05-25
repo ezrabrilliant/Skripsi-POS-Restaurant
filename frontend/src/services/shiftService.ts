@@ -1,5 +1,6 @@
-// Service modul shifts. REV 2.2: schema baru wajib `type` (pagi|malam) saat open.
-// Backend response shape: { success, data: { shift: ShiftView } } atau { shifts: [...] }.
+// Service modul shifts. REV 2.3 shift-decoupling: active shift = konsep system-wide.
+// Backend response /shifts/active sekarang { shifts: Shift[] } (bukan { shift }).
+// Frontend yang filter `myActiveShift` vs `otherActiveShifts` untuk presentasi per-role.
 
 import api from '@/lib/api'
 import type { Shift, ShiftType, ApiResponse } from '@/types'
@@ -16,10 +17,13 @@ export const shiftService = {
     return res.data.data.shift
   },
 
-  /** Shift aktif (closedAt=null) milik pegawai yang sedang login. Null kalau belum buka. */
-  getActiveShift: async (): Promise<Shift | null> => {
-    const res = await api.get<ApiResponse<{ shift: Shift | null }>>('/shifts/active')
-    return res.data.data.shift
+  /** REV 2.3 shift-decoupling: SEMUA shift aktif (closedAt=null) di sistem.
+   * - length 0: belum ada kasir buka shift
+   * - length 1: happy path
+   * - length 2+: pergantian overlap, perlu tutup salah satu */
+  getActiveShifts: async (): Promise<Shift[]> => {
+    const res = await api.get<ApiResponse<{ shifts: Shift[] }>>('/shifts/active')
+    return res.data.data.shifts
   },
 
   /** Tutup shift. Owner boleh tutup siapapun; kasir hanya bisa tutup shiftnya sendiri. */

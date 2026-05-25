@@ -1,9 +1,13 @@
 // Service modul transactions. REV 2.2/2.3:
 //   - POST / create dengan auto-decrement PortionStock + resolusi subOptions
+//     REV 2.3 shift-decoupling: payload TIDAK kirim shiftId, backend auto-resolve
+//     dari single active shift (0 atau 2+ active -> 409).
 //   - POST /:id/items add multi-round
 //   - POST /:id/payment dengan PB1 10% + paymentBank wajib EDC/transfer
 //   - POST /:id/void reverse decrement
 //   - Permission: POST semua role (waiter fallback), payment/void owner+kasir
+//   - Response shape: TransactionView punya createdById/createdByName +
+//     shiftCashierName (replace cashierId/cashierName REV 2.2).
 
 import api from '@/lib/api'
 import type {
@@ -20,8 +24,9 @@ export interface OrderItemInput {
   subOptionsSelected?: Record<string, string>
 }
 
+/** REV 2.3 shift-decoupling: shiftId TIDAK dikirim. Backend auto-resolve dari single
+ * active shift system-wide. Backend throw 409 kalau 0 atau 2+ active shift. */
 export interface CreateTransactionPayload {
-  shiftId: number
   orderType: OrderType
   tableNumber?: number
   items: OrderItemInput[]

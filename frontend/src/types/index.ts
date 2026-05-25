@@ -120,8 +120,13 @@ export interface Transaction {
   orderType: OrderType
   /** Wajib int 1-9 kalau dineIn, null kalau takeaway. */
   tableNumber: number | null
-  cashierId: number
-  cashierName: string
+  /** REV 2.3 shift-decoupling: user yang submit order (kasir/owner/waiter). */
+  createdById: number
+  createdByName: string
+  /** REV 2.3 shift-decoupling: denormalize dari shift.cashier.name untuk display
+   * "oleh {createdByName} · shift {shiftCashierName}". Sama dengan createdByName
+   * kalau kasir input transaksi-nya sendiri. */
+  shiftCashierName: string
   status: TransactionStatus
   paymentMethod: PaymentMethod | null
   /** REV 2.1: terisi hanya kalau paymentMethod=edc atau transfer. */
