@@ -68,10 +68,14 @@ interface Props {
   onAddPesanan?: () => void
   /// Trigger transisi addPesanan → view (inputMode=false + clearItems).
   onCancelInput?: () => void
-  /// View mode dineIn pay handler (orchestrate merge + pay di POSPage).
+  /// View mode dineIn "Bayar Semua" handler (orchestrate merge + pay di POSPage).
   onPayTable?: () => void
   /// View mode takeaway per-Tx pay handler (no merge, single Tx pay).
   onPayTakeaway?: (tx: Transaction) => void
+  /// REV 2.5: per-Pesanan pay handler untuk dineIn view mode. Customer pilih
+  /// bayar 1 Pesanan saja (tidak ikut Pesanan lain di meja yang sama). Backend
+  /// logic identik dengan onPayTakeaway (single Tx pay tanpa merge).
+  onPayOrder?: (tx: Transaction) => void
   /// REV 2.4: hapus item dari Tx open (dineIn atau takeaway). Parent handle confirm + mutation.
   onDeleteItem?: (txId: number, itemId: number, itemLabel: string) => void
   /// REV 2.4: update qty item dari Tx open.
@@ -95,6 +99,7 @@ export default function CartPanel({
   onCancelInput,
   onPayTable,
   onPayTakeaway,
+  onPayOrder,
   onDeleteItem,
   onUpdateItemQty,
   onUpdateItemNotes,
@@ -220,8 +225,11 @@ export default function CartPanel({
               onDeleteItem={onDeleteItem}
               onUpdateQty={onUpdateItemQty}
               onUpdateNotes={onUpdateItemNotes}
+              onPayOrder={onPayOrder}
+              canPay={canProcessPayment}
               isDeleting={isDeleting}
               isUpdating={isUpdatingItem}
+              isSubmitting={isSubmitting}
             />
           ) : (
             <EmptyState

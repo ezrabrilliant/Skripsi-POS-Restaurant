@@ -78,10 +78,15 @@ export default function CombineTableModal({
     sourceTableId !== undefined ? 'pickTarget' : 'pickSource'
 
   const today = new Date().toISOString().substring(0, 10)
+  // REV 2.5: share query key dengan TablesPage (['transactions', 'open-today'])
+  // supaya cache + invalidations berlaku konsisten. Sebelumnya 'combine-table'
+  // suffix bikin cache terpisah → stale 5 menit setelah createMutation tidak
+  // refresh → Tx baru tidak muncul di picker.
   const { data: openTxs = [], isLoading } = useQuery({
-    queryKey: ['transactions', 'open-today', 'combine-table'],
+    queryKey: ['transactions', 'open-today'],
     queryFn: () =>
       transactionService.list({ status: 'open', orderType: 'dineIn', date: today }),
+    refetchOnMount: 'always',
   })
 
   const allGroups = useMemo(() => groupOpenTxByTable(openTxs), [openTxs])

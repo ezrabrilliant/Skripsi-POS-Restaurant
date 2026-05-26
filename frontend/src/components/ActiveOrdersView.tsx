@@ -7,10 +7,10 @@
 // "Tambah Pesanan" (bikin Tx baru) atau payment endpoint (untuk Bayar).
 
 import { useState } from 'react'
-import { ClipboardList, Trash2, Minus, Plus, Pencil, Check } from 'lucide-react'
+import { ClipboardList, Trash2, Minus, Plus, Pencil, Check, Receipt } from 'lucide-react'
 import type { Transaction, TransactionItem } from '@/types'
 import { formatCurrency } from '@/lib/utils'
-import { Badge, IconButton, Input } from '@/design-system/primitives'
+import { Badge, Button, IconButton, Input } from '@/design-system/primitives'
 
 interface Props {
   orders: Transaction[]
@@ -20,9 +20,17 @@ interface Props {
   onUpdateQty?: (txId: number, itemId: number, newQty: number) => void
   /// REV 2.4: callback update notes item.
   onUpdateNotes?: (txId: number, itemId: number, newNotes: string) => void
+  /// REV 2.5: per-Pesanan pay handler. Customer bisa pilih bayar 1 Pesanan saja
+  /// (mis. customer A bayar Pesanan #1 saja, B bayar Pesanan #2). Render-conditional:
+  /// only kalau callback ada + canPay=true.
+  onPayOrder?: (tx: Transaction) => void
+  /// Apakah user boleh memproses payment (owner + kasir). Waiter false → tombol hidden.
+  canPay?: boolean
   /// Disable mutate button selama mutation berjalan.
   isDeleting?: boolean
   isUpdating?: boolean
+  /// Disable Bayar button per Pesanan saat ada submission (mergeMutation pending).
+  isSubmitting?: boolean
 }
 
 const TIME_FMT = new Intl.DateTimeFormat('id-ID', {
@@ -36,8 +44,11 @@ export default function ActiveOrdersView({
   onDeleteItem,
   onUpdateQty,
   onUpdateNotes,
+  onPayOrder,
+  canPay,
   isDeleting,
   isUpdating,
+  isSubmitting,
 }: Props) {
   return (
     <div className="space-y-3">
@@ -49,8 +60,11 @@ export default function ActiveOrdersView({
           onDeleteItem={onDeleteItem}
           onUpdateQty={onUpdateQty}
           onUpdateNotes={onUpdateNotes}
+          onPayOrder={onPayOrder}
+          canPay={canPay}
           isDeleting={isDeleting}
           isUpdating={isUpdating}
+          isSubmitting={isSubmitting}
         />
       ))}
     </div>
@@ -63,16 +77,22 @@ function PesananGroup({
   onDeleteItem,
   onUpdateQty,
   onUpdateNotes,
+  onPayOrder,
+  canPay,
   isDeleting,
   isUpdating,
+  isSubmitting,
 }: {
   order: Transaction
   index: number
   onDeleteItem?: (txId: number, itemId: number, itemLabel: string) => void
   onUpdateQty?: (txId: number, itemId: number, newQty: number) => void
   onUpdateNotes?: (txId: number, itemId: number, newNotes: string) => void
+  onPayOrder?: (tx: Transaction) => void
+  canPay?: boolean
   isDeleting?: boolean
   isUpdating?: boolean
+  isSubmitting?: boolean
 }) {
   const time = TIME_FMT.format(new Date(order.createdAt))
   const orderSubtotal = order.items.reduce((s, it) => s + it.subtotal, 0)
@@ -144,11 +164,30 @@ function PesananGroup({
           </li>
         ))}
       </ul>
-      <footer className="px-3 py-2 border-t border-neutral-200/60 flex items-center justify-between text-caption text-neutral-600">
-        <span>Subtotal Pesanan</span>
-        <span className="font-semibold text-neutral-900 tabular-nums">
-          {formatCurrency(orderSubtotal)}
-        </span>
+      <footer className="px-3 py-2 border-t border-neutral-200/60 space-y-2">
+        <div className="flex items-center justify-between text-caption text-neutral-600">
+          <span>Subtotal Pesanan</span>
+          <span className="font-semibold text-neutral-900 tabular-nums">
+            {formatCurrency(orderSubtotal)}
+          </span>
+        </div>
+        {/* REV 2.5: per-Pesanan Bayar - customer pilih bayar 1 Pesanan saja
+            (mis. customer A bayar Pesanan #1, customer B bayar Pesanan #2).
+            Hanya tampil kalau onPayOrder callback ada + canPay (owner+kasir).
+            "Bayar Semua" tetap available di footer bawah CartPanel untuk
+            common case bayar full meja sekaligus. */}
+        {onPayOrder && canPay && order.items.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            fullWidth
+            disabled={isSubmitting}
+            onClick={() => onPayOrder(order)}
+            leftIcon={<Receipt className="w-4 h-4" />}
+          >
+            Bayar Pesanan ini saja
+          </Button>
+        )}
       </footer>
     </section>
   )

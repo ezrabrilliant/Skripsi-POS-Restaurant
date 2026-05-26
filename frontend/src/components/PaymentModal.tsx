@@ -44,7 +44,7 @@ import {
   type Transaction,
   type TransactionPayment,
 } from '@/types'
-import { transactionService, type AddPaymentPayload } from '@/services/transactionService'
+import { transactionService, type AddPaymentPayload, type MergePayload } from '@/services/transactionService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { calculatePB1 } from '@/lib/decimal'
 import {
@@ -63,6 +63,12 @@ interface PaymentModalProps {
   transactionId: number
   /** TableId untuk Combine Tables overlay. null = takeaway (combine button hidden). */
   tableNumber: number | null
+  /** REV 2.5: Tx IDs di meja yang sama (selain target) yang BISA digabung untuk
+   * dibayar bersama (multi-Pesanan picker). Empty = single Tx mode (no picker).
+   * Default semua tercentang. User bisa uncheck untuk bayar subset saja.
+   * Merge happens INSIDE submit flow (atomic dengan addPayment) - bukan upfront -
+   * supaya cancel tidak meninggalkan merge state stuck di backend. */
+  candidateSourceIds?: number[]
   onClose: () => void
   /** Dipanggil setelah Tx fully paid (status='paid'). */
   onSuccess: () => void
@@ -109,6 +115,7 @@ function saveRecentBank(bank: string) {
 export default function PaymentModal({
   transactionId,
   tableNumber,
+  candidateSourceIds = [],
   onClose,
   onSuccess,
 }: PaymentModalProps) {
@@ -136,8 +143,32 @@ export default function PaymentModal({
     [openTxs, transactionId],
   )
 
+  // REV 2.5: candidate Tx (intra-meja Pesanan lain) untuk picker. Filter:
+  //   - ID di candidateSourceIds prop (POSPage pass dari activeOrders)
+  //   - mergedIntoId === null (skip yang sudah ter-merge, mereka di mergedFromOpen)
+  const candidateTxs = useMemo(
+    () =>
+      openTxs.filter(
+        (t) => candidateSourceIds.includes(t.id) && t.mergedIntoId === null,
+      ),
+    [openTxs, candidateSourceIds],
+  )
+
   // Form state
   const [mode, setMode] = useState<Mode>('single')
+  // REV 2.5: selection state untuk picker. Default semua candidates ter-centang
+  // (common case: bayar full meja). Sync ulang kalau prop candidateSourceIds berubah.
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(
+    () => new Set(candidateSourceIds),
+  )
+  useEffect(() => {
+    setSelectedCandidates(new Set(candidateSourceIds))
+  }, [candidateSourceIds])
+
+  const selectedCandidateTxs = useMemo(
+    () => candidateTxs.filter((t) => selectedCandidates.has(t.id)),
+    [candidateTxs, selectedCandidates],
+  )
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const [bank, setBank] = useState('')
   const [discountAmount, setDiscountAmount] = useState(0)
@@ -157,16 +188,22 @@ export default function PaymentModal({
   }, [transaction, mode])
 
   // Hitung aggregate subtotal + sisa.
+  // REV 2.5: aggregate = target + already-merged sources (mergedFromOpen) +
+  // selected candidates from picker (will be merged on submit).
   const isFirstSlice = !transaction || transaction.payments.length === 0
   const aggregateSubtotal = useMemo(() => {
     if (!transaction) return 0
     if (isFirstSlice) {
-      return transaction.subtotal + mergedFromOpen.reduce((s, t) => s + t.subtotal, 0)
+      return (
+        transaction.subtotal +
+        mergedFromOpen.reduce((s, t) => s + t.subtotal, 0) +
+        selectedCandidateTxs.reduce((s, t) => s + t.subtotal, 0)
+      )
     }
     // After first slice: backend has updated transaction.total aggregate-based.
     // Reverse-derive aggregateSubtotal = total/1.10 + discountAmount.
     return Math.round(transaction.total / 1.1) + transaction.discountAmount
-  }, [transaction, mergedFromOpen, isFirstSlice])
+  }, [transaction, mergedFromOpen, selectedCandidateTxs, isFirstSlice])
 
   // Effective discount (lock setelah first slice).
   const effectiveDiscount = isFirstSlice ? discountAmount : (transaction?.discountAmount ?? 0)
@@ -264,6 +301,20 @@ export default function PaymentModal({
     onError: (err: Error) => toast.error(err.message || 'Gagal hapus slice'),
   })
 
+  // REV 2.5: merge intra-meja candidates (selected dari picker) ke target.
+  // Dipanggil INSIDE submit flow (atomic dengan addPayment) - bukan upfront -
+  // supaya cancel modal tidak meninggalkan merge state stuck di backend.
+  const mergeMutation = useMutation({
+    mutationFn: (payload: MergePayload) => transactionService.merge(payload),
+    onSuccess: () => {
+      // Invalidate supaya TablesPage grid + CombineTableModal picker refresh —
+      // source meja jadi kosong / candidate hilang dari list.
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-merge-source-of', transactionId] })
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal menggabung pesanan'),
+  })
+
   // REV 2.5: unmerge - lepas source meja dari gabungan. Hanya valid kalau target
   // belum ada payment slice (aggregate belum locked). Sekaligus refetch open Tx
   // list supaya mergedFromOpen ter-update + tableNumber-nya muncul lagi di TablesPage.
@@ -291,6 +342,7 @@ export default function PaymentModal({
     if (discountAmount > aggregateSubtotal) return
     const finalBank = needsBank ? bank.trim() : undefined
     const methodDisplay = `${PAYMENT_LABEL[method]}${finalBank ? ` · ${finalBank}` : ''}`
+    const pesananCount = 1 + selectedCandidates.size
     const ok = await confirm({
       title: `Konfirmasi bayar ${formatCurrency(total)}?`,
       description: (
@@ -302,14 +354,36 @@ export default function PaymentModal({
               Diskon: <strong>{formatCurrency(discountAmount)}</strong>
             </>
           )}
-          <br />
-          Transaksi akan ditandai <strong>lunas</strong> setelah dikonfirmasi.
+          {pesananCount > 1 && (
+            <>
+              <br />
+              <strong>{pesananCount} pesanan</strong> akan digabung & ditandai lunas.
+            </>
+          )}
+          {pesananCount === 1 && (
+            <>
+              <br />
+              Transaksi akan ditandai <strong>lunas</strong> setelah dikonfirmasi.
+            </>
+          )}
         </span>
       ),
       confirmText: 'Ya, Bayar',
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
+    // REV 2.5: merge selected candidates DULU (atomic dengan payment intent).
+    // Kalau merge gagal, payment skip. Kalau cancel sebelum konfirmasi, no API call.
+    if (selectedCandidates.size > 0) {
+      try {
+        await mergeMutation.mutateAsync({
+          sourceIds: Array.from(selectedCandidates),
+          targetId: transactionId,
+        })
+      } catch {
+        return // toast handled in mutation onError
+      }
+    }
     if (finalBank) saveRecentBank(finalBank)
     addPayMutation.mutate({
       method,
@@ -329,6 +403,7 @@ export default function PaymentModal({
     const methodDisplay = `${PAYMENT_LABEL[method]}${finalBank ? ` · ${finalBank}` : ''}`
     const willCloseTx = amount >= sisa
     const sisaAfter = Math.max(0, sisa - amount)
+    const pesananCount = 1 + selectedCandidates.size
     const ok = await confirm({
       title: `Tambah pembayaran ${formatCurrency(amount)}?`,
       description: (
@@ -338,6 +413,12 @@ export default function PaymentModal({
             <>
               <br />
               Diskon: <strong>{formatCurrency(discountAmount)}</strong>
+            </>
+          )}
+          {isFirstSlice && pesananCount > 1 && (
+            <>
+              <br />
+              <strong>{pesananCount} pesanan</strong> akan digabung saat slice pertama ini.
             </>
           )}
           <br />
@@ -356,6 +437,19 @@ export default function PaymentModal({
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
+    // REV 2.5: merge selected candidates HANYA di first slice (sebelum payment
+    // pertama). Slice ke-2+ tidak ada candidates lagi (aggregate sudah ter-commit
+    // ke target.total). Picker auto-hide setelah first slice (isFirstSlice=false).
+    if (isFirstSlice && selectedCandidates.size > 0) {
+      try {
+        await mergeMutation.mutateAsync({
+          sourceIds: Array.from(selectedCandidates),
+          targetId: transactionId,
+        })
+      } catch {
+        return // toast handled in mutation onError
+      }
+    }
     if (finalBank) saveRecentBank(finalBank)
     addPayMutation.mutate({
       method,
@@ -379,14 +473,15 @@ export default function PaymentModal({
   }
 
   // Submit disable conditions
+  const submitting = addPayMutation.isPending || mergeMutation.isPending
   const singleSubmitDisabled =
-    addPayMutation.isPending ||
+    submitting ||
     (needsBank && !bank.trim()) ||
     discountAmount > aggregateSubtotal ||
     aggregateSubtotal <= 0
 
   const sliceSubmitDisabled =
-    addPayMutation.isPending ||
+    submitting ||
     amount <= 0 ||
     amount > sisa ||
     (needsBank && !bank.trim()) ||
@@ -431,12 +526,24 @@ export default function PaymentModal({
           <span className="tabular-nums">
             Tx #{transaction.id}
             {tableNumber !== null && ` · Meja ${tableNumber}`}
-            {mergedFromOpen.length > 0 &&
-              ` · ${mergedFromOpen.length} tagihan digabung`}
+            {(() => {
+              // REV 2.5: description text dinamis berdasar source meja.
+              //   - All intra-meja → "+ N pesanan" (multi-Pesanan REV 2.4)
+              //   - All inter-meja → "+ N meja digabung" (Combine Tables REV 2.5)
+              //   - Mixed       → "+ N tagihan digabung" (generic)
+              if (mergedFromOpen.length === 0) return null
+              const intraCount = mergedFromOpen.filter(
+                (s) => tableNumber !== null && s.tableNumber === tableNumber,
+              ).length
+              const interCount = mergedFromOpen.length - intraCount
+              if (interCount === 0) return ` · + ${intraCount} pesanan`
+              if (intraCount === 0) return ` · + ${interCount} meja digabung`
+              return ` · ${mergedFromOpen.length} tagihan digabung`
+            })()}
           </span>
         }
         size="md"
-        preventOutsideClose={addPayMutation.isPending || removePayMutation.isPending}
+        preventOutsideClose={submitting || removePayMutation.isPending}
         footer={
           mode === 'single' ? (
             <Button
@@ -445,10 +552,10 @@ export default function PaymentModal({
               fullWidth
               form="payment-single-form"
               type="submit"
-              loading={addPayMutation.isPending}
+              loading={submitting}
               disabled={singleSubmitDisabled}
             >
-              {addPayMutation.isPending
+              {submitting
                 ? 'Memproses…'
                 : `Konfirmasi · ${formatCurrency(total)}`}
             </Button>
@@ -464,7 +571,7 @@ export default function PaymentModal({
               fullWidth
               form="payment-slice-form"
               type="submit"
-              loading={addPayMutation.isPending}
+              loading={submitting}
               disabled={sliceSubmitDisabled}
             >
               <Plus className="w-5 h-5" />
@@ -494,9 +601,35 @@ export default function PaymentModal({
             </div>
           )}
 
-          {/* REV 2.5: merged sources panel - detail meja-meja yang ter-merge ke
-              Tx ini + action [×] unmerge per row. Hanya tampil kalau ada source
-              open. Unmerge locked kalau sudah ada payment slice (aggregate locked). */}
+          {/* REV 2.5: PesananPickerPanel - intra-meja multi-Pesanan picker.
+              User pilih Pesanan mana yang dibayar bersama via checkbox. Default
+              semua tercentang. Merge happens on submit (atomic dengan addPayment).
+              Hanya tampil saat first slice + ada candidates un-merged. */}
+          {transaction && isFirstSlice && candidateTxs.length > 0 && (
+            <PesananPickerPanel
+              targetTx={transaction}
+              candidates={candidateTxs}
+              selected={selectedCandidates}
+              onToggle={(id) =>
+                setSelectedCandidates((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(id)) next.delete(id)
+                  else next.add(id)
+                  return next
+                })
+              }
+              onSelectAll={(all) => {
+                if (all) setSelectedCandidates(new Set(candidateTxs.map((c) => c.id)))
+                else setSelectedCandidates(new Set())
+              }}
+              locked={submitting}
+            />
+          )}
+
+          {/* REV 2.5: MergedSourcesPanel - sources yang SUDAH merged via backend
+              (umumnya dari Combine Tables inter-meja, atau intra leftover dari
+              failed payment retry). Beda dari PesananPickerPanel (yang masih
+              candidate, belum merged). Unlink available untuk lepas kalau salah. */}
           {mergedFromOpen.length > 0 && (
             <MergedSourcesPanel
               sources={mergedFromOpen}
@@ -715,12 +848,72 @@ function MergedSourcesPanel({
   unmerging: boolean
   locked: boolean
 }) {
+  // Pisah intra-meja (Add Round REV 2.4 - multi-Pesanan di meja yang sama) vs
+  // inter-meja (Combine Tables REV 2.5 - gabung dari meja berbeda). Backend
+  // mergeBills dipakai untuk dua use case, tapi UX label harus beda supaya
+  // user tidak bingung ("Tagihan gabungan dari Meja 8 ke Meja 8" = misleading).
+  const intraSources = sources.filter(
+    (s) => targetTableNumber !== null && s.tableNumber === targetTableNumber,
+  )
+  const interSources = sources.filter(
+    (s) => targetTableNumber === null || s.tableNumber !== targetTableNumber,
+  )
+
+  return (
+    <div className="space-y-2">
+      {intraSources.length > 0 && (
+        <SourcesSection
+          title={`Pesanan tambahan di meja ini (${intraSources.length})`}
+          sources={intraSources}
+          rowLabel={(s) =>
+            `Pesanan tambahan${s.tableNumber === null ? ' (takeaway)' : ''}`
+          }
+          unlinkHint="kembalikan jadi pesanan terpisah"
+          onUnmerge={onUnmerge}
+          unmerging={unmerging}
+          locked={locked}
+        />
+      )}
+      {interSources.length > 0 && (
+        <SourcesSection
+          title={`Tagihan gabungan dari meja lain (${interSources.length})`}
+          sources={interSources}
+          rowLabel={(s) => (s.tableNumber !== null ? `Meja ${s.tableNumber}` : 'Takeaway')}
+          unlinkHint={
+            targetTableNumber !== null
+              ? `lepas dari gabungan Meja ${targetTableNumber}`
+              : 'lepas dari gabungan'
+          }
+          onUnmerge={onUnmerge}
+          unmerging={unmerging}
+          locked={locked}
+        />
+      )}
+    </div>
+  )
+}
+
+function SourcesSection({
+  title,
+  sources,
+  rowLabel,
+  unlinkHint,
+  onUnmerge,
+  unmerging,
+  locked,
+}: {
+  title: string
+  sources: Transaction[]
+  rowLabel: (s: Transaction) => string
+  unlinkHint: string
+  onUnmerge: (sourceId: number) => void
+  unmerging: boolean
+  locked: boolean
+}) {
   return (
     <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-3 space-y-2">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-label text-primary-800">
-          Tagihan gabungan ({sources.length} meja)
-        </p>
+        <p className="text-label text-primary-800">{title}</p>
         {locked && (
           <span className="text-caption text-neutral-500 italic">
             Terkunci (sudah ada pembayaran)
@@ -729,10 +922,7 @@ function MergedSourcesPanel({
       </div>
       <ul className="space-y-1.5">
         {sources.map((s) => {
-          const label =
-            s.tableNumber !== null
-              ? `Meja ${s.tableNumber}`
-              : 'Takeaway'
+          const label = rowLabel(s)
           return (
             <li
               key={s.id}
@@ -742,7 +932,7 @@ function MergedSourcesPanel({
                 <p className="text-body-sm font-medium text-neutral-900 inline-flex items-center gap-2">
                   {label}
                   <Badge tone="neutral" size="sm">
-                    #{s.id}
+                    Tx #{s.id}
                   </Badge>
                   <span className="text-caption text-neutral-500">
                     {s.items.length} item
@@ -757,8 +947,8 @@ function MergedSourcesPanel({
                   type="button"
                   onClick={() => onUnmerge(s.id)}
                   disabled={unmerging}
-                  aria-label={`Lepas ${label} dari gabungan`}
-                  title={`Lepas ${label} dari gabungan${targetTableNumber !== null ? ` Meja ${targetTableNumber}` : ''}`}
+                  aria-label={`Lepas ${label} - ${unlinkHint}`}
+                  title={`Lepas ${label} - ${unlinkHint}`}
                   className={cn(
                     'h-8 w-8 inline-flex items-center justify-center rounded-md text-neutral-500 transition-colors',
                     'hover:bg-warning-50 hover:text-warning-700 active:bg-warning-100',
@@ -774,6 +964,148 @@ function MergedSourcesPanel({
         })}
       </ul>
     </div>
+  )
+}
+
+function PesananPickerPanel({
+  targetTx,
+  candidates,
+  selected,
+  onToggle,
+  onSelectAll,
+  locked,
+}: {
+  targetTx: Transaction
+  candidates: Transaction[]
+  selected: Set<number>
+  onToggle: (id: number) => void
+  onSelectAll: (all: boolean) => void
+  locked: boolean
+}) {
+  // Sequence number per meja: sort target + candidates by createdAt asc, indexOf+1.
+  const allByTime = [targetTx, ...candidates].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  )
+  const seqOf = (txId: number) =>
+    allByTime.findIndex((t) => t.id === txId) + 1
+
+  const allSelected =
+    candidates.length > 0 && candidates.every((c) => selected.has(c.id))
+  const noneSelected = candidates.every((c) => !selected.has(c.id))
+  const selectedCount = 1 + selected.size // target always counts
+  const totalCount = 1 + candidates.length
+
+  return (
+    <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-3 space-y-2">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <p className="text-label text-primary-800">
+          Pilih pesanan untuk dibayar ({selectedCount}/{totalCount})
+        </p>
+        {!locked && candidates.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onSelectAll(!allSelected)}
+            className="text-caption font-medium text-primary-700 hover:text-primary-800 hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 rounded px-0.5"
+          >
+            {allSelected ? 'Hapus semua centang' : noneSelected ? 'Pilih semua' : 'Pilih semua'}
+          </button>
+        )}
+      </div>
+      <ul className="space-y-1.5">
+        {/* Target row - always checked, locked. Selalu jadi penerima payment. */}
+        <PesananPickerRow
+          tx={targetTx}
+          seq={seqOf(targetTx.id)}
+          checked
+          locked={true}
+          lockReason="target pembayaran"
+          onToggle={() => {}}
+        />
+        {/* Candidate rows - toggleable */}
+        {candidates.map((c) => (
+          <PesananPickerRow
+            key={c.id}
+            tx={c}
+            seq={seqOf(c.id)}
+            checked={selected.has(c.id)}
+            locked={locked}
+            onToggle={() => onToggle(c.id)}
+          />
+        ))}
+      </ul>
+      {!locked && (
+        <p className="text-caption text-neutral-500">
+          Pesanan yang tidak dicentang tetap terbuka di meja ini & bisa dibayar terpisah.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function PesananPickerRow({
+  tx,
+  seq,
+  checked,
+  locked,
+  lockReason,
+  onToggle,
+}: {
+  tx: Transaction
+  seq: number
+  checked: boolean
+  locked: boolean
+  lockReason?: string
+  onToggle: () => void
+}) {
+  const disabled = locked
+  return (
+    <li>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onToggle()}
+        className={cn(
+          'w-full flex items-center gap-2 p-2.5 rounded-lg border transition-colors text-left',
+          checked
+            ? 'bg-white border-primary-300'
+            : 'bg-neutral-50/60 border-neutral-200/60 hover:bg-neutral-50',
+          disabled && 'cursor-not-allowed opacity-90',
+          !disabled && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'h-[18px] w-[18px] shrink-0 rounded-[4px] border flex items-center justify-center transition-colors',
+            checked
+              ? 'bg-primary-600 border-primary-600 text-white'
+              : 'bg-white border-neutral-300',
+            disabled && checked && 'bg-primary-500 border-primary-500',
+          )}
+        >
+          {checked && <Check className="h-3 w-3" strokeWidth={3.5} />}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-body-sm font-medium text-neutral-900 inline-flex items-center gap-2 flex-wrap">
+            Pesanan #{seq}
+            <Badge tone="neutral" size="sm">
+              Tx #{tx.id}
+            </Badge>
+            <span className="text-caption text-neutral-500">
+              {tx.items.length} item
+            </span>
+          </p>
+          {lockReason && (
+            <p className="text-caption text-neutral-500 italic mt-0.5">{lockReason}</p>
+          )}
+        </div>
+        <span className="text-body-sm font-semibold text-neutral-900 tabular-nums whitespace-nowrap">
+          {formatCurrency(tx.subtotal)}
+        </span>
+      </button>
+    </li>
   )
 }
 

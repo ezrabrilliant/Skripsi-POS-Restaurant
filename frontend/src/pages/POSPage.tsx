@@ -30,7 +30,7 @@ import PaymentModal from '@/components/PaymentModal'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
 import { menuService } from '@/services/menuService'
 import { shiftService } from '@/services/shiftService'
-import { transactionService, type MergePayload } from '@/services/transactionService'
+import { transactionService } from '@/services/transactionService'
 import { useCartStore, cartItemCount } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { Menu, PaketSubOptions, Shift, Transaction, UserRole } from '@/types'
@@ -52,10 +52,15 @@ export default function POSPage() {
   // REV 2.4 state baru
   const [inputMode, setInputMode] = useState(false)
   // REV 2.5: payment target Tx + tableNumber. Diset oleh handleSubmitAndPay / handlePayTable
-  // / handlePayTakeaway setelah optional merge selesai. PaymentModal kemudian owns
+  // / handlePayOrder setelah optional merge selesai. PaymentModal kemudian owns
   // addPayment/removePayment lifecycle + own query subscription.
   const [paymentTxId, setPaymentTxId] = useState<number | null>(null)
   const [paymentTableNumber, setPaymentTableNumber] = useState<number | null>(null)
+  // REV 2.5: candidate Tx IDs untuk multi-Pesanan picker di PaymentModal. Empty
+  // array = no picker (single Tx pay). PaymentModal handle merge selected → addPayment
+  // atomic - merge tidak dilakukan upfront supaya cancel tidak meninggalkan
+  // merge state yang stuck di backend.
+  const [paymentCandidates, setPaymentCandidates] = useState<number[]>([])
 
   const cart = useCartStore()
 
@@ -127,6 +132,9 @@ export default function POSPage() {
       qc.invalidateQueries({ queryKey: ['cashierDashboard'] })
       qc.invalidateQueries({ queryKey: ['transactions', 'byTable', cart.tableNumber] })
       qc.invalidateQueries({ queryKey: ['transactions', 'openTakeaway'] })
+      // REV 2.5: invalidate global open-today supaya TablesPage grid + CombineTableModal
+      // partner list refresh dengan Tx baru.
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
       // REV 2.4: pakai clearItems supaya tableNumber/orderType tetap - bikin
       // view mode auto-engage setelah Tx baru muncul di activeOrders/openTakeaways.
       cart.clearItems()
@@ -144,6 +152,9 @@ export default function POSPage() {
       qc.invalidateQueries({ queryKey: ['transactions', 'byTable', cart.tableNumber] })
       qc.invalidateQueries({ queryKey: ['transactions', 'openTakeaway'] })
       qc.invalidateQueries({ queryKey: ['menus', 'pos'] })
+      // REV 2.5: backend auto-void Tx kalau remaining items=0 → Tx hilang dari
+      // open list. Invalidate supaya TablesPage + CombineTableModal sync.
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
     },
     onError: (err: Error) => toast.error(err.message || 'Gagal hapus item'),
   })
@@ -160,17 +171,16 @@ export default function POSPage() {
       qc.invalidateQueries({ queryKey: ['transactions', 'byTable', cart.tableNumber] })
       qc.invalidateQueries({ queryKey: ['transactions', 'openTakeaway'] })
       qc.invalidateQueries({ queryKey: ['menus', 'pos'] })
+      // REV 2.5: subtotal change → refresh global open list (TablesPage tile + CombineTableModal).
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
     },
     onError: (err: Error) => toast.error(err.message || 'Gagal update item'),
   })
 
-  // REV 2.5: mergeMutation - orchestrate intra-table merge sebelum PaymentModal opens.
-  // Hanya dipakai di handlePayTable saat activeOrders.length > 1 (multi-Pesanan).
-  // PaymentModal sendiri yang owns addPayment/removePayment.
-  const mergeMutation = useMutation({
-    mutationFn: (payload: MergePayload) => transactionService.merge(payload),
-    onError: (err: Error) => toast.error(err.message || 'Gagal merge pesanan'),
-  })
+  // REV 2.5: merge intra-table SEKARANG dipindah ke dalam PaymentModal (defer
+  // sampai user confirm addPayment). POSPage cuma kirim target + candidate IDs.
+  // Sebelumnya merge upfront → kalau user cancel modal, merge state stuck di
+  // backend ("Source X sudah merged ke Y" saat retry).
 
   const handleMenuClick = (menu: Menu) => {
     if (menu.subOptions && 'options' in menu.subOptions) {
@@ -254,36 +264,29 @@ export default function POSPage() {
     setInputMode(false)
   }
 
-  // REV 2.5: handler view mode → "Bayar" button (dine-in).
-  // Single active Tx → langsung setPaymentTxId (no merge).
-  // Multi active Tx → await mergeMutation merge sources ke oldest target,
-  // baru setPaymentTxId(target.id). PaymentModal handle aggregate display via
-  // mergedFrom query internal.
-  const handlePayTable = async () => {
+  // REV 2.5: handler view mode → "Bayar (Semua)" button (dine-in).
+  // TIDAK merge di sini - cuma resolve target Tx + collect candidate IDs untuk
+  // picker di PaymentModal. Merge happens INSIDE PaymentModal pas user confirm
+  // addPayment (atomic dengan pay). Kalau user cancel, no merge → no stuck state.
+  const handlePayTable = () => {
     if (activeOrders.length === 0) return
-    // Sort by createdAt asc - Pesanan #1 (paling lama) jadi parent.
     const sorted = [...activeOrders].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     const target = sorted[0]!
-    const sources = sorted.slice(1)
-    if (sources.length > 0) {
-      try {
-        await mergeMutation.mutateAsync({
-          sourceIds: sources.map((s) => s.id),
-          targetId: target.id,
-        })
-      } catch {
-        return // sudah di-toast di onError
-      }
-    }
+    const candidates = sorted.slice(1).map((s) => s.id)
     setPaymentTxId(target.id)
     setPaymentTableNumber(target.tableNumber)
+    setPaymentCandidates(candidates)
   }
 
-  // REV 2.5: handler takeaway per-Tx Bayar - single Tx, no merge needed.
-  // Setiap takeaway customer independent. setPaymentTxId langsung.
-  const handlePayTakeaway = (tx: Transaction) => {
+  // REV 2.5: handler per-Tx Bayar - single Tx, no merge needed.
+  // Dipakai oleh ActiveTakeawaysView (per-Tx takeaway pay) dan ActiveOrdersView
+  // (per-Pesanan dineIn pay - customer pilih bayar 1 Pesanan saja, tidak full meja).
+  // tableNumber derive dari tx.tableNumber: null untuk takeaway, integer untuk dineIn.
+  // paymentCandidates kosong → PaymentModal tidak render picker (single Tx mode).
+  const handlePayOrder = (tx: Transaction) => {
     setPaymentTxId(tx.id)
-    setPaymentTableNumber(null)
+    setPaymentTableNumber(tx.tableNumber)
+    setPaymentCandidates([])
   }
 
   // REV 2.4: handler hapus item dari Pesanan open. Confirm dulu (mengantisipasi
@@ -319,6 +322,7 @@ export default function POSPage() {
     cart.clearItems()
     setPaymentTxId(null)
     setPaymentTableNumber(null)
+    setPaymentCandidates([])
     setShowMobileCart(false)
     setInputMode(false)
   }
@@ -379,14 +383,15 @@ export default function POSPage() {
           disabled={createMutation.isPending}
           onSubmit={handleSubmit}
           onSubmitAndPay={handleSubmitAndPay}
-          isSubmitting={createMutation.isPending || mergeMutation.isPending}
+          isSubmitting={createMutation.isPending}
           viewMode={isViewMode}
           activeOrders={activeOrders}
           openTakeaways={openTakeaways}
           onAddPesanan={handleAddPesanan}
           onCancelInput={handleCancelInput}
           onPayTable={handlePayTable}
-          onPayTakeaway={handlePayTakeaway}
+          onPayTakeaway={handlePayOrder}
+          onPayOrder={handlePayOrder}
           onDeleteItem={handleDeleteItem}
           onUpdateItemQty={handleUpdateItemQty}
           onUpdateItemNotes={handleUpdateItemNotes}
@@ -423,14 +428,15 @@ export default function POSPage() {
             disabled={createMutation.isPending}
             onSubmit={handleSubmit}
             onSubmitAndPay={handleSubmitAndPay}
-            isSubmitting={createMutation.isPending || mergeMutation.isPending}
+            isSubmitting={createMutation.isPending}
             viewMode={isViewMode}
             activeOrders={activeOrders}
             openTakeaways={openTakeaways}
             onAddPesanan={handleAddPesanan}
             onCancelInput={handleCancelInput}
             onPayTable={handlePayTable}
-            onPayTakeaway={handlePayTakeaway}
+            onPayTakeaway={handlePayOrder}
+            onPayOrder={handlePayOrder}
             onDeleteItem={handleDeleteItem}
             onUpdateItemQty={handleUpdateItemQty}
             onUpdateItemNotes={handleUpdateItemNotes}
@@ -450,16 +456,18 @@ export default function POSPage() {
         />
       )}
 
-      {/* REV 2.5: Payment modal - stateful. POSPage cuma kirim transactionId target
-          (sudah resolved by handlePayTable kalau multi-Pesanan via mergeMutation).
-          PaymentModal owns add/removePayment lifecycle + Combine overlay. */}
+      {/* REV 2.5: Payment modal - stateful. POSPage kirim transactionId target +
+          candidateSourceIds[] (kalau multi-Pesanan dineIn). PaymentModal handle
+          picker UI + merge+addPayment atomic. Empty candidates = single Tx mode. */}
       {paymentTxId !== null && (
         <PaymentModal
           transactionId={paymentTxId}
           tableNumber={paymentTableNumber}
+          candidateSourceIds={paymentCandidates}
           onClose={() => {
             setPaymentTxId(null)
             setPaymentTableNumber(null)
+            setPaymentCandidates([])
           }}
           onSuccess={handlePaymentSuccess}
         />
