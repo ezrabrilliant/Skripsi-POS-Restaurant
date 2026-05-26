@@ -1,8 +1,13 @@
 // Zod schema untuk modul purchases. REV 2.1/2.2: normalized header + items.
+// REV 2.5: bifurcate per unit.opname_mode:
+//   - exact mode    : qty + unitPrice wajib (subtotal auto = qty * unitPrice di server)
+//   - scale_0_5 mode: subtotal wajib (total harga), qty + unitPrice opsional, note recommended
+//
 //   - vendorId opsional (kasir kadang lupa nama penjual di pasar)
-//   - qty + unitPrice di item: number (akan dikonversi Decimal di service)
+//   - qty + unitPrice + subtotal di item: number (akan dikonversi Decimal di service)
 //   - expiredDate opsional (untuk perishable)
-//   - totalAmount dihitung server dari sum(qty * unitPrice), tidak dari client
+//   - note opsional (mis. "1 karung beras 50kg" untuk scale items)
+//   - totalAmount header dihitung server dari sum(subtotal items), tidak dari client
 
 import { z } from 'zod';
 
@@ -11,8 +16,10 @@ const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYY
 
 export const purchaseItemSchema = z.object({
   rawMaterialId: idField,
-  qty: z.number().positive('Qty harus > 0'),
-  unitPrice: z.number().nonnegative('unitPrice tidak boleh negatif'),
+  qty: z.number().positive('Qty harus > 0').nullable().optional(),
+  unitPrice: z.number().nonnegative('unitPrice tidak boleh negatif').nullable().optional(),
+  subtotal: z.number().positive('subtotal harus > 0').nullable().optional(),
+  note: z.string().trim().max(255).nullable().optional(),
   expiredDate: dateField.optional().nullable(),
 });
 

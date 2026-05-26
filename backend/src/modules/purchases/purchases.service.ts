@@ -1,18 +1,29 @@
-// Service modul purchases. REV 2.1/2.2:
+// Service modul purchases. REV 2.5 (bifurcate by unit.opname_mode):
 //
-// Saat purchase di-submit, untuk TIAP item:
-//   1. Create PurchaseItem (qty + unitPrice + subtotal = qty*unitPrice)
+// Saat purchase di-submit, untuk TIAP item — perilaku tergantung
+// unit.opname_mode raw material:
+//
+// A. exact mode (qty meaningful, mis. butir/kg/liter):
+//   1. Wajib qty + unitPrice. subtotal = qty * unitPrice (auto-compute di server).
 //   2. Update raw_materials.last_buy_date = purchase.date (selalu)
 //   3. Update raw_materials.unit_price = item.unitPrice (selalu - snapshot harga terbaru)
 //   4. Update raw_materials.stock_qty += qty (HANYA kalau isTracked=true)
-//   5. Insert raw_material_movements reason=`purchase` delta=+qty (SELALU, audit untuk
-//      semua item - non-tracked tetap log untuk akuntabilitas pengeluaran)
+//   5. Insert raw_material_movements reason=`purchase` delta=+qty (audit lengkap;
+//      non-tracked tetap log untuk akuntabilitas pengeluaran).
+//
+// B. scale_0_5 mode (qty tidak meaningful, mis. beras dalam karung):
+//   1. Wajib subtotal (total harga). qty + unitPrice opsional (boleh diisi sebagai
+//      info, mis. "1 karung 50kg @ Rp 500k"); note recommended.
+//   2. Update raw_materials.last_buy_date = purchase.date (selalu)
+//   3. Update raw_materials.unit_price kalau unitPrice diisi (snapshot info opsional)
+//   4. Stock_qty TIDAK auto-update (stok dikelola via opname manual segmented 0..5)
+//   5. Insert raw_material_movements reason=`purchase` delta=0 dengan note
+//      kontekstual (skala mode, stok manual via opname).
 //
 // totalAmount header = sum(subtotal items) - dihitung di server, bukan dari client.
 //
-// Tidak ada operasi update/delete purchase di Phase 7 - kalau salah input, kasir
-// catat purchase baru sebagai koreksi (audit trail tetap utuh). Bisa ditambah
-// kalau dibutuhkan, tapi out-of-scope untuk REV 2.3 ini.
+// Tidak ada operasi update/delete purchase - kalau salah input, kasir catat
+// purchase baru sebagai koreksi (audit trail tetap utuh).
 
 import { Prisma, RawMaterialMovementReason } from '@prisma/client';
 import { prisma } from '../../config/prisma';
@@ -31,10 +42,12 @@ export interface PurchaseItemView {
   rawMaterialId: number;
   rawMaterialName: string;
   rawMaterialUnit: string;
+  rawMaterialOpnameMode: 'exact' | 'scale_0_5';
   isTracked: boolean;
-  qty: number;
-  unitPrice: number;
+  qty: number | null;
+  unitPrice: number | null;
   subtotal: number;
+  note: string | null;
   expiredDate: string | null; // YYYY-MM-DD
   createdAt: string;
 }
@@ -56,7 +69,17 @@ type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
   include: {
     user: { select: { name: true } };
     vendor: { select: { name: true } };
-    items: { include: { rawMaterial: { select: { name: true; unit: true; isTracked: true } } } };
+    items: {
+      include: {
+        rawMaterial: {
+          select: {
+            name: true;
+            isTracked: true;
+            unit: { select: { label: true; opnameMode: true } };
+          };
+        };
+      };
+    };
   };
 }>;
 
@@ -75,11 +98,13 @@ function toPurchaseView(p: PurchaseWithRelations): PurchaseView {
       id: it.id,
       rawMaterialId: it.rawMaterialId,
       rawMaterialName: it.rawMaterial.name,
-      rawMaterialUnit: it.rawMaterial.unit,
+      rawMaterialUnit: it.rawMaterial.unit.label,
+      rawMaterialOpnameMode: it.rawMaterial.unit.opnameMode,
       isTracked: it.rawMaterial.isTracked,
-      qty: it.qty.toNumber(),
-      unitPrice: it.unitPrice.toNumber(),
+      qty: it.qty ? it.qty.toNumber() : null,
+      unitPrice: it.unitPrice ? it.unitPrice.toNumber() : null,
       subtotal: it.subtotal.toNumber(),
+      note: it.note,
       expiredDate: it.expiredDate ? it.expiredDate.toISOString().substring(0, 10) : null,
       createdAt: it.createdAt.toISOString(),
     })),
@@ -89,7 +114,17 @@ function toPurchaseView(p: PurchaseWithRelations): PurchaseView {
 const purchaseInclude = {
   user: { select: { name: true } },
   vendor: { select: { name: true } },
-  items: { include: { rawMaterial: { select: { name: true, unit: true, isTracked: true } } } },
+  items: {
+    include: {
+      rawMaterial: {
+        select: {
+          name: true,
+          isTracked: true,
+          unit: { select: { label: true, opnameMode: true } },
+        },
+      },
+    },
+  },
 } satisfies Prisma.PurchaseInclude;
 
 // ============================================================
@@ -116,10 +151,11 @@ export async function createPurchase(
     if (!vendor) throw new AppError(`Vendor id=${input.vendorId} tidak ditemukan`, 400);
   }
 
-  // Validasi semua raw_material exist + fetch info untuk perhitungan
+  // Validasi semua raw_material exist + fetch info termasuk unit (untuk opname_mode)
   const rawMaterialIds = input.items.map((i) => i.rawMaterialId);
   const rawMaterials = await prisma.rawMaterial.findMany({
     where: { id: { in: rawMaterialIds } },
+    include: { unit: true },
   });
   const rmMap = new Map(rawMaterials.map((r) => [r.id, r]));
   for (const item of input.items) {
@@ -130,14 +166,55 @@ export async function createPurchase(
 
   const purchaseDate = parseDateUtcMidnight(input.date);
 
-  // Hitung subtotal per item + totalAmount
-  const itemsWithSubtotal = input.items.map((item) => {
+  // REV 2.5: bifurcate per item berdasarkan unit.opname_mode.
+  //   - scale_0_5: subtotal wajib (total harga); qty + unitPrice opsional.
+  //   - exact    : qty + unitPrice wajib, subtotal = qty * unitPrice (auto).
+  const itemsProcessed = input.items.map((item) => {
+    const rm = rmMap.get(item.rawMaterialId)!;
+    const isScale = rm.unit.opnameMode === 'scale_0_5';
+
+    if (isScale) {
+      if (item.subtotal === undefined || item.subtotal === null) {
+        throw new AppError(
+          `Item ${rm.name} (skala mode) wajib subtotal (total harga). qty + unitPrice opsional.`,
+          422,
+        );
+      }
+      return {
+        item,
+        rm,
+        isScale,
+        qty:
+          item.qty !== undefined && item.qty !== null
+            ? new Prisma.Decimal(item.qty)
+            : null,
+        unitPrice:
+          item.unitPrice !== undefined && item.unitPrice !== null
+            ? new Prisma.Decimal(item.unitPrice)
+            : null,
+        subtotal: new Prisma.Decimal(item.subtotal),
+      };
+    }
+
+    // exact mode
+    if (
+      item.qty === undefined ||
+      item.qty === null ||
+      item.unitPrice === undefined ||
+      item.unitPrice === null
+    ) {
+      throw new AppError(
+        `Item ${rm.name} (exact mode) wajib qty + unitPrice.`,
+        422,
+      );
+    }
     const qty = new Prisma.Decimal(item.qty);
     const unitPrice = new Prisma.Decimal(item.unitPrice);
     const subtotal = qty.mul(unitPrice);
-    return { item, qty, unitPrice, subtotal };
+    return { item, rm, isScale, qty, unitPrice, subtotal };
   });
-  const totalAmount = itemsWithSubtotal.reduce(
+
+  const totalAmount = itemsProcessed.reduce(
     (sum, x) => sum.add(x.subtotal),
     new Prisma.Decimal(0),
   );
@@ -153,10 +230,8 @@ export async function createPurchase(
       },
     });
 
-    for (const { item, qty, unitPrice, subtotal } of itemsWithSubtotal) {
-      const rm = rmMap.get(item.rawMaterialId)!;
-
-      // 1. Create PurchaseItem
+    for (const { item, rm, isScale, qty, unitPrice, subtotal } of itemsProcessed) {
+      // 1. Create PurchaseItem (qty + unitPrice nullable kalau scale_0_5)
       await tx.purchaseItem.create({
         data: {
           purchaseId: header.id,
@@ -164,17 +239,20 @@ export async function createPurchase(
           qty,
           unitPrice,
           subtotal,
+          note: item.note ?? null,
           expiredDate: item.expiredDate ? parseDateUtcMidnight(item.expiredDate) : null,
         },
       });
 
-      // 2. Update RawMaterial: last_buy_date + unit_price selalu update;
-      //    stock_qty hanya kalau isTracked=true
+      // 2. Update RawMaterial:
+      //   - last_buy_date selalu update.
+      //   - unit_price update kalau unitPrice ada (exact selalu ada; scale opsional).
+      //   - stock_qty increment HANYA kalau exact mode + isTracked.
       const rmUpdateData: Prisma.RawMaterialUpdateInput = {
         lastBuyDate: purchaseDate,
-        unitPrice,
       };
-      if (rm.isTracked) {
+      if (unitPrice) rmUpdateData.unitPrice = unitPrice;
+      if (!isScale && rm.isTracked && qty) {
         rmUpdateData.stockQty = { increment: qty };
       }
       await tx.rawMaterial.update({
@@ -182,16 +260,26 @@ export async function createPurchase(
         data: rmUpdateData,
       });
 
-      // 3. Insert audit log raw_material_movements (selalu, untuk tracked maupun
-      //    non-tracked supaya audit lengkap)
+      // 3. Insert audit log raw_material_movements.
+      // delta semantic: untuk audit, bukan stock impact.
+      //   - Scale            : 0 (qty tidak meaningful, stock manual via opname)
+      //   - Exact (tracked)  : qty (real stock impact)
+      //   - Exact (log-only) : qty (audit history pembelian non-tracked)
+      const movementDelta = isScale ? new Prisma.Decimal(0) : qty!;
+      let movementNote: string;
+      if (isScale) {
+        movementNote = `Purchase id=${header.id}: total Rp${subtotal.toString()}${item.note ? ` (${item.note})` : ''} (skala mode, stok manual via opname)`;
+      } else if (rm.isTracked) {
+        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${rm.unit.label} @ Rp${unitPrice!.toString()}`;
+      } else {
+        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${rm.unit.label} @ Rp${unitPrice!.toString()} (tidak tracked, hanya log pengeluaran)`;
+      }
       await tx.rawMaterialMovement.create({
         data: {
           rawMaterialId: item.rawMaterialId,
-          delta: qty,
+          delta: movementDelta,
           reason: RawMaterialMovementReason.purchase,
-          note: `Purchase id=${header.id}: +${qty.toString()} ${rm.unit} @ Rp${unitPrice.toString()}${
-            rm.isTracked ? '' : ' (tidak tracked, hanya log pengeluaran)'
-          }`,
+          note: movementNote,
           userId,
         },
       });

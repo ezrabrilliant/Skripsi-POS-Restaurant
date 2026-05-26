@@ -405,6 +405,7 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
     }),
     prisma.rawMaterial.findMany({
       where: { isTracked: true },
+      include: { unit: { select: { label: true } } },
     }),
     prisma.shift.findMany({
       where: {
@@ -447,7 +448,7 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
         name: rm.name,
         stockQty,
         minStock: rm.minStock,
-        unit: rm.unit,
+        unit: rm.unit.label,
       });
     }
   }
