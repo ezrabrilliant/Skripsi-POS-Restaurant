@@ -72,6 +72,10 @@ prisma/*.db-journal
 .cache/
 .vercel
 
+# Tool artifacts / personal notes (jangan di-commit)
+.playwright-mcp/
+.obsidian/
+
 # Package locks (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock
