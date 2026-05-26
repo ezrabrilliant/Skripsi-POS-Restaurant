@@ -14,14 +14,32 @@ import { z } from 'zod';
 const idField = z.number().int().positive();
 const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYYY-MM-DD');
 
-export const purchaseItemSchema = z.object({
-  rawMaterialId: idField,
-  qty: z.number().positive('Qty harus > 0').nullable().optional(),
-  unitPrice: z.number().nonnegative('unitPrice tidak boleh negatif').nullable().optional(),
-  subtotal: z.number().positive('subtotal harus > 0').nullable().optional(),
-  note: z.string().trim().max(255).nullable().optional(),
-  expiredDate: dateField.optional().nullable(),
-});
+export const purchaseItemSchema = z
+  .object({
+    rawMaterialId: idField,
+    qty: z.number().positive('Qty harus > 0').nullable().optional(),
+    unitPrice: z.number().nonnegative('unitPrice tidak boleh negatif').nullable().optional(),
+    subtotal: z.number().positive('subtotal harus > 0').nullable().optional(),
+    note: z.string().trim().max(255).nullable().optional(),
+    expiredDate: dateField.optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const hasSubtotal = data.subtotal !== null && data.subtotal !== undefined;
+    const hasQtyAndPrice =
+      data.qty !== null &&
+      data.qty !== undefined &&
+      data.unitPrice !== null &&
+      data.unitPrice !== undefined;
+
+    if (!hasSubtotal && !hasQtyAndPrice) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Wajib salah satu: subtotal (untuk skala mode) atau qty + unitPrice (untuk exact mode)',
+        path: ['subtotal'],
+      });
+    }
+  });
 
 export const createPurchaseSchema = z.object({
   date: dateField,
