@@ -1,12 +1,14 @@
-// CashierDashboard - REV 2.3
-// Conditional primary:
-//   - Belum buka shift → CTA besar "Buka Kasir" dgn Dialog form
-//   - Shift aktif → 3 action card + ringkasan hari ini 6 buckets
-// Secondary: reminder stok + secondary action links.
+// CashierDashboard - REV 2.3 + REV 2.5
+// Conditional primary (3 branch):
+//   - !myActiveShift && hasOtherActiveSameDay (REV 2.5 multi-cashier):
+//     → Card hijau "Bantu Input Order" merujuk ke /pos +
+//       Hint kecil "Mau buka shift baru sendiri (tipe lain)?"
+//   - !myActiveShift && !hasOtherActiveSameDay:
+//     → CTA besar "Buka Kasir" dgn Dialog form (kasir pertama hari ini)
+//   - myActiveShift:
+//     → 3 action card + ringkasan hari ini 6 buckets + OtherActiveShiftInfo kalau ada
 //
-// REV 2.3 shift-decoupling (Phase 5): OpenShiftModal sebelumnya inline di file ini,
-// sekarang di-extract ke @/components/OpenShiftDialog supaya POSPage gate bisa
-// reuse saat kasir login + belum ada shift aktif.
+// Secondary: reminder stok + secondary action links.
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -22,6 +24,7 @@ import {
   Moon,
   Package,
   ShoppingCart,
+  ArrowRight,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService, type MethodTotals } from '@/services/dashboardService'
@@ -78,13 +81,17 @@ export default function CashierDashboard() {
           </>
         )}
 
-        {dashboard && !myActiveShift && (
+        {/* REV 2.5: kasir kedua login saat ada shift kasir lain aktif → "Bantu Input Order" */}
+        {dashboard && !myActiveShift && otherActiveShifts.length > 0 && (
           <>
-            <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
-            {otherActiveShifts.length > 0 && (
-              <OtherActiveShiftInfo shifts={otherActiveShifts} />
-            )}
+            <BantuInputOrderCard shifts={otherActiveShifts} />
+            <ChangeOrNewShiftHint onOpen={() => setShowOpenModal(true)} />
           </>
+        )}
+
+        {/* Kasir pertama hari ini, belum ada shift sama sekali */}
+        {dashboard && !myActiveShift && otherActiveShifts.length === 0 && (
+          <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
         )}
 
         {dashboard && myActiveShift && (
@@ -118,6 +125,7 @@ export default function CashierDashboard() {
               setShowOpenModal(false)
               refetch()
             }}
+            activeShifts={activeShifts}
           />
         )}
       </div>
@@ -351,10 +359,69 @@ function SecondaryActionsCard() {
 // OpenShiftModal sebelumnya di sini — sekarang di-extract ke @/components/OpenShiftDialog
 // supaya POSPage gate (kasir login + 0 active shift) bisa reuse komponen yang sama.
 
-// REV 2.3 shift-decoupling: tampilkan info shift kasir LAIN yang aktif (overlap).
-// Render-nya di bawah CTA / ActiveShiftPanel supaya kasir aware ada multi shift
-// sebelum coba input order — yang akan ditolak backend dengan 409 (lihat Phase 3
-// validasi single active shift di createTransaction).
+// REV 2.5 multi-cashier sharing: kasir kedua login saat shift tipe sama sudah
+// dibuka kasir lain. Card primary hijau yang merujuk ke /pos — BUKAN CTA
+// "Belum buka kasir" yang misleading (karena kasir kedua tidak perlu buka shift
+// duplikat per backend constraint REV 2.5).
+function BantuInputOrderCard({
+  shifts,
+}: {
+  shifts: Array<{ id: number; type?: ShiftType; cashierName?: string; createdAt: string }>
+}) {
+  const primaryShift = shifts[0]
+  return (
+    <Link
+      to="/pos"
+      className="block bg-gradient-to-br from-success-600 to-success-700 rounded-2xl p-6 sm:p-8 text-white shadow-md hover:shadow-lg transition-shadow"
+    >
+      <div className="flex items-start gap-4">
+        <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <Receipt className="w-7 h-7" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-title sm:text-headline font-semibold mb-1">
+            Bantu Input Order
+          </h2>
+          <p className="text-success-50/90 text-body-sm sm:text-body mb-3">
+            Shift{' '}
+            {primaryShift?.type === 'pagi' ? 'pagi' : primaryShift?.type === 'malam' ? 'malam' : ''}{' '}
+            sudah dibuka oleh <strong>{primaryShift?.cashierName ?? 'kasir lain'}</strong>
+            {primaryShift?.createdAt && <> sejak {formatTime(primaryShift.createdAt)}</>}.
+            Anda bisa langsung input pesanan customer kalau ada — tidak perlu buka shift baru.
+          </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-success-700 rounded-md font-medium text-body-sm hover:bg-success-50 transition-colors">
+            Buka Halaman POS
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// REV 2.5: hint kecil di bawah BantuInputOrderCard supaya kasir kedua tetap punya
+// jalur buka shift TIPE LAIN (mis. pagi sudah Bryant → Jason buka malam karena
+// memang giliran malam Jason). OpenShiftDialog akan grayed out tipe yang aktif.
+function ChangeOrNewShiftHint({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="bg-white rounded-xl p-3 sm:p-4 border border-neutral-200/60 flex items-center justify-between gap-3">
+      <div className="text-body-sm text-neutral-600 min-w-0">
+        Mau buka shift baru sendiri (tipe lain)?
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="text-body-sm font-medium text-primary-700 hover:underline shrink-0"
+      >
+        Buka Kasir
+      </button>
+    </div>
+  )
+}
+
+// REV 2.3 shift-decoupling: tampilkan info shift kasir LAIN yang aktif.
+// Sekarang (REV 2.5) cuma dirender kalau kasir login PUNYA shift sendiri + ada
+// shift kasir lain juga aktif (kasus pagi Bryant + malam Jason simultan).
 function OtherActiveShiftInfo({
   shifts,
 }: {

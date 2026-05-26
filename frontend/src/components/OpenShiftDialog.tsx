@@ -2,12 +2,16 @@
 // dan POSPage saat kasir login + belum ada shift aktif system-wide.
 // Permission: caller WAJIB pastikan user.role === 'cashier' sebelum render (per matrix
 // REV 2.3 — buka shift kasir-only, owner/waiter tidak punya CTA).
+//
+// REV 2.5 multi-cashier sharing: caller bisa pass `activeShifts` supaya tombol pilih
+// tipe yang sudah aktif (oleh kasir manapun) di-render grayed out + tooltip. Default
+// type picker auto-skip yang blocked.
 
-import { useState, type FormEvent } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sun, Moon } from 'lucide-react'
 import { shiftService, type OpenShiftPayload } from '@/services/shiftService'
-import type { ShiftType } from '@/types'
+import type { Shift, ShiftType } from '@/types'
 import { cn } from '@/lib/utils'
 import { Dialog, Button, Input } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -15,13 +19,29 @@ import { useToast } from '@/design-system/hooks/useToast'
 export interface OpenShiftDialogProps {
   onClose: () => void
   onSuccess: () => void
+  /** REV 2.5: shift tipe yang sudah aktif (kasir manapun) di-render grayed out + tooltip
+   * "Sudah dibuka oleh {nama}". Default type picker auto-pick non-blocked. */
+  activeShifts?: Shift[]
 }
 
-export default function OpenShiftDialog({ onClose, onSuccess }: OpenShiftDialogProps) {
+export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] }: OpenShiftDialogProps) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [type, setType] = useState<ShiftType>('pagi')
+
+  // REV 2.5: petakan tipe yang sudah aktif ke nama pemilik shift untuk tooltip.
+  const blockedTypeReason = useMemo(() => {
+    const map: Partial<Record<ShiftType, string>> = {}
+    for (const s of activeShifts) {
+      if (s.type) map[s.type] = `Sudah dibuka oleh ${s.cashierName ?? 'kasir lain'}`
+    }
+    return map
+  }, [activeShifts])
+
+  const [type, setType] = useState<ShiftType>(() =>
+    blockedTypeReason['pagi'] ? 'malam' : 'pagi'
+  )
   const [openingCash, setOpeningCash] = useState('')
+  const isCurrentTypeBlocked = !!blockedTypeReason[type]
 
   const openMutation = useMutation({
     mutationFn: (payload: OpenShiftPayload) => shiftService.openShift(payload),
@@ -60,6 +80,7 @@ export default function OpenShiftDialog({ onClose, onSuccess }: OpenShiftDialogP
           size="md"
           fullWidth
           loading={openMutation.isPending}
+          disabled={isCurrentTypeBlocked}
         >
           Buka Kasir
         </Button>
@@ -72,22 +93,36 @@ export default function OpenShiftDialog({ onClose, onSuccess }: OpenShiftDialogP
             {(['pagi', 'malam'] as const).map((t) => {
               const Icon = t === 'pagi' ? Sun : Moon
               const active = type === t
+              const blockedReason = blockedTypeReason[t]
+              const disabled = !!blockedReason
               return (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setType(t)}
+                  onClick={() => !disabled && setType(t)}
+                  disabled={disabled}
+                  title={blockedReason}
                   aria-pressed={active}
+                  aria-disabled={disabled}
                   className={cn(
-                    'min-h-[52px] flex items-center justify-center gap-2 px-3 rounded-lg border text-body-sm font-medium transition-colors',
+                    'min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-3 rounded-lg border text-body-sm font-medium transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
-                    active
-                      ? 'bg-primary-50 border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
-                      : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50'
+                    disabled
+                      ? 'bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed opacity-60'
+                      : active
+                        ? 'bg-primary-50 border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
+                        : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50'
                   )}
                 >
-                  <Icon className="w-4 h-4" />
-                  {t === 'pagi' ? 'Pagi' : 'Malam'}
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" />
+                    {t === 'pagi' ? 'Pagi' : 'Malam'}
+                  </div>
+                  {blockedReason && (
+                    <span className="text-caption text-neutral-500 truncate max-w-full">
+                      {blockedReason}
+                    </span>
+                  )}
                 </button>
               )
             })}
