@@ -1,8 +1,14 @@
-// Service modul stocks/raw-materials. REV 2.2:
+// Service modul stocks/raw-materials. REV 2.5:
 //   - CRUD master (owner-only di route layer): tambah/edit/hapus raw material.
 //   - View + opname + mark-habis: semua role (owner+kasir+waiter) per matrix REV 2.3.
 //   - Audit log via raw_material_movements reason=opname/manualAdjust.
 //   - Reminder flags di view: isLowStock + isNearExpiry untuk dashboard alerting.
+//   - REV 2.5: unitId FK ke `units` (sebelumnya unit string bebas).
+//       * View expose `unit: { id, label, opnameMode }` populated, bukan string.
+//       * updateRawMaterial transactional: kalau unit berubah dan stok > 0, owner
+//         wajib pass `newStockQty` untuk konversi manual. Selisih dilog ke
+//         raw_material_movements reason=manualAdjust.
+//       * min_stock untuk unit dengan opname_mode=scale_0_5 harus range 0..5.
 //
 // Catatan: raw_material_movements reason=purchase di-insert oleh modul `purchases`
 // (Phase 7), bukan di sini. Modul ini hanya mencatat opname dan manual adjust.
@@ -11,7 +17,7 @@
 // ada purchase_items atau raw_material_movements yang merefer (FK protection),
 // dan kita translasi ke pesan ramah.
 
-import { Prisma, RawMaterialMovementReason, RawMaterialCategory } from '@prisma/client';
+import { Prisma, RawMaterialMovementReason, RawMaterialCategory, OpnameMode } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError, notFound } from '../../utils/errors';
 import type {
@@ -29,7 +35,12 @@ import type {
 export interface RawMaterialView {
   id: number;
   name: string;
-  unit: string;
+  unitId: number;
+  unit: {
+    id: number;
+    label: string;
+    opnameMode: OpnameMode;
+  };
   category: RawMaterialCategory;
   isTracked: boolean;
   stockQty: number;
@@ -54,7 +65,7 @@ export interface RawMaterialMovementView {
   createdAt: string;
 }
 
-type RawMaterialRow = Prisma.RawMaterialGetPayload<{}>;
+type RawMaterialRow = Prisma.RawMaterialGetPayload<{ include: { unit: true } }>;
 
 function daysBetween(from: Date, to: Date): number {
   const ms = to.getTime() - from.getTime();
@@ -89,7 +100,12 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
   return {
     id: rm.id,
     name: rm.name,
-    unit: rm.unit,
+    unitId: rm.unitId,
+    unit: {
+      id: rm.unit.id,
+      label: rm.unit.label,
+      opnameMode: rm.unit.opnameMode,
+    },
     category: rm.category,
     isTracked: rm.isTracked,
     stockQty,
@@ -117,6 +133,7 @@ export async function listRawMaterials(query: ListRawMaterialsQuery): Promise<Ra
 
   const rms = await prisma.rawMaterial.findMany({
     where,
+    include: { unit: true },
     orderBy: [{ category: 'asc' }, { name: 'asc' }],
   });
 
@@ -135,7 +152,10 @@ export async function getRawMaterialDetail(
   id: number,
   movementsLimit = 20,
 ): Promise<RawMaterialDetail> {
-  const rm = await prisma.rawMaterial.findUnique({ where: { id } });
+  const rm = await prisma.rawMaterial.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
   if (!rm) throw notFound('RawMaterial');
 
   const movements = await prisma.rawMaterialMovement.findMany({
@@ -170,41 +190,110 @@ export async function createRawMaterial(input: CreateRawMaterialInput): Promise<
     throw new AppError(`Raw material "${input.name}" sudah ada`, 409);
   }
 
+  // Validasi unit exists + ambil opname_mode untuk validate min_stock range
+  const unit = await prisma.unit.findUnique({ where: { id: input.unitId } });
+  if (!unit) throw new AppError(`Unit id=${input.unitId} tidak ditemukan`, 400);
+
+  if (input.minStock !== null && input.minStock !== undefined) {
+    if (unit.opnameMode === OpnameMode.scale_0_5 && (input.minStock < 0 || input.minStock > 5)) {
+      throw new AppError('min_stock untuk satuan skala harus 0..5', 422);
+    }
+  }
+
   const created = await prisma.rawMaterial.create({
     data: {
       name: input.name,
-      unit: input.unit,
+      unitId: input.unitId,
       category: input.category,
       isTracked: input.isTracked,
       stockQty: new Prisma.Decimal(input.stockQty),
       minStock: input.minStock ?? null,
-      unitPrice: input.unitPrice !== null && input.unitPrice !== undefined ? new Prisma.Decimal(input.unitPrice) : null,
+      unitPrice:
+        input.unitPrice !== null && input.unitPrice !== undefined
+          ? new Prisma.Decimal(input.unitPrice)
+          : null,
       freshnessDays: input.freshnessDays ?? null,
     },
+    include: { unit: true },
   });
   return toRawMaterialView(created);
 }
 
 export async function updateRawMaterial(
   id: number,
+  userId: number,
   input: UpdateRawMaterialInput,
 ): Promise<RawMaterialView> {
-  const existing = await prisma.rawMaterial.findUnique({ where: { id } });
+  const existing = await prisma.rawMaterial.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
   if (!existing) throw notFound('RawMaterial');
 
-  const data: Prisma.RawMaterialUpdateInput = {};
-  if (input.name !== undefined) data.name = input.name;
-  if (input.unit !== undefined) data.unit = input.unit;
-  if (input.category !== undefined) data.category = input.category;
-  if (input.isTracked !== undefined) data.isTracked = input.isTracked;
-  if (input.minStock !== undefined) data.minStock = input.minStock;
-  if (input.unitPrice !== undefined) {
-    data.unitPrice = input.unitPrice === null ? null : new Prisma.Decimal(input.unitPrice);
-  }
-  if (input.freshnessDays !== undefined) data.freshnessDays = input.freshnessDays;
+  return prisma.$transaction(async (tx) => {
+    const data: Prisma.RawMaterialUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.isTracked !== undefined) data.isTracked = input.isTracked;
+    if (input.minStock !== undefined) data.minStock = input.minStock;
+    if (input.unitPrice !== undefined) {
+      data.unitPrice = input.unitPrice === null ? null : new Prisma.Decimal(input.unitPrice);
+    }
+    if (input.freshnessDays !== undefined) data.freshnessDays = input.freshnessDays;
 
-  const updated = await prisma.rawMaterial.update({ where: { id }, data });
-  return toRawMaterialView(updated);
+    // Unit change handling: kalau unitId berubah dan stock_qty > 0,
+    // owner WAJIB pass newStockQty (atau null untuk reset 0).
+    let effectiveUnit = existing.unit;
+    if (input.unitId !== undefined && input.unitId !== existing.unitId) {
+      const newUnit = await tx.unit.findUnique({ where: { id: input.unitId } });
+      if (!newUnit) throw new AppError(`Unit id=${input.unitId} tidak ditemukan`, 400);
+
+      const currentStock = existing.stockQty.toNumber();
+      if (currentStock > 0 && input.newStockQty === undefined) {
+        throw new AppError(
+          `Stok saat ini ${currentStock} ${existing.unit.label}. Wajib pass newStockQty untuk konversi ke ${newUnit.label} (atau null untuk reset 0).`,
+          422,
+        );
+      }
+
+      const targetStock = input.newStockQty ?? 0;
+      if (newUnit.opnameMode === OpnameMode.scale_0_5 && (targetStock < 0 || targetStock > 5)) {
+        throw new AppError('newStockQty untuk satuan skala harus 0..5', 422);
+      }
+
+      data.unit = { connect: { id: input.unitId } };
+      data.stockQty = new Prisma.Decimal(targetStock);
+      effectiveUnit = newUnit;
+
+      const delta = new Prisma.Decimal(targetStock).sub(existing.stockQty);
+      if (!delta.isZero()) {
+        await tx.rawMaterialMovement.create({
+          data: {
+            rawMaterialId: id,
+            delta,
+            reason: RawMaterialMovementReason.manualAdjust,
+            note: `Unit changed: ${existing.unit.label} → ${newUnit.label}, stok ${currentStock} → ${targetStock}`,
+            userId,
+          },
+        });
+      }
+    }
+
+    // Re-validate min_stock kalau opname_mode unit efektif (lama atau baru) = scale
+    if (data.minStock !== undefined && data.minStock !== null) {
+      const minStockValue = data.minStock as number;
+      if (effectiveUnit.opnameMode === OpnameMode.scale_0_5 && (minStockValue < 0 || minStockValue > 5)) {
+        throw new AppError('min_stock untuk satuan skala harus 0..5', 422);
+      }
+    }
+
+    const updated = await tx.rawMaterial.update({
+      where: { id },
+      data,
+      include: { unit: true },
+    });
+    return toRawMaterialView(updated);
+  });
 }
 
 export async function deleteRawMaterial(id: number): Promise<{ id: number; name: string }> {
@@ -254,7 +343,10 @@ export async function opname(userId: number, input: OpnameInput): Promise<RawMat
           },
         });
       }
-      const updated = await tx.rawMaterial.findUniqueOrThrow({ where: { id: item.rawMaterialId } });
+      const updated = await tx.rawMaterial.findUniqueOrThrow({
+        where: { id: item.rawMaterialId },
+        include: { unit: true },
+      });
       results.push(toRawMaterialView(updated));
     }
     return results;
@@ -266,7 +358,10 @@ export async function markHabis(
   userId: number,
   input: MarkHabisInput,
 ): Promise<RawMaterialView> {
-  const rm = await prisma.rawMaterial.findUnique({ where: { id } });
+  const rm = await prisma.rawMaterial.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
   if (!rm) throw notFound('RawMaterial');
 
   if (rm.stockQty.isZero()) {
@@ -278,13 +373,14 @@ export async function markHabis(
     const u = await tx.rawMaterial.update({
       where: { id },
       data: { stockQty: new Prisma.Decimal(0) },
+      include: { unit: true },
     });
     await tx.rawMaterialMovement.create({
       data: {
         rawMaterialId: id,
         delta,
         reason: RawMaterialMovementReason.manualAdjust,
-        note: input.note ?? `Mark habis: dari ${rm.stockQty.toString()} ${rm.unit} ke 0 (${rm.name})`,
+        note: input.note ?? `Mark habis: dari ${rm.stockQty.toString()} ${rm.unit.label} ke 0 (${rm.name})`,
         userId,
       },
     });

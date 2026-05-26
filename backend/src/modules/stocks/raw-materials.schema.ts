@@ -1,15 +1,17 @@
-// Zod schema untuk modul stocks/raw-materials. REV 2.2:
+// Zod schema untuk modul stocks/raw-materials. REV 2.5:
 //   - is_tracked=true  -> stok di-update saat purchase, ada reminder restock + freshness
 //   - is_tracked=false -> hanya log pengeluaran, tidak monitoring stok
-//   - unit String bebas (ikat/balok/butir/gram/liter/skala/batang/dll)
+//   - unitId FK ke master `units` (opname_mode ditentukan oleh unit, bukan disimpan di sini)
 //   - category enum 5 nilai untuk grouping di laporan owner
+// NOTE: schema ini partial-updated di Task 5 (tambah unitId + newStockQty).
+//       Task 6 akan polish lebih lanjut (mis. min_stock validation per opname_mode via refine).
 
 import { z } from 'zod';
 import { RawMaterialCategory } from '@prisma/client';
 
 const idField = z.number().int().positive();
 const nameField = z.string().trim().min(1, 'Nama wajib diisi').max(100);
-const unitField = z.string().trim().min(1, 'Unit wajib diisi').max(20);
+const unitIdField = z.number().int().positive();
 const categoryField = z.nativeEnum(RawMaterialCategory, {
   errorMap: () => ({ message: 'Category harus salah satu: bumbuDasar/bahanSegar/bahanPokok/bahanKering/lainnya' }),
 });
@@ -20,7 +22,7 @@ const freshnessDaysField = z.number().int().positive().optional().nullable();
 
 export const createRawMaterialSchema = z.object({
   name: nameField,
-  unit: unitField,
+  unitId: unitIdField,
   category: categoryField,
   isTracked: z.boolean(),
   stockQty: qtyDecimalField.default(0),
@@ -32,7 +34,10 @@ export const createRawMaterialSchema = z.object({
 export const updateRawMaterialSchema = z
   .object({
     name: nameField.optional(),
-    unit: unitField.optional(),
+    unitId: unitIdField.optional(),
+    /// REV 2.5: kalau unitId berubah dan stok > 0, owner WAJIB kirim newStockQty
+    /// (atau null untuk reset ke 0). Kalau stok = 0, field ini boleh diabaikan.
+    newStockQty: z.number().min(0).nullable().optional(),
     category: categoryField.optional(),
     isTracked: z.boolean().optional(),
     minStock: minStockField,

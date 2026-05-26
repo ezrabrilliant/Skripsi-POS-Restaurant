@@ -34,9 +34,10 @@ export const handleCreate = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const handleUpdate = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
   const id = parseId(req.params.id);
   const input = updateRawMaterialSchema.parse(req.body);
-  const rawMaterial = await rmService.updateRawMaterial(id, input);
+  const rawMaterial = await rmService.updateRawMaterial(id, req.user.id, input);
   sendSuccess(res, { rawMaterial }, 'Raw material berhasil diperbarui');
 });
 
