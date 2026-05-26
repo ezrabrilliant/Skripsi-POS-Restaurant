@@ -1,6 +1,8 @@
-// Service modul stocks/raw-materials. REV 2.2:
+// Service modul stocks/raw-materials. REV 2.5.1:
 //   - View + opname + mark-habis SEMUA role
-//   - CRUD master OWNER-only (edit master rename/unit/isTracked/minStock)
+//   - CRUD master OWNER-only (edit master rename/unit/minStock)
+//   - is_tracked DROPPED: master selalu tracked. Item ad-hoc (bumbu dasar, ayam
+//     mentah) di-input sebagai free-form line item di purchase, bukan master.
 
 import api from '@/lib/api'
 import type {
@@ -12,7 +14,6 @@ import type {
 
 export interface ListRawMaterialsQuery {
   category?: RawMaterialCategory
-  isTracked?: boolean
   needsRestock?: boolean
 }
 
@@ -21,7 +22,6 @@ export interface CreateRawMaterialPayload {
   /** REV 2.5: unitId FK ke master `units` (sebelumnya `unit: string` bebas). */
   unitId: number
   category: RawMaterialCategory
-  isTracked: boolean
   stockQty?: number
   minStock?: number | null
   unitPrice?: number | null
@@ -49,7 +49,6 @@ export const rawMaterialsService = {
   list: async (query: ListRawMaterialsQuery = {}): Promise<RawMaterialView[]> => {
     const params: Record<string, string> = {}
     if (query.category) params.category = query.category
-    if (query.isTracked !== undefined) params.isTracked = String(query.isTracked)
     if (query.needsRestock) params.needsRestock = 'true'
     const res = await api.get<ApiResponse<{ rawMaterials: RawMaterialView[] }>>(
       '/stocks/raw-materials',

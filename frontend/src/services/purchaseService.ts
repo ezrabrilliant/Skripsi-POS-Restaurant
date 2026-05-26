@@ -1,15 +1,20 @@
-// Service modul purchases. REV 2.1/2.2: owner + kasir. Normalized header + items.
-// No update/delete - kalau salah, catat purchase baru sebagai koreksi.
+// Service modul purchases. REV 2.5.1: 3-kind line item:
+//   A. Free-form (rawMaterialId null, label set, subtotal wajib) — bumbu dasar,
+//      ayam mentah, item tanpa master.
+//   B. Typed-scale (rawMaterialId set, unit.opnameMode=scale_0_5, subtotal wajib)
+//   C. Typed-exact (rawMaterialId set, unit.opnameMode=exact, qty + unitPrice wajib)
+// Server validate via superRefine: exactly one of {rawMaterialId, label} + per-kind
+// payload requirements.
 
 import api from '@/lib/api'
 import type { ApiResponse, Purchase } from '@/types'
 
-/** REV 2.5: bifurcate per unit.opnameMode.
- *  - exact mode:    qty + unitPrice wajib (subtotal auto = qty * unitPrice di server)
- *  - scale_0_5 mode: subtotal wajib, qty + unitPrice opsional, note recommended
- * Server validate via superRefine: minimal salah satu pair lengkap. */
+/** REV 2.5.1: 3-kind line item. Server bifurcate via {rawMaterialId, label}. */
 export interface CreatePurchaseItem {
-  rawMaterialId: number
+  /** Typed item: set rawMaterialId (label null). Free-form: null + isi label. */
+  rawMaterialId?: number | null
+  /** Free-form label (mis. "Bumbu dasar pasar"). Mutex dengan rawMaterialId. */
+  label?: string | null
   qty?: number | null
   unitPrice?: number | null
   subtotal?: number | null

@@ -1,17 +1,16 @@
-// PurchasesPage - REV 2.3 owner+kasir; REV 2.5 bifurcate per opnameMode.
+// PurchasesPage - REV 2.5.1 owner+kasir; 3-kind line item bifurcation.
 //
 // List belanja pasar + create dengan vendor picker (optional) + multiple items.
-// Auto-effect ke raw_materials di backend (stockQty + unitPrice + lastBuyDate
-// untuk tracked items).
 //
-// REV 2.5 bifurcation:
-// - exact mode (kg, liter, pcs): qty + unitPrice wajib, subtotal auto = qty*unitPrice
-// - scale_0_5 mode (sachet, sdt, "secukupnya"): subtotal manual + note recommended
-//   ("1 karung 50kg"), qty/unitPrice null. Server validate via superRefine.
-//
-// Quick-add: tombol "Bumbu Dasar (N)" spawn preset rows untuk semua raw materials
-// kategori bumbuDasar sekaligus. Kasir tinggal isi qty/harga, hapus yang ngga
-// dibeli.
+// REV 2.5.1 — 3-kind line item:
+//   A. Free-form (kind='freeform'): label string + subtotal + note. Untuk bumbu
+//      dasar, ayam mentah, ikan mentah, item tanpa master. Tidak update stock,
+//      tidak audit movement. (rawMaterialId=null, label='Bumbu dasar pasar')
+//   B. Typed-scale (kind='typed' + opnameMode=scale_0_5): rawMaterialId set,
+//      subtotal manual + note recommended (mis. "1 karung 50kg"). qty/unitPrice
+//      tidak relevan untuk stock (opname manual 0..5). last_buy_date di-update.
+//   C. Typed-exact (kind='typed' + opnameMode=exact): rawMaterialId set,
+//      qty + unitPrice wajib. Server auto-compute subtotal + increment stock_qty.
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -36,30 +35,34 @@ import {
   type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
-import QuickAddBumbuDasar from '@/components/QuickAddBumbuDasar'
-import type { OpnameMode, RawMaterialView } from '@/types'
+import type { OpnameMode } from '@/types'
 
-/** REV 2.5: form row state - nullable qty/unitPrice + note + opnameMode
- * bifurcation. Subtotal manual untuk scale items, auto-compute untuk exact. */
+/** REV 2.5.1: form row state — kind 'typed' atau 'freeform' bifurcation.
+ * - typed: pilih raw_material dari master via Combobox → opnameMode drive UI
+ *   (exact = qty+unitPrice, scale_0_5 = subtotal+note)
+ * - freeform: input label bebas + subtotal + note (no qty, no unitPrice). */
 interface PurchaseItemFormRow {
+  kind: 'typed' | 'freeform'
   rawMaterialId: number | null
   rawMaterialName: string | null
   unitLabel: string | null
   opnameMode: OpnameMode | null
-  isTracked: boolean
+  /** Free-form label (mis. "Bumbu dasar pasar", "Ayam mentah 2kg"). */
+  label: string
   qty: number | ''
   unitPrice: number | ''
   subtotal: number | ''
   note: string
 }
 
-function emptyRow(): PurchaseItemFormRow {
+function emptyTypedRow(): PurchaseItemFormRow {
   return {
+    kind: 'typed',
     rawMaterialId: null,
     rawMaterialName: null,
     unitLabel: null,
     opnameMode: null,
-    isTracked: false,
+    label: '',
     qty: '',
     unitPrice: '',
     subtotal: '',
@@ -67,13 +70,14 @@ function emptyRow(): PurchaseItemFormRow {
   }
 }
 
-function rowFromRawMaterial(rm: RawMaterialView): PurchaseItemFormRow {
+function emptyFreeformRow(): PurchaseItemFormRow {
   return {
-    rawMaterialId: rm.id,
-    rawMaterialName: rm.name,
-    unitLabel: rm.unit.label,
-    opnameMode: rm.unit.opnameMode,
-    isTracked: rm.isTracked,
+    kind: 'freeform',
+    rawMaterialId: null,
+    rawMaterialName: null,
+    unitLabel: null,
+    opnameMode: null,
+    label: '',
     qty: '',
     unitPrice: '',
     subtotal: '',
@@ -82,10 +86,10 @@ function rowFromRawMaterial(rm: RawMaterialView): PurchaseItemFormRow {
 }
 
 function computeRowSubtotal(row: PurchaseItemFormRow): number {
-  if (row.opnameMode === 'scale_0_5') {
+  if (row.kind === 'freeform' || row.opnameMode === 'scale_0_5') {
     return typeof row.subtotal === 'number' ? row.subtotal : 0
   }
-  // exact (atau belum dipilih) → qty * unitPrice
+  // typed-exact (atau belum dipilih) → qty * unitPrice
   const qty = typeof row.qty === 'number' ? row.qty : 0
   const price = typeof row.unitPrice === 'number' ? row.unitPrice : 0
   return qty * price
@@ -170,6 +174,8 @@ export default function PurchasesPage() {
                 </div>
                 <ul className="text-body-sm space-y-1 mt-2 pt-2 border-t border-neutral-100">
                   {p.items.map((it) => {
+                    // REV 2.5.1: 3 display cases.
+                    const isFreeForm = it.rawMaterialId === null
                     const isScale = it.rawMaterialOpnameMode === 'scale_0_5'
                     const hasQtyPrice = it.qty !== null && it.unitPrice !== null
                     return (
@@ -178,30 +184,41 @@ export default function PurchasesPage() {
                         className="flex justify-between text-neutral-800 gap-2 tabular-nums"
                       >
                         <span className="min-w-0">
-                          <span className="font-medium">{it.rawMaterialName}</span>
-                          {hasQtyPrice ? (
-                            <span className="text-neutral-500">
-                              {' '}· {it.qty} {it.rawMaterialUnit} @ {formatCurrency(it.unitPrice ?? 0)}
-                            </span>
+                          {isFreeForm ? (
+                            <>
+                              <span className="font-medium">{it.label}</span>
+                              {it.note && (
+                                <span className="text-caption text-neutral-500 italic">
+                                  {' '}({it.note})
+                                </span>
+                              )}
+                              <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
+                                ad-hoc
+                              </Badge>
+                            </>
                           ) : (
-                            <span className="text-neutral-500">
-                              {' '}· skala {it.rawMaterialUnit}
-                            </span>
-                          )}
-                          {it.note && (
-                            <span className="text-caption text-neutral-500 italic">
-                              {' '}({it.note})
-                            </span>
-                          )}
-                          {isScale && (
-                            <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
-                              skala
-                            </Badge>
-                          )}
-                          {!it.isTracked && (
-                            <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
-                              log-only
-                            </Badge>
+                            <>
+                              <span className="font-medium">{it.rawMaterialName}</span>
+                              {hasQtyPrice ? (
+                                <span className="text-neutral-500">
+                                  {' '}· {it.qty} {it.rawMaterialUnit} @ {formatCurrency(it.unitPrice ?? 0)}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-500">
+                                  {' '}· skala {it.rawMaterialUnit}
+                                </span>
+                              )}
+                              {it.note && (
+                                <span className="text-caption text-neutral-500 italic">
+                                  {' '}({it.note})
+                                </span>
+                              )}
+                              {isScale && (
+                                <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
+                                  skala
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </span>
                         <span className="font-medium text-neutral-900 shrink-0">
@@ -264,12 +281,16 @@ function CreatePurchaseModal({
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const addEmptyItem = () => {
+  const addTypedRow = () => {
     if (rawMaterials.length === 0) {
-      toast.error('Tidak ada raw material. Owner harus tambah master raw material dulu.')
+      toast.error('Belum ada master bahan. Owner harus tambah master raw material dulu, atau pakai "+ Bahan lain (free-form)".')
       return
     }
-    setItems((prev) => [...prev, emptyRow()])
+    setItems((prev) => [...prev, emptyTypedRow()])
+  }
+
+  const addFreeformRow = () => {
+    setItems((prev) => [...prev, emptyFreeformRow()])
   }
 
   const updateItem = (idx: number, patch: Partial<PurchaseItemFormRow>) => {
@@ -284,7 +305,6 @@ function CreatePurchaseModal({
       rawMaterialName: rm.name,
       unitLabel: rm.unit.label,
       opnameMode: rm.unit.opnameMode,
-      isTracked: rm.isTracked,
       // Reset numeric fields kalau opnameMode berubah (tidak bisa cross-mode).
       qty: '',
       unitPrice: '',
@@ -296,15 +316,6 @@ function CreatePurchaseModal({
     setItems((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  const handleQuickAddBumbuDasar = (rms: RawMaterialView[]) => {
-    const existingIds = new Set(items.map((it) => it.rawMaterialId).filter((id): id is number => id !== null))
-    const newRows = rms
-      .filter((rm) => !existingIds.has(rm.id))
-      .map((rm) => rowFromRawMaterial(rm))
-    if (newRows.length === 0) return
-    setItems((prev) => [...prev, ...newRows])
-  }
-
   const totalAmount = items.reduce((s, it) => s + computeRowSubtotal(it), 0)
 
   const handleSubmit = () => {
@@ -312,18 +323,40 @@ function CreatePurchaseModal({
       toast.error('Tambah minimal 1 item')
       return
     }
-    // Validate per row sesuai opnameMode + map ke payload.
+    // Validate per row sesuai kind + map ke payload.
     const payloadItems: CreatePurchaseItem[] = []
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!
+      const rowLabel = it.rawMaterialName ?? it.label ?? `Item #${i + 1}`
+
+      if (it.kind === 'freeform') {
+        // Free-form: label + subtotal wajib.
+        if (!it.label.trim()) {
+          toast.error(`Item #${i + 1}: isi nama bahan (free-form)`)
+          return
+        }
+        if (typeof it.subtotal !== 'number' || it.subtotal <= 0) {
+          toast.error(`Item #${i + 1} (${it.label}): isi subtotal`)
+          return
+        }
+        payloadItems.push({
+          rawMaterialId: null,
+          label: it.label.trim(),
+          subtotal: it.subtotal,
+          note: it.note.trim() || null,
+        })
+        continue
+      }
+
+      // Typed
       if (it.rawMaterialId == null) {
-        toast.error(`Item #${i + 1}: pilih bahan dulu`)
+        toast.error(`Item #${i + 1}: pilih bahan dari master dulu`)
         return
       }
       if (it.opnameMode === 'scale_0_5') {
-        // Scale: subtotal wajib, qty/unitPrice null, note recommended.
+        // Typed-scale: subtotal wajib, qty/unitPrice null.
         if (typeof it.subtotal !== 'number' || it.subtotal <= 0) {
-          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi subtotal (skala)`)
+          toast.error(`Item #${i + 1} (${rowLabel}): isi subtotal (skala)`)
           return
         }
         payloadItems.push({
@@ -334,13 +367,13 @@ function CreatePurchaseModal({
           note: it.note.trim() || null,
         })
       } else {
-        // Exact (default): qty + unitPrice wajib, subtotal server compute.
+        // Typed-exact: qty + unitPrice wajib, subtotal server compute.
         if (typeof it.qty !== 'number' || it.qty <= 0) {
-          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi qty`)
+          toast.error(`Item #${i + 1} (${rowLabel}): isi qty`)
           return
         }
         if (typeof it.unitPrice !== 'number' || it.unitPrice <= 0) {
-          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi harga unit`)
+          toast.error(`Item #${i + 1} (${rowLabel}): isi harga unit`)
           return
         }
         payloadItems.push({
@@ -370,16 +403,12 @@ function CreatePurchaseModal({
     helper: `${r.unit.label} · ${r.unit.opnameMode === 'scale_0_5' ? 'skala' : 'eksak'}`,
   }))
 
-  const usedRmIds = items
-    .map((it) => it.rawMaterialId)
-    .filter((id): id is number => id !== null)
-
   return (
     <Dialog
       open
       onOpenChange={(o) => !o && onClose()}
       title="Catat Belanja"
-      description="Item dengan tracked=true akan otomatis menambah stok di raw_materials. Item satuan skala (sachet, sdt) cukup catat total Rupiah + catatan."
+      description="Tambah item dari master (untuk bahan tracked) atau free-form (untuk bumbu dasar, ayam mentah, dll yang tanpa master). Free-form cuma catat label + total Rp."
       size="xl"
       footer={
         <div className="w-full flex items-center justify-between gap-3">
@@ -433,49 +462,71 @@ function CreatePurchaseModal({
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <label className="text-label text-neutral-700">Items</label>
             <div className="flex items-center gap-2">
-              <QuickAddBumbuDasar
-                onAdd={handleQuickAddBumbuDasar}
-                excludeIds={usedRmIds}
-              />
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={addTypedRow}
+              >
+                Tambah Bahan (master)
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 leftIcon={<Plus className="w-4 h-4" />}
-                onClick={addEmptyItem}
+                onClick={addFreeformRow}
               >
-                Tambah item
+                Bahan lain (free-form)
               </Button>
             </div>
           </div>
           {items.length === 0 ? (
             <EmptyState
               title="Belum ada item"
-              description="Klik 'Tambah item' atau 'Bumbu Dasar' di atas untuk menambah baris."
+              description='Klik "Tambah Bahan (master)" untuk pilih dari daftar tracked, atau "Bahan lain (free-form)" untuk bumbu dasar, ayam mentah, dll.'
               compact
             />
           ) : (
             <div className="space-y-2">
               {items.map((it, idx) => {
+                const isFreeform = it.kind === 'freeform'
                 const isScale = it.opnameMode === 'scale_0_5'
                 const subtotalAuto = computeRowSubtotal(it)
                 return (
                   <div
                     key={idx}
-                    className="bg-neutral-50/80 border border-neutral-200/60 rounded-lg p-2.5 space-y-2"
+                    className={cn(
+                      'border rounded-lg p-2.5 space-y-2',
+                      isFreeform
+                        ? 'bg-warning-50/40 border-warning-200/60'
+                        : 'bg-neutral-50/80 border-neutral-200/60',
+                    )}
                   >
-                    {/* Row 1: bahan picker + delete */}
+                    {/* Row 1: bahan picker (typed) OR label input (freeform) + delete */}
                     <div className="grid grid-cols-12 gap-2 items-end">
-                      <Combobox
-                        label={`Bahan item ${idx + 1}`}
-                        hideLabel
-                        value={it.rawMaterialId !== null ? String(it.rawMaterialId) : ''}
-                        onValueChange={(v) => v && handlePickRawMaterial(idx, Number(v))}
-                        options={rmOptions}
-                        placeholder="Pilih bahan..."
-                        searchPlaceholder="Cari bahan..."
-                        emptyText="Bahan tidak ditemukan"
-                        containerClassName="col-span-11"
-                      />
+                      {isFreeform ? (
+                        <Input
+                          label={`Nama bahan item ${idx + 1} (free-form)`}
+                          hideLabel
+                          type="text"
+                          value={it.label}
+                          onChange={(e) => updateItem(idx, { label: e.target.value })}
+                          placeholder='Mis. "Bumbu dasar pasar", "Ayam mentah 2kg"'
+                          containerClassName="col-span-11"
+                        />
+                      ) : (
+                        <Combobox
+                          label={`Bahan item ${idx + 1}`}
+                          hideLabel
+                          value={it.rawMaterialId !== null ? String(it.rawMaterialId) : ''}
+                          onValueChange={(v) => v && handlePickRawMaterial(idx, Number(v))}
+                          options={rmOptions}
+                          placeholder="Pilih bahan dari master..."
+                          searchPlaceholder="Cari bahan..."
+                          emptyText="Bahan tidak ditemukan"
+                          containerClassName="col-span-11"
+                        />
+                      )}
                       <div className="col-span-1 flex justify-end">
                         <IconButton
                           label="Hapus item"
@@ -488,8 +539,42 @@ function CreatePurchaseModal({
                       </div>
                     </div>
 
-                    {/* Row 2: bifurcate per opnameMode */}
-                    {it.rawMaterialId !== null && (
+                    {/* Row 2: per kind bifurcation */}
+                    {isFreeform ? (
+                      // FREE-FORM: subtotal + note only
+                      <div className="grid grid-cols-12 gap-2 items-end">
+                        <Input
+                          label={`Subtotal item ${idx + 1}`}
+                          hideLabel
+                          type="number"
+                          inputMode="numeric"
+                          value={it.subtotal === '' ? '' : it.subtotal}
+                          onChange={(e) =>
+                            updateItem(idx, {
+                              subtotal: e.target.value === '' ? '' : Number(e.target.value),
+                            })
+                          }
+                          placeholder="Total Rp"
+                          min={0}
+                          containerClassName="col-span-12 sm:col-span-4"
+                          className="text-right tabular-nums"
+                        />
+                        <Input
+                          label={`Catatan item ${idx + 1}`}
+                          hideLabel
+                          type="text"
+                          value={it.note}
+                          onChange={(e) => updateItem(idx, { note: e.target.value })}
+                          placeholder="Catatan (opsional)"
+                          containerClassName="col-span-12 sm:col-span-7"
+                        />
+                        <div className="col-span-12 sm:col-span-1 text-right">
+                          <Badge tone="warning" variant="outline" size="sm">
+                            ad-hoc
+                          </Badge>
+                        </div>
+                      </div>
+                    ) : it.rawMaterialId !== null ? (
                       <>
                         {isScale ? (
                           <div className="grid grid-cols-12 gap-2 items-end">
@@ -590,14 +675,9 @@ function CreatePurchaseModal({
                               Cukup catat total Rp + note bentuk fisik (mis. "1 karung 50kg").
                             </span>
                           )}
-                          {!it.isTracked && (
-                            <span className="text-caption text-neutral-500 italic">
-                              Item log-only - stok tidak ditrack di sistem.
-                            </span>
-                          )}
                         </div>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 )
               })}

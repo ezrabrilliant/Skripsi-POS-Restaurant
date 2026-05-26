@@ -3,6 +3,8 @@
 // REV 2.5: unit dari master `units` (UnitDropdown). Opname row UI bifurcation per
 // opnameMode unit (exact → input angka; scale_0_5 → segmented 0-5). Edit unit yang
 // ganti + stock > 0 → sub-modal "Konversi stok ke satuan baru".
+// REV 2.5.1: is_tracked DROPPED — semua master always tracked. Item ad-hoc tanpa
+// master (bumbu dasar, ayam mentah) input via free-form line item di Belanja.
 
 import { useState, useMemo, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -23,7 +25,6 @@ import {
   Skeleton,
   Dialog,
   Input,
-  Checkbox,
   Combobox,
   DataTable,
   type DataTableColumn,
@@ -124,9 +125,7 @@ export default function RawMaterialsTab() {
       cell: (rm) => (
         <div>
           <div className="font-medium text-neutral-900">{rm.name}</div>
-          <div className="text-caption text-neutral-500">
-            {rm.unit.label} · {rm.isTracked ? 'tracked' : 'log-only'}
-          </div>
+          <div className="text-caption text-neutral-500">{rm.unit.label}</div>
         </div>
       ),
     },
@@ -261,7 +260,7 @@ export default function RawMaterialsTab() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-neutral-900">{rm.name}</p>
                   <p className="text-caption text-neutral-500">
-                    {RAW_MATERIAL_CATEGORY_LABEL[rm.category]} · {rm.isTracked ? 'tracked' : 'log-only'}
+                    {RAW_MATERIAL_CATEGORY_LABEL[rm.category]}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -483,7 +482,6 @@ interface RmFormState {
   unitId: number | null
   unit: Unit | null
   category: RawMaterialCategory
-  isTracked: boolean
   stockQty: number
   minStock: number | null
   unitPrice: number | null
@@ -516,7 +514,6 @@ function RmFormModal({
         } as Unit)
       : null,
     category: existing?.category ?? 'bumbuDasar',
-    isTracked: existing?.isTracked ?? false,
     stockQty: existing?.stockQty ?? 0,
     minStock: existing?.minStock ?? null,
     unitPrice: existing?.unitPrice ?? null,
@@ -537,7 +534,6 @@ function RmFormModal({
           name: form.name,
           unitId: form.unitId ?? undefined,
           category: form.category,
-          isTracked: form.isTracked,
           minStock: form.minStock,
           unitPrice: form.unitPrice,
           freshnessDays: form.freshnessDays,
@@ -554,7 +550,6 @@ function RmFormModal({
         name: form.name,
         unitId: form.unitId as number,
         category: form.category,
-        isTracked: form.isTracked,
         stockQty: form.stockQty,
         minStock: form.minStock,
         unitPrice: form.unitPrice,
@@ -661,33 +656,27 @@ function RmFormModal({
               searchPlaceholder="Cari kategori..."
             />
           </div>
-          <Checkbox
-            label="Track stok"
-            description="Update qty saat purchase + tampilkan reminder kalau rendah/dekat expired"
-            checked={form.isTracked}
-            onCheckedChange={(c) => setForm({ ...form, isTracked: c })}
-          />
-          {form.isTracked && (
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Min Stock"
-                type="number"
-                value={form.minStock ?? ''}
-                onChange={(e) =>
-                  setForm({ ...form, minStock: e.target.value ? Number(e.target.value) : null })
-                }
-              />
-              <Input
-                label="Freshness (hari)"
-                type="number"
-                value={form.freshnessDays ?? ''}
-                onChange={(e) =>
-                  setForm({ ...form, freshnessDays: e.target.value ? Number(e.target.value) : null })
-                }
-                placeholder="opsional"
-              />
-            </div>
-          )}
+          {/* REV 2.5.1: semua master selalu tracked. Min stock + freshness selalu
+              editable. Item ad-hoc tanpa master = free-form line item di Belanja. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Min Stock"
+              type="number"
+              value={form.minStock ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, minStock: e.target.value ? Number(e.target.value) : null })
+              }
+            />
+            <Input
+              label="Freshness (hari)"
+              type="number"
+              value={form.freshnessDays ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, freshnessDays: e.target.value ? Number(e.target.value) : null })
+              }
+              placeholder="opsional"
+            />
+          </div>
           <Input
             label="Harga unit terakhir (opsional)"
             type="number"

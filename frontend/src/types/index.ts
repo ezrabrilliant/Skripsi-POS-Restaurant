@@ -344,7 +344,6 @@ export interface RawMaterialView {
     opnameMode: OpnameMode
   }
   category: RawMaterialCategory
-  isTracked: boolean
   stockQty: number
   minStock: number | null
   unitPrice: number | null
@@ -394,13 +393,16 @@ export interface Vendor {
 
 export interface PurchaseItemView {
   id: number
-  rawMaterialId: number
-  rawMaterialName: string
-  rawMaterialUnit: string
+  /** REV 2.5.1: nullable untuk free-form line item (label set, no master FK). */
+  rawMaterialId: number | null
+  rawMaterialName: string | null
+  rawMaterialUnit: string | null
   /** REV 2.5: opname mode dari unit raw material — drive UI render (exact = qty+price,
-   * scale_0_5 = subtotal saja + note). */
-  rawMaterialOpnameMode: OpnameMode
-  isTracked: boolean
+   * scale_0_5 = subtotal saja + note). REV 2.5.1: null untuk free-form. */
+  rawMaterialOpnameMode: OpnameMode | null
+  /** REV 2.5.1: free-form line item label (mis. "Bumbu dasar pasar", "Ayam mentah").
+   * Set kalau rawMaterialId null. Mutually exclusive dengan rawMaterialId. */
+  label: string | null
   /** REV 2.5: nullable untuk scale_0_5 mode (kasir hanya catat subtotal + note). */
   qty: number | null
   unitPrice: number | null
