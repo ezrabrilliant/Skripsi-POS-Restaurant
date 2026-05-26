@@ -44,7 +44,19 @@ export const handleUpdate = asyncHandler(async (req: Request, res: Response) => 
 export const handleDelete = asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   const deleted = await rmService.deleteRawMaterial(id);
-  sendSuccess(res, { deleted }, 'Raw material berhasil dihapus');
+  // REV 2.5.2: mode menentukan toast UI (hard = "dihapus permanen", soft = "dinonaktifkan").
+  const message =
+    deleted.mode === 'hard'
+      ? `Raw material "${deleted.name}" dihapus permanen`
+      : `Raw material "${deleted.name}" dinonaktifkan (history dipertahankan)`;
+  sendSuccess(res, { deleted }, message);
+});
+
+export const handleReactivate = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
+  const id = parseId(req.params.id);
+  const rawMaterial = await rmService.reactivateRawMaterial(id);
+  sendSuccess(res, { rawMaterial }, 'Raw material diaktifkan kembali');
 });
 
 export const handleOpname = asyncHandler(async (req: Request, res: Response) => {

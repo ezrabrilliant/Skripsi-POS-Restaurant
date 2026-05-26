@@ -13,9 +13,11 @@
 // Catatan: raw_material_movements reason=purchase di-insert oleh modul `purchases`
 // (Phase 7), bukan di sini. Modul ini hanya mencatat opname dan manual adjust.
 //
-// Delete: hard delete via prisma.rawMaterial.delete. Akan gagal otomatis kalau
-// ada purchase_items atau raw_material_movements yang merefer (FK protection),
-// dan kita translasi ke pesan ramah.
+// Delete (REV 2.5.2): bifurcated.
+//   - No FK refs (no purchase_items + no raw_material_movements) → hard delete.
+//   - FK refs exist → soft delete (set isActive=false). Preserve audit trail.
+//   Owner dapat reactivate via reactivateRawMaterial.
+// listRawMaterials default filter isActive=true; ?includeInactive=true tampilkan semua.
 
 import { Prisma, RawMaterialMovementReason, RawMaterialCategory, OpnameMode } from '@prisma/client';
 import { prisma } from '../../config/prisma';
@@ -45,6 +47,8 @@ function assertScale05(value: number, fieldName: string): void {
 export interface RawMaterialView {
   id: number;
   name: string;
+  /** REV 2.5.2: soft-delete flag. False = nonaktif (FK refs preserved). */
+  isActive: boolean;
   unitId: number;
   unit: {
     id: number;
@@ -108,6 +112,7 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
   return {
     id: rm.id,
     name: rm.name,
+    isActive: rm.isActive,
     unitId: rm.unitId,
     unit: {
       id: rm.unit.id,
@@ -136,6 +141,9 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
 export async function listRawMaterials(query: ListRawMaterialsQuery): Promise<RawMaterialView[]> {
   const where: Prisma.RawMaterialWhereInput = {};
   if (query.category) where.category = query.category;
+  // REV 2.5.2: default filter isActive=true. Owner bisa toggle includeInactive=true
+  // dari UI untuk lihat semua + reactivate item yang sebelumnya di-soft-delete.
+  if (!query.includeInactive) where.isActive = true;
 
   const rms = await prisma.rawMaterial.findMany({
     where,
@@ -303,24 +311,59 @@ export async function updateRawMaterial(
   });
 }
 
-export async function deleteRawMaterial(id: number): Promise<{ id: number; name: string }> {
+/**
+ * REV 2.5.2: bifurcated delete.
+ * - No FK refs (purchase_items + raw_material_movements both 0) → hard delete.
+ * - FK refs exist → soft delete (set isActive=false). Audit trail preserved.
+ * Returns mode so UI bisa kasih toast pesan yang sesuai.
+ */
+export async function deleteRawMaterial(
+  id: number,
+): Promise<{ id: number; name: string; mode: 'hard' | 'soft' }> {
   const existing = await prisma.rawMaterial.findUnique({ where: { id } });
   if (!existing) throw notFound('RawMaterial');
 
-  // Cek FK references sebelum delete supaya pesan error ramah
   const [pItemCount, movementCount] = await Promise.all([
     prisma.purchaseItem.count({ where: { rawMaterialId: id } }),
     prisma.rawMaterialMovement.count({ where: { rawMaterialId: id } }),
   ]);
-  if (pItemCount > 0 || movementCount > 0) {
-    throw new AppError(
-      `Raw material "${existing.name}" tidak bisa dihapus - sudah punya ${pItemCount} purchase item dan ${movementCount} audit log. Edit/nonaktifkan saja.`,
-      409,
-    );
+
+  // No FK refs → hard delete aman (tidak ada audit yang hilang).
+  if (pItemCount === 0 && movementCount === 0) {
+    await prisma.rawMaterial.delete({ where: { id } });
+    return { id: existing.id, name: existing.name, mode: 'hard' };
   }
 
-  await prisma.rawMaterial.delete({ where: { id } });
-  return { id: existing.id, name: existing.name };
+  // FK refs ada → soft delete (preserve audit trail).
+  if (!existing.isActive) {
+    throw new AppError(`Raw material "${existing.name}" sudah nonaktif.`, 409);
+  }
+  await prisma.rawMaterial.update({
+    where: { id },
+    data: { isActive: false },
+  });
+  return { id: existing.id, name: existing.name, mode: 'soft' };
+}
+
+/**
+ * REV 2.5.2: reactivate raw material yang sebelumnya di-soft-delete.
+ * Owner-only di route layer.
+ */
+export async function reactivateRawMaterial(id: number): Promise<RawMaterialView> {
+  const existing = await prisma.rawMaterial.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
+  if (!existing) throw notFound('RawMaterial');
+  if (existing.isActive) {
+    throw new AppError(`Raw material "${existing.name}" sudah aktif.`, 409);
+  }
+  const updated = await prisma.rawMaterial.update({
+    where: { id },
+    data: { isActive: true },
+    include: { unit: true },
+  });
+  return toRawMaterialView(updated);
 }
 
 export async function opname(userId: number, input: OpnameInput): Promise<RawMaterialView[]> {

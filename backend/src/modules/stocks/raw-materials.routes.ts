@@ -15,6 +15,7 @@ import {
   handleCreate,
   handleUpdate,
   handleDelete,
+  handleReactivate,
   handleOpname,
   handleMarkHabis,
 } from './raw-materials.controller';
@@ -33,5 +34,7 @@ const ownerOnly = requireRole(UserRole.owner);
 router.post('/', ownerOnly, handleCreate);
 router.put('/:id', ownerOnly, handleUpdate);
 router.delete('/:id', ownerOnly, handleDelete);
+// REV 2.5.2: reactivate item yang sebelumnya di-soft-delete.
+router.post('/:id/reactivate', ownerOnly, handleReactivate);
 
 export default router;

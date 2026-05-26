@@ -267,6 +267,13 @@ model PortionMovement {
 ///
 /// Field freshness_days opsional untuk perishable: reminder mendekati basi
 /// (freshness_days − 3) hari setelah last_buy_date.
+///
+/// REV 2.5.2 (2026-05-27): tambah `isActive` flag untuk soft-delete proper.
+/// Delete behavior bifurcated:
+/// - No FK refs (purchase_items + raw_material_movements both 0) → hard delete.
+/// - FK refs exist → soft delete (set isActive=false), audit trail preserved.
+/// List default filter isActive=true; owner bisa kirim ?includeInactive=true
+/// untuk lihat semua dan reactivate via POST /raw-materials/:id/reactivate.
 model RawMaterial {
   id            Int                 @id @default(autoincrement())
   name          String              @db.VarChar(100)
@@ -275,6 +282,9 @@ model RawMaterial {
   unitId        Int                 @map("unit_id")
   unit          Unit                @relation(fields: [unitId], references: [id])
   category      RawMaterialCategory
+  /// REV 2.5.2: soft-delete flag. False = nonaktif (tersembunyi dari list default,
+  /// FK refs preserved untuk audit). Default true.
+  isActive      Boolean             @default(true) @map("is_active")
   stockQty      Decimal             @default(0) @map("stock_qty") @db.Decimal(10, 2)
   /// Ambang reminder restock.
   minStock      Int?                @map("min_stock")

@@ -15,6 +15,9 @@ import type {
 export interface ListRawMaterialsQuery {
   category?: RawMaterialCategory
   needsRestock?: boolean
+  /** REV 2.5.2: kalau true, tampilkan item yang di-soft-delete (isActive=false).
+   * Default false. Hanya owner yang punya UI toggle untuk ini. */
+  includeInactive?: boolean
 }
 
 export interface CreateRawMaterialPayload {
@@ -50,6 +53,7 @@ export const rawMaterialsService = {
     const params: Record<string, string> = {}
     if (query.category) params.category = query.category
     if (query.needsRestock) params.needsRestock = 'true'
+    if (query.includeInactive) params.includeInactive = 'true'
     const res = await api.get<ApiResponse<{ rawMaterials: RawMaterialView[] }>>(
       '/stocks/raw-materials',
       { params },
@@ -81,11 +85,21 @@ export const rawMaterialsService = {
     return res.data.data.rawMaterial
   },
 
-  delete: async (id: number): Promise<{ id: number; name: string }> => {
-    const res = await api.delete<ApiResponse<{ deleted: { id: number; name: string } }>>(
-      `/stocks/raw-materials/${id}`,
-    )
+  delete: async (
+    id: number,
+  ): Promise<{ id: number; name: string; mode: 'hard' | 'soft' }> => {
+    const res = await api.delete<
+      ApiResponse<{ deleted: { id: number; name: string; mode: 'hard' | 'soft' } }>
+    >(`/stocks/raw-materials/${id}`)
     return res.data.data.deleted
+  },
+
+  /** REV 2.5.2: aktifkan kembali raw material yang sebelumnya di-soft-delete. */
+  reactivate: async (id: number): Promise<RawMaterialView> => {
+    const res = await api.post<ApiResponse<{ rawMaterial: RawMaterialView }>>(
+      `/stocks/raw-materials/${id}/reactivate`,
+    )
+    return res.data.data.rawMaterial
   },
 
   opname: async (payload: OpnameRawMaterialPayload): Promise<RawMaterialView[]> => {

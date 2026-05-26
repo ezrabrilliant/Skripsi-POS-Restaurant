@@ -336,6 +336,9 @@ export const RAW_MATERIAL_CATEGORY_LABEL: Record<RawMaterialCategory, string> = 
 export interface RawMaterialView {
   id: number
   name: string
+  /** REV 2.5.2: soft-delete flag. False = nonaktif (history dipertahankan, item
+   * tersembunyi dari list default kecuali toggle "Tampilkan nonaktif" aktif). */
+  isActive: boolean
   /** REV 2.5: unitId FK + populated unit object (opnameMode determines opname UI). */
   unitId: number
   unit: {

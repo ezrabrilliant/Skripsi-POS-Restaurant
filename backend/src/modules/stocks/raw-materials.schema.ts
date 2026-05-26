@@ -73,6 +73,12 @@ export const listRawMaterialsQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((v) => v === 'true'),
+  /// REV 2.5.2: include items soft-deleted (isActive=false). Default false.
+  /// Owner pakai dari toggle "Tampilkan nonaktif" di RawMaterialsTab.
+  includeInactive: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export type CreateRawMaterialInput = z.infer<typeof createRawMaterialSchema>;

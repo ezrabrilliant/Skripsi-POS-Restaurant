@@ -5,10 +5,14 @@
 // ganti + stock > 0 → sub-modal "Konversi stok ke satuan baru".
 // REV 2.5.1: is_tracked DROPPED — semua master always tracked. Item ad-hoc tanpa
 // master (bumbu dasar, ayam mentah) input via free-form line item di Belanja.
+// REV 2.5.2: soft-delete via isActive flag. Delete bifurcate: hard kalau no FK
+// refs, soft kalau ada refs (audit preserved). Owner UI toggle "Tampilkan
+// nonaktif" + visual distinction (badge "Nonaktif" + opacity-50) + tombol
+// "Aktifkan" untuk item nonaktif.
 
 import { useState, useMemo, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Edit2, Trash2 } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Edit2, Trash2, RotateCcw } from 'lucide-react'
 import {
   rawMaterialsService,
   type CreateRawMaterialPayload,
@@ -26,6 +30,7 @@ import {
   Dialog,
   Input,
   Combobox,
+  Checkbox,
   DataTable,
   type DataTableColumn,
   type ComboboxOption,
@@ -59,14 +64,19 @@ export default function RawMaterialsTab() {
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
   const [filterCategory, setFilterCategory] = useState<RawMaterialCategory | 'all'>('all')
+  // REV 2.5.2: owner toggle untuk lihat item yang sudah di-soft-delete.
+  const [includeInactive, setIncludeInactive] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
   const [editingRm, setEditingRm] = useState<RawMaterialView | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
 
   const { data: rawMaterials = [], isLoading } = useQuery({
-    queryKey: ['rawMaterials', filterCategory],
+    queryKey: ['rawMaterials', filterCategory, includeInactive],
     queryFn: () =>
-      rawMaterialsService.list(filterCategory === 'all' ? {} : { category: filterCategory }),
+      rawMaterialsService.list({
+        ...(filterCategory !== 'all' ? { category: filterCategory } : {}),
+        ...(includeInactive ? { includeInactive: true } : {}),
+      }),
   })
 
   const markHabisMutation = useMutation({
@@ -80,8 +90,24 @@ export default function RawMaterialsTab() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => rawMaterialsService.delete(id),
-    onSuccess: () => {
-      toast.success('Raw material dihapus')
+    onSuccess: (deleted) => {
+      // REV 2.5.2: backend returns mode 'hard' | 'soft' supaya toast cocok.
+      if (deleted.mode === 'hard') {
+        toast.success(`"${deleted.name}" dihapus permanen`)
+      } else {
+        toast.success(
+          `"${deleted.name}" dinonaktifkan (history dipertahankan, bisa diaktifkan kembali)`,
+        )
+      }
+      qc.invalidateQueries({ queryKey: ['rawMaterials'] })
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const reactivateMutation = useMutation({
+    mutationFn: (id: number) => rawMaterialsService.reactivate(id),
+    onSuccess: (rm) => {
+      toast.success(`"${rm.name}" diaktifkan kembali`)
       qc.invalidateQueries({ queryKey: ['rawMaterials'] })
     },
     onError: (err: Error) => toast.error(err.message),
@@ -103,9 +129,14 @@ export default function RawMaterialsTab() {
   }
 
   const handleDelete = async (rm: RawMaterialView) => {
+    // REV 2.5.2: backend auto-bifurcate. Kalau ada FK refs (purchase items / audit
+    // log), item akan di-soft-delete (set isActive=false) — history tetap. Kalau
+    // belum pernah dipakai, hard-delete. UI tidak perlu tahu di muka, toast yang
+    // jelasin.
     const ok = await confirm({
       title: `Hapus "${rm.name}"?`,
-      description: 'Master raw material akan dihapus permanen. Tidak bisa dilakukan kalau masih ada referensi di pembelian.',
+      description:
+        'Kalau belum pernah dipakai akan dihapus permanen. Kalau sudah ada riwayat (pembelian/audit), item akan dinonaktifkan dan bisa diaktifkan kembali kapan saja.',
       confirmText: 'Ya, Hapus',
       tone: 'danger',
     })
@@ -113,8 +144,19 @@ export default function RawMaterialsTab() {
     deleteMutation.mutate(rm.id)
   }
 
+  const handleReactivate = async (rm: RawMaterialView) => {
+    const ok = await confirm({
+      title: `Aktifkan kembali "${rm.name}"?`,
+      description: 'Item akan muncul lagi di daftar default dan bisa dipakai untuk pembelian/opname.',
+      confirmText: 'Ya, Aktifkan',
+    })
+    if (!ok) return
+    reactivateMutation.mutate(rm.id)
+  }
+
   const reminderCount = useMemo(
-    () => rawMaterials.filter((r) => r.isLowStock || r.isNearExpiry).length,
+    // REV 2.5.2: skip inactive items dari count reminder (mereka tidak relevan).
+    () => rawMaterials.filter((r) => r.isActive && (r.isLowStock || r.isNearExpiry)).length,
     [rawMaterials]
   )
 
@@ -123,8 +165,13 @@ export default function RawMaterialsTab() {
       key: 'name',
       header: 'Nama',
       cell: (rm) => (
-        <div>
-          <div className="font-medium text-neutral-900">{rm.name}</div>
+        <div className={cn(!rm.isActive && 'opacity-60')}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-neutral-900">{rm.name}</span>
+            {!rm.isActive && (
+              <Badge tone="neutral" size="sm">Nonaktif</Badge>
+            )}
+          </div>
           <div className="text-caption text-neutral-500">{rm.unit.label}</div>
         </div>
       ),
@@ -133,14 +180,24 @@ export default function RawMaterialsTab() {
       key: 'category',
       header: 'Kategori',
       hideMobile: true,
-      cell: (rm) => <span className="text-neutral-700">{RAW_MATERIAL_CATEGORY_LABEL[rm.category]}</span>,
+      cell: (rm) => (
+        <span className={cn('text-neutral-700', !rm.isActive && 'opacity-60')}>
+          {RAW_MATERIAL_CATEGORY_LABEL[rm.category]}
+        </span>
+      ),
     },
     {
       key: 'stock',
       header: 'Stok',
       align: 'right',
       cell: (rm) => (
-        <span className={cn('font-semibold tabular-nums', rm.isLowStock ? 'text-warning-700' : 'text-neutral-900')}>
+        <span
+          className={cn(
+            'font-semibold tabular-nums',
+            rm.isLowStock && rm.isActive ? 'text-warning-700' : 'text-neutral-900',
+            !rm.isActive && 'opacity-60'
+          )}
+        >
           {rm.stockQty} <span className="text-caption text-neutral-500">{rm.unit.label}</span>
         </span>
       ),
@@ -150,14 +207,20 @@ export default function RawMaterialsTab() {
       header: 'Min',
       align: 'right',
       hideMobile: true,
-      cell: (rm) => <span className="text-neutral-500 tabular-nums">{rm.minStock ?? '-'}</span>,
+      cell: (rm) => (
+        <span className={cn('text-neutral-500 tabular-nums', !rm.isActive && 'opacity-60')}>
+          {rm.minStock ?? '-'}
+        </span>
+      ),
     },
     {
       key: 'status',
       header: 'Status',
       hideMobile: true,
       cell: (rm) =>
-        rm.suggestedAction ? (
+        !rm.isActive ? (
+          <Badge tone="neutral" size="sm">Nonaktif</Badge>
+        ) : rm.suggestedAction ? (
           <Badge tone="warning" size="sm">{rm.suggestedAction}</Badge>
         ) : (
           <Badge tone="success" size="sm">OK</Badge>
@@ -169,32 +232,48 @@ export default function RawMaterialsTab() {
       align: 'right',
       cell: (rm) => (
         <div className="inline-flex items-center gap-1">
-          <IconButton
-            label={`Tandai ${rm.name} habis`}
-            icon={<XCircle />}
-            variant="ghost"
-            size="sm"
-            onClick={() => handleMarkHabis(rm)}
-            className="text-warning-700 hover:bg-warning-50"
-          />
-          {isOwner && (
+          {rm.isActive ? (
             <>
               <IconButton
-                label={`Edit ${rm.name}`}
-                icon={<Edit2 />}
+                label={`Tandai ${rm.name} habis`}
+                icon={<XCircle />}
                 variant="ghost"
                 size="sm"
-                onClick={() => setEditingRm(rm)}
+                onClick={() => handleMarkHabis(rm)}
+                className="text-warning-700 hover:bg-warning-50"
               />
-              <IconButton
-                label={`Hapus ${rm.name}`}
-                icon={<Trash2 />}
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(rm)}
-                className="text-danger-700 hover:bg-danger-50"
-              />
+              {isOwner && (
+                <>
+                  <IconButton
+                    label={`Edit ${rm.name}`}
+                    icon={<Edit2 />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingRm(rm)}
+                  />
+                  <IconButton
+                    label={`Hapus ${rm.name}`}
+                    icon={<Trash2 />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(rm)}
+                    className="text-danger-700 hover:bg-danger-50"
+                  />
+                </>
+              )}
             </>
+          ) : (
+            // REV 2.5.2: item nonaktif — tombol satu-satunya = "Aktifkan kembali" (owner only).
+            isOwner && (
+              <IconButton
+                label={`Aktifkan kembali ${rm.name}`}
+                icon={<RotateCcw />}
+                variant="ghost"
+                size="sm"
+                onClick={() => handleReactivate(rm)}
+                className="text-primary-700 hover:bg-primary-50"
+              />
+            )
           )}
         </div>
       ),
@@ -223,6 +302,15 @@ export default function RawMaterialsTab() {
           >
             Tambah Bahan
           </Button>
+        )}
+        {isOwner && (
+          // REV 2.5.2: owner-only toggle untuk lihat item soft-deleted.
+          <Checkbox
+            label="Tampilkan nonaktif"
+            checked={includeInactive}
+            onCheckedChange={setIncludeInactive}
+            containerClassName="ml-1"
+          />
         )}
         <div className="ml-auto flex items-center gap-2 min-w-[200px]">
           <Combobox
@@ -255,10 +343,15 @@ export default function RawMaterialsTab() {
               : 'Belum ada master raw material yang terdaftar.'
           }
           mobileCard={(rm) => (
-            <div className="space-y-1.5">
+            <div className={cn('space-y-1.5', !rm.isActive && 'opacity-60')}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-neutral-900">{rm.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-neutral-900">{rm.name}</p>
+                    {!rm.isActive && (
+                      <Badge tone="neutral" size="sm">Nonaktif</Badge>
+                    )}
+                  </div>
                   <p className="text-caption text-neutral-500">
                     {RAW_MATERIAL_CATEGORY_LABEL[rm.category]}
                   </p>
@@ -267,7 +360,7 @@ export default function RawMaterialsTab() {
                   <p
                     className={cn(
                       'text-body font-semibold tabular-nums',
-                      rm.isLowStock ? 'text-warning-700' : 'text-neutral-900'
+                      rm.isLowStock && rm.isActive ? 'text-warning-700' : 'text-neutral-900'
                     )}
                   >
                     {rm.stockQty} {rm.unit.label}
@@ -278,32 +371,49 @@ export default function RawMaterialsTab() {
                 </div>
               </div>
               <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100">
-                {rm.suggestedAction ? (
+                {!rm.isActive ? (
+                  <Badge tone="neutral" size="sm">Nonaktif</Badge>
+                ) : rm.suggestedAction ? (
                   <Badge tone="warning" size="sm">{rm.suggestedAction}</Badge>
                 ) : (
                   <Badge tone="success" size="sm">OK</Badge>
                 )}
                 <div className="inline-flex items-center gap-1">
-                  <IconButton
-                    label="Tandai habis"
-                    icon={<XCircle />}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMarkHabis(rm)}
-                    className="text-warning-700"
-                  />
-                  {isOwner && (
+                  {rm.isActive ? (
                     <>
-                      <IconButton label="Edit" icon={<Edit2 />} variant="ghost" size="sm" onClick={() => setEditingRm(rm)} />
                       <IconButton
-                        label="Hapus"
-                        icon={<Trash2 />}
+                        label="Tandai habis"
+                        icon={<XCircle />}
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(rm)}
-                        className="text-danger-700"
+                        onClick={() => handleMarkHabis(rm)}
+                        className="text-warning-700"
                       />
+                      {isOwner && (
+                        <>
+                          <IconButton label="Edit" icon={<Edit2 />} variant="ghost" size="sm" onClick={() => setEditingRm(rm)} />
+                          <IconButton
+                            label="Hapus"
+                            icon={<Trash2 />}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(rm)}
+                            className="text-danger-700"
+                          />
+                        </>
+                      )}
                     </>
+                  ) : (
+                    isOwner && (
+                      <IconButton
+                        label="Aktifkan kembali"
+                        icon={<RotateCcw />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleReactivate(rm)}
+                        className="text-primary-700"
+                      />
+                    )
                   )}
                 </div>
               </div>
@@ -314,7 +424,8 @@ export default function RawMaterialsTab() {
 
       {showOpname && (
         <RmOpnameModal
-          rawMaterials={rawMaterials}
+          // REV 2.5.2: opname hanya item aktif. Item nonaktif tidak relevan.
+          rawMaterials={rawMaterials.filter((r) => r.isActive)}
           onClose={() => setShowOpname(false)}
           onSuccess={() => {
             setShowOpname(false)
