@@ -116,6 +116,14 @@ export function Sheet({
                   /* Provide invisible title for a11y */
                   <RDialog.Title className="sr-only">{title ?? 'Sheet'}</RDialog.Title>
                 )}
+                {/* Radix wajibkan Description ATAU aria-describedby={undefined}. Render
+                   sr-only Description default kalau caller tidak passing description
+                   prop, supaya screen reader punya konteks + console tidak warn. */}
+                {!description && (
+                  <RDialog.Description className="sr-only">
+                    {typeof title === 'string' ? title : 'Panel'}
+                  </RDialog.Description>
+                )}
 
                 <div className="flex-1 overflow-y-auto">{children}</div>
 
