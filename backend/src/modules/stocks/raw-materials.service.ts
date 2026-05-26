@@ -29,6 +29,16 @@ import type {
 } from './raw-materials.schema';
 
 // ============================================================
+// Helpers
+// ============================================================
+
+function assertScale05(value: number, fieldName: string): void {
+  if (value < 0 || value > 5) {
+    throw new AppError(`${fieldName} untuk satuan skala harus 0..5`, 422);
+  }
+}
+
+// ============================================================
 // View shape (mapper)
 // ============================================================
 
@@ -195,8 +205,8 @@ export async function createRawMaterial(input: CreateRawMaterialInput): Promise<
   if (!unit) throw new AppError(`Unit id=${input.unitId} tidak ditemukan`, 400);
 
   if (input.minStock !== null && input.minStock !== undefined) {
-    if (unit.opnameMode === OpnameMode.scale_0_5 && (input.minStock < 0 || input.minStock > 5)) {
-      throw new AppError('min_stock untuk satuan skala harus 0..5', 422);
+    if (unit.opnameMode === OpnameMode.scale_0_5) {
+      assertScale05(input.minStock, 'min_stock');
     }
   }
 
@@ -230,6 +240,7 @@ export async function updateRawMaterial(
   });
   if (!existing) throw notFound('RawMaterial');
 
+  // Tx untuk atomicity: unit change + stock conversion + audit log harus all-or-nothing.
   return prisma.$transaction(async (tx) => {
     const data: Prisma.RawMaterialUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
@@ -256,9 +267,11 @@ export async function updateRawMaterial(
         );
       }
 
+      // null dan undefined keduanya treated as "reset to 0"; the undefined-guard above
+      // memastikan client harus eksplisit set null kalau intent reset (vs lupa pass field).
       const targetStock = input.newStockQty ?? 0;
-      if (newUnit.opnameMode === OpnameMode.scale_0_5 && (targetStock < 0 || targetStock > 5)) {
-        throw new AppError('newStockQty untuk satuan skala harus 0..5', 422);
+      if (newUnit.opnameMode === OpnameMode.scale_0_5) {
+        assertScale05(targetStock, 'newStockQty');
       }
 
       data.unit = { connect: { id: input.unitId } };
@@ -279,12 +292,12 @@ export async function updateRawMaterial(
       }
     }
 
-    // Re-validate min_stock kalau opname_mode unit efektif (lama atau baru) = scale
-    if (data.minStock !== undefined && data.minStock !== null) {
-      const minStockValue = data.minStock as number;
-      if (effectiveUnit.opnameMode === OpnameMode.scale_0_5 && (minStockValue < 0 || minStockValue > 5)) {
-        throw new AppError('min_stock untuk satuan skala harus 0..5', 422);
-      }
+    // Re-validate min_stock kalau opname_mode unit efektif (lama atau baru) = scale.
+    // Pakai input.minStock langsung (number | null | undefined) untuk narrowing aman,
+    // bukan data.minStock yang punya Prisma union types.
+    const effectiveMinStock = input.minStock !== undefined ? input.minStock : existing.minStock;
+    if (effectiveMinStock !== null && effectiveUnit.opnameMode === OpnameMode.scale_0_5) {
+      assertScale05(effectiveMinStock, 'min_stock');
     }
 
     const updated = await tx.rawMaterial.update({
