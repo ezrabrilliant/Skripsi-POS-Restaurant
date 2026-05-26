@@ -296,8 +296,15 @@ model Vendor {
   @@map("vendors")
 }
 
-/// 8. Siklus shift per kasir per hari per tipe. 1 kasir maksimal 1 shift pagi + 1 shift malam per hari.
-/// closedAt null = shift masih terbuka. Settlement (kasir malam) menutup shift.
+/// 8. Siklus shift kasir. REV 2.5 multi-cashier sharing: shift = container per
+/// (tanggal, tipe). Hanya 1 shift pagi + 1 shift malam AKTIF (closedAt null) per
+/// hari — di-enforce di app layer via shifts.service.openShift (cek findFirst
+/// closedAt=null sebelum create). Kasir bisa buka, tutup, lalu buka lagi di hari
+/// yang sama (mis. typo modal awal, atau pergantian shift balik lagi).
+///
+/// REV 2.5 catatan: `@@unique([date, cashierId, type])` di-DROP karena terlalu
+/// strict — menahan kasir buka shift tipe sama setelah tutup di hari yang sama.
+/// App-layer constraint cukup (findFirst aktif), audit/dedup via app logic.
 model Shift {
   id          Int       @id @default(autoincrement())
   date        DateTime  @db.Date
@@ -311,7 +318,7 @@ model Shift {
   transactions Transaction[]
   settlement   Settlement?
 
-  @@unique([date, cashierId, type])
+  @@index([date, type, closedAt])
   @@map("shifts")
 }
 
@@ -367,6 +374,9 @@ model Transaction {
 ///   format: { ayamPart: "Paha", cook: "Bakar", minuman: "Teh Tawar" }
 /// partyId: untuk split bill, item dengan partyId sama = 1 struk terpisah.
 ///   Null = tidak split (default).
+/// notes (REV 2.4): catatan per item dari waiter/kasir saat input order
+///   — komunikasi customer ke dapur (mis. "kurang manis", "pedas level 2",
+///   "Panas" / "Dingin" untuk teh & jeruk yang ambigu suhu).
 model TransactionItem {
   id                 Int      @id @default(autoincrement())
   transactionId      Int      @map("transaction_id")
@@ -375,6 +385,7 @@ model TransactionItem {
   unitPrice          Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal           Decimal  @db.Decimal(12, 2)
   subOptionsSelected Json?    @map("sub_options_selected")
+  notes              String?  @db.VarChar(255)
   partyId            Int?     @map("party_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
