@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Smoke test REV 2.5 (Task 9): units + raw materials + purchases integration.
+# Smoke test REV 2.5.1 (Task R4): units + raw materials + purchases integration.
+# Updated dari REV 2.5: is_tracked column DROPPED + free-form purchase line items.
 #
-# 11 skenario:
+# 15 skenario:
 #   1.  List units = 10 pre-seeded
 #   2.  Create custom unit "karton" exact -> 201
-#   3.  Create raw_material "Telur Test" unit=karton exact, stock=2, minStock=1 -> 201
+#   3.  Create raw_material "Telur Test" unit=butir exact, stock=2, minStock=1 -> 201
 #   4.  Create raw_material "Beras Test" unit=skala 0-5 scale, stock=3, minStock=1 -> 201
 #   5.  Create raw_material scale + minStock=10 -> expect 422 (out of range)
 #   6.  Edit unit Telur Test (butir -> karton) tanpa newStockQty saat stock>0 -> 422
@@ -12,7 +13,11 @@
 #   8.  Purchase exact (Telur Test) qty=30 unit_price=2500 -> 201 + stock=90 (60+30)
 #   9.  Purchase scale (Beras Test) subtotal=300000 note="1 karung 50kg" -> 201 + stock UNCHANGED (3)
 #  10.  Purchase invalid item (no qty/unitPrice/subtotal) -> 422 (Zod refine)
-#  11.  Cleanup: hapus test raw materials + custom unit
+#  11.  Purchase free-form 'Bumbu Dasar Test' label+subtotal=60000+note -> 201 (REV 2.5.1)
+#  12.  Validation: both rawMaterialId + label set -> 422 mutually exclusive (REV 2.5.1)
+#  13.  Validation: neither rawMaterialId nor label -> 422 (REV 2.5.1)
+#  14.  Free-form item visible di purchase list with label (REV 2.5.1)
+#  15.  Cleanup: hapus test raw materials + custom unit
 #
 # Pre-req: backend running di :8000, DB fresh (`prisma db push && db:seed`).
 # Run: bash backend/scripts/smoke-units-rawmat-purchases.sh
@@ -120,7 +125,7 @@ step "Test 3: POST /stocks/raw-materials '$TELUR_NAME' unit=butir exact stock=2 
 R3=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/stocks/raw-materials" \
   -H "Authorization: Bearer $OWNER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$TELUR_NAME\",\"unitId\":$BUTIR_ID,\"category\":\"bahanSegar\",\"isTracked\":true,\"stockQty\":2,\"minStock\":1,\"unitPrice\":2500}")
+  -d "{\"name\":\"$TELUR_NAME\",\"unitId\":$BUTIR_ID,\"category\":\"bahanSegar\",\"stockQty\":2,\"minStock\":1,\"unitPrice\":2500}")
 CODE3=$(extract_code "$R3")
 BODY3=$(extract_body "$R3")
 if [[ "$CODE3" == "201" ]]; then
@@ -142,7 +147,7 @@ step "Test 4: POST /stocks/raw-materials '$BERAS_NAME' unit=skala scale stock=3 
 R4=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/stocks/raw-materials" \
   -H "Authorization: Bearer $OWNER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$BERAS_NAME\",\"unitId\":$SKALA_ID,\"category\":\"bahanPokok\",\"isTracked\":true,\"stockQty\":3,\"minStock\":1}")
+  -d "{\"name\":\"$BERAS_NAME\",\"unitId\":$SKALA_ID,\"category\":\"bahanPokok\",\"stockQty\":3,\"minStock\":1}")
 CODE4=$(extract_code "$R4")
 BODY4=$(extract_body "$R4")
 if [[ "$CODE4" == "201" ]]; then
@@ -164,7 +169,7 @@ step "Test 5: POST raw-material scale + minStock=10 -> 422 (out of range)"
 R5=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/stocks/raw-materials" \
   -H "Authorization: Bearer $OWNER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$BERAS_OOR_NAME\",\"unitId\":$SKALA_ID,\"category\":\"bahanPokok\",\"isTracked\":true,\"stockQty\":3,\"minStock\":10}")
+  -d "{\"name\":\"$BERAS_OOR_NAME\",\"unitId\":$SKALA_ID,\"category\":\"bahanPokok\",\"stockQty\":3,\"minStock\":10}")
 CODE5=$(extract_code "$R5")
 BODY5=$(extract_body "$R5")
 MSG5=$(echo "$BODY5" | jq_field 'console.log(j.message||"")')
@@ -311,7 +316,88 @@ else
 fi
 
 # ============================================================
-step "Test 11: Cleanup test data (delete raw materials + unit $KARTON_LABEL)"
+# REV 2.5.1: free-form purchase line item scenarios
+# Free-form = label+subtotal+note tanpa rawMaterialId master.
+# Untuk bumbu dasar / ayam mentah / item tanpa master raw_material.
+# ============================================================
+FREEFORM_LABEL="Bumbu Dasar Test $TEST_TAG"
+
+step "Test 11: POST /purchases free-form '$FREEFORM_LABEL' subtotal=60000 -> 201 (REV 2.5.1)"
+R11=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/purchases" \
+  -H "Authorization: Bearer $OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$TODAY\",\"items\":[{\"label\":\"$FREEFORM_LABEL\",\"subtotal\":60000,\"note\":\"cabai 30k bawang 20k kemiri 10k\"}]}")
+CODE11=$(extract_code "$R11")
+BODY11=$(extract_body "$R11")
+if [[ "$CODE11" == "201" ]]; then
+  pass "HTTP 201 free-form purchase created"
+else
+  fail "expected 201, got $CODE11 body='$(echo "$BODY11" | head -c 200)'"
+fi
+PURCHASE11_TOTAL=$(echo "$BODY11" | jq_field 'console.log(j.data.purchase.totalAmount)')
+if [[ "$PURCHASE11_TOTAL" == "60000" ]]; then
+  pass "totalAmount = 60000 (free-form subtotal only)"
+else
+  fail "expected totalAmount=60000, got '$PURCHASE11_TOTAL'"
+fi
+# Verifikasi item ter-persist dengan rawMaterialId=null + label set
+FREEFORM_ITEM_LABEL=$(echo "$BODY11" | jq_field 'console.log(j.data.purchase.items[0].label||"")')
+FREEFORM_ITEM_RMID=$(echo "$BODY11" | jq_field 'console.log(j.data.purchase.items[0].rawMaterialId===null?"null":j.data.purchase.items[0].rawMaterialId)')
+if [[ "$FREEFORM_ITEM_LABEL" == "$FREEFORM_LABEL" && "$FREEFORM_ITEM_RMID" == "null" ]]; then
+  pass "item label='$FREEFORM_LABEL' rawMaterialId=null (free-form persisted correctly)"
+else
+  fail "expected label='$FREEFORM_LABEL' rawMaterialId=null, got label='$FREEFORM_ITEM_LABEL' rmId='$FREEFORM_ITEM_RMID'"
+fi
+
+# ============================================================
+step "Test 12: POST /purchases rawMaterialId + label set bareng -> 422 mutually exclusive"
+R12=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/purchases" \
+  -H "Authorization: Bearer $OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$TODAY\",\"items\":[{\"rawMaterialId\":$TELUR_ID,\"label\":\"Conflict\",\"qty\":1,\"unitPrice\":1000}]}")
+CODE12=$(extract_code "$R12")
+BODY12=$(extract_body "$R12")
+MSG12=$(echo "$BODY12" | jq_field 'console.log(j.message||"")')
+if [[ "$CODE12" == "422" && "$MSG12" == *"mutually exclusive"* ]]; then
+  pass "422 rawMaterialId+label mutually exclusive ditolak ('$MSG12')"
+else
+  fail "expected 422 mutually exclusive, got $CODE12 msg='$MSG12'"
+fi
+
+# ============================================================
+step "Test 13: POST /purchases tanpa rawMaterialId DAN tanpa label -> 422"
+R13=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/purchases" \
+  -H "Authorization: Bearer $OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$TODAY\",\"items\":[{\"subtotal\":50000}]}")
+CODE13=$(extract_code "$R13")
+BODY13=$(extract_body "$R13")
+MSG13=$(echo "$BODY13" | jq_field 'console.log(j.message||"")')
+if [[ "$CODE13" == "422" && ("$MSG13" == *"rawMaterialId"* || "$MSG13" == *"label"*) ]]; then
+  pass "422 neither rawMaterialId nor label ditolak ('$MSG13')"
+else
+  fail "expected 422 require one of rawMaterialId/label, got $CODE13 msg='$MSG13'"
+fi
+
+# ============================================================
+step "Test 14: GET /purchases?date=$TODAY -> free-form item appears with label"
+R14=$(curl -s "$API/purchases?date=$TODAY" -H "Authorization: Bearer $OWNER_TOKEN")
+LABEL_FROM_LIST=$(echo "$R14" | jq_field 'const items=j.data.purchases.flatMap(p=>p.items).filter(i=>i.label!==null && i.label==="'"$FREEFORM_LABEL"'"); console.log(items.length>0?items[0].label:"")')
+if [[ "$LABEL_FROM_LIST" == "$FREEFORM_LABEL" ]]; then
+  pass "free-form item '$FREEFORM_LABEL' visible di purchase list"
+else
+  fail "expected label '$FREEFORM_LABEL' in list, got '$LABEL_FROM_LIST'"
+fi
+# Verifikasi free-form item TIDAK punya rawMaterial relation
+FREEFORM_RM_NAME=$(echo "$R14" | jq_field 'const items=j.data.purchases.flatMap(p=>p.items).filter(i=>i.label==="'"$FREEFORM_LABEL"'"); console.log(items.length>0?(items[0].rawMaterialName===null?"null":items[0].rawMaterialName):"missing")')
+if [[ "$FREEFORM_RM_NAME" == "null" ]]; then
+  pass "free-form item rawMaterialName=null (tidak link ke master)"
+else
+  fail "expected rawMaterialName=null, got '$FREEFORM_RM_NAME'"
+fi
+
+# ============================================================
+step "Test 15: Cleanup test data (delete raw materials + unit $KARTON_LABEL)"
 # Test entities punya purchase items + movements dari Test 8 & 9 → DELETE harus
 # 409 (FK protection bekerja). Ini bagian "cleanup verification": tujuannya
 # bukan menghapus, tapi memverifikasi FK protection di-enforce. Untuk
