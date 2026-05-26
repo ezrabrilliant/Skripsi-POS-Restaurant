@@ -1,11 +1,12 @@
-// Seeder data awal REV 2.2. Dijalankan dengan: npm run db:seed
+// Seeder data awal REV 2.5. Dijalankan dengan: npm run db:seed
 //
 // Yang di-seed:
 //   1. Users riil (Owner + 3 kasir + 2 waiter) dengan PIN default (boleh duplikat).
 //   2. Menu catalog (60 item: stok porsi + linked + non-stok + 5 paket).
 //   3. PortionStock untuk setiap menu stockType=portion (currentQty=0 awal, opening=0).
-//   4. RawMaterial awal (13 item: bahan_pokok/bahan_segar yang di-track + bumbu_dasar yang log only).
-//   5. Vendor awal (3 vendor contoh: Pasar Pagi, Bu Sari, Toko Pak Budi).
+//   4. Units (10 pre-defined: kg/gram/liter/butir/balok/karung/ikat/batang/pcs/skala 0-5).
+//   5. RawMaterial awal (13 item: bahan_pokok/bahan_segar yang di-track + bumbu_dasar yang log only).
+//   6. Vendor awal (3 vendor contoh: Pasar Pagi, Bu Sari, Toko Pak Budi).
 //
 // REV 2.2 catatan: BulkStock + BulkStockKind dihapus. Diganti RawMaterial fleksibel
 // dengan is_tracked + category enum + unit varchar. Lihat docs/operasional-resto.md
@@ -14,7 +15,7 @@
 // Seed idempotent: user upserted by (name), menu hanya di-seed kalau tabel kosong,
 // raw_material upserted by (name), vendor upserted by (name+type).
 
-import { PrismaClient, UserRole, StockType, RawMaterialCategory } from '@prisma/client';
+import { PrismaClient, UserRole, StockType, RawMaterialCategory, OpnameMode } from '@prisma/client';
 import { MENU_CATALOG } from './menu-catalog';
 
 const prisma = new PrismaClient();
@@ -40,17 +41,19 @@ const STOCK_TYPE_MAP: Record<string, StockType> = {
 // REV 2.5: Pre-defined units. Owner bisa add custom unit via UnitDropdown.
 // opnameMode 'exact' = input angka bulat/desimal (kg, gram, dll).
 // opnameMode 'scale_0_5' = pilih skala 0-5 (beras karung yang ngga bisa ditimbang exact).
-const unitSeeds: { label: string; opnameMode: 'exact' | 'scale_0_5' }[] = [
-  { label: 'kg', opnameMode: 'exact' },
-  { label: 'gram', opnameMode: 'exact' },
-  { label: 'liter', opnameMode: 'exact' },
-  { label: 'butir', opnameMode: 'exact' },
-  { label: 'balok', opnameMode: 'exact' },
-  { label: 'karung', opnameMode: 'exact' },
-  { label: 'ikat', opnameMode: 'exact' },
-  { label: 'batang', opnameMode: 'exact' },
-  { label: 'pcs', opnameMode: 'exact' },
-  { label: 'skala 0-5', opnameMode: 'scale_0_5' },
+// Label 'skala 0-5' explicit untuk owner clarity di dropdown — bisa di-distinguish
+// dari scale unit lain (mis. 'skala 1-10') kalau owner tambah custom unit nanti.
+const unitSeeds: { label: string; opnameMode: OpnameMode }[] = [
+  { label: 'kg', opnameMode: OpnameMode.exact },
+  { label: 'gram', opnameMode: OpnameMode.exact },
+  { label: 'liter', opnameMode: OpnameMode.exact },
+  { label: 'butir', opnameMode: OpnameMode.exact },
+  { label: 'balok', opnameMode: OpnameMode.exact },
+  { label: 'karung', opnameMode: OpnameMode.exact },
+  { label: 'ikat', opnameMode: OpnameMode.exact },
+  { label: 'batang', opnameMode: OpnameMode.exact },
+  { label: 'pcs', opnameMode: OpnameMode.exact },
+  { label: 'skala 0-5', opnameMode: OpnameMode.scale_0_5 },
 ];
 
 // Raw materials awal sesuai tabel di docs/operasional-resto.md REV 2.3 seksi
