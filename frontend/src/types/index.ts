@@ -29,18 +29,33 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export type StockType = 'portion' | 'linked' | 'nonStock'
 
-/** REV 2.2 paket subOptions: 2 varian shape. */
+/**
+ * REV 2.6: paket subOptions = fixed items + choice slots (drop konsep matrix lama).
+ *
+ * - fixedItems: nama menu yang SELALU termasuk dalam paket.
+ *   Portion/linked targets di-decrement otomatis; nonStock cuma jadi catatan.
+ * - choices: slot pilihan customer (mis. "Pilih Ayam", "Pilih Minuman").
+ *   Tiap opsi punya label (display) + stockTarget (menu yang di-decrement, null=info only).
+ */
 export type LinkedSubOptions = { stockTarget: string }
-export type PaketSubOptionGroup = {
+
+export type PaketChoiceOption = {
+  label: string
+  stockTarget: string | null
+}
+
+export type PaketChoice = {
   key: string
   label: string
-  options: string[]
+  options: PaketChoiceOption[]
 }
+
 export type PaketSubOptions = {
   description?: string
-  options: PaketSubOptionGroup[]
-  stockMap: Record<string, string>
+  fixedItems: string[]
+  choices: PaketChoice[]
 }
+
 export type SubOptions = LinkedSubOptions | PaketSubOptions | null
 
 export interface MenuPortionStockView {

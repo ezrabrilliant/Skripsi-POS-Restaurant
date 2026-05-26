@@ -1,39 +1,32 @@
 // MenuPage - REV 2.3 owner-only CRUD menu.
-// DataTable responsive + Dialog form dgn subOptions JSON editor.
+// DataTable responsive + MenuFormModal dengan form builder (no raw JSON).
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
-import { menuService, type CreateMenuPayload, type UpdateMenuPayload } from '@/services/menuService'
+import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
   Button,
   IconButton,
-  Input,
   Combobox,
   Checkbox,
   Badge,
   Skeleton,
-  Dialog,
   DataTable,
   type DataTableColumn,
   type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
+import { MenuFormModal } from '@/components/MenuFormModal'
 
 const STOCK_TYPE_LABEL: Record<StockType, string> = {
   portion: 'Stok Porsi',
   linked: 'Linked',
   nonStock: 'Tidak ditrack',
 }
-
-const STOCK_TYPE_OPTIONS: ComboboxOption[] = [
-  { value: 'nonStock', label: 'Tidak ditrack (minuman/nasi/paket)' },
-  { value: 'portion', label: 'Stok Porsi (auto-decrement)' },
-  { value: 'linked', label: 'Linked (varian, decrement menu lain)' },
-]
 
 export default function MenuPage() {
   const qc = useQueryClient()
@@ -102,9 +95,9 @@ export default function MenuPage() {
           <div className="font-medium text-neutral-900">{m.name}</div>
           <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
           <div className="flex flex-wrap gap-1 mt-1">
-            {m.subOptions && 'options' in m.subOptions && (
+            {m.subOptions && 'choices' in m.subOptions && (
               <Badge tone="primary" size="sm">
-                Paket · {m.subOptions.options.length} pilihan
+                Paket · {m.subOptions.choices.length} slot pilihan
               </Badge>
             )}
             {m.subOptions && 'stockTarget' in m.subOptions && (
@@ -236,7 +229,7 @@ export default function MenuPage() {
                     <p className="font-medium text-neutral-900">{m.name}</p>
                     <p className="text-caption text-neutral-500">{m.category}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {m.subOptions && 'options' in m.subOptions && (
+                      {m.subOptions && 'choices' in m.subOptions && (
                         <Badge tone="primary" size="sm">Paket</Badge>
                       )}
                       {m.subOptions && 'stockTarget' in m.subOptions && (
@@ -297,162 +290,5 @@ export default function MenuPage() {
         )}
       </div>
     </div>
-  )
-}
-
-function MenuFormModal({
-  existing,
-  onClose,
-  onSuccess,
-}: {
-  existing: Menu | null
-  onClose: () => void
-  onSuccess: () => void
-}) {
-  const toast = useToast()
-  const [name, setName] = useState(existing?.name ?? '')
-  const [category, setCategory] = useState(existing?.category ?? '')
-  const [price, setPrice] = useState(existing?.price ?? 0)
-  const [stockType, setStockType] = useState<StockType>(existing?.stockType ?? 'nonStock')
-  const [minStock, setMinStock] = useState(existing?.minStock ?? 5)
-  const [imageUrl, setImageUrl] = useState(existing?.imageUrl ?? '')
-  const [subOptionsJson, setSubOptionsJson] = useState(
-    existing?.subOptions ? JSON.stringify(existing.subOptions, null, 2) : ''
-  )
-
-  const mutation = useMutation({
-    mutationFn: () => {
-      let subOptions: CreateMenuPayload['subOptions'] = null
-      if (subOptionsJson.trim()) {
-        try {
-          subOptions = JSON.parse(subOptionsJson)
-        } catch {
-          throw new Error('subOptions JSON tidak valid')
-        }
-      }
-      const payload: CreateMenuPayload = {
-        name,
-        category,
-        price,
-        stockType,
-        minStock: stockType === 'portion' ? minStock : undefined,
-        imageUrl: imageUrl || null,
-        subOptions,
-      }
-      if (existing) {
-        const updatePayload: UpdateMenuPayload = {
-          name: payload.name,
-          category: payload.category,
-          price: payload.price,
-          stockType: payload.stockType,
-          minStock: payload.minStock,
-          imageUrl: payload.imageUrl,
-          subOptions: payload.subOptions,
-        }
-        return menuService.update(existing.id, updatePayload)
-      }
-      return menuService.create(payload)
-    },
-    onSuccess: () => {
-      toast.success(existing ? 'Menu diperbarui' : 'Menu dibuat')
-      onSuccess()
-    },
-    onError: (err: Error) => toast.error(err.message),
-  })
-
-  return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={existing ? `Edit: ${existing.name}` : 'Tambah Menu'}
-      size="lg"
-      footer={
-        <Button
-          variant="primary"
-          size="md"
-          fullWidth
-          onClick={() => mutation.mutate()}
-          disabled={!name || !category || price <= 0}
-          loading={mutation.isPending}
-        >
-          Simpan
-        </Button>
-      }
-    >
-      <div className="space-y-3">
-        <Input
-          label="Nama"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Kategori"
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Signature Ayam Bakar"
-            required
-          />
-          <Input
-            label="Harga (Rp)"
-            type="number"
-            inputMode="numeric"
-            value={price || ''}
-            onChange={(e) => setPrice(Number(e.target.value) || 0)}
-            min={0}
-            step={1000}
-            required
-          />
-        </div>
-        <Combobox
-          label="Stock Type"
-          value={stockType}
-          onValueChange={(v) => setStockType(v as StockType)}
-          options={STOCK_TYPE_OPTIONS}
-          searchPlaceholder="Cari tipe stok..."
-        />
-        {stockType === 'portion' && (
-          <Input
-            label="Min Stock"
-            type="number"
-            inputMode="numeric"
-            value={minStock}
-            onChange={(e) => setMinStock(Number(e.target.value) || 0)}
-            min={0}
-            helper="Reminder muncul di dashboard saat qty ≤ min."
-          />
-        )}
-        <Input
-          label="Image URL (opsional)"
-          type="text"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="/menu/ayam-bakar.webp"
-        />
-        <div>
-          <label className="text-label text-neutral-700 block mb-1.5">
-            subOptions JSON{' '}
-            <span className="text-caption text-neutral-500 font-normal">
-              (linked / paket - kosongkan kalau tidak relevan)
-            </span>
-          </label>
-          <textarea
-            value={subOptionsJson}
-            onChange={(e) => setSubOptionsJson(e.target.value)}
-            rows={6}
-            placeholder={`{"stockTarget":"Empal"}\natau\n{"options":[{"key":"cook","label":"Cara","options":["Bakar","Goreng"]}],"stockMap":{"Bakar":"X","Goreng":"Y"}}`}
-            className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-md font-mono text-caption text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
-          />
-          <p className="text-caption text-neutral-500 mt-1">
-            <strong>Linked:</strong> <code>{`{"stockTarget":"NamaMenu"}`}</code>.{' '}
-            <strong>Paket:</strong> <code>{`{"options":[...],"stockMap":{...}}`}</code> - pakai key
-            gabungan dgn separator <code>|</code> sesuai urutan.
-          </p>
-        </div>
-      </div>
-    </Dialog>
   )
 }

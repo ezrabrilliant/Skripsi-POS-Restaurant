@@ -115,7 +115,7 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
           <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map((menu) => {
               const badge = stockBadge(menu)
-              const isPaket = !!(menu.subOptions && 'options' in menu.subOptions)
+              const isPaket = !!(menu.subOptions && 'choices' in menu.subOptions)
               const isOutOfStock = menu.stockType === 'portion' && (menu.portionStock?.currentQty ?? 0) <= 0
               return (
                 <button

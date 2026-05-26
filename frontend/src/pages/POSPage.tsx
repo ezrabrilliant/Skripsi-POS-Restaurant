@@ -183,7 +183,7 @@ export default function POSPage() {
   // backend ("Source X sudah merged ke Y" saat retry).
 
   const handleMenuClick = (menu: Menu) => {
-    if (menu.subOptions && 'options' in menu.subOptions) {
+    if (menu.subOptions && 'choices' in menu.subOptions) {
       setPaketMenuOpen({ menu, paket: menu.subOptions })
       return
     }
