@@ -1,24 +1,22 @@
-// Service modul purchases. REV 2.5 (bifurcate by unit.opname_mode):
+// Service modul purchases. REV 2.5.1 (3-kind line item bifurcation):
 //
-// Saat purchase di-submit, untuk TIAP item — perilaku tergantung
-// unit.opname_mode raw material:
+// A. Free-form (rawMaterialId null, label set):
+//   1. Wajib subtotal. qty + unitPrice nullable (tidak relevan).
+//   2. Tidak update raw_materials (tidak ada FK).
+//   3. Tidak insert raw_material_movements (audit hanya untuk typed master).
+//   4. Untuk bumbu dasar / ayam mentah / ikan mentah / item tanpa master.
 //
-// A. exact mode (qty meaningful, mis. butir/kg/liter):
-//   1. Wajib qty + unitPrice. subtotal = qty * unitPrice (auto-compute di server).
-//   2. Update raw_materials.last_buy_date = purchase.date (selalu)
-//   3. Update raw_materials.unit_price = item.unitPrice (selalu - snapshot harga terbaru)
-//   4. Update raw_materials.stock_qty += qty (HANYA kalau isTracked=true)
-//   5. Insert raw_material_movements reason=`purchase` delta=+qty (audit lengkap;
-//      non-tracked tetap log untuk akuntabilitas pengeluaran).
+// B. Typed-scale (rawMaterialId set, unit.opname_mode = scale_0_5):
+//   1. Wajib subtotal (total harga). qty + unitPrice opsional sebagai info.
+//   2. Update raw_materials.last_buy_date selalu.
+//   3. Update raw_materials.unit_price kalau unitPrice diisi.
+//   4. Stock_qty TIDAK auto-update (manual via opname segmented 0..5).
+//   5. Insert raw_material_movements reason=`purchase` delta=0 dengan note.
 //
-// B. scale_0_5 mode (qty tidak meaningful, mis. beras dalam karung):
-//   1. Wajib subtotal (total harga). qty + unitPrice opsional (boleh diisi sebagai
-//      info, mis. "1 karung 50kg @ Rp 500k"); note recommended.
-//   2. Update raw_materials.last_buy_date = purchase.date (selalu)
-//   3. Update raw_materials.unit_price kalau unitPrice diisi (snapshot info opsional)
-//   4. Stock_qty TIDAK auto-update (stok dikelola via opname manual segmented 0..5)
-//   5. Insert raw_material_movements reason=`purchase` delta=0 dengan note
-//      kontekstual (skala mode, stok manual via opname).
+// C. Typed-exact (rawMaterialId set, unit.opname_mode = exact):
+//   1. Wajib qty + unitPrice. subtotal = qty * unitPrice (auto-compute server).
+//   2. Update raw_materials.last_buy_date + unit_price + stock_qty += qty.
+//   3. Insert raw_material_movements reason=`purchase` delta=+qty.
 //
 // totalAmount header = sum(subtotal items) - dihitung di server, bukan dari client.
 //
@@ -39,11 +37,11 @@ import type {
 
 export interface PurchaseItemView {
   id: number;
-  rawMaterialId: number;
-  rawMaterialName: string;
-  rawMaterialUnit: string;
-  rawMaterialOpnameMode: 'exact' | 'scale_0_5';
-  isTracked: boolean;
+  rawMaterialId: number | null;
+  rawMaterialName: string | null;
+  rawMaterialUnit: string | null;
+  rawMaterialOpnameMode: 'exact' | 'scale_0_5' | null;
+  label: string | null;
   qty: number | null;
   unitPrice: number | null;
   subtotal: number;
@@ -74,7 +72,6 @@ type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
         rawMaterial: {
           select: {
             name: true;
-            isTracked: true;
             unit: { select: { label: true; opnameMode: true } };
           };
         };
@@ -97,10 +94,10 @@ function toPurchaseView(p: PurchaseWithRelations): PurchaseView {
     items: p.items.map((it) => ({
       id: it.id,
       rawMaterialId: it.rawMaterialId,
-      rawMaterialName: it.rawMaterial.name,
-      rawMaterialUnit: it.rawMaterial.unit.label,
-      rawMaterialOpnameMode: it.rawMaterial.unit.opnameMode,
-      isTracked: it.rawMaterial.isTracked,
+      rawMaterialName: it.rawMaterial?.name ?? null,
+      rawMaterialUnit: it.rawMaterial?.unit.label ?? null,
+      rawMaterialOpnameMode: it.rawMaterial?.unit.opnameMode ?? null,
+      label: it.label,
       qty: it.qty !== null ? it.qty.toNumber() : null,
       unitPrice: it.unitPrice !== null ? it.unitPrice.toNumber() : null,
       subtotal: it.subtotal.toNumber(),
@@ -119,7 +116,6 @@ const purchaseInclude = {
       rawMaterial: {
         select: {
           name: true,
-          isTracked: true,
           unit: { select: { label: true, opnameMode: true } },
         },
       },
@@ -141,6 +137,33 @@ function parseDateUtcMidnight(yyyymmdd: string): Date {
 // Operations
 // ============================================================
 
+type ProcessedItem =
+  | {
+      kind: 'freeform';
+      label: string;
+      subtotal: Prisma.Decimal;
+      note: string | null;
+      expiredDate: string | null;
+    }
+  | {
+      kind: 'typed-scale';
+      rm: Prisma.RawMaterialGetPayload<{ include: { unit: true } }>;
+      qty: Prisma.Decimal | null;
+      unitPrice: Prisma.Decimal | null;
+      subtotal: Prisma.Decimal;
+      note: string | null;
+      expiredDate: string | null;
+    }
+  | {
+      kind: 'typed-exact';
+      rm: Prisma.RawMaterialGetPayload<{ include: { unit: true } }>;
+      qty: Prisma.Decimal;
+      unitPrice: Prisma.Decimal;
+      subtotal: Prisma.Decimal;
+      note: string | null;
+      expiredDate: string | null;
+    };
+
 export async function createPurchase(
   userId: number,
   input: CreatePurchaseInput,
@@ -151,67 +174,96 @@ export async function createPurchase(
     if (!vendor) throw new AppError(`Vendor id=${input.vendorId} tidak ditemukan`, 400);
   }
 
-  // Validasi semua raw_material exist + fetch info termasuk unit (untuk opname_mode)
-  const rawMaterialIds = input.items.map((i) => i.rawMaterialId);
-  const rawMaterials = await prisma.rawMaterial.findMany({
-    where: { id: { in: rawMaterialIds } },
-    include: { unit: true },
-  });
+  // Fetch raw_materials untuk semua typed items (rawMaterialId set)
+  const rawMaterialIds = input.items
+    .map((i) => i.rawMaterialId)
+    .filter((id): id is number => typeof id === 'number');
+
+  const rawMaterials =
+    rawMaterialIds.length > 0
+      ? await prisma.rawMaterial.findMany({
+          where: { id: { in: rawMaterialIds } },
+          include: { unit: true },
+        })
+      : [];
   const rmMap = new Map(rawMaterials.map((r) => [r.id, r]));
-  for (const item of input.items) {
-    if (!rmMap.has(item.rawMaterialId)) {
-      throw new AppError(`RawMaterial id=${item.rawMaterialId} tidak ditemukan`, 400);
-    }
-  }
 
   const purchaseDate = parseDateUtcMidnight(input.date);
 
-  // REV 2.5: bifurcate per item berdasarkan unit.opname_mode.
-  //   - scale_0_5: subtotal wajib (total harga); qty + unitPrice opsional.
-  //   - exact    : qty + unitPrice wajib, subtotal = qty * unitPrice (auto).
-  const itemsProcessed = input.items.map((item) => {
-    const rm = rmMap.get(item.rawMaterialId)!;
-    const isScale = rm.unit.opnameMode === 'scale_0_5';
+  // REV 2.5.1: bifurcate per item ke 3 kind (freeform / typed-scale / typed-exact).
+  const itemsProcessed: ProcessedItem[] = input.items.map((item) => {
+    const hasRmId = item.rawMaterialId !== null && item.rawMaterialId !== undefined;
+    const hasLabel = item.label !== null && item.label !== undefined;
 
-    if (isScale) {
+    if (!hasRmId && hasLabel) {
+      // Free-form
       if (item.subtotal === undefined || item.subtotal === null) {
-        throw new AppError(
-          `Item ${rm.name} (skala mode) wajib subtotal (total harga). qty + unitPrice opsional.`,
-          422,
-        );
+        throw new AppError(`Free-form line item "${item.label}" wajib subtotal`, 422);
       }
       return {
-        item,
-        rm,
-        isScale,
-        qty:
-          item.qty !== undefined && item.qty !== null
-            ? new Prisma.Decimal(item.qty)
-            : null,
-        unitPrice:
-          item.unitPrice !== undefined && item.unitPrice !== null
-            ? new Prisma.Decimal(item.unitPrice)
-            : null,
+        kind: 'freeform',
+        label: item.label!,
         subtotal: new Prisma.Decimal(item.subtotal),
+        note: item.note ?? null,
+        expiredDate: item.expiredDate ?? null,
       };
     }
 
-    // exact mode
-    if (
-      item.qty === undefined ||
-      item.qty === null ||
-      item.unitPrice === undefined ||
-      item.unitPrice === null
-    ) {
-      throw new AppError(
-        `Item ${rm.name} (exact mode) wajib qty + unitPrice.`,
-        422,
-      );
+    if (hasRmId && !hasLabel) {
+      const rm = rmMap.get(item.rawMaterialId!);
+      if (!rm) {
+        throw new AppError(`RawMaterial id=${item.rawMaterialId} tidak ditemukan`, 400);
+      }
+      const isScale = rm.unit.opnameMode === 'scale_0_5';
+
+      if (isScale) {
+        if (item.subtotal === undefined || item.subtotal === null) {
+          throw new AppError(`Item ${rm.name} (skala mode) wajib subtotal`, 422);
+        }
+        return {
+          kind: 'typed-scale',
+          rm,
+          qty:
+            item.qty !== undefined && item.qty !== null
+              ? new Prisma.Decimal(item.qty)
+              : null,
+          unitPrice:
+            item.unitPrice !== undefined && item.unitPrice !== null
+              ? new Prisma.Decimal(item.unitPrice)
+              : null,
+          subtotal: new Prisma.Decimal(item.subtotal),
+          note: item.note ?? null,
+          expiredDate: item.expiredDate ?? null,
+        };
+      }
+
+      // typed-exact
+      if (
+        item.qty === undefined ||
+        item.qty === null ||
+        item.unitPrice === undefined ||
+        item.unitPrice === null
+      ) {
+        throw new AppError(`Item ${rm.name} (exact mode) wajib qty + unitPrice`, 422);
+      }
+      const qty = new Prisma.Decimal(item.qty);
+      const unitPrice = new Prisma.Decimal(item.unitPrice);
+      return {
+        kind: 'typed-exact',
+        rm,
+        qty,
+        unitPrice,
+        subtotal: qty.mul(unitPrice),
+        note: item.note ?? null,
+        expiredDate: item.expiredDate ?? null,
+      };
     }
-    const qty = new Prisma.Decimal(item.qty);
-    const unitPrice = new Prisma.Decimal(item.unitPrice);
-    const subtotal = qty.mul(unitPrice);
-    return { item, rm, isScale, qty, unitPrice, subtotal };
+
+    // Both or neither — schema should have caught, but defensive
+    throw new AppError(
+      'Item wajib salah satu: rawMaterialId (typed) atau label (free-form), tidak boleh dua-duanya',
+      422,
+    );
   });
 
   const totalAmount = itemsProcessed.reduce(
@@ -230,53 +282,65 @@ export async function createPurchase(
       },
     });
 
-    for (const { item, rm, isScale, qty, unitPrice, subtotal } of itemsProcessed) {
-      // 1. Create PurchaseItem (qty + unitPrice nullable kalau scale_0_5)
+    for (const processed of itemsProcessed) {
+      if (processed.kind === 'freeform') {
+        await tx.purchaseItem.create({
+          data: {
+            purchaseId: header.id,
+            rawMaterialId: null,
+            label: processed.label,
+            qty: null,
+            unitPrice: null,
+            subtotal: processed.subtotal,
+            note: processed.note,
+            expiredDate: processed.expiredDate
+              ? parseDateUtcMidnight(processed.expiredDate)
+              : null,
+          },
+        });
+        // No raw_material update, no movement audit untuk free-form
+        continue;
+      }
+
+      const { rm, qty, unitPrice, subtotal, note, expiredDate } = processed;
       await tx.purchaseItem.create({
         data: {
           purchaseId: header.id,
-          rawMaterialId: item.rawMaterialId,
+          rawMaterialId: rm.id,
+          label: null,
           qty,
           unitPrice,
           subtotal,
-          note: item.note ?? null,
-          expiredDate: item.expiredDate ? parseDateUtcMidnight(item.expiredDate) : null,
+          note,
+          expiredDate: expiredDate ? parseDateUtcMidnight(expiredDate) : null,
         },
       });
 
-      // 2. Update RawMaterial:
-      //   - last_buy_date selalu update.
-      //   - unit_price update kalau unitPrice ada (exact selalu ada; scale opsional).
-      //   - stock_qty increment HANYA kalau exact mode + isTracked.
-      const rmUpdateData: Prisma.RawMaterialUpdateInput = {
-        lastBuyDate: purchaseDate,
-      };
+      const rmUpdateData: Prisma.RawMaterialUpdateInput = { lastBuyDate: purchaseDate };
       if (unitPrice) rmUpdateData.unitPrice = unitPrice;
-      if (!isScale && rm.isTracked && qty) {
+      if (processed.kind === 'typed-exact' && qty) {
         rmUpdateData.stockQty = { increment: qty };
       }
       await tx.rawMaterial.update({
-        where: { id: item.rawMaterialId },
+        where: { id: rm.id },
         data: rmUpdateData,
       });
 
-      // 3. Insert audit log raw_material_movements.
-      // delta semantic: untuk audit, bukan stock impact.
-      //   - Scale            : 0 (qty tidak meaningful, stock manual via opname)
-      //   - Exact (tracked)  : qty (real stock impact)
-      //   - Exact (log-only) : qty (audit history pembelian non-tracked)
-      const movementDelta = isScale ? new Prisma.Decimal(0) : qty!;
+      const movementDelta =
+        processed.kind === 'typed-scale' ? new Prisma.Decimal(0) : qty!;
       let movementNote: string;
-      if (isScale) {
-        movementNote = `Purchase id=${header.id}: total Rp${subtotal.toString()}${item.note ? ` (${item.note})` : ''} (skala mode, stok manual via opname)`;
-      } else if (rm.isTracked) {
-        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${rm.unit.label} @ Rp${unitPrice!.toString()}`;
+      if (processed.kind === 'typed-scale') {
+        movementNote = `Purchase id=${header.id}: total Rp${subtotal.toString()}${
+          note ? ` (${note})` : ''
+        } (skala mode, stok manual via opname)`;
       } else {
-        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${rm.unit.label} @ Rp${unitPrice!.toString()} (tidak tracked, hanya log pengeluaran)`;
+        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${
+          rm.unit.label
+        } @ Rp${unitPrice!.toString()}`;
       }
       await tx.rawMaterialMovement.create({
         data: {
-          rawMaterialId: item.rawMaterialId,
+          rawMaterialId: rm.id,
           delta: movementDelta,
           reason: RawMaterialMovementReason.purchase,
           note: movementNote,

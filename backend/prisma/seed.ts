@@ -1,16 +1,16 @@
-// Seeder data awal REV 2.5. Dijalankan dengan: npm run db:seed
+// Seeder data awal REV 2.5.1. Dijalankan dengan: npm run db:seed
 //
 // Yang di-seed:
 //   1. Users riil (Owner + 3 kasir + 2 waiter) dengan PIN default (boleh duplikat).
 //   2. Menu catalog (60 item: stok porsi + linked + non-stok + 5 paket).
 //   3. PortionStock untuk setiap menu stockType=portion (currentQty=0 awal, opening=0).
 //   4. Units (10 pre-defined: kg/gram/liter/butir/balok/karung/ikat/batang/pcs/skala 0-5).
-//   5. RawMaterial awal (13 item: bahan_pokok/bahan_segar yang di-track + bumbu_dasar yang log only).
+//   5. RawMaterial awal (6 item, semua always tracked: Beras, Kangkung, Petai, Tahu, Tempe, Telur).
 //   6. Vendor awal (3 vendor contoh: Pasar Pagi, Bu Sari, Toko Pak Budi).
 //
-// REV 2.2 catatan: BulkStock + BulkStockKind dihapus. Diganti RawMaterial fleksibel
-// dengan is_tracked + category enum + unit varchar. Lihat docs/operasional-resto.md
-// seksi "Raw Materials" untuk daftar seed lengkap.
+// REV 2.5.1 catatan: is_tracked column dropped. Semua master = always tracked.
+// Bumbu dasar + ayam mentah + ikan mentah TIDAK ada master — di-catat sebagai
+// free-form line item di PurchaseItem (label + subtotal, no FK).
 //
 // Seed idempotent: user upserted by (name), menu hanya di-seed kalau tabel kosong,
 // raw_material upserted by (name), vendor upserted by (name+type).
@@ -56,39 +56,29 @@ const unitSeeds: { label: string; opnameMode: OpnameMode }[] = [
   { label: 'skala 0-5', opnameMode: OpnameMode.scale_0_5 },
 ];
 
-// Raw materials awal sesuai tabel di docs/operasional-resto.md REV 2.3 seksi
-// "Raw Materials (Stok Bahan Baku) dan Reminder" + "Contoh raw materials (seed awal)".
+// Raw materials awal sesuai tabel di docs/operasional-resto.md REV 2.5.1 seksi
+// "Raw Materials (Stok Bahan Baku) dan Reminder".
 //
-// is_tracked=true  : muncul di reminder (Beras, Kangkung, Petai, Tahu, Tempe, Telur)
-// is_tracked=false : hanya log pengeluaran (Cabai, Bawang, Kemiri, Minyak, Daun Jeruk, Sereh)
+// REV 2.5.1: semua master = always tracked. Bumbu dasar + ayam mentah + ikan mentah
+// TIDAK ada master — di-catat sebagai free-form line item di PurchaseItem (label +
+// subtotal, no FK). is_tracked column dropped dari schema.
 //
 // REV 2.5: field `unit` (string) diganti `unitLabel` yang di-resolve ke unitId saat seed.
 interface RawMaterialSeed {
   name: string;
   unitLabel: string;
   category: RawMaterialCategory;
-  isTracked: boolean;
   minStock?: number;
   freshnessDays?: number;
 }
 
 const rawMaterials: RawMaterialSeed[] = [
-  // is_tracked=true (muncul di reminder)
-  { name: 'Beras', unitLabel: 'skala 0-5', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 1 },
-  { name: 'Kangkung', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
-  { name: 'Petai', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
-  { name: 'Tahu', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
-  { name: 'Tempe', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
-  { name: 'Telur', unitLabel: 'butir', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 3 },
-
-  // is_tracked=false (hanya log pengeluaran, tidak monitoring stok)
-  { name: 'Cabai Rawit', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Bawang Merah', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Bawang Putih', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Kemiri', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Daun Jeruk', unitLabel: 'ikat', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Sereh', unitLabel: 'batang', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Minyak Goreng', unitLabel: 'liter', category: RawMaterialCategory.bahanKering, isTracked: false },
+  { name: 'Beras', unitLabel: 'skala 0-5', category: RawMaterialCategory.bahanPokok, minStock: 1 },
+  { name: 'Kangkung', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, minStock: 1, freshnessDays: 10 },
+  { name: 'Petai', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, minStock: 1, freshnessDays: 10 },
+  { name: 'Tahu', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, minStock: 2 },
+  { name: 'Tempe', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, minStock: 2 },
+  { name: 'Telur', unitLabel: 'butir', category: RawMaterialCategory.bahanPokok, minStock: 3 },
 ];
 
 // Vendor awal sebagai contoh (opsional, bisa ditambah inline saat input purchase).
@@ -186,14 +176,12 @@ async function seedRawMaterials(unitByLabel: Map<string, number>) {
         name: rm.name,
         unitId,
         category: rm.category,
-        isTracked: rm.isTracked,
         stockQty: 0,
         minStock: rm.minStock ?? null,
         freshnessDays: rm.freshnessDays ?? null,
       },
     });
-    const trackMark = rm.isTracked ? 'tracked' : 'log-only';
-    console.log(`  ✓ ${rm.name} (${rm.unitLabel}, ${rm.category}, ${trackMark})`);
+    console.log(`  ✓ ${rm.name} (${rm.unitLabel}, ${rm.category})`);
   }
 }
 

@@ -1,6 +1,7 @@
-// Zod schema untuk modul stocks/raw-materials. REV 2.5:
-//   - is_tracked=true  -> stok di-update saat purchase, ada reminder restock + freshness
-//   - is_tracked=false -> hanya log pengeluaran, tidak monitoring stok
+// Zod schema untuk modul stocks/raw-materials. REV 2.5.1:
+//   - is_tracked column DROPPED — semua master = always tracked by definition.
+//     Bumbu dasar + ayam mentah dll di-catat sebagai free-form line item di
+//     PurchaseItem (label + subtotal), bukan master raw material.
 //   - unitId FK ke master `units` (opname_mode ditentukan oleh unit, bukan disimpan di sini)
 //   - category enum 5 nilai untuk grouping di laporan owner
 //
@@ -26,7 +27,6 @@ export const createRawMaterialSchema = z.object({
   name: nameField,
   unitId: unitIdField,
   category: categoryField,
-  isTracked: z.boolean(),
   stockQty: qtyDecimalField.default(0),
   minStock: minStockField,
   unitPrice: unitPriceField,
@@ -41,7 +41,6 @@ export const updateRawMaterialSchema = z
     /// (atau null untuk reset ke 0). Kalau stok = 0, field ini boleh diabaikan.
     newStockQty: z.number().min(0).nullable().optional(),
     category: categoryField.optional(),
-    isTracked: z.boolean().optional(),
     minStock: minStockField,
     unitPrice: unitPriceField,
     freshnessDays: freshnessDaysField,
@@ -70,10 +69,6 @@ export const markHabisBodySchema = z.object({
 
 export const listRawMaterialsQuerySchema = z.object({
   category: categoryField.optional(),
-  isTracked: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform((v) => (v === undefined ? undefined : v === 'true')),
   needsRestock: z
     .enum(['true', 'false'])
     .optional()

@@ -260,10 +260,10 @@ model PortionMovement {
   @@map("portion_movements")
 }
 
-/// 5. Master bahan baku (REV 2.1: ganti BulkStock rigid). Struktur fleksibel
-/// dengan is_tracked untuk membedakan:
-/// - is_tracked=true  : stok di-update saat purchase + muncul di reminder (Beras, Kangkung, Petai, Tahu, Tempe, Telur)
-/// - is_tracked=false : hanya log pengeluaran tanpa monitoring stok (Cabai, Bawang, Kemiri, Minyak, dll)
+/// 5. Master bahan baku (REV 2.5.1: SIMPLIFIED — drop is_tracked).
+/// Semua master raw_materials = always tracked (Beras, Kangkung, Petai, Tahu,
+/// Tempe, Telur). Bumbu dasar + ayam mentah + ikan mentah TIDAK ada master,
+/// di-catat sebagai free-form line item di PurchaseItem (label text, no FK).
 ///
 /// Field freshness_days opsional untuk perishable: reminder mendekati basi
 /// (freshness_days − 3) hari setelah last_buy_date.
@@ -275,9 +275,8 @@ model RawMaterial {
   unitId        Int                 @map("unit_id")
   unit          Unit                @relation(fields: [unitId], references: [id])
   category      RawMaterialCategory
-  isTracked     Boolean             @default(true) @map("is_tracked")
   stockQty      Decimal             @default(0) @map("stock_qty") @db.Decimal(10, 2)
-  /// Ambang reminder restock (kalau is_tracked=true).
+  /// Ambang reminder restock.
   minStock      Int?                @map("min_stock")
   /// Harga per unit terakhir, auto-update saat purchase baru.
   unitPrice     Decimal?            @map("unit_price") @db.Decimal(10, 2)
@@ -516,19 +515,32 @@ model Purchase {
   @@map("purchases")
 }
 
-/// 13. Detail per baris item dalam satu Purchase (REV 2.1: BARU, normalized).
-/// FK ke RawMaterial. Saat submit, sistem auto-update:
-/// - raw_materials.stock_qty += qty (kalau is_tracked=true)
-/// - raw_materials.last_buy_date = purchase.date
-/// - raw_materials.unit_price = item.unit_price
-/// Plus REV 2.2: auto-insert ke raw_material_movements reason=`purchase`.
+/// 13. Detail per baris item dalam satu Purchase.
+///
+/// REV 2.5.1: 2 jenis line item:
+///   A. Typed (rawMaterialId set, label null) — FK ke master RawMaterial.
+///      Saat submit, sistem auto-update raw_materials.last_buy_date,
+///      unit_price (kalau diisi), stock_qty += qty (kalau unit exact mode),
+///      plus log raw_material_movements reason=purchase.
+///   B. Free-form (rawMaterialId null, label set) — text label bebas untuk
+///      bumbu dasar / ayam mentah / ikan mentah / item tanpa master.
+///      Hanya log expense (subtotal + note opsional). Tidak update stok,
+///      tidak insert raw_material_movements.
+///
+/// Validation di service layer: exactly one of {rawMaterialId, label} set.
 model PurchaseItem {
   id            Int       @id @default(autoincrement())
   purchaseId    Int       @map("purchase_id")
-  rawMaterialId Int       @map("raw_material_id")
+  /// REV 2.5.1: nullable. Null = free-form line item (pakai label).
+  rawMaterialId Int?      @map("raw_material_id")
+  /// REV 2.5.1 BARU: label text untuk free-form line item (mis. "Bumbu Dasar",
+  /// "Ayam Mentah"). Null kalau pakai rawMaterialId (typed).
+  label         String?   @db.VarChar(100)
   /// REV 2.5: nullable untuk scale_0_5 items (qty tidak relevan, hanya log expense).
+  /// REV 2.5.1: juga null untuk free-form items.
   qty           Decimal?  @db.Decimal(10, 2)
   /// REV 2.5: nullable untuk scale_0_5 items.
+  /// REV 2.5.1: juga null untuk free-form items.
   unitPrice     Decimal?  @map("unit_price") @db.Decimal(10, 2)
   subtotal      Decimal   @db.Decimal(12, 2)
   /// REV 2.5 BARU: catatan opsional per item (mis. "beli sekarung Cabai 2kg").
@@ -537,8 +549,8 @@ model PurchaseItem {
   expiredDate   DateTime? @map("expired_date") @db.Date
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  purchase    Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  purchase    Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  rawMaterial RawMaterial? @relation(fields: [rawMaterialId], references: [id])
 
   @@map("purchase_items")
 }

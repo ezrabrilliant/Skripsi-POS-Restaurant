@@ -255,19 +255,18 @@ async function reminderCounts(): Promise<ReminderCounts> {
   `;
   const portionLowCount = Number(portionRaw[0]?.cnt ?? 0);
 
-  // Raw material low: isTracked AND stockQty <= minStock
+  // Raw material low: stockQty <= minStock (REV 2.5.1: semua master always tracked)
   const rmLowRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
     SELECT COUNT(*) as cnt FROM raw_materials
-    WHERE is_tracked = 1 AND min_stock IS NOT NULL AND stock_qty <= min_stock
+    WHERE min_stock IS NOT NULL AND stock_qty <= min_stock
   `;
   const rawMaterialLowCount = Number(rmLowRaw[0]?.cnt ?? 0);
 
-  // Raw material near expiry: isTracked AND freshness_days set AND last_buy_date set
+  // Raw material near expiry: freshness_days set AND last_buy_date set
   //   AND DATEDIFF(NOW, last_buy_date) >= freshness_days - 3
   const rmNearRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
     SELECT COUNT(*) as cnt FROM raw_materials
-    WHERE is_tracked = 1
-      AND freshness_days IS NOT NULL
+    WHERE freshness_days IS NOT NULL
       AND last_buy_date IS NOT NULL
       AND DATEDIFF(CURDATE(), last_buy_date) >= freshness_days - 3
   `;
@@ -404,7 +403,6 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
       orderBy: { currentQty: 'asc' },
     }),
     prisma.rawMaterial.findMany({
-      where: { isTracked: true },
       include: { unit: { select: { label: true } } },
     }),
     prisma.shift.findMany({

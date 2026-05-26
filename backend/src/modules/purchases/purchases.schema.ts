@@ -1,7 +1,16 @@
-// Zod schema untuk modul purchases. REV 2.1/2.2: normalized header + items.
-// REV 2.5: bifurcate per unit.opname_mode:
-//   - exact mode    : qty + unitPrice wajib (subtotal auto = qty * unitPrice di server)
-//   - scale_0_5 mode: subtotal wajib (total harga), qty + unitPrice opsional, note recommended
+// Zod schema untuk modul purchases. REV 2.5.1: 3-kind line item:
+//   A. Free-form (rawMaterialId null, label set, subtotal required) — bumbu dasar,
+//      ayam mentah, item tanpa master. Tidak update stock, tidak insert movement.
+//   B. Typed-scale (rawMaterialId set, label null, subtotal required, qty/unitPrice
+//      opsional) — RawMaterial dengan unit.opname_mode = scale_0_5 (mis. Beras karung).
+//   C. Typed-exact (rawMaterialId set, label null, qty + unitPrice required) —
+//      RawMaterial dengan unit.opname_mode = exact. subtotal auto = qty * unitPrice.
+//
+// Constraints (validated di superRefine):
+//   - Exactly one of {rawMaterialId, label} set
+//   - Free-form (label set) → subtotal wajib
+//   - Typed (rawMaterialId set) → wajib subtotal (scale) ATAU qty+unitPrice (exact);
+//     bifurcation final ditentukan di service layer setelah lookup unit.
 //
 //   - vendorId opsional (kasir kadang lupa nama penjual di pasar)
 //   - qty + unitPrice + subtotal di item: number (akan dikonversi Decimal di service)
@@ -16,7 +25,8 @@ const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYY
 
 export const purchaseItemSchema = z
   .object({
-    rawMaterialId: idField,
+    rawMaterialId: idField.nullable().optional(),
+    label: z.string().trim().min(1).max(100).nullable().optional(),
     qty: z.number().positive('Qty harus > 0').nullable().optional(),
     unitPrice: z.number().nonnegative('unitPrice tidak boleh negatif').nullable().optional(),
     subtotal: z.number().positive('subtotal harus > 0').nullable().optional(),
@@ -24,20 +34,47 @@ export const purchaseItemSchema = z
     expiredDate: dateField.optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    const hasSubtotal = data.subtotal !== null && data.subtotal !== undefined;
-    const hasQtyAndPrice =
-      data.qty !== null &&
-      data.qty !== undefined &&
-      data.unitPrice !== null &&
-      data.unitPrice !== undefined;
+    const hasRmId = data.rawMaterialId !== null && data.rawMaterialId !== undefined;
+    const hasLabel = data.label !== null && data.label !== undefined;
 
-    if (!hasSubtotal && !hasQtyAndPrice) {
+    if (hasRmId && hasLabel) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          'Wajib salah satu: subtotal (untuk skala mode) atau qty + unitPrice (untuk exact mode)',
+        message: 'rawMaterialId dan label mutually exclusive — pilih salah satu',
+        path: ['label'],
+      });
+    }
+    if (!hasRmId && !hasLabel) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Wajib salah satu: rawMaterialId (typed) atau label (free-form)',
+        path: ['rawMaterialId'],
+      });
+    }
+
+    if (hasLabel && (data.subtotal === undefined || data.subtotal === null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Free-form line item wajib subtotal',
         path: ['subtotal'],
       });
+    }
+
+    if (hasRmId) {
+      const hasSubtotal = data.subtotal !== null && data.subtotal !== undefined;
+      const hasQtyAndPrice =
+        data.qty !== null &&
+        data.qty !== undefined &&
+        data.unitPrice !== null &&
+        data.unitPrice !== undefined;
+      if (!hasSubtotal && !hasQtyAndPrice) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Typed item wajib salah satu: subtotal (skala mode) atau qty + unitPrice (exact mode)',
+          path: ['subtotal'],
+        });
+      }
     }
   });
 

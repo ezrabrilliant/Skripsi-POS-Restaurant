@@ -52,14 +52,13 @@ export interface RawMaterialView {
     opnameMode: OpnameMode;
   };
   category: RawMaterialCategory;
-  isTracked: boolean;
   stockQty: number;
   minStock: number | null;
   unitPrice: number | null;
   freshnessDays: number | null;
   lastBuyDate: string | null; // YYYY-MM-DD
-  isLowStock: boolean; // isTracked AND stockQty <= minStock
-  isNearExpiry: boolean; // isTracked AND freshnessDays set AND (today - lastBuy) >= (freshnessDays - 3)
+  isLowStock: boolean; // stockQty <= minStock
+  isNearExpiry: boolean; // freshnessDays set AND (today - lastBuy) >= (freshnessDays - 3)
   daysUntilExpiry: number | null; // freshnessDays - daysSinceLastBuy (null kalau tidak tracked freshness)
   suggestedAction: string | null;
   createdAt: string;
@@ -88,12 +87,11 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
   const lastBuyDate = rm.lastBuyDate;
   const freshnessDays = rm.freshnessDays;
 
-  const isLowStock =
-    rm.isTracked && minStock !== null && stockQty <= minStock;
+  const isLowStock = minStock !== null && stockQty <= minStock;
 
   let isNearExpiry = false;
   let daysUntilExpiry: number | null = null;
-  if (rm.isTracked && freshnessDays !== null && lastBuyDate !== null) {
+  if (freshnessDays !== null && lastBuyDate !== null) {
     const daysSinceBuy = daysBetween(lastBuyDate, new Date());
     daysUntilExpiry = freshnessDays - daysSinceBuy;
     isNearExpiry = daysUntilExpiry <= 3;
@@ -117,7 +115,6 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
       opnameMode: rm.unit.opnameMode,
     },
     category: rm.category,
-    isTracked: rm.isTracked,
     stockQty,
     minStock,
     unitPrice: rm.unitPrice ? rm.unitPrice.toNumber() : null,
@@ -139,7 +136,6 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
 export async function listRawMaterials(query: ListRawMaterialsQuery): Promise<RawMaterialView[]> {
   const where: Prisma.RawMaterialWhereInput = {};
   if (query.category) where.category = query.category;
-  if (query.isTracked !== undefined) where.isTracked = query.isTracked;
 
   const rms = await prisma.rawMaterial.findMany({
     where,
@@ -215,7 +211,6 @@ export async function createRawMaterial(input: CreateRawMaterialInput): Promise<
       name: input.name,
       unitId: input.unitId,
       category: input.category,
-      isTracked: input.isTracked,
       stockQty: new Prisma.Decimal(input.stockQty),
       minStock: input.minStock ?? null,
       unitPrice:
@@ -245,7 +240,6 @@ export async function updateRawMaterial(
     const data: Prisma.RawMaterialUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.category !== undefined) data.category = input.category;
-    if (input.isTracked !== undefined) data.isTracked = input.isTracked;
     if (input.minStock !== undefined) data.minStock = input.minStock;
     if (input.unitPrice !== undefined) {
       data.unitPrice = input.unitPrice === null ? null : new Prisma.Decimal(input.unitPrice);
