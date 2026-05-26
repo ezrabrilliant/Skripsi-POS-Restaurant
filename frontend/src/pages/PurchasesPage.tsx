@@ -1,6 +1,17 @@
-// PurchasesPage - REV 2.3 owner+kasir. List belanja pasar + create dengan
-// vendor picker (optional) + multiple items. Auto-effect ke raw_materials di
-// backend (stockQty + unitPrice + lastBuyDate untuk tracked items).
+// PurchasesPage - REV 2.3 owner+kasir; REV 2.5 bifurcate per opnameMode.
+//
+// List belanja pasar + create dengan vendor picker (optional) + multiple items.
+// Auto-effect ke raw_materials di backend (stockQty + unitPrice + lastBuyDate
+// untuk tracked items).
+//
+// REV 2.5 bifurcation:
+// - exact mode (kg, liter, pcs): qty + unitPrice wajib, subtotal auto = qty*unitPrice
+// - scale_0_5 mode (sachet, sdt, "secukupnya"): subtotal manual + note recommended
+//   ("1 karung 50kg"), qty/unitPrice null. Server validate via superRefine.
+//
+// Quick-add: tombol "Bumbu Dasar (N)" spawn preset rows untuk semua raw materials
+// kategori bumbuDasar sekaligus. Kasir tinggal isi qty/harga, hapus yang ngga
+// dibeli.
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,6 +36,60 @@ import {
   type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
+import QuickAddBumbuDasar from '@/components/QuickAddBumbuDasar'
+import type { OpnameMode, RawMaterialView } from '@/types'
+
+/** REV 2.5: form row state - nullable qty/unitPrice + note + opnameMode
+ * bifurcation. Subtotal manual untuk scale items, auto-compute untuk exact. */
+interface PurchaseItemFormRow {
+  rawMaterialId: number | null
+  rawMaterialName: string | null
+  unitLabel: string | null
+  opnameMode: OpnameMode | null
+  isTracked: boolean
+  qty: number | ''
+  unitPrice: number | ''
+  subtotal: number | ''
+  note: string
+}
+
+function emptyRow(): PurchaseItemFormRow {
+  return {
+    rawMaterialId: null,
+    rawMaterialName: null,
+    unitLabel: null,
+    opnameMode: null,
+    isTracked: false,
+    qty: '',
+    unitPrice: '',
+    subtotal: '',
+    note: '',
+  }
+}
+
+function rowFromRawMaterial(rm: RawMaterialView): PurchaseItemFormRow {
+  return {
+    rawMaterialId: rm.id,
+    rawMaterialName: rm.name,
+    unitLabel: rm.unit.label,
+    opnameMode: rm.unit.opnameMode,
+    isTracked: rm.isTracked,
+    qty: '',
+    unitPrice: '',
+    subtotal: '',
+    note: '',
+  }
+}
+
+function computeRowSubtotal(row: PurchaseItemFormRow): number {
+  if (row.opnameMode === 'scale_0_5') {
+    return typeof row.subtotal === 'number' ? row.subtotal : 0
+  }
+  // exact (atau belum dipilih) → qty * unitPrice
+  const qty = typeof row.qty === 'number' ? row.qty : 0
+  const price = typeof row.unitPrice === 'number' ? row.unitPrice : 0
+  return qty * price
+}
 
 export default function PurchasesPage() {
   const qc = useQueryClient()
@@ -104,28 +169,47 @@ export default function PurchasesPage() {
                   </div>
                 </div>
                 <ul className="text-body-sm space-y-1 mt-2 pt-2 border-t border-neutral-100">
-                  {p.items.map((it) => (
-                    <li
-                      key={it.id}
-                      className="flex justify-between text-neutral-800 gap-2 tabular-nums"
-                    >
-                      <span className="min-w-0">
-                        <span className="font-medium">{it.rawMaterialName}</span>
-                        <span className="text-neutral-500">
-                          {' '}
-                          · {it.qty} {it.rawMaterialUnit} @ {formatCurrency(it.unitPrice)}
+                  {p.items.map((it) => {
+                    const isScale = it.rawMaterialOpnameMode === 'scale_0_5'
+                    const hasQtyPrice = it.qty !== null && it.unitPrice !== null
+                    return (
+                      <li
+                        key={it.id}
+                        className="flex justify-between text-neutral-800 gap-2 tabular-nums"
+                      >
+                        <span className="min-w-0">
+                          <span className="font-medium">{it.rawMaterialName}</span>
+                          {hasQtyPrice ? (
+                            <span className="text-neutral-500">
+                              {' '}· {it.qty} {it.rawMaterialUnit} @ {formatCurrency(it.unitPrice ?? 0)}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-500">
+                              {' '}· skala {it.rawMaterialUnit}
+                            </span>
+                          )}
+                          {it.note && (
+                            <span className="text-caption text-neutral-500 italic">
+                              {' '}({it.note})
+                            </span>
+                          )}
+                          {isScale && (
+                            <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
+                              skala
+                            </Badge>
+                          )}
+                          {!it.isTracked && (
+                            <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
+                              log-only
+                            </Badge>
+                          )}
                         </span>
-                        {!it.isTracked && (
-                          <Badge tone="neutral" variant="outline" size="sm" className="ml-2">
-                            log-only
-                          </Badge>
-                        )}
-                      </span>
-                      <span className="font-medium text-neutral-900 shrink-0">
-                        {formatCurrency(it.subtotal)}
-                      </span>
-                    </li>
-                  ))}
+                        <span className="font-medium text-neutral-900 shrink-0">
+                          {formatCurrency(it.subtotal)}
+                        </span>
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             ))}
@@ -159,7 +243,7 @@ function CreatePurchaseModal({
   const [date, setDate] = useState(today)
   const [vendorId, setVendorId] = useState<number | null>(null)
   const [note, setNote] = useState('')
-  const [items, setItems] = useState<CreatePurchaseItem[]>([])
+  const [items, setItems] = useState<PurchaseItemFormRow[]>([])
 
   const { data: vendors = [] } = useQuery({
     queryKey: ['vendors'],
@@ -180,34 +264,98 @@ function CreatePurchaseModal({
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const addItem = () => {
+  const addEmptyItem = () => {
     if (rawMaterials.length === 0) {
       toast.error('Tidak ada raw material. Owner harus tambah master raw material dulu.')
       return
     }
-    setItems([...items, { rawMaterialId: rawMaterials[0]!.id, qty: 1, unitPrice: 0 }])
+    setItems((prev) => [...prev, emptyRow()])
   }
 
-  const updateItem = (idx: number, patch: Partial<CreatePurchaseItem>) => {
-    setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  const updateItem = (idx: number, patch: Partial<PurchaseItemFormRow>) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  const handlePickRawMaterial = (idx: number, rawMaterialId: number) => {
+    const rm = rawMaterials.find((r) => r.id === rawMaterialId)
+    if (!rm) return
+    updateItem(idx, {
+      rawMaterialId: rm.id,
+      rawMaterialName: rm.name,
+      unitLabel: rm.unit.label,
+      opnameMode: rm.unit.opnameMode,
+      isTracked: rm.isTracked,
+      // Reset numeric fields kalau opnameMode berubah (tidak bisa cross-mode).
+      qty: '',
+      unitPrice: '',
+      subtotal: '',
+    })
   }
 
   const removeItem = (idx: number) => {
-    setItems(items.filter((_, i) => i !== idx))
+    setItems((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  const totalAmount = items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
+  const handleQuickAddBumbuDasar = (rms: RawMaterialView[]) => {
+    const existingIds = new Set(items.map((it) => it.rawMaterialId).filter((id): id is number => id !== null))
+    const newRows = rms
+      .filter((rm) => !existingIds.has(rm.id))
+      .map((rm) => rowFromRawMaterial(rm))
+    if (newRows.length === 0) return
+    setItems((prev) => [...prev, ...newRows])
+  }
+
+  const totalAmount = items.reduce((s, it) => s + computeRowSubtotal(it), 0)
 
   const handleSubmit = () => {
     if (items.length === 0) {
       toast.error('Tambah minimal 1 item')
       return
     }
+    // Validate per row sesuai opnameMode + map ke payload.
+    const payloadItems: CreatePurchaseItem[] = []
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]!
+      if (it.rawMaterialId == null) {
+        toast.error(`Item #${i + 1}: pilih bahan dulu`)
+        return
+      }
+      if (it.opnameMode === 'scale_0_5') {
+        // Scale: subtotal wajib, qty/unitPrice null, note recommended.
+        if (typeof it.subtotal !== 'number' || it.subtotal <= 0) {
+          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi subtotal (skala)`)
+          return
+        }
+        payloadItems.push({
+          rawMaterialId: it.rawMaterialId,
+          qty: null,
+          unitPrice: null,
+          subtotal: it.subtotal,
+          note: it.note.trim() || null,
+        })
+      } else {
+        // Exact (default): qty + unitPrice wajib, subtotal server compute.
+        if (typeof it.qty !== 'number' || it.qty <= 0) {
+          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi qty`)
+          return
+        }
+        if (typeof it.unitPrice !== 'number' || it.unitPrice <= 0) {
+          toast.error(`Item #${i + 1} (${it.rawMaterialName}): isi harga unit`)
+          return
+        }
+        payloadItems.push({
+          rawMaterialId: it.rawMaterialId,
+          qty: it.qty,
+          unitPrice: it.unitPrice,
+          note: it.note.trim() || null,
+        })
+      }
+    }
     create.mutate({
       date,
       vendorId: vendorId ?? null,
       note: note.trim() || null,
-      items,
+      items: payloadItems,
     })
   }
 
@@ -219,15 +367,19 @@ function CreatePurchaseModal({
   const rmOptions: ComboboxOption[] = rawMaterials.map((r) => ({
     value: String(r.id),
     label: r.name,
-    helper: r.unit,
+    helper: `${r.unit.label} · ${r.unit.opnameMode === 'scale_0_5' ? 'skala' : 'eksak'}`,
   }))
+
+  const usedRmIds = items
+    .map((it) => it.rawMaterialId)
+    .filter((id): id is number => id !== null)
 
   return (
     <Dialog
       open
       onOpenChange={(o) => !o && onClose()}
       title="Catat Belanja"
-      description="Item dengan tracked=true akan otomatis menambah stok di raw_materials."
+      description="Item dengan tracked=true akan otomatis menambah stok di raw_materials. Item satuan skala (sachet, sdt) cukup catat total Rupiah + catatan."
       size="xl"
       footer={
         <div className="w-full flex items-center justify-between gap-3">
@@ -278,73 +430,52 @@ function CreatePurchaseModal({
         />
 
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <label className="text-label text-neutral-700">Items</label>
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={addItem}
-            >
-              Tambah item
-            </Button>
+            <div className="flex items-center gap-2">
+              <QuickAddBumbuDasar
+                onAdd={handleQuickAddBumbuDasar}
+                excludeIds={usedRmIds}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={addEmptyItem}
+              >
+                Tambah item
+              </Button>
+            </div>
           </div>
           {items.length === 0 ? (
             <EmptyState
               title="Belum ada item"
-              description="Klik 'Tambah item' di atas untuk menambah baris."
+              description="Klik 'Tambah item' atau 'Bumbu Dasar' di atas untuk menambah baris."
               compact
             />
           ) : (
             <div className="space-y-2">
               {items.map((it, idx) => {
-                const rm = rawMaterials.find((r) => r.id === it.rawMaterialId)
-                const subtotal = it.qty * it.unitPrice
+                const isScale = it.opnameMode === 'scale_0_5'
+                const subtotalAuto = computeRowSubtotal(it)
                 return (
                   <div
                     key={idx}
                     className="bg-neutral-50/80 border border-neutral-200/60 rounded-lg p-2.5 space-y-2"
                   >
+                    {/* Row 1: bahan picker + delete */}
                     <div className="grid grid-cols-12 gap-2 items-end">
                       <Combobox
-                        label="Bahan"
+                        label={`Bahan item ${idx + 1}`}
                         hideLabel
-                        value={String(it.rawMaterialId)}
-                        onValueChange={(v) => updateItem(idx, { rawMaterialId: Number(v) })}
+                        value={it.rawMaterialId !== null ? String(it.rawMaterialId) : ''}
+                        onValueChange={(v) => v && handlePickRawMaterial(idx, Number(v))}
                         options={rmOptions}
                         placeholder="Pilih bahan..."
                         searchPlaceholder="Cari bahan..."
                         emptyText="Bahan tidak ditemukan"
-                        containerClassName="col-span-12 sm:col-span-5"
+                        containerClassName="col-span-11"
                       />
-                      <Input
-                        label={`Qty item ${idx + 1}`}
-                        hideLabel
-                        type="number"
-                        inputMode="decimal"
-                        value={it.qty || ''}
-                        onChange={(e) => updateItem(idx, { qty: Number(e.target.value) || 0 })}
-                        placeholder="qty"
-                        min={0}
-                        step={0.01}
-                        containerClassName="col-span-3 sm:col-span-2"
-                        className="text-right tabular-nums"
-                      />
-                      <Input
-                        label={`Harga unit item ${idx + 1}`}
-                        hideLabel
-                        type="number"
-                        inputMode="numeric"
-                        value={it.unitPrice || ''}
-                        onChange={(e) => updateItem(idx, { unitPrice: Number(e.target.value) || 0 })}
-                        placeholder="harga/unit"
-                        min={0}
-                        containerClassName="col-span-5 sm:col-span-3"
-                        className="text-right tabular-nums"
-                      />
-                      <div className={cn('col-span-3 sm:col-span-1 text-right text-body-sm font-medium text-neutral-900 tabular-nums')}>
-                        {subtotal > 0 ? formatCurrency(subtotal).replace('Rp', '').trim() : '-'}
-                      </div>
                       <div className="col-span-1 flex justify-end">
                         <IconButton
                           label="Hapus item"
@@ -356,10 +487,116 @@ function CreatePurchaseModal({
                         />
                       </div>
                     </div>
-                    {rm && !rm.isTracked && (
-                      <p className="text-caption text-neutral-500 italic">
-                        Item ini log-only - stok tidak ditrack di sistem.
-                      </p>
+
+                    {/* Row 2: bifurcate per opnameMode */}
+                    {it.rawMaterialId !== null && (
+                      <>
+                        {isScale ? (
+                          <div className="grid grid-cols-12 gap-2 items-end">
+                            <Input
+                              label={`Subtotal item ${idx + 1}`}
+                              hideLabel
+                              type="number"
+                              inputMode="numeric"
+                              value={it.subtotal === '' ? '' : it.subtotal}
+                              onChange={(e) =>
+                                updateItem(idx, {
+                                  subtotal: e.target.value === '' ? '' : Number(e.target.value),
+                                })
+                              }
+                              placeholder="Total Rp"
+                              min={0}
+                              containerClassName="col-span-12 sm:col-span-4"
+                              className="text-right tabular-nums"
+                            />
+                            <Input
+                              label={`Catatan item ${idx + 1}`}
+                              hideLabel
+                              type="text"
+                              value={it.note}
+                              onChange={(e) => updateItem(idx, { note: e.target.value })}
+                              placeholder='Mis. "1 karung 50kg" / "5 sachet 250g"'
+                              containerClassName="col-span-12 sm:col-span-7"
+                            />
+                            <div className="col-span-12 sm:col-span-1 text-right text-body-sm font-medium text-neutral-900 tabular-nums">
+                              <Badge tone="neutral" variant="outline" size="sm">skala</Badge>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-12 gap-2 items-end">
+                            <Input
+                              label={`Qty item ${idx + 1}`}
+                              hideLabel
+                              type="number"
+                              inputMode="decimal"
+                              value={it.qty === '' ? '' : it.qty}
+                              onChange={(e) =>
+                                updateItem(idx, {
+                                  qty: e.target.value === '' ? '' : Number(e.target.value),
+                                })
+                              }
+                              placeholder={it.unitLabel ? `qty (${it.unitLabel})` : 'qty'}
+                              min={0}
+                              step={0.01}
+                              containerClassName="col-span-4 sm:col-span-3"
+                              className="text-right tabular-nums"
+                            />
+                            <Input
+                              label={`Harga unit item ${idx + 1}`}
+                              hideLabel
+                              type="number"
+                              inputMode="numeric"
+                              value={it.unitPrice === '' ? '' : it.unitPrice}
+                              onChange={(e) =>
+                                updateItem(idx, {
+                                  unitPrice: e.target.value === '' ? '' : Number(e.target.value),
+                                })
+                              }
+                              placeholder="harga/unit"
+                              min={0}
+                              containerClassName="col-span-4 sm:col-span-3"
+                              className="text-right tabular-nums"
+                            />
+                            <Input
+                              label={`Catatan item ${idx + 1}`}
+                              hideLabel
+                              type="text"
+                              value={it.note}
+                              onChange={(e) => updateItem(idx, { note: e.target.value })}
+                              placeholder="Catatan (opsional)"
+                              containerClassName="col-span-12 sm:col-span-4"
+                            />
+                            <div
+                              className={cn(
+                                'col-span-4 sm:col-span-2 text-right text-body-sm font-medium text-neutral-900 tabular-nums',
+                              )}
+                            >
+                              {subtotalAuto > 0
+                                ? formatCurrency(subtotalAuto).replace('Rp', '').trim()
+                                : '-'}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Helper labels */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {it.unitLabel && (
+                            <span className="text-caption text-neutral-500">
+                              Satuan: <strong>{it.unitLabel}</strong>
+                            </span>
+                          )}
+                          {isScale && (
+                            <span className="text-caption text-neutral-500 italic">
+                              Cukup catat total Rp + note bentuk fisik (mis. "1 karung 50kg").
+                            </span>
+                          )}
+                          {!it.isTracked && (
+                            <span className="text-caption text-neutral-500 italic">
+                              Item log-only - stok tidak ditrack di sistem.
+                            </span>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 )
