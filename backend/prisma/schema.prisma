@@ -1,15 +1,21 @@
 // Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko (REV 2.5).
 // Sumber kebenaran alur bisnis: docs/operasional-resto.md REV 2.3 (REV 2.5 bump pending)
 // Sumber struktur data: docs/knowledge/ERD.md
-// Spec implementasi REV 2.5: docs/superpowers/specs/2026-05-26-split-tender-combine-design.md
+// Spec implementasi REV 2.5 split tender: docs/superpowers/specs/2026-05-26-split-tender-combine-design.md
+// Spec implementasi REV 2.5 raw materials redesign: docs/superpowers/specs/2026-05-26-stok-raw-purchasing-redesign-design.md
 //
-// 15 entitas, 21 relasi. Primary key memakai auto-increment integer (INT MySQL),
+// 16 entitas, 22 relasi. Primary key memakai auto-increment integer (INT MySQL),
 // kecuali PortionStock yang PK-nya menu_id (1:1 dengan Menu).
 //
 // REV 2.5 (2026-05-26): tambah TransactionPayment table untuk support multi-method
 // per transaction (Split Tender). Drop Transaction.paymentMethod + paymentBank
 // (single field obsolete), drop TransactionItem.partyId (split bill multi-party drop).
 // Settlement & dashboard byMethod query refactor pakai groupBy TransactionPayment.
+//
+// REV 2.5 raw materials redesign (2026-05-26): tambah master Unit dengan opname_mode
+// enum (exact vs scale_0_5). RawMaterial.unit varchar diganti unitId FK. PurchaseItem
+// qty + unit_price jadi nullable + tambah note untuk support scale_0_5 items (purchase
+// HANYA log expense, tidak update stock_qty).
 
 generator client {
   provider = "prisma-client-js"
@@ -120,8 +126,36 @@ enum BillCategory {
   sewa
 }
 
+/// REV 2.5 (raw materials redesign): Mode opname per satuan.
+/// - exact: stock_qty integer/decimal dalam unit, purchase auto stock_qty += qty
+/// - scale_0_5: stock_qty 0..5 (subjective fullness), purchase HANYA log expense
+enum OpnameMode {
+  exact
+  scale_0_5
+}
+
+/// REV 2.5 BARU: Master satuan untuk raw materials. Dropdown source di form
+/// add/edit raw material. opname_mode menentukan UI + behavior:
+/// - exact mode: opname input angka, purchase auto stock_qty += qty
+/// - scale_0_5 mode: opname segmented 0..5, purchase HANYA log expense
+///
+/// Pre-seeded di seed.ts: kg, gram, liter, butir, balok, karung, ikat, batang,
+/// pcs (semua exact) + "skala 0-5" (scale_0_5). Owner dapat add unit baru
+/// via dropdown modal di form raw material.
+model Unit {
+  id         Int        @id @default(autoincrement())
+  label      String     @unique @db.VarChar(50)
+  opnameMode OpnameMode @map("opname_mode")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  rawMaterials RawMaterial[]
+
+  @@map("units")
+}
+
 // ============================================================
-// ENTITAS UTAMA (14 entitas REV 2.2)
+// ENTITAS UTAMA (16 entitas REV 2.5)
 // ============================================================
 
 /// 1. Pengguna sistem: owner, cashier, waiter. Login via (nama, PIN 6 digit).
@@ -236,8 +270,10 @@ model PortionMovement {
 model RawMaterial {
   id            Int                 @id @default(autoincrement())
   name          String              @db.VarChar(100)
-  /// Satuan ukur bebas: ikat, karung, balok, butir, gram, liter, skala, pcs
-  unit          String              @db.VarChar(20)
+  /// REV 2.5: FK ke master Unit. Opname behavior (exact vs scale_0_5) ditentukan
+  /// dari unit.opname_mode, bukan disimpan di sini.
+  unitId        Int                 @map("unit_id")
+  unit          Unit                @relation(fields: [unitId], references: [id])
   category      RawMaterialCategory
   isTracked     Boolean             @default(true) @map("is_tracked")
   stockQty      Decimal             @default(0) @map("stock_qty") @db.Decimal(10, 2)
@@ -490,9 +526,13 @@ model PurchaseItem {
   id            Int       @id @default(autoincrement())
   purchaseId    Int       @map("purchase_id")
   rawMaterialId Int       @map("raw_material_id")
-  qty           Decimal   @db.Decimal(10, 2)
-  unitPrice     Decimal   @map("unit_price") @db.Decimal(10, 2)
+  /// REV 2.5: nullable untuk scale_0_5 items (qty tidak relevan, hanya log expense).
+  qty           Decimal?  @db.Decimal(10, 2)
+  /// REV 2.5: nullable untuk scale_0_5 items.
+  unitPrice     Decimal?  @map("unit_price") @db.Decimal(10, 2)
   subtotal      Decimal   @db.Decimal(12, 2)
+  /// REV 2.5 BARU: catatan opsional per item (mis. "beli sekarung Cabai 2kg").
+  note          String?   @db.VarChar(255)
   /// Opsional, untuk perishable.
   expiredDate   DateTime? @map("expired_date") @db.Date
   createdAt     DateTime  @default(now()) @map("created_at")

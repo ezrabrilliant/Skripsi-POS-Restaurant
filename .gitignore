@@ -97,3 +97,4 @@ docs/~$*.docx
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+backend/backups/
