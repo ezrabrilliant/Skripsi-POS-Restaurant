@@ -18,7 +18,8 @@ export interface ListRawMaterialsQuery {
 
 export interface CreateRawMaterialPayload {
   name: string
-  unit: string
+  /** REV 2.5: unitId FK ke master `units` (sebelumnya `unit: string` bebas). */
+  unitId: number
   category: RawMaterialCategory
   isTracked: boolean
   stockQty?: number
@@ -27,7 +28,12 @@ export interface CreateRawMaterialPayload {
   freshnessDays?: number | null
 }
 
-export type UpdateRawMaterialPayload = Partial<Omit<CreateRawMaterialPayload, 'stockQty'>>
+export type UpdateRawMaterialPayload = Partial<Omit<CreateRawMaterialPayload, 'stockQty'>> & {
+  /** REV 2.5: wajib dikirim bersama unitId saat ganti satuan dan stockQty > 0.
+   * Pass number untuk konversi stok ke unit baru, atau null untuk reset ke 0.
+   * Backend reject kalau dikirim tanpa unitId. */
+  newStockQty?: number | null
+}
 
 export interface OpnameRawMaterialItem {
   rawMaterialId: number

@@ -4,10 +4,16 @@
 import api from '@/lib/api'
 import type { ApiResponse, Purchase } from '@/types'
 
+/** REV 2.5: bifurcate per unit.opnameMode.
+ *  - exact mode:    qty + unitPrice wajib (subtotal auto = qty * unitPrice di server)
+ *  - scale_0_5 mode: subtotal wajib, qty + unitPrice opsional, note recommended
+ * Server validate via superRefine: minimal salah satu pair lengkap. */
 export interface CreatePurchaseItem {
   rawMaterialId: number
-  qty: number
-  unitPrice: number
+  qty?: number | null
+  unitPrice?: number | null
+  subtotal?: number | null
+  note?: string | null
   expiredDate?: string | null
 }
 

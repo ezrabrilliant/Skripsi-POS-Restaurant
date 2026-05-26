@@ -298,6 +298,23 @@ export interface PortionStockDetail extends PortionStockView {
 }
 
 // ============================================================
+// Unit master (REV 2.5)
+// ============================================================
+
+/** REV 2.5: opname mode menentukan cara hitung stok bahan baku.
+ * - exact: numerik akurat (kg, liter, pcs, gram, dll)
+ * - scale_0_5: skala subjektif 0..5 (sachet, sdt, "secukupnya", dll - tidak praktis ditimbang) */
+export type OpnameMode = 'exact' | 'scale_0_5'
+
+export interface Unit {
+  id: number
+  label: string
+  opnameMode: OpnameMode
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================
 // Raw materials (REV 2.2)
 // ============================================================
 
@@ -319,7 +336,13 @@ export const RAW_MATERIAL_CATEGORY_LABEL: Record<RawMaterialCategory, string> = 
 export interface RawMaterialView {
   id: number
   name: string
-  unit: string
+  /** REV 2.5: unitId FK + populated unit object (opnameMode determines opname UI). */
+  unitId: number
+  unit: {
+    id: number
+    label: string
+    opnameMode: OpnameMode
+  }
   category: RawMaterialCategory
   isTracked: boolean
   stockQty: number
@@ -374,10 +397,15 @@ export interface PurchaseItemView {
   rawMaterialId: number
   rawMaterialName: string
   rawMaterialUnit: string
+  /** REV 2.5: opname mode dari unit raw material — drive UI render (exact = qty+price,
+   * scale_0_5 = subtotal saja + note). */
+  rawMaterialOpnameMode: OpnameMode
   isTracked: boolean
-  qty: number
-  unitPrice: number
+  /** REV 2.5: nullable untuk scale_0_5 mode (kasir hanya catat subtotal + note). */
+  qty: number | null
+  unitPrice: number | null
   subtotal: number
+  note: string | null
   expiredDate: string | null
   createdAt: string
 }
