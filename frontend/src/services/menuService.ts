@@ -60,4 +60,16 @@ export const menuService = {
     const res = await api.post<ApiResponse<{ menu: Menu }>>(`/menus/${id}/reactivate`)
     return res.data.data.menu
   },
+
+  uploadImage: async (file: File, name: string): Promise<{ imageUrl: string }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('name', name)
+    const res = await api.post<ApiResponse<{ imageUrl: string }>>(
+      '/menus/upload-image',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return res.data.data
+  },
 }

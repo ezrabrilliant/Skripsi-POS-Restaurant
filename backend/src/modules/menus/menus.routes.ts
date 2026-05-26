@@ -14,6 +14,7 @@ import {
   handleDeactivate,
   handleReactivate,
 } from './menus.controller';
+import { uploadMiddleware, handleUploadImage } from './menus.upload';
 
 const router = Router();
 
@@ -22,6 +23,13 @@ router.get('/', handleList);
 router.get('/:id', handleDetail);
 
 // Owner-only mutations
+router.post(
+  '/upload-image',
+  authenticate,
+  requireRole(UserRole.owner),
+  uploadMiddleware,
+  handleUploadImage,
+);
 router.post('/', authenticate, requireRole(UserRole.owner), handleCreate);
 router.put('/:id', authenticate, requireRole(UserRole.owner), handleUpdate);
 router.delete('/:id', authenticate, requireRole(UserRole.owner), handleDeactivate);
