@@ -37,14 +37,32 @@ const STOCK_TYPE_MAP: Record<string, StockType> = {
   nonStock: StockType.nonStock,
 };
 
+// REV 2.5: Pre-defined units. Owner bisa add custom unit via UnitDropdown.
+// opnameMode 'exact' = input angka bulat/desimal (kg, gram, dll).
+// opnameMode 'scale_0_5' = pilih skala 0-5 (beras karung yang ngga bisa ditimbang exact).
+const unitSeeds: { label: string; opnameMode: 'exact' | 'scale_0_5' }[] = [
+  { label: 'kg', opnameMode: 'exact' },
+  { label: 'gram', opnameMode: 'exact' },
+  { label: 'liter', opnameMode: 'exact' },
+  { label: 'butir', opnameMode: 'exact' },
+  { label: 'balok', opnameMode: 'exact' },
+  { label: 'karung', opnameMode: 'exact' },
+  { label: 'ikat', opnameMode: 'exact' },
+  { label: 'batang', opnameMode: 'exact' },
+  { label: 'pcs', opnameMode: 'exact' },
+  { label: 'skala 0-5', opnameMode: 'scale_0_5' },
+];
+
 // Raw materials awal sesuai tabel di docs/operasional-resto.md REV 2.3 seksi
 // "Raw Materials (Stok Bahan Baku) dan Reminder" + "Contoh raw materials (seed awal)".
 //
 // is_tracked=true  : muncul di reminder (Beras, Kangkung, Petai, Tahu, Tempe, Telur)
 // is_tracked=false : hanya log pengeluaran (Cabai, Bawang, Kemiri, Minyak, Daun Jeruk, Sereh)
+//
+// REV 2.5: field `unit` (string) diganti `unitLabel` yang di-resolve ke unitId saat seed.
 interface RawMaterialSeed {
   name: string;
-  unit: string;
+  unitLabel: string;
   category: RawMaterialCategory;
   isTracked: boolean;
   minStock?: number;
@@ -53,21 +71,21 @@ interface RawMaterialSeed {
 
 const rawMaterials: RawMaterialSeed[] = [
   // is_tracked=true (muncul di reminder)
-  { name: 'Beras', unit: 'skala', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 1 },
-  { name: 'Kangkung', unit: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
-  { name: 'Petai', unit: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
-  { name: 'Tahu', unit: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
-  { name: 'Tempe', unit: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
-  { name: 'Telur', unit: 'butir', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 3 },
+  { name: 'Beras', unitLabel: 'skala 0-5', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 1 },
+  { name: 'Kangkung', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
+  { name: 'Petai', unitLabel: 'ikat', category: RawMaterialCategory.bahanSegar, isTracked: true, minStock: 1, freshnessDays: 10 },
+  { name: 'Tahu', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
+  { name: 'Tempe', unitLabel: 'balok', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 2 },
+  { name: 'Telur', unitLabel: 'butir', category: RawMaterialCategory.bahanPokok, isTracked: true, minStock: 3 },
 
   // is_tracked=false (hanya log pengeluaran, tidak monitoring stok)
-  { name: 'Cabai Rawit', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Bawang Merah', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Bawang Putih', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Kemiri', unit: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Daun Jeruk', unit: 'ikat', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Sereh', unit: 'batang', category: RawMaterialCategory.bumbuDasar, isTracked: false },
-  { name: 'Minyak Goreng', unit: 'liter', category: RawMaterialCategory.bahanKering, isTracked: false },
+  { name: 'Cabai Rawit', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Bawang Merah', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Bawang Putih', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Kemiri', unitLabel: 'gram', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Daun Jeruk', unitLabel: 'ikat', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Sereh', unitLabel: 'batang', category: RawMaterialCategory.bumbuDasar, isTracked: false },
+  { name: 'Minyak Goreng', unitLabel: 'liter', category: RawMaterialCategory.bahanKering, isTracked: false },
 ];
 
 // Vendor awal sebagai contoh (opsional, bisa ditambah inline saat input purchase).
@@ -130,18 +148,40 @@ async function seedMenus() {
   console.log(`  ✓ ${portionCount} PortionStock dibuat (qty awal 0)`);
 }
 
-async function seedRawMaterials() {
-  console.log('Menanam RawMaterial awal (REV 2.2)...');
+async function seedUnits(): Promise<Map<string, number>> {
+  console.log('Menanam Unit awal (REV 2.5)...');
+  const unitByLabel = new Map<string, number>();
+  for (const u of unitSeeds) {
+    const created = await prisma.unit.upsert({
+      where: { label: u.label },
+      update: {},
+      create: u,
+    });
+    unitByLabel.set(created.label, created.id);
+  }
+  console.log(`  ✓ Seeded ${unitSeeds.length} units`);
+  return unitByLabel;
+}
+
+async function seedRawMaterials(unitByLabel: Map<string, number>) {
+  console.log('Menanam RawMaterial awal (REV 2.5)...');
   for (const rm of rawMaterials) {
     const existing = await prisma.rawMaterial.findFirst({ where: { name: rm.name } });
     if (existing) {
       console.log(`  · ${rm.name} sudah ada, dilewati`);
       continue;
     }
+    const unitId = unitByLabel.get(rm.unitLabel);
+    if (!unitId) {
+      throw new Error(
+        `Unit "${rm.unitLabel}" untuk raw material "${rm.name}" tidak ditemukan di unitSeeds. ` +
+          `Pastikan label ada di array unitSeeds atau tambahkan dulu.`,
+      );
+    }
     await prisma.rawMaterial.create({
       data: {
         name: rm.name,
-        unit: rm.unit,
+        unitId,
         category: rm.category,
         isTracked: rm.isTracked,
         stockQty: 0,
@@ -150,7 +190,7 @@ async function seedRawMaterials() {
       },
     });
     const trackMark = rm.isTracked ? 'tracked' : 'log-only';
-    console.log(`  ✓ ${rm.name} (${rm.unit}, ${rm.category}, ${trackMark})`);
+    console.log(`  ✓ ${rm.name} (${rm.unitLabel}, ${rm.category}, ${trackMark})`);
   }
 }
 
@@ -172,9 +212,10 @@ async function seedVendors() {
 async function main() {
   await seedUsers();
   await seedMenus();
-  await seedRawMaterials();
+  const unitByLabel = await seedUnits();
+  await seedRawMaterials(unitByLabel);
   await seedVendors();
-  console.log('\nSeed selesai (REV 2.2). Login default:');
+  console.log('\nSeed selesai (REV 2.5). Login default:');
   console.log('  Owner    → nama "Owner", PIN 123456');
   console.log('  Kasir    → nama Jason/Bryant/Chen Hong, PIN 111111');
   console.log('  Waiter   → nama Amel/Yanti, PIN 222222');
