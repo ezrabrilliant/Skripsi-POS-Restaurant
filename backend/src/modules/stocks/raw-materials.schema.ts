@@ -3,8 +3,10 @@
 //   - is_tracked=false -> hanya log pengeluaran, tidak monitoring stok
 //   - unitId FK ke master `units` (opname_mode ditentukan oleh unit, bukan disimpan di sini)
 //   - category enum 5 nilai untuk grouping di laporan owner
-// NOTE: schema ini partial-updated di Task 5 (tambah unitId + newStockQty).
-//       Task 6 akan polish lebih lanjut (mis. min_stock validation per opname_mode via refine).
+//
+// Validasi min_stock per opname_mode (scale_0_5 range 0..5) di-enforce di service
+// layer (assertScale05 helper), bukan di schema — karena perlu lookup unit dari DB.
+// Schema hanya memvalidasi bentuk + cross-field dependency (newStockQty butuh unitId).
 
 import { z } from 'zod';
 import { RawMaterialCategory } from '@prisma/client';
@@ -46,6 +48,10 @@ export const updateRawMaterialSchema = z
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'Minimal satu field harus diisi untuk update',
+  })
+  .refine((data) => data.newStockQty === undefined || data.unitId !== undefined, {
+    message: 'newStockQty hanya boleh dikirim bersama unitId (saat ganti satuan)',
+    path: ['newStockQty'],
   });
 
 export const opnameItemSchema = z.object({
