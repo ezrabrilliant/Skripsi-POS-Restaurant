@@ -28,6 +28,7 @@ import {
   PaymentMethod,
   Prisma,
   PortionMovementReason,
+  ShiftType,
   StockType,
   TransactionStatus,
   UserRole,
@@ -61,6 +62,9 @@ export interface TransactionItemView {
   unitPrice: number;
   subtotal: number;
   subOptionsSelected: Prisma.JsonValue;
+  /// REV 2.4: catatan per item dari waiter/kasir saat input. Mis. "kurang manis"
+  /// atau "Panas"/"Dingin" untuk minuman ambigu suhu.
+  notes: string | null;
   partyId: number | null;
   createdAt: string;
 }
@@ -126,6 +130,7 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
       unitPrice: it.unitPrice.toNumber(),
       subtotal: it.subtotal.toNumber(),
       subOptionsSelected: it.subOptionsSelected,
+      notes: it.notes,
       partyId: it.partyId,
       createdAt: it.createdAt.toISOString(),
     })),
@@ -270,6 +275,8 @@ async function persistItemsAndDecrement(
         subOptionsSelected: r.input.subOptionsSelected
           ? (r.input.subOptionsSelected as Prisma.InputJsonValue)
           : Prisma.JsonNull,
+        // REV 2.4: persist notes kalau ada. null kalau tidak diisi.
+        notes: r.input.notes ?? null,
       },
     });
 
@@ -316,11 +323,14 @@ export async function createTransaction(
   userId: number,
   input: CreateTransactionInput,
 ): Promise<TransactionView> {
-  // REV 2.3 shift-decoupling: auto-resolve shift dari single active shift system-wide.
-  // Frontend tidak lagi kirim shiftId — backend yang resolve. Validasi:
-  //   - 0 active shift  -> 409 (kasir harus buka shift dulu)
-  //   - 2+ active shift -> 409 (overlap, tutup salah satu — rekap fiskal ambigu)
-  //   - 1 active shift  -> attach ke shift itu
+  // REV 2.3 shift-decoupling + REV 2.5 multi-cashier sharing:
+  // Auto-resolve shift dari active shifts system-wide. Frontend tidak kirim shiftId.
+  //   - 0 active           -> 409 (kasir harus buka shift dulu).
+  //   - 1 active           -> attach ke shift itu.
+  //   - 2 active beda tipe -> pagi+malam transition (valid). Resolve via jam
+  //                           server: pagi < 18:00, malam >= 18:00.
+  //   - 2+ active tipe sama-> Anomaly. Shouldn't happen post-REV 2.5 openShift
+  //                           constraint. Defensive 409.
   const activeShifts = await prisma.shift.findMany({
     where: { closedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -331,14 +341,26 @@ export async function createTransaction(
       409,
     );
   }
-  if (activeShifts.length > 1) {
-    const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
-    throw new AppError(
-      `Ada ${activeShifts.length} shift aktif: ${list}. Tutup salah satu dulu — rekap fiskal jadi ambigu kalau dibiarkan.`,
-      409,
-    );
+  let shift: typeof activeShifts[number];
+  if (activeShifts.length === 1) {
+    shift = activeShifts[0]!;
+  } else {
+    const types = new Set(activeShifts.map((s) => s.type));
+    if (types.size === activeShifts.length) {
+      // 2+ beda tipe (mis. pagi + malam transition). Pick via jam server.
+      const hour = new Date().getHours();
+      const targetType = hour >= 18 ? ShiftType.malam : ShiftType.pagi;
+      shift = activeShifts.find((s) => s.type === targetType) ?? activeShifts[0]!;
+    } else {
+      // Anomaly: tipe duplikat.
+      const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
+      throw new AppError(
+        `Anomaly: ada ${activeShifts.length} shift aktif dengan tipe duplikat (${list}). ` +
+        `Hubungi owner untuk audit data.`,
+        409,
+      );
+    }
   }
-  const shift = activeShifts[0]!;
 
   // Validasi order type vs tableNumber
   if (input.orderType === OrderType.dineIn) {
@@ -555,6 +577,33 @@ export async function listTransactions(query: ListTransactionsQuery): Promise<Tr
     where,
     include: transactionInclude,
     orderBy: { createdAt: 'desc' },
+  });
+  return ts.map(toTransactionView);
+}
+
+/// REV 2.4: GET /transactions/table/:tableNumber — fetch semua transaksi di meja
+/// untuk POS view-mode (multi-Pesanan per meja, grouped by Tx).
+///
+/// Implicit filter:
+///   - orderType=dineIn (takeaway tidak punya tableNumber)
+///   - mergedIntoId=null (source yang sudah di-merge tidak ditampilkan ganda — parent saja)
+///
+/// orderBy createdAt ASC supaya Pesanan #1 = paling lama (sesuai display per spec user).
+export async function listTransactionsByTable(
+  tableNumber: number,
+  status?: TransactionStatus,
+): Promise<TransactionView[]> {
+  const where: Prisma.TransactionWhereInput = {
+    tableNumber,
+    orderType: OrderType.dineIn,
+    mergedIntoId: null,
+  };
+  if (status) where.status = status;
+
+  const ts = await prisma.transaction.findMany({
+    where,
+    include: transactionInclude,
+    orderBy: { createdAt: 'asc' },
   });
   return ts.map(toTransactionView);
 }

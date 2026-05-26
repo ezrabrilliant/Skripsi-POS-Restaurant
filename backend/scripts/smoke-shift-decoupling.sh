@@ -162,45 +162,73 @@ else
 fi
 
 # ============================================================
-step "Test 7: Bryant buka shift malam (overlap) -> 201"
+step "Test 7 (REV 2.5): Bryant coba buka shift PAGI (tipe sama, sudah ada Jason) -> 409"
+SHIFT_DUPL=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/shifts/open" \
+  -H "Authorization: Bearer $BRYANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"pagi","openingCash":250000}')
+CODE7=$(echo "$SHIFT_DUPL" | sed 's/.*|HTTP:\([0-9]*\)$/\1/')
+BODY7=$(echo "$SHIFT_DUPL" | sed 's/|HTTP:[0-9]*$//')
+MSG7=$(echo "$BODY7" | jq_field 'console.log(j.message)')
+if [[ "$CODE7" == "409" && "$MSG7" == *"sudah dibuka oleh Jason"* ]]; then
+  pass "409 '$MSG7'"
+else
+  fail "expected 409 'sudah dibuka oleh Jason', got $CODE7 msg='$MSG7'"
+fi
+
+# ============================================================
+step "Test 7b (REV 2.5): Bryant buka shift MALAM (beda tipe, transisi valid) -> 201"
 SHIFT_B=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/shifts/open" \
   -H "Authorization: Bearer $BRYANT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"type":"malam","openingCash":300000}')
-CODE7=$(echo "$SHIFT_B" | sed 's/.*|HTTP:\([0-9]*\)$/\1/')
-BODY7=$(echo "$SHIFT_B" | sed 's/|HTTP:[0-9]*$//')
-BRYANT_SHIFT_ID=$(echo "$BODY7" | jq_field 'console.log(j.data.shift.id)')
-if [[ "$CODE7" == "201" && -n "$BRYANT_SHIFT_ID" ]]; then
-  pass "Bryant shift malam created id=$BRYANT_SHIFT_ID (overlap dengan Jason)"
+CODE7B=$(echo "$SHIFT_B" | sed 's/.*|HTTP:\([0-9]*\)$/\1/')
+BODY7B=$(echo "$SHIFT_B" | sed 's/|HTTP:[0-9]*$//')
+BRYANT_SHIFT_ID=$(echo "$BODY7B" | jq_field 'console.log(j.data.shift.id)')
+if [[ "$CODE7B" == "201" && -n "$BRYANT_SHIFT_ID" ]]; then
+  pass "Bryant shift malam id=$BRYANT_SHIFT_ID (transisi pagi->malam OK, beda tipe)"
 else
-  fail "Bryant buka shift malam expected 201, got $CODE7"
-  echo "$BODY7"
+  fail "Bryant buka shift malam expected 201, got $CODE7B"
+  echo "$BODY7B"
 fi
 
 # ============================================================
-step "Test 8: GET /shifts/active 2 shift -> length=2, message 'Ada 2 shift aktif (overlap...)'"
+step "Test 8: GET /shifts/active 2 shift beda tipe -> length=2, message adaptive"
 R8=$(curl -s "$API/shifts/active" -H "Authorization: Bearer $JASON_TOKEN")
 LEN8=$(echo "$R8" | jq_field 'console.log(j.data.shifts.length)')
 MSG8=$(echo "$R8" | jq_field 'console.log(j.message)')
-if [[ "$LEN8" == "2" && "$MSG8" == *"Ada 2 shift aktif"* ]]; then
+if [[ "$LEN8" == "2" ]]; then
   pass "length=2, message='$MSG8'"
 else
   fail "expected length=2, got length=$LEN8 msg='$MSG8'"
 fi
 
 # ============================================================
-step "Test 9: POST /transactions dengan 2 shift aktif -> 409 'Ada 2 shift aktif'"
+step "Test 9 (REV 2.5): POST /transactions dengan 2 shift beda tipe -> 201 auto-resolve via jam"
 R9=$(curl -s -w "|HTTP:%{http_code}" -X POST "$API/transactions" \
   -H "Authorization: Bearer $JASON_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"orderType\":\"takeaway\",\"items\":[{\"menuId\":$AIR_ID,\"qty\":1}]}")
 CODE9=$(echo "$R9" | sed 's/.*|HTTP:\([0-9]*\)$/\1/')
 BODY9=$(echo "$R9" | sed 's/|HTTP:[0-9]*$//')
-MSG9=$(echo "$BODY9" | jq_field 'console.log(j.message)')
-if [[ "$CODE9" == "409" && "$MSG9" == *"Ada 2 shift aktif"* ]]; then
-  pass "409 '$MSG9'"
+if [[ "$CODE9" == "201" ]]; then
+  # Cek shiftCashierName resolved via jam server.
+  # Jam < 18 -> pagi (Jason). Jam >= 18 -> malam (Bryant).
+  HOUR=$(date +%H)
+  RESOLVED_CASHIER=$(echo "$BODY9" | jq_field 'console.log(j.data.transaction.shiftCashierName)')
+  if [[ "$HOUR" -ge 18 ]]; then
+    EXPECTED="Bryant"
+  else
+    EXPECTED="Jason"
+  fi
+  if [[ "$RESOLVED_CASHIER" == "$EXPECTED" ]]; then
+    pass "201 auto-resolved: jam=$HOUR shiftCashierName=$RESOLVED_CASHIER (expected $EXPECTED)"
+  else
+    fail "auto-resolve mismatch: jam=$HOUR shiftCashierName=$RESOLVED_CASHIER (expected $EXPECTED)"
+  fi
 else
-  fail "expected 409 'Ada 2 shift aktif', got $CODE9 msg='$MSG9'"
+  MSG9=$(echo "$BODY9" | jq_field 'console.log(j.message)')
+  fail "expected 201 auto-resolve, got $CODE9 msg='$MSG9'"
 fi
 
 # ============================================================

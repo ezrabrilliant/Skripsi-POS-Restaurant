@@ -23,19 +23,23 @@ export const handleClose = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // REV 2.3 shift-decoupling: return SEMUA shift aktif system-wide.
-// Frontend POSPage + dashboards yang filter sendiri untuk presentasi per-role.
+// REV 2.5 multi-cashier sharing: 2 shift beda tipe (pagi+malam transition) = valid.
+// Message adaptive: warning anomaly hanya kalau tipe duplikat (post-REV 2.5
+// constraint, shouldn't happen tapi defensive).
 export const handleActive = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw unauthorized();
   const shifts = await shiftsService.getActiveShifts();
-  sendSuccess(
-    res,
-    { shifts },
+  const types = new Set(shifts.map((s) => s.type));
+  const hasDuplicateType = types.size < shifts.length;
+  const message =
     shifts.length === 0
       ? 'Tidak ada shift aktif'
       : shifts.length === 1
         ? 'Satu shift aktif'
-        : `Ada ${shifts.length} shift aktif (overlap, perlu tutup salah satu)`,
-  );
+        : hasDuplicateType
+          ? `Anomaly: ${shifts.length} shift aktif dengan tipe duplikat`
+          : `${shifts.length} shift aktif (transisi normal)`;
+  sendSuccess(res, { shifts }, message);
 });
 
 export const handleDetail = asyncHandler(async (req: Request, res: Response) => {

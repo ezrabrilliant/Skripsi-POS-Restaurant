@@ -66,18 +66,21 @@ function todayDateOnly(): Date {
 export async function openShift(cashierId: number, input: OpenShiftInput): Promise<ShiftView> {
   const today = todayDateOnly();
 
-  // Idempotency: tolak kalau sudah ada shift type sama hari ini untuk kasir ini.
-  const existing = await prisma.shift.findUnique({
-    where: {
-      date_cashierId_type: {
-        date: today,
-        cashierId,
-        type: input.type,
-      },
-    },
+  // REV 2.5 multi-cashier sharing: shift adalah CONTAINER per (tanggal, tipe).
+  // Hanya boleh 1 shift pagi + 1 shift malam per hari, regardless of cashier.
+  // Kasir kedua yang login saat tipe relevan sudah aktif TIDAK perlu buka shift
+  // baru — langsung input order via /pos (Transaction.createdById track audit
+  // "siapa input"; pemilik shift = orang yang pegang cash drawer / modal awal).
+  const existing = await prisma.shift.findFirst({
+    where: { date: today, type: input.type, closedAt: null },
+    include: { cashier: { select: { name: true } } },
   });
   if (existing) {
-    throw new AppError(`Shift ${input.type} hari ini sudah pernah dibuka untuk kasir ini`, 409);
+    throw new AppError(
+      `Shift ${input.type} hari ini sudah dibuka oleh ${existing.cashier.name}. ` +
+      `Tidak perlu buka shift baru — input pesanan langsung ke shift itu.`,
+      409,
+    );
   }
 
   const created = await prisma.shift.create({
