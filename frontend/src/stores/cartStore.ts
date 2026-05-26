@@ -3,7 +3,7 @@
 // orderType, tableNumber jadi nullable (null kalau takeaway).
 //
 // CATATAN HYDRATION: Zustand persist hydrate state lama dari localStorage via
-// Object.assign — kalau key di store baru bentrok dengan persisted value lama
+// Object.assign - kalau key di store baru bentrok dengan persisted value lama
 // (mis. fungsi vs number), value lama akan override. Untuk hindari ini:
 //   1. Computed helpers (subtotal, itemCount) DIEKSPOR sebagai standalone util,
 //      bukan property di state. Komponen pakai `cartSubtotal(useCartStore())`.
@@ -41,6 +41,10 @@ interface CartState {
 
   // Reset
   clearCart: () => void
+  /// REV 2.4: hanya kosongkan items, tableNumber + orderType dipertahankan.
+  /// Dipakai POSPage saat user pindah meja - clear residue input tanpa reset
+  /// pilihan meja yang baru saja di-set user.
+  clearItems: () => void
 }
 
 function makeCartItem(input: {
@@ -128,6 +132,8 @@ export const useCartStore = create<CartState>()(
       setTableNumber: (n) => set({ tableNumber: n }),
 
       clearCart: () => set({ items: [], orderType: 'dineIn', tableNumber: null }),
+
+      clearItems: () => set({ items: [] }),
     }),
     {
       name: 'pos-cart-v2',
@@ -141,7 +147,7 @@ export const useCartStore = create<CartState>()(
 )
 
 // ============================================================
-// Computed selectors (extracted as standalone util — TIDAK di state karena
+// Computed selectors (extracted as standalone util - TIDAK di state karena
 // hydration persist bisa override function dengan value lama)
 // ============================================================
 

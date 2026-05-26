@@ -1,4 +1,4 @@
-// RawMaterialsTab — tab kedua di StockPage.
+// RawMaterialsTab - tab kedua di StockPage.
 // REV 2.3 permission: view + opname + mark-habis semua role; CRUD master owner-only.
 
 import { useState, useMemo } from 'react'
@@ -16,10 +16,11 @@ import {
   Skeleton,
   Dialog,
   Input,
-  Select,
+  Checkbox,
+  Combobox,
   DataTable,
   type DataTableColumn,
-  type SelectOption,
+  type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
@@ -32,12 +33,12 @@ const CATEGORIES: RawMaterialCategory[] = [
   'lainnya',
 ]
 
-const CATEGORY_OPTIONS: SelectOption[] = [
+const CATEGORY_OPTIONS: ComboboxOption[] = [
   { value: 'all', label: 'Semua kategori' },
   ...CATEGORIES.map((c) => ({ value: c, label: RAW_MATERIAL_CATEGORY_LABEL[c] })),
 ]
 
-const CATEGORY_FORM_OPTIONS: SelectOption[] = CATEGORIES.map((c) => ({
+const CATEGORY_FORM_OPTIONS: ComboboxOption[] = CATEGORIES.map((c) => ({
   value: c,
   label: RAW_MATERIAL_CATEGORY_LABEL[c],
 }))
@@ -142,7 +143,7 @@ export default function RawMaterialsTab() {
       header: 'Min',
       align: 'right',
       hideMobile: true,
-      cell: (rm) => <span className="text-neutral-500 tabular-nums">{rm.minStock ?? '—'}</span>,
+      cell: (rm) => <span className="text-neutral-500 tabular-nums">{rm.minStock ?? '-'}</span>,
     },
     {
       key: 'status',
@@ -216,13 +217,14 @@ export default function RawMaterialsTab() {
             Tambah Bahan
           </Button>
         )}
-        <div className="ml-auto flex items-center gap-2 min-w-[180px]">
-          <Select
+        <div className="ml-auto flex items-center gap-2 min-w-[200px]">
+          <Combobox
             hideLabel
             label="Filter kategori"
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value as RawMaterialCategory | 'all')}
+            onValueChange={(v) => setFilterCategory(v as RawMaterialCategory | 'all')}
             options={CATEGORY_OPTIONS}
+            searchPlaceholder="Cari kategori..."
             containerClassName="flex-1"
           />
           {reminderCount > 0 && (
@@ -381,24 +383,28 @@ function RmOpnameModal({
         </Button>
       }
     >
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {rawMaterials.map((rm) => (
           <div
             key={rm.id}
-            className="flex items-center gap-3 py-1.5 border-b border-neutral-100 last:border-0"
+            className="flex items-center gap-3 py-2 border-b border-neutral-100 last:border-0"
           >
             <span className="flex-1 truncate text-body-sm text-neutral-800">{rm.name}</span>
             <span className="text-caption text-neutral-500 w-20 text-right tabular-nums">
               sistem {rm.stockQty} {rm.unit}
             </span>
-            <input
+            <Input
+              label={`Qty fisik ${rm.name}`}
+              hideLabel
               type="number"
+              inputMode="decimal"
               min={0}
               step="0.01"
               value={qtyByRm[rm.id] ?? ''}
               onChange={(e) => setQtyByRm((prev) => ({ ...prev, [rm.id]: Number(e.target.value) }))}
-              placeholder="—"
-              className="w-20 px-2 py-1.5 border border-neutral-300 rounded-md text-right text-body-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+              placeholder="-"
+              containerClassName="w-24"
+              className="text-right tabular-nums"
             />
           </div>
         ))}
@@ -486,24 +492,20 @@ function RmFormModal({
             placeholder="kg, ikat, gram"
             required
           />
-          <Select
+          <Combobox
             label="Kategori"
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value as RawMaterialCategory })}
+            onValueChange={(v) => setForm({ ...form, category: v as RawMaterialCategory })}
             options={CATEGORY_FORM_OPTIONS}
+            searchPlaceholder="Cari kategori..."
           />
         </div>
-        <label className="flex items-center gap-2 text-body-sm cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={form.isTracked}
-            onChange={(e) => setForm({ ...form, isTracked: e.target.checked })}
-            className="w-4 h-4 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
-          />
-          <span className="text-neutral-800">
-            Track stok <span className="text-caption text-neutral-500">(update qty saat purchase + reminder)</span>
-          </span>
-        </label>
+        <Checkbox
+          label="Track stok"
+          description="Update qty saat purchase + tampilkan reminder kalau rendah/dekat expired"
+          checked={form.isTracked}
+          onCheckedChange={(c) => setForm({ ...form, isTracked: c })}
+        />
         {form.isTracked && (
           <div className="grid grid-cols-2 gap-3">
             <Input

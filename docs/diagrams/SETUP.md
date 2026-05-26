@@ -1,6 +1,6 @@
-# Claude Desktop + StarUML MCP — Setup Guide (REV 2.3)
+# Claude Desktop + StarUML MCP - Setup Guide (REV 2.3)
 
-> **STATUS (2026-05-24):** Reference dokumen — bukan setup aktif. State terkini:
+> **STATUS (2026-05-24):** Reference dokumen - bukan setup aktif. State terkini:
 > - **ERD (14 entitas REV 2.2) + 11 Activity Diagram REV 2.2** sudah di-build di `Skripsi.mdj` dan tetap valid untuk REV 2.3 (no visual change).
 > - **Use Case Diagram** pending rebuild REV 2.3 untuk update annotation aktor (kasir primary vs waiter fallback).
 > - Pada praktiknya diagram dibangun via Claude Code dengan **`staruml-mcp` HTTP transport** (port 58321/58322/58323), bukan Claude Desktop stdio. Dokumen ini disimpan sebagai catatan setup awal historis.
@@ -10,7 +10,7 @@ Dokumen ini menjelaskan cara setup Claude Desktop untuk build diagram UML skrips
 
 ## Kenapa Awalnya Pakai Claude Desktop?
 
-Claude Code (ekstensi VS Code) pernah punya [bug #45844](https://github.com/anthropics/claude-code/issues/45844): stdio-transport MCP servers terhubung (`✓ Connected`) tapi tools-nya tidak terdaftar sebagai deferred tools — tidak bisa dipanggil oleh model. StarUML MCP Server pakai stdio transport, sehingga terkena bug ini.
+Claude Code (ekstensi VS Code) pernah punya [bug #45844](https://github.com/anthropics/claude-code/issues/45844): stdio-transport MCP servers terhubung (`✓ Connected`) tapi tools-nya tidak terdaftar sebagai deferred tools - tidak bisa dipanggil oleh model. StarUML MCP Server pakai stdio transport, sehingga terkena bug ini.
 
 Claude Desktop (aplikasi chat) **mendukung stdio MCP dengan benar**. Dulu workflow-nya: Claude Code (VS Code) untuk planning + tracking + coding; Claude Desktop hanya untuk fase bikin diagram.
 
@@ -94,7 +94,7 @@ Prompt untuk tiap diagram diberikan 1-per-1 dari Claude Code (sesi VS Code ini).
 2. Anda copy-paste ke Claude Desktop
 3. Claude Desktop panggil StarUML MCP → diagram muncul di StarUML
 4. Anda review di StarUML, revisi text prompt kalau perlu
-5. Save `.mdj` (`File → Save As` — saat ini file diagram skripsi tersimpan di `Skripsi.mdj` di root proyek)
+5. Save `.mdj` (`File → Save As` - saat ini file diagram skripsi tersimpan di `Skripsi.mdj` di root proyek)
 6. Lapor balik ke Claude Code: "S.N done" → saya update memory + kasih prompt S.N+1
 
 ## Workflow Aktual Saat Ini (HTTP Transport via Claude Code)
@@ -123,7 +123,7 @@ Saat ini diagram dibangun langsung dari Claude Code tanpa perlu Claude Desktop:
 - Test manual: `curl http://localhost:58321/` harus balas "Hello from StarUML API Server!"
 
 **Diagram generated tapi kosong / error**
-- Prompt terlalu abstrak — tambahkan detail element satu per satu
+- Prompt terlalu abstrak - tambahkan detail element satu per satu
 - Minta Claude "show me the current diagram structure" untuk debug
 - Lihat skill MD file untuk pattern: `.claude/skills/{nama}-diagram/SKILL.md`
 
@@ -133,4 +133,4 @@ Saat ini diagram dibangun langsung dari Claude Code tanpa perlu Claude Desktop:
 
 **Activity diagram lifeline atau control flow tidak nyambung**
 - Pre-build UMLActivityPartition (swimlane) DULU sebelum create node
-- Update partition.nodes via HTTP direct call (MCP tool stringify bug) — lihat skill §8e
+- Update partition.nodes via HTTP direct call (MCP tool stringify bug) - lihat skill §8e

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 3 smoke test — shift-decoupling refactor.
+# Phase 3 smoke test - shift-decoupling refactor.
 # Verifikasi:
 #   - GET /api/shifts/active return array { shifts: [...] }
 #   - POST /api/transactions auto-resolve shift dari single active

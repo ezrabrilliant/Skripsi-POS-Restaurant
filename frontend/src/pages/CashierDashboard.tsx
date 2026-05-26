@@ -356,11 +356,11 @@ function SecondaryActionsCard() {
   )
 }
 
-// OpenShiftModal sebelumnya di sini — sekarang di-extract ke @/components/OpenShiftDialog
+// OpenShiftModal sebelumnya di sini - sekarang di-extract ke @/components/OpenShiftDialog
 // supaya POSPage gate (kasir login + 0 active shift) bisa reuse komponen yang sama.
 
 // REV 2.5 multi-cashier sharing: kasir kedua login saat shift tipe sama sudah
-// dibuka kasir lain. Card primary hijau yang merujuk ke /pos — BUKAN CTA
+// dibuka kasir lain. Card primary hijau yang merujuk ke /pos - BUKAN CTA
 // "Belum buka kasir" yang misleading (karena kasir kedua tidak perlu buka shift
 // duplikat per backend constraint REV 2.5).
 function BantuInputOrderCard({
@@ -387,7 +387,7 @@ function BantuInputOrderCard({
             {primaryShift?.type === 'pagi' ? 'pagi' : primaryShift?.type === 'malam' ? 'malam' : ''}{' '}
             sudah dibuka oleh <strong>{primaryShift?.cashierName ?? 'kasir lain'}</strong>
             {primaryShift?.createdAt && <> sejak {formatTime(primaryShift.createdAt)}</>}.
-            Anda bisa langsung input pesanan customer kalau ada — tidak perlu buka shift baru.
+            Anda bisa langsung input pesanan customer kalau ada - tidak perlu buka shift baru.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-success-700 rounded-md font-medium text-body-sm hover:bg-success-50 transition-colors">
             Buka Halaman POS
@@ -437,7 +437,7 @@ function OtherActiveShiftInfo({
         <ul className="text-caption text-info-700 space-y-0.5">
           {shifts.map((s) => (
             <li key={s.id}>
-              {s.cashierName ?? '—'} · {s.type ?? '—'} · sejak {formatTime(s.createdAt)}
+              {s.cashierName ?? '-'} · {s.type ?? '-'} · sejak {formatTime(s.createdAt)}
             </li>
           ))}
         </ul>

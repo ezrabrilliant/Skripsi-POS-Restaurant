@@ -1,4 +1,4 @@
-// SettlementPage — REV 2.3 owner+kasir.
+// SettlementPage - REV 2.3 owner+kasir.
 // 4 mode:
 //   1. Tidak ada shift active → CTA balik ke /dashboard.
 //   2. Shift active belum closed → reminder tutup shift dulu (pakai useMutation).
@@ -15,7 +15,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { PAYMENT_LABEL } from '@/types'
 import type { SettlementPreview, Settlement } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
-import { Button, Badge, Skeleton } from '@/design-system/primitives'
+import { Button, Badge, Skeleton, Checkbox } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 
@@ -72,7 +72,7 @@ export default function SettlementPage() {
       <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
         <header>
           <h1 className="text-headline font-semibold text-neutral-900">Settlement Shift</h1>
-          <p className="text-body-sm text-neutral-600">Rekap akhir shift — 6 metode pembayaran</p>
+          <p className="text-body-sm text-neutral-600">Rekap akhir shift - 6 metode pembayaran</p>
         </header>
 
         {shiftsLoading && <Skeleton className="h-48" />}
@@ -221,20 +221,14 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
 
       {/* Form */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60 space-y-3">
-        <label className="flex items-start gap-2 text-body-sm bg-neutral-50 p-3 rounded-lg cursor-pointer select-none">
-          <input
-            type="checkbox"
+        <div className="bg-neutral-50 p-3 rounded-lg">
+          <Checkbox
+            label={<span className="font-medium">Auto-isi dari sistem</span>}
+            description="Skip blind count - gunakan kalau yakin tidak ada selisih."
             checked={useSystemAsActual}
-            onChange={(e) => setUseSystemAsActual(e.target.checked)}
-            className="w-4 h-4 mt-0.5 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
+            onCheckedChange={setUseSystemAsActual}
           />
-          <span className="text-neutral-800">
-            <strong>Auto-isi dari sistem</strong>
-            <span className="block text-caption text-neutral-500 mt-0.5">
-              Skip blind count — gunakan kalau yakin tidak ada selisih.
-            </span>
-          </span>
-        </label>
+        </div>
 
         <div className="space-y-2">
           <div className="grid grid-cols-12 gap-2 text-label text-neutral-500 px-1">

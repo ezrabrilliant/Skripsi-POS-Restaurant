@@ -1,4 +1,4 @@
-// PortionStockTab — tab pertama di StockPage.
+// PortionStockTab - tab pertama di StockPage.
 // Display 25 portion stock dengan filter low + actions:
 //   - Restock Pagi (batch, qty kelipatan 5)
 //   - Barang Masuk (single item, darurat tengah hari)
@@ -18,6 +18,7 @@ import {
   Skeleton,
   Dialog,
   Input,
+  Checkbox,
   DataTable,
   type DataTableColumn,
 } from '@/design-system/primitives'
@@ -105,7 +106,7 @@ export default function PortionStockTab() {
         s.suggestedRestockMorning > 0 ? (
           <Badge tone="warning" size="sm">+{s.suggestedRestockMorning}</Badge>
         ) : (
-          <span className="text-neutral-400">—</span>
+          <span className="text-neutral-400">-</span>
         ),
     },
     {
@@ -156,16 +157,14 @@ export default function PortionStockTab() {
         >
           Opname
         </Button>
-        <label className="ml-auto flex items-center gap-2 text-body-sm text-neutral-700 cursor-pointer select-none">
-          <input
-            type="checkbox"
+        <div className="ml-auto flex items-center gap-2">
+          <Checkbox
+            label="Yang rendah saja"
             checked={filterLow}
-            onChange={(e) => setFilterLow(e.target.checked)}
-            className="w-4 h-4 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
+            onCheckedChange={setFilterLow}
           />
-          Yang rendah saja
           {lowCount > 0 && <Badge tone="warning" size="sm">{lowCount}</Badge>}
-        </label>
+        </div>
       </div>
 
       {/* List */}
@@ -335,18 +334,21 @@ function RestockMorningModal({
         </Button>
       }
     >
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {stocks.map((s) => (
           <div
             key={s.menuId}
-            className="flex items-center gap-3 py-1.5 border-b border-neutral-100 last:border-0"
+            className="flex items-center gap-3 py-2 border-b border-neutral-100 last:border-0"
           >
             <span className="flex-1 truncate text-body-sm text-neutral-800">{s.menuName}</span>
             <span className="text-caption text-neutral-500 w-16 text-right tabular-nums">
               {s.currentQty}/{s.minStock}
             </span>
-            <input
+            <Input
+              label={`Qty restock ${s.menuName}`}
+              hideLabel
               type="number"
+              inputMode="numeric"
               min={0}
               step={5}
               value={qtyByMenu[s.menuId] ?? ''}
@@ -354,7 +356,8 @@ function RestockMorningModal({
                 setQtyByMenu((prev) => ({ ...prev, [s.menuId]: Number(e.target.value) || 0 }))
               }
               placeholder="0"
-              className="w-20 px-2 py-1.5 border border-neutral-300 rounded-md text-right text-body-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+              containerClassName="w-24"
+              className="text-right tabular-nums"
             />
           </div>
         ))}
@@ -414,25 +417,29 @@ function OpnameModal({
         </Button>
       }
     >
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {stocks.map((s) => (
           <div
             key={s.menuId}
-            className="flex items-center gap-3 py-1.5 border-b border-neutral-100 last:border-0"
+            className="flex items-center gap-3 py-2 border-b border-neutral-100 last:border-0"
           >
             <span className="flex-1 truncate text-body-sm text-neutral-800">{s.menuName}</span>
             <span className="text-caption text-neutral-500 w-16 text-right tabular-nums">
               sistem {s.currentQty}
             </span>
-            <input
+            <Input
+              label={`Qty fisik ${s.menuName}`}
+              hideLabel
               type="number"
+              inputMode="numeric"
               min={0}
               value={qtyFisikByMenu[s.menuId] ?? ''}
               onChange={(e) =>
                 setQtyFisikByMenu((prev) => ({ ...prev, [s.menuId]: Number(e.target.value) }))
               }
-              placeholder="—"
-              className="w-20 px-2 py-1.5 border border-neutral-300 rounded-md text-right text-body-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+              placeholder="-"
+              containerClassName="w-24"
+              className="text-right tabular-nums"
             />
           </div>
         ))}

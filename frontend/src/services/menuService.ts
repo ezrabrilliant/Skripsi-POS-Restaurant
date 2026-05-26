@@ -9,6 +9,7 @@ export interface ListMenuQuery {
   activeOnly?: boolean
   category?: string
   includeStock?: boolean
+  includePopularity?: boolean
 }
 
 export interface CreateMenuPayload {
@@ -30,6 +31,7 @@ export const menuService = {
     if (query.activeOnly !== undefined) params.activeOnly = String(query.activeOnly)
     if (query.category) params.category = query.category
     if (query.includeStock) params.includeStock = 'true'
+    if (query.includePopularity) params.includePopularity = 'true'
     const res = await api.get<ApiResponse<{ menus: Menu[] }>>('/menus', { params })
     return res.data.data.menus
   },

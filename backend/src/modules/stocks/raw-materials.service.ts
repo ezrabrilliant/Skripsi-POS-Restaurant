@@ -218,7 +218,7 @@ export async function deleteRawMaterial(id: number): Promise<{ id: number; name:
   ]);
   if (pItemCount > 0 || movementCount > 0) {
     throw new AppError(
-      `Raw material "${existing.name}" tidak bisa dihapus — sudah punya ${pItemCount} purchase item dan ${movementCount} audit log. Edit/nonaktifkan saja.`,
+      `Raw material "${existing.name}" tidak bisa dihapus - sudah punya ${pItemCount} purchase item dan ${movementCount} audit log. Edit/nonaktifkan saja.`,
       409,
     );
   }

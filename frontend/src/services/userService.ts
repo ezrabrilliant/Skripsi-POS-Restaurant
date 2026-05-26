@@ -1,5 +1,5 @@
 // Service modul users. Backend pakai pattern envelope { users: [...] } atau
-// { user: {...} } via sendSuccess(res, { users/user }, ...) — sama dengan
+// { user: {...} } via sendSuccess(res, { users/user }, ...) - sama dengan
 // service lain (shifts, transactions, vendors, bills, dll). Extract field-nya
 // di sini supaya consumer dapat shape yang sesuai.
 

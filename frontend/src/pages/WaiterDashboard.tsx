@@ -1,6 +1,6 @@
 // WaiterDashboard - REV 2.3
 // Primary: 2 big cards "Stok Porsi" + "Raw Materials Reminder" + quick action
-// Opname + Mark Habis. Secondary: link kecil "Input Order fallback" — desain
+// Opname + Mark Habis. Secondary: link kecil "Input Order fallback" - desain
 // nudge supaya waiter tidak terbiasa pakai POS sebagai default workflow.
 
 import { useQuery } from '@tanstack/react-query'
@@ -47,7 +47,7 @@ export default function WaiterDashboard() {
 
         {dashboard && (
           <>
-            {/* Primary action cards — 2 big cards stok */}
+            {/* Primary action cards - 2 big cards stok */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <PortionStockCard data={dashboard.portionStocks} />
               <RawMaterialsCard data={dashboard.rawMaterials} />
@@ -105,7 +105,7 @@ export default function WaiterDashboard() {
                 to="/pos"
                 className="inline-flex items-center gap-1 text-caption text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline"
               >
-                Input Order (fallback — kalau kasir tidak available)
+                Input Order (fallback - kalau kasir tidak available)
                 <ArrowRight className="w-3 h-3" />
               </Link>
             </div>

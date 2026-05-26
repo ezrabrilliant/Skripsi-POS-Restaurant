@@ -1,14 +1,14 @@
-# Design Spec — Order Intake Workflow & Permission Matrix (REV 2.3)
+# Design Spec - Order Intake Workflow & Permission Matrix (REV 2.3)
 
 **Status:** Approved by Ezra (2026-05-24, brainstorming session).
 **Konsekuensi:** Bump dokumentasi proyek dari REV 2.2 → REV 2.3.
-**Tidak ada perubahan schema** — semua keputusan di sini di-implement di app layer (middleware + UI conditional).
+**Tidak ada perubahan schema** - semua keputusan di sini di-implement di app layer (middleware + UI conditional).
 
 ## 1. Konteks & Masalah
 
-Sampai REV 2.2, dokumentasi menyebut waiter "bisa input order ke sistem POS, sama seperti kasir" (di `docs/operasional-resto.md` seksi "Pengguna Sistem" dan beberapa UC di `docs/knowledge/USE-CASE.md`). Realita lapangan yang dikonfirmasi Ezra: waiter sangat sibuk peak hour — bersih meja, cuci piring, buat & antar minuman, ambil order baru. Memutus alur kerja untuk pegang HP dan input order ke POS sambil tangan kotor tidak realistis.
+Sampai REV 2.2, dokumentasi menyebut waiter "bisa input order ke sistem POS, sama seperti kasir" (di `docs/operasional-resto.md` seksi "Pengguna Sistem" dan beberapa UC di `docs/knowledge/USE-CASE.md`). Realita lapangan yang dikonfirmasi Ezra: waiter sangat sibuk peak hour - bersih meja, cuci piring, buat & antar minuman, ambil order baru. Memutus alur kerja untuk pegang HP dan input order ke POS sambil tangan kotor tidak realistis.
 
-Konsekuensi: workflow primary tetap kertas (waiter tulis → Yanti di dapur resto baca → kasir input ke POS). Waiter tidak boleh dianggap co-equal dengan kasir untuk input order — itu cuma fallback bila kasir tidak available (misal kasir lagi telepon owner, lagi ke toilet, lagi belanja).
+Konsekuensi: workflow primary tetap kertas (waiter tulis → Yanti di dapur resto baca → kasir input ke POS). Waiter tidak boleh dianggap co-equal dengan kasir untuk input order - itu cuma fallback bila kasir tidak available (misal kasir lagi telepon owner, lagi ke toilet, lagi belanja).
 
 ## 2. Keputusan Final
 
@@ -16,7 +16,7 @@ Konsekuensi: workflow primary tetap kertas (waiter tulis → Yanti di dapur rest
 
 | Channel | Flow |
 |---|---|
-| **Dine-in** | Waiter ambil order verbal di meja → tulis di kertas → kasih ke dapur resto (Yanti, panaskan/bakar/goreng) → kertas dilanjut ke kasir → kasir input ke POS. Timing input fleksibel (antara terima kertas dan customer bayar — sistem tidak enforce). |
+| **Dine-in** | Waiter ambil order verbal di meja → tulis di kertas → kasih ke dapur resto (Yanti, panaskan/bakar/goreng) → kertas dilanjut ke kasir → kasir input ke POS. Timing input fleksibel (antara terima kertas dan customer bayar - sistem tidak enforce). |
 | **Takeaway walk-in** | Customer datang langsung ke kasir → kasir input langsung. Tidak via waiter, tidak ada kertas. |
 | **Takeaway GoFood / GrabFood** | Notif masuk app merchant → kasir input manual ke POS dengan tipe takeaway dan payment method gojek/grab settlement. |
 
@@ -60,7 +60,7 @@ Tidak ada cetak struk pesanan ke dapur. Yanti baca dari kertas waiter langsung. 
 
 Form 2 field: input nama pengguna + input PIN 6 digit, lalu submit. **Tidak ada layar pilih nama dari daftar**, **tidak ada localStorage remember last user**. Setiap login pegawai ketik nama mereka manual.
 
-USE-CASE.md REV 2.2 line 48 masih menyebut "pilih nama dari list → input PIN 6 digit. Device ingat last user (localStorage)" — ini OUT OF SYNC dengan ACTIVITY.md A.1 dan operasional-resto.md. Diperbaiki di REV 2.3.
+USE-CASE.md REV 2.2 line 48 masih menyebut "pilih nama dari list → input PIN 6 digit. Device ingat last user (localStorage)" - ini OUT OF SYNC dengan ACTIVITY.md A.1 dan operasional-resto.md. Diperbaiki di REV 2.3.
 
 ## 3. Konsekuensi ke Dokumentasi
 
@@ -68,12 +68,12 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
 
 | File | Perubahan |
 |---|---|
-| `docs/operasional-resto.md` | Seksi "Pengguna Sistem" — koreksi waiter "bisa input order sama seperti kasir" → "bisa input order sebagai fallback bila kasir tidak available". Seksi "Alur Transaksi" — perjelas "kasir yang input" (sebelumnya ambigu "kasir/waiter"). Tambah seksi baru **"Permission Matrix"** setelah "Pengguna Sistem". |
+| `docs/operasional-resto.md` | Seksi "Pengguna Sistem" - koreksi waiter "bisa input order sama seperti kasir" → "bisa input order sebagai fallback bila kasir tidak available". Seksi "Alur Transaksi" - perjelas "kasir yang input" (sebelumnya ambigu "kasir/waiter"). Tambah seksi baru **"Permission Matrix"** setelah "Pengguna Sistem". |
 | `docs/knowledge/USE-CASE.md` | Bump header ke REV 2.3. Fix UC `Login` (drop mention pilih nama dari list + localStorage). UC `Mengelola Pesanan Meja` annotate *(kasir primary, waiter fallback)*. UC `Memilih Sub-Pilihan Paket` sama. Narasi Bab 3 paragraf 2 update Login mechanism. Update aktor row Waiter di tabel section 4. |
-| `docs/knowledge/ACTIVITY.md` | Bump header ke REV 2.3. A.2 tambah note "Waiter dapat fallback langsung input di POS dengan bypass jalur kertas saat kasir tidak available — alur sama dengan jalur kasir input, hanya actor swimlane swap". A.1 sudah aligned REV 2.2 — tidak diubah. |
-| `docs/knowledge/ERD.md` | Bump header ke REV 2.3 dengan note "Tidak ada perubahan schema — REV 2.3 hanya alignment dokumentasi dengan permission matrix". |
-| `CLAUDE.md` | Bump REV 2.1 → REV 2.3 di "Status REV". Update "3 role" deskripsi — tambah note waiter primary di kertas, fallback POS. |
-| Memory `project_resto_operational_truths.md` | Bump REV 2.2 → REV 2.3. Tambah seksi "Permission Matrix". Update seksi "Auth & Pengguna" — clarify waiter fallback. |
+| `docs/knowledge/ACTIVITY.md` | Bump header ke REV 2.3. A.2 tambah note "Waiter dapat fallback langsung input di POS dengan bypass jalur kertas saat kasir tidak available - alur sama dengan jalur kasir input, hanya actor swimlane swap". A.1 sudah aligned REV 2.2 - tidak diubah. |
+| `docs/knowledge/ERD.md` | Bump header ke REV 2.3 dengan note "Tidak ada perubahan schema - REV 2.3 hanya alignment dokumentasi dengan permission matrix". |
+| `CLAUDE.md` | Bump REV 2.1 → REV 2.3 di "Status REV". Update "3 role" deskripsi - tambah note waiter primary di kertas, fallback POS. |
+| Memory `project_resto_operational_truths.md` | Bump REV 2.2 → REV 2.3. Tambah seksi "Permission Matrix". Update seksi "Auth & Pengguna" - clarify waiter fallback. |
 | Memory `project_session_handoff.md` | Update fase ke REV 2.3 + sesi 2026-05-24 brainstorming note. |
 
 ## 4. Konsekuensi ke Code (akan jadi bagian writing-plans, BUKAN bagian spec ini)
@@ -101,7 +101,7 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
 
 ## 5. Out of Scope
 
-- Tidak menambah "audit trail aksi waiter saat fallback input order". Kalau dibutuhkan untuk skripsi, bisa ditambah di REV 2.4 (kolom `transactions.input_by_role` enum yang track siapa yang input — tapi dirasa over-engineering untuk family business).
+- Tidak menambah "audit trail aksi waiter saat fallback input order". Kalau dibutuhkan untuk skripsi, bisa ditambah di REV 2.4 (kolom `transactions.input_by_role` enum yang track siapa yang input - tapi dirasa over-engineering untuk family business).
 - Tidak menambah "approval kasir saat waiter fallback input". Family business, trust tinggi, koordinasi verbal cukup.
 - Tidak menambah notifikasi "kasir sedang tidak available" ke waiter. Komunikasi tetap verbal.
 
@@ -109,7 +109,7 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
 
 | Keputusan | Why |
 |---|---|
-| Waiter fallback (bukan blocked) | Family business kecil — kasir bisa tidak available (telepon owner, ke toilet, belanja). Lebih baik UI nudge kasir-first daripada hard-block waiter yang bisa bikin order tidak ter-record |
-| Timing input fleksibel | Kasir biasanya lebih lowong dari waiter peak hour. Sistem tidak memaksa timing — kasir input saat lowong atau saat customer minta bill. Realistis untuk family business minim aturan |
+| Waiter fallback (bukan blocked) | Family business kecil - kasir bisa tidak available (telepon owner, ke toilet, belanja). Lebih baik UI nudge kasir-first daripada hard-block waiter yang bisa bikin order tidak ter-record |
+| Timing input fleksibel | Kasir biasanya lebih lowong dari waiter peak hour. Sistem tidak memaksa timing - kasir input saat lowong atau saat customer minta bill. Realistis untuk family business minim aturan |
 | Payment kasir-only (bukan waiter fallback) | Payment menyangkut transaksi uang nyata + pemilihan metode + bank picker untuk EDC/transfer. Lebih aman kasir handle. Family business trust ke kasir (anak owner) lebih tinggi |
 | Stok porsi opname semua role | Waiter sering yang cek fisik stok di malam (verbal handover ke kasir). Memberi waiter akses opname digital memberinya ownership data yang sudah dipegangnya secara fisik |

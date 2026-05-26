@@ -32,7 +32,7 @@ curl -s "$BASE/stocks/raw-materials?isTracked=true" -H "Authorization: Bearer $O
 
 echo ""
 echo "=== 5. Filter ?needsRestock=true ==="
-curl -s "$BASE/stocks/raw-materials?needsRestock=true" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("needsRestock count:", j.data.rawMaterials.length, "— names:", j.data.rawMaterials.map(rm=>rm.name))'
+curl -s "$BASE/stocks/raw-materials?needsRestock=true" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("needsRestock count:", j.data.rawMaterials.length, "- names:", j.data.rawMaterials.map(rm=>rm.name))'
 
 echo ""
 echo "=== 6. Detail Beras with reminder fields ==="
@@ -67,7 +67,7 @@ echo "=== 12. PUT /:id (cashier) → 403 ==="
 curl -s -o /dev/null -w "status=%{http_code}\n" -X PUT $BASE/stocks/raw-materials/$NEW_ID -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d '{"unitPrice":99}'
 
 echo ""
-echo "=== 13. POST /opname (waiter Amel) — Beras: dari 0 ke 1.5 ==="
+echo "=== 13. POST /opname (waiter Amel) - Beras: dari 0 ke 1.5 ==="
 OPNAME_BODY="{\"items\":[{\"rawMaterialId\":$BERAS_ID,\"qtyFisik\":1.5}],\"note\":\"Opname pagi\"}"
 curl -s -X POST $BASE/stocks/raw-materials/opname -H "Content-Type: application/json" -H "Authorization: Bearer $AMEL_TOKEN" -d "$OPNAME_BODY" | jq_field 'console.log("After opname:", j.data.rawMaterials.map(rm=>({name:rm.name, qty:rm.stockQty})))'
 
@@ -79,7 +79,7 @@ MOVE_COUNT_AFTER=$(curl -s "$BASE/stocks/raw-materials/$BERAS_ID?limit=50" -H "A
 echo "Movements before idempotent: $MOVE_COUNT_BEFORE, after: $MOVE_COUNT_AFTER (should be SAME)"
 
 echo ""
-echo "=== 15. POST /:id/mark-habis (Jason kasir) — Beras dari 1.5 ke 0 ==="
+echo "=== 15. POST /:id/mark-habis (Jason kasir) - Beras dari 1.5 ke 0 ==="
 curl -s -X POST $BASE/stocks/raw-materials/$BERAS_ID/mark-habis -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d '{}' | jq_field 'console.log("After mark-habis: qty=" + j.data.rawMaterial.stockQty)'
 
 echo ""
@@ -94,11 +94,11 @@ echo "=== 17. GET detail Beras dengan audit trail (last 10 movements) ==="
 curl -s "$BASE/stocks/raw-materials/$BERAS_ID?limit=10" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const rm=j.data.rawMaterial; console.log(JSON.stringify({name:rm.name,qty:rm.stockQty,unit:rm.unit,recentMovements:rm.recentMovements.map(m=>({delta:m.delta,reason:m.reason,note:m.note.slice(0,80)}))},null,2))'
 
 echo ""
-echo "=== 18. DELETE /:id (no FK refs, owner) — Test Garam ==="
+echo "=== 18. DELETE /:id (no FK refs, owner) - Test Garam ==="
 curl -s -X DELETE $BASE/stocks/raw-materials/$NEW_ID -H "Authorization: Bearer $OWNER_TOKEN" | head -c 250; echo
 
 echo ""
-echo "=== 19. DELETE /:id (with movements, owner) — Beras ada movements → 409 ==="
+echo "=== 19. DELETE /:id (with movements, owner) - Beras ada movements → 409 ==="
 curl -s -X DELETE $BASE/stocks/raw-materials/$BERAS_ID -H "Authorization: Bearer $OWNER_TOKEN" | head -c 300; echo
 
 echo ""

@@ -1,5 +1,5 @@
 // Service modul purchases. REV 2.1/2.2: owner + kasir. Normalized header + items.
-// No update/delete — kalau salah, catat purchase baru sebagai koreksi.
+// No update/delete - kalau salah, catat purchase baru sebagai koreksi.
 
 import api from '@/lib/api'
 import type { ApiResponse, Purchase } from '@/types'

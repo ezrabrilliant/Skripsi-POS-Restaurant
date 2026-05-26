@@ -1,10 +1,9 @@
 /**
- * Select — pakai native <select> di mobile (UX picker iOS/Android jauh
- * lebih baik), Radix Popover di desktop untuk kustomisasi visual penuh.
- *
- * Implementasi sekarang sederhana: pakai native <select> di semua viewport.
- * Cukup untuk filter dropdown sederhana. Untuk autocomplete (vendor picker,
- * bank picker), pakai Combobox terpisah (bisa dibangun di Fase 2 saat butuh).
+ * Select - wrapper styled di sekitar native <select>. Tersisa di codebase
+ * sebagai legacy untuk picker mini (≤3 opsi, mis. Party A/B di SplitBill)
+ * dimana custom Combobox overkill. Untuk picker baru pakai Combobox/
+ * ComboboxFree dari './Combobox' - dropdown popover konsisten cross-OS
+ * + dukung typeahead.
  */
 
 import { forwardRef, useId, type SelectHTMLAttributes } from 'react'

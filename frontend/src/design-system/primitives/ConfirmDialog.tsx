@@ -1,6 +1,6 @@
 /**
- * ConfirmDialog — confirmation modal yang dipakai oleh useConfirm hook.
- * Internal primitive — biasanya jangan dipanggil langsung, pakai
+ * ConfirmDialog - confirmation modal yang dipakai oleh useConfirm hook.
+ * Internal primitive - biasanya jangan dipanggil langsung, pakai
  * useConfirm() di-app supaya imperatif & a11y-clean.
  */
 

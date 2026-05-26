@@ -1,8 +1,8 @@
-# Data Dictionary — Sistem POS Ayam Bakar Banjar Monosuko (REV 2.3)
+# Data Dictionary - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.3)
 
-> **Status:** REV 2.3 (2026-05-24) — rewrite total dari REV 1. Schema identik dengan REV 2.2 (14 entitas, 19 relasi). REV 2.3 tidak menambah entitas atau kolom — hanya bump version untuk alignment dengan permission matrix (yang ditangani di app layer, bukan database).
+> **Status:** REV 2.3 (2026-05-24) - rewrite total dari REV 1. Schema identik dengan REV 2.2 (14 entitas, 19 relasi). REV 2.3 tidak menambah entitas atau kolom - hanya bump version untuk alignment dengan permission matrix (yang ditangani di app layer, bukan database).
 > **Sumber kebenaran:** [`docs/knowledge/ERD.md`](knowledge/ERD.md) REV 2.3 §6 (detail kolom per entitas).
-> **Mengikuti:** Format standar skripsi UK Petra — `Field | Tipe Data | Keterangan`.
+> **Mengikuti:** Format standar skripsi UK Petra - `Field | Tipe Data | Keterangan`.
 
 Dokumen ini melengkapi ERD di `Skripsi.mdj`. Setiap entity di ERD punya tabel definisi lengkap di bawah ini. Saat menyalin ke naskah Bab 3, gunakan caption `Tabel 3.X *Definisi Atribut Tabel <nama>*` sesuai mapping di [`docs/knowledge/BAB-3-DRAFT.md`](knowledge/BAB-3-DRAFT.md) seksi "Mapping Gambar dan Tabel".
 
@@ -33,7 +33,7 @@ Tabel `users` menyimpan data seluruh pengguna sistem POS yang terbagi dalam tiga
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik pengguna |
+| id | INT - PK auto-increment | ID unik pengguna |
 | name | VARCHAR(100) | Nama pegawai (Owner, Jason, Bryant, Chen Hong, Amel, Yanti) |
 | pin | VARCHAR(6) | PIN 6-digit untuk login. **Boleh duplikat antar pegawai** (identifikasi via nama + PIN, nama jadi identifier unik) |
 | role | ENUM(owner, cashier, waiter) | Peran pengguna dalam sistem |
@@ -49,7 +49,7 @@ Tabel `menus` menyimpan master katalog 60 menu siap jual beserta harga, kategori
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik menu |
+| id | INT - PK auto-increment | ID unik menu |
 | name | VARCHAR(100) | Nama menu (contoh: "1 Ekor Ayam Bakar Merah", "Paket A (1 org)") |
 | category | VARCHAR(50) | Kategori: "Signature Ayam Bakar", "Seafood", "Sayur & Sup", "Side Dish", "Minuman", "Paket Hemat" |
 | price | DECIMAL(10,2) | Harga jual satuan dalam Rupiah |
@@ -69,7 +69,7 @@ Tabel `portion_stocks` menyimpan kondisi stok porsi terkini per menu sebagai *li
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| menu_id | INT — PK + FK → menus | Primary key sekaligus foreign key (1:1 dengan menu) |
+| menu_id | INT - PK + FK → menus | Primary key sekaligus foreign key (1:1 dengan menu) |
 | current_qty | INT | *Live count* stok porsi. **Boleh negatif** (dukungan stok minus saat habis di tengah hari) |
 | min_stock | INT | Ambang reminder restock (duplikat dari `menus.min_stock` untuk kemudahan query) |
 | opening_qty_today | INT | *Snapshot* otomatis kondisi stok saat pengguna pertama login pagi. Dipakai untuk metric "terjual hari ini" |
@@ -82,16 +82,16 @@ Tabel `portion_stocks` menyimpan kondisi stok porsi terkini per menu sebagai *li
 
 ## Tabel 3.5 Tabel `portion_movements`
 
-Tabel `portion_movements` (revisi penyesuaian nama dari `stock_movements` pada REV 2.2 untuk memperjelas cakupan) menyimpan log audit setiap perubahan stok porsi beserta alasan dan pengguna yang melakukannya. Setiap perubahan `portion_stocks.current_qty` — baik akibat order, restock pagi, restock darurat, opname pagi, maupun pengembalian/void — akan menyisipkan satu *record* di tabel ini sehingga jejak perubahan stok dapat ditelusuri.
+Tabel `portion_movements` (revisi penyesuaian nama dari `stock_movements` pada REV 2.2 untuk memperjelas cakupan) menyimpan log audit setiap perubahan stok porsi beserta alasan dan pengguna yang melakukannya. Setiap perubahan `portion_stocks.current_qty` - baik akibat order, restock pagi, restock darurat, opname pagi, maupun pengembalian/void - akan menyisipkan satu *record* di tabel ini sehingga jejak perubahan stok dapat ditelusuri.
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik log |
-| menu_id | INT — FK → menus | Item stok porsi yang berubah |
+| id | INT - PK auto-increment | ID unik log |
+| menu_id | INT - FK → menus | Item stok porsi yang berubah |
 | delta | INT | Perubahan: positif saat restock, negatif saat order/void |
 | reason | ENUM(order, restock_morning, restock_emergency, manual_adjust, refund_void) | Alasan perubahan |
 | note | VARCHAR(255) (nullable) | Catatan opsional (mis. "transactionId=123" atau "Antar via Gojek 18:30") |
-| user_id | INT — FK → users | Pengguna yang men-trigger perubahan |
+| user_id | INT - FK → users | Pengguna yang men-trigger perubahan |
 | created_at | DATETIME | Waktu perubahan |
 
 ---
@@ -102,7 +102,7 @@ Tabel `raw_materials` menyimpan bahan baku dengan struktur fleksibel yang berisi
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik raw material |
+| id | INT - PK auto-increment | ID unik raw material |
 | name | VARCHAR(100) | Nama bahan (Kangkung, Beras, Tahu, Cabai Rawit, Bawang Putih, dll.) |
 | unit | VARCHAR(20) | Satuan ukur bebas: ikat, karung, balok, butir, gram, liter, skala, pcs |
 | category | ENUM(bumbu_dasar, bahan_segar, bahan_pokok, bahan_kering, lainnya) | Pengelompokan untuk laporan owner |
@@ -123,12 +123,12 @@ Tabel `raw_material_movements` (penambahan baru pada REV 2.2) menyimpan log audi
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik log |
-| raw_material_id | INT — FK → raw_materials | Bahan baku yang berubah |
+| id | INT - PK auto-increment | ID unik log |
+| raw_material_id | INT - FK → raw_materials | Bahan baku yang berubah |
 | delta | DECIMAL(10,2) | Perubahan: positif saat purchase atau koreksi naik, negatif saat opname turun |
 | reason | ENUM(purchase, opname, manual_adjust) | Alasan perubahan |
 | note | VARCHAR(255) (nullable) | Catatan opsional (mis. "Purchase id=X dari Vendor Y", "Opname malam: dari 2 ikat jadi 0 ikat") |
-| user_id | INT — FK → users | Pengguna pelaku (kasir untuk purchase, waiter/kasir untuk opname) |
+| user_id | INT - FK → users | Pengguna pelaku (kasir untuk purchase, waiter/kasir untuk opname) |
 | created_at | DATETIME | Waktu perubahan |
 
 > *Auto-generated rows*:
@@ -144,10 +144,10 @@ Tabel `vendors` menyimpan data toko atau pasar tempat belanja yang dapat dikaitk
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik vendor |
+| id | INT - PK auto-increment | ID unik vendor |
 | name | VARCHAR(100) | Nama vendor (mis. "Bu Sari", "Pasar Pagi Blok A", "Toko Pak Budi") |
 | type | VARCHAR(50) | Jenis: "toko" / "pasar" / "individu" |
-| phone | VARCHAR(20) (nullable) | Nomor telepon (opsional — di pasar kadang lupa) |
+| phone | VARCHAR(20) (nullable) | Nomor telepon (opsional - di pasar kadang lupa) |
 | note | VARCHAR(255) (nullable) | Catatan opsional |
 | created_at | DATETIME | Waktu vendor ditambahkan |
 | updated_at | DATETIME | Waktu update terakhir |
@@ -156,14 +156,14 @@ Tabel `vendors` menyimpan data toko atau pasar tempat belanja yang dapat dikaitk
 
 ## Tabel 3.9 Tabel `shifts`
 
-Tabel `shifts` mencatat siklus shift per kasir per hari per jenis (pagi atau malam) beserta modal awal laci kas yang diinput saat buka kasir. Kombinasi `(date, cashier_id, type)` bersifat unik — satu kasir tidak dapat membuka dua shift dengan jenis yang sama dalam satu hari.
+Tabel `shifts` mencatat siklus shift per kasir per hari per jenis (pagi atau malam) beserta modal awal laci kas yang diinput saat buka kasir. Kombinasi `(date, cashier_id, type)` bersifat unik - satu kasir tidak dapat membuka dua shift dengan jenis yang sama dalam satu hari.
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik shift |
+| id | INT - PK auto-increment | ID unik shift |
 | date | DATE | Tanggal shift (bagian dari UNIQUE(date, cashier_id, type)) |
 | type | ENUM(pagi, malam) | Jenis shift |
-| cashier_id | INT — FK → users | Kasir yang membuka shift |
+| cashier_id | INT - FK → users | Kasir yang membuka shift |
 | opening_cash | DECIMAL(12,2) | Modal awal laci kas saat buka kasir |
 | closed_at | DATETIME (nullable) | Waktu tutup kasir (null = shift masih terbuka) |
 | created_at | DATETIME | Waktu shift dibuat (saat buka kasir) |
@@ -176,15 +176,15 @@ Tabel `transactions` menyimpan *header* pesanan dengan dua tipe order (dine-in a
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik transaksi |
-| shift_id | INT — FK → shifts | Shift di mana transaksi dilakukan |
+| id | INT - PK auto-increment | ID unik transaksi |
+| shift_id | INT - FK → shifts | Shift di mana transaksi dilakukan |
 | order_type | ENUM(dineIn, takeaway) | Dua tipe order saja (sumber takeaway dibedakan via payment_method) |
 | table_number | INT (nullable) | Nomor meja (wajib untuk dineIn, null untuk takeaway) |
-| cashier_id | INT — FK → users | Kasir atau waiter (fallback) yang menginput |
+| cashier_id | INT - FK → users | Kasir atau waiter (fallback) yang menginput |
 | status | ENUM(open, paid, void) | open=belum bayar, paid=lunas, void=batal |
 | payment_method | ENUM(cash, edc, qris, gojek, grab, transfer) (nullable) | Diisi saat status berubah ke paid |
-| payment_bank | VARCHAR(50) (nullable) | Nama bank — terisi hanya kalau payment_method=edc atau transfer (mis. "BCA", "Mandiri") |
-| merged_into_id | INT — FK → transactions (self, nullable) | ID transaksi parent gabungan jika transaksi ini sudah di-merge ke transaksi lain |
+| payment_bank | VARCHAR(50) (nullable) | Nama bank - terisi hanya kalau payment_method=edc atau transfer (mis. "BCA", "Mandiri") |
+| merged_into_id | INT - FK → transactions (self, nullable) | ID transaksi parent gabungan jika transaksi ini sudah di-merge ke transaksi lain |
 | subtotal | DECIMAL(12,2) | Total sebelum diskon dan pajak (Σ subtotal items) |
 | discount_amount | DECIMAL(12,2) | Nominal diskon manual (default 0) |
 | tax_amount | DECIMAL(12,2) | PB1 10% auto-hitung dari (subtotal − discount) |
@@ -201,9 +201,9 @@ Tabel `transaction_items` menyimpan rincian item per transaksi sebagai entitas a
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik item transaksi |
-| transaction_id | INT — FK → transactions (CASCADE) | Transaksi parent (ON DELETE CASCADE) |
-| menu_id | INT — FK → menus | Menu yang dipesan |
+| id | INT - PK auto-increment | ID unik item transaksi |
+| transaction_id | INT - FK → transactions (CASCADE) | Transaksi parent (ON DELETE CASCADE) |
+| menu_id | INT - FK → menus | Menu yang dipesan |
 | qty | INT | Jumlah porsi |
 | unit_price | DECIMAL(10,2) | Harga per satuan saat order (*snapshot*, immutable) |
 | subtotal | DECIMAL(12,2) | qty × unit_price |
@@ -219,11 +219,11 @@ Tabel `settlements` menyimpan rekap akhir hari oleh kasir shift malam dengan ena
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik settlement |
-| shift_id | INT — FK → shifts (UNIQUE) | Shift terkait (1:1, hanya shift malam yang punya settlement) |
+| id | INT - PK auto-increment | ID unik settlement |
+| shift_id | INT - FK → shifts (UNIQUE) | Shift terkait (1:1, hanya shift malam yang punya settlement) |
 | date | DATE | Tanggal settlement |
-| cashier_id | INT — FK → users | Kasir shift malam yang submit |
-| reviewer_id | INT — FK → users (nullable) | Pemilik yang review (null sampai direview) |
+| cashier_id | INT - FK → users | Kasir shift malam yang submit |
+| reviewer_id | INT - FK → users (nullable) | Pemilik yang review (null sampai direview) |
 | system_cash | DECIMAL(12,2) | Total cash di sistem |
 | system_edc | DECIMAL(12,2) | Total EDC di sistem (semua bank gabung; breakdown bank di runtime) |
 | system_qris | DECIMAL(12,2) | Total QRIS di sistem |
@@ -248,10 +248,10 @@ Tabel `purchases` menyimpan *header* pembelian belanja kasir di pasar dengan str
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik pembelian |
+| id | INT - PK auto-increment | ID unik pembelian |
 | date | DATE | Tanggal pembelian |
-| user_id | INT — FK → users | Kasir atau pemilik yang menginput |
-| vendor_id | INT — FK → vendors (nullable) | Vendor terkait (opsional — di pasar kadang lupa nama penjual) |
+| user_id | INT - FK → users | Kasir atau pemilik yang menginput |
+| vendor_id | INT - FK → vendors (nullable) | Vendor terkait (opsional - di pasar kadang lupa nama penjual) |
 | total_amount | DECIMAL(12,2) | Sum subtotal `purchase_items` (auto-hitung saat submit) |
 | note | VARCHAR(255) (nullable) | Catatan opsional |
 | created_at | DATETIME | Waktu record dibuat |
@@ -264,9 +264,9 @@ Tabel `purchase_items` menyimpan detail per baris item dalam satu pembelian deng
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik baris pembelian |
-| purchase_id | INT — FK → purchases (CASCADE) | Header pembelian (ON DELETE CASCADE) |
-| raw_material_id | INT — FK → raw_materials | Raw material yang dibeli |
+| id | INT - PK auto-increment | ID unik baris pembelian |
+| purchase_id | INT - FK → purchases (CASCADE) | Header pembelian (ON DELETE CASCADE) |
+| raw_material_id | INT - FK → raw_materials | Raw material yang dibeli |
 | qty | DECIMAL(10,2) | Jumlah yang dibeli (mis. 2 ikat, 1 karung, 500 gram) |
 | unit_price | DECIMAL(10,2) | Harga per unit (akan menjadi `raw_materials.unit_price` baru) |
 | subtotal | DECIMAL(12,2) | qty × unit_price |
@@ -277,16 +277,16 @@ Tabel `purchase_items` menyimpan detail per baris item dalam satu pembelian deng
 
 ## Tabel 3.15 Tabel `bills`
 
-Tabel `bills` menyimpan tagihan operasional bulanan yang hanya dapat diakses oleh Pemilik. Kategori tagihan terbatas pada lima jenis tetap (kebersihan, listrik, air, parkir, sewa). Kasir tidak memiliki akses ke tabel ini meskipun kasir merupakan anggota keluarga pemilik — validasi peran pengguna diterapkan di layer *service*.
+Tabel `bills` menyimpan tagihan operasional bulanan yang hanya dapat diakses oleh Pemilik. Kategori tagihan terbatas pada lima jenis tetap (kebersihan, listrik, air, parkir, sewa). Kasir tidak memiliki akses ke tabel ini meskipun kasir merupakan anggota keluarga pemilik - validasi peran pengguna diterapkan di layer *service*.
 
 | Field | Tipe Data | Keterangan |
 |---|---|---|
-| id | INT — PK auto-increment | ID unik tagihan |
+| id | INT - PK auto-increment | ID unik tagihan |
 | month | VARCHAR(7) | Bulan tagihan dalam format YYYY-MM (mis. "2026-05") |
 | category | ENUM(kebersihan, listrik, air, parkir, sewa) | Kategori tagihan operasional |
 | amount | DECIMAL(12,2) | Nominal tagihan |
 | note | VARCHAR(255) (nullable) | Catatan opsional |
-| user_id | INT — FK → users | Pemilik yang menginput (validasi role=owner di service layer) |
+| user_id | INT - FK → users | Pemilik yang menginput (validasi role=owner di service layer) |
 | created_at | DATETIME | Waktu tagihan diinput |
 
 ---
@@ -358,7 +358,7 @@ Total: **14 entitas, 19 relasi**.
 ## Catatan untuk Naskah Bab 3
 
 - Setiap tabel dilengkapi paragraf pengantar 1 kalimat (lihat mapping di [`docs/knowledge/BAB-3-DRAFT.md`](knowledge/BAB-3-DRAFT.md) seksi "3.2.5 Data Dictionary").
-- Caption tabel pakai format `**Tabel 3.X** *Definisi Atribut Tabel <nama>*` (Tabel 3.2 untuk `users`, dst. — Tabel 3.1 sudah dipakai untuk "Kebutuhan Informasi per Peran Pengguna").
+- Caption tabel pakai format `**Tabel 3.X** *Definisi Atribut Tabel <nama>*` (Tabel 3.2 untuk `users`, dst. - Tabel 3.1 sudah dipakai untuk "Kebutuhan Informasi per Peran Pengguna").
 - ERD visual otoritatif ada di `Skripsi.mdj` (StarUML) REV 2.2. Data dictionary ini = dokumentasi tekstual yang menyertai ERD.
 - Apabila tabel diubah (add/drop kolom), update **ERD.md, BAB-3-DRAFT.md, dan dictionary ini secara bersamaan** agar konsisten.
 - **Permission per peran (REV 2.3)**: tidak diatur di tingkat database tetapi di *app layer* (backend *middleware* + frontend conditional UI). Tabel `users.role` enum tetap menjadi *single source of truth*. Lihat `docs/operasional-resto.md` seksi "Permission Matrix" dan `docs/superpowers/specs/2026-05-24-permission-matrix-design.md` untuk detail.

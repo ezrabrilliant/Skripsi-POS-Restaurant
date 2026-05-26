@@ -8,12 +8,12 @@ Eksekusi plan-nya nanti, dengan disiplin: per-phase commit dan review user sebel
 
 ## Wajib Dibaca Berurutan Sebelum Kerja Apapun
 
-1. **`CLAUDE.md`** — state proyek terkini, perintah dev, konvensi.
-2. **`docs/operasional-resto.md`** — ground truth bisnis resto REV 2.3 (sumber kebenaran tertinggi).
-3. **`docs/superpowers/specs/2026-05-25-shift-decoupling-design.md`** — design yang sudah di-approve. Ini adalah **sumber tugas** kamu. Jangan ubah desain, cuma implement.
-4. **`~/.claude/projects/c--Users-ezrak-Documents-Skripsi-Skripsi-POS-Restaurant/memory/project_session_handoff.md`** — handoff state akhir sesi sebelumnya (kalau ada).
-5. **`~/.claude/projects/.../memory/project_resto_operational_truths.md`** — ringkasan operasional REV 2.3.
-6. **`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`** — permission matrix REV 2.3 (tidak berubah, jangan diutak-atik).
+1. **`CLAUDE.md`** - state proyek terkini, perintah dev, konvensi.
+2. **`docs/operasional-resto.md`** - ground truth bisnis resto REV 2.3 (sumber kebenaran tertinggi).
+3. **`docs/superpowers/specs/2026-05-25-shift-decoupling-design.md`** - design yang sudah di-approve. Ini adalah **sumber tugas** kamu. Jangan ubah desain, cuma implement.
+4. **`~/.claude/projects/c--Users-ezrak-Documents-Skripsi-Skripsi-POS-Restaurant/memory/project_session_handoff.md`** - handoff state akhir sesi sebelumnya (kalau ada).
+5. **`~/.claude/projects/.../memory/project_resto_operational_truths.md`** - ringkasan operasional REV 2.3.
+6. **`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`** - permission matrix REV 2.3 (tidak berubah, jangan diutak-atik).
 
 Setelah baca, **konfirmasi ke user** dalam 3-5 kalimat: "Saya sudah baca X, ringkasan masalahnya Y, yang harus saya kerjakan Z. Lanjut ke writing-plans?"
 
@@ -27,12 +27,12 @@ Setelah baca, **konfirmasi ke user** dalam 3-5 kalimat: "Saya sudah baca X, ring
    - Acceptance criteria (apa yang harus benar setelah phase selesai)
 3. Phase yang masuk akal:
    - **Phase 0:** Backup DB current state (kalau perlu) + verifikasi baseline (tsc/build hijau).
-   - **Phase 1:** Schema migration — rename `Transaction.cashierId` → `createdById` di Prisma, run `db push --force-reset` + re-seed. Verifikasi schema di DB + Prisma client regenerate.
-   - **Phase 2:** Backend `shifts.service` — ubah `getActiveShift` jadi `getActiveShifts` (return array system-wide). Update controller + routes + Zod schema. Backend tsc hijau.
-   - **Phase 3:** Backend `transactions.service` — auto-resolve shift, validasi single active shift, throw 409 kalau multi-active. Update view shape (createdById/createdByName/shiftCashierName). Backend tsc + smoke endpoint via curl/postman.
-   - **Phase 4:** Frontend `shiftService` + `transactionService` + types — match new contract.
+   - **Phase 1:** Schema migration - rename `Transaction.cashierId` → `createdById` di Prisma, run `db push --force-reset` + re-seed. Verifikasi schema di DB + Prisma client regenerate.
+   - **Phase 2:** Backend `shifts.service` - ubah `getActiveShift` jadi `getActiveShifts` (return array system-wide). Update controller + routes + Zod schema. Backend tsc hijau.
+   - **Phase 3:** Backend `transactions.service` - auto-resolve shift, validasi single active shift, throw 409 kalau multi-active. Update view shape (createdById/createdByName/shiftCashierName). Backend tsc + smoke endpoint via curl/postman.
+   - **Phase 4:** Frontend `shiftService` + `transactionService` + types - match new contract.
    - **Phase 5:** Frontend `<OpenShiftDialog>` extract dari CashierDashboard → standalone component, dipakai oleh CashierDashboard + POSPage.
-   - **Phase 6:** Frontend POSPage gate refactor — 3 case render (0/1/2+ active shifts × per role).
+   - **Phase 6:** Frontend POSPage gate refactor - 3 case render (0/1/2+ active shifts × per role).
    - **Phase 7:** Frontend CashierDashboard + OwnerDashboard refactor (shift panel).
    - **Phase 8:** Frontend HistoryPage refactor (cashierName → createdByName + shiftCashierName).
    - **Phase 9:** End-to-end manual smoke test via `npm run dev`:
@@ -56,20 +56,20 @@ Setelah baca, **konfirmasi ke user** dalam 3-5 kalimat: "Saya sudah baca X, ring
 
 ## Out of Scope (Eksplisit)
 
-- Permission matrix REV 2.3 — utuh, jangan diubah
+- Permission matrix REV 2.3 - utuh, jangan diubah
 - Settlement model overhaul (1 settlement per shift tetap)
-- HPP / cost tracking — out of scope skripsi
-- UI redesign global — cuma POSPage gate + Owner/Cashier dashboard shift panel
-- Backend authentication / role middleware — sudah final
-- StarUML diagram update — defer ke setelah implementasi
-- `docs/operasional-resto.md` update — defer (bisa nanti setelah field rename diaplikasikan dan disepakati)
+- HPP / cost tracking - out of scope skripsi
+- UI redesign global - cuma POSPage gate + Owner/Cashier dashboard shift panel
+- Backend authentication / role middleware - sudah final
+- StarUML diagram update - defer ke setelah implementasi
+- `docs/operasional-resto.md` update - defer (bisa nanti setelah field rename diaplikasikan dan disepakati)
 
-## Open Questions (di Spec) — JANGAN dipecahkan, biarkan deferred
+## Open Questions (di Spec) - JANGAN dipecahkan, biarkan deferred
 
-1. Settlement untuk shift pagi (selain malam) — open, jangan di-touch.
-2. Layout shift indicator (sidebar/header) — nice-to-have, skip dulu.
-3. Owner force-close shift via UI — defer.
-4. Production migration data — DB dev fresh, abaikan.
+1. Settlement untuk shift pagi (selain malam) - open, jangan di-touch.
+2. Layout shift indicator (sidebar/header) - nice-to-have, skip dulu.
+3. Owner force-close shift via UI - defer.
+4. Production migration data - DB dev fresh, abaikan.
 
 ## Success Criteria untuk Plan (Sebelum Mulai Eksekusi)
 
@@ -88,7 +88,7 @@ Setelah plan approved → eksekusi dimulai Phase 0, satu-per-satu.
 
 - Pakai bahasa Indonesia santai-profesional (sama dengan sesi sebelumnya).
 - Penjelasan singkat, tidak bertele-tele.
-- Tidak self-flagging berlebihan kalau ada kesalahan — fix, sebut singkat, lanjut.
+- Tidak self-flagging berlebihan kalau ada kesalahan - fix, sebut singkat, lanjut.
 - Tidak emoji kecuali user pakai duluan.
 
 ## Pertama Kali Mulai

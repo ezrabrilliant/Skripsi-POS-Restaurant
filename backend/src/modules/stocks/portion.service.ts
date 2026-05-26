@@ -1,4 +1,4 @@
-// Service modul stocks/portion. REV 2.2/2.3 — operasional stok porsi siap jual.
+// Service modul stocks/portion. REV 2.2/2.3 - operasional stok porsi siap jual.
 //
 // Konsep utama:
 //   - Auto-snapshot opening_qty_today: dipicu lazy saat list/detail dipanggil di
@@ -81,7 +81,7 @@ function todayDateOnly(): Date {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
 
-/// Lazy trigger snapshot opening_qty_today di hari baru. Idempotent — hanya
+/// Lazy trigger snapshot opening_qty_today di hari baru. Idempotent - hanya
 /// menyentuh row yang opening_qty_date-nya masih kemarin (atau lebih lama).
 /// Dipakai single bulk SQL karena Prisma updateMany tidak bisa copy nilai antar kolom.
 async function ensureOpeningSnapshot(): Promise<void> {
@@ -268,7 +268,7 @@ export async function opname(
 }
 
 /// Mark habis: shortcut set currentQty=0 dengan audit log manualAdjust.
-/// Idempotent — kalau sudah 0, tidak buat audit baru.
+/// Idempotent - kalau sudah 0, tidak buat audit baru.
 export async function markHabis(
   menuId: number,
   userId: number,

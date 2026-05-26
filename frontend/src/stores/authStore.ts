@@ -17,7 +17,7 @@ interface AuthState {
   login: (user: User, token: string) => void
   setUser: (user: User) => void
   logout: () => void
-  /** Hapus cached name — dipanggil saat "Ganti Pengguna" di LoginPage. */
+  /** Hapus cached name - dipanggil saat "Ganti Pengguna" di LoginPage. */
   clearLastUserName: () => void
 }
 
@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
         // "Ganti Pengguna" → clearLastUserName().
         //
         // Zustand persist middleware auto-sync state ke localStorage di
-        // setiap set() — tidak perlu manual clearStorage(). State baru
+        // setiap set() - tidak perlu manual clearStorage(). State baru
         // (user/token null + isAuthenticated false) sudah cukup mencegah
         // re-hydration sebagai authenticated.
         set({ user: null, token: null, isAuthenticated: false })

@@ -1,5 +1,5 @@
 /**
- * Tooltip — hanya muncul di desktop (touch device tidak punya hover state
+ * Tooltip - hanya muncul di desktop (touch device tidak punya hover state
  * yang reliable). Mobile no-op (children dirender langsung tanpa wrap).
  */
 

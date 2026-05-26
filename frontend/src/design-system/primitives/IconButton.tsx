@@ -6,7 +6,7 @@ export type IconButtonVariant = 'solid' | 'ghost' | 'outline' | 'danger'
 export type IconButtonSize = 'sm' | 'md' | 'lg'
 
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
-  /** Wajib untuk a11y — disampaikan ke screen reader. */
+  /** Wajib untuk a11y - disampaikan ke screen reader. */
   label: string
   icon: ReactNode
   variant?: IconButtonVariant

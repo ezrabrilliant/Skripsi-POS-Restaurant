@@ -1,4 +1,4 @@
-// MenuPage — REV 2.3 owner-only CRUD menu.
+// MenuPage - REV 2.3 owner-only CRUD menu.
 // DataTable responsive + Dialog form dgn subOptions JSON editor.
 
 import { useState, useMemo } from 'react'
@@ -11,13 +11,14 @@ import {
   Button,
   IconButton,
   Input,
-  Select,
+  Combobox,
+  Checkbox,
   Badge,
   Skeleton,
   Dialog,
   DataTable,
   type DataTableColumn,
-  type SelectOption,
+  type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
@@ -28,7 +29,7 @@ const STOCK_TYPE_LABEL: Record<StockType, string> = {
   nonStock: 'Tidak ditrack',
 }
 
-const STOCK_TYPE_OPTIONS: SelectOption[] = [
+const STOCK_TYPE_OPTIONS: ComboboxOption[] = [
   { value: 'nonStock', label: 'Tidak ditrack (minuman/nasi/paket)' },
   { value: 'portion', label: 'Stok Porsi (auto-decrement)' },
   { value: 'linked', label: 'Linked (varian, decrement menu lain)' },
@@ -87,7 +88,7 @@ export default function MenuPage() {
     deactivate.mutate(m.id)
   }
 
-  const categoryOptions: SelectOption[] = [
+  const categoryOptions: ComboboxOption[] = [
     { value: 'all', label: 'Semua kategori' },
     ...categories.map((c) => ({ value: c, label: c })),
   ]
@@ -140,7 +141,7 @@ export default function MenuPage() {
           <div className="text-caption text-neutral-500">{STOCK_TYPE_LABEL[m.stockType]}</div>
           {m.stockType === 'portion' && (
             <div className="text-body-sm text-neutral-700 tabular-nums">
-              {m.portionStock?.currentQty ?? '—'} / min {m.minStock ?? 0}
+              {m.portionStock?.currentQty ?? '-'} / min {m.minStock ?? 0}
             </div>
           )}
         </div>
@@ -192,23 +193,22 @@ export default function MenuPage() {
             <p className="text-body-sm text-neutral-600">{filtered.length} menu</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select
+            <Combobox
               hideLabel
               label="Filter kategori"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onValueChange={setCategoryFilter}
               options={categoryOptions}
-              containerClassName="min-w-[160px]"
+              searchPlaceholder="Cari kategori..."
+              containerClassName="min-w-[180px]"
             />
-            <label className="flex items-center gap-2 text-body-sm text-neutral-700 cursor-pointer select-none px-2">
-              <input
-                type="checkbox"
+            <div className="px-2">
+              <Checkbox
+                label="Tampilkan nonaktif"
                 checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="w-4 h-4 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
+                onCheckedChange={setShowInactive}
               />
-              Tampilkan nonaktif
-            </label>
+            </div>
             <Button
               variant="primary"
               size="md"
@@ -407,11 +407,12 @@ function MenuFormModal({
             required
           />
         </div>
-        <Select
+        <Combobox
           label="Stock Type"
           value={stockType}
-          onChange={(e) => setStockType(e.target.value as StockType)}
+          onValueChange={(v) => setStockType(v as StockType)}
           options={STOCK_TYPE_OPTIONS}
+          searchPlaceholder="Cari tipe stok..."
         />
         {stockType === 'portion' && (
           <Input
@@ -435,7 +436,7 @@ function MenuFormModal({
           <label className="text-label text-neutral-700 block mb-1.5">
             subOptions JSON{' '}
             <span className="text-caption text-neutral-500 font-normal">
-              (linked / paket — kosongkan kalau tidak relevan)
+              (linked / paket - kosongkan kalau tidak relevan)
             </span>
           </label>
           <textarea
@@ -447,7 +448,7 @@ function MenuFormModal({
           />
           <p className="text-caption text-neutral-500 mt-1">
             <strong>Linked:</strong> <code>{`{"stockTarget":"NamaMenu"}`}</code>.{' '}
-            <strong>Paket:</strong> <code>{`{"options":[...],"stockMap":{...}}`}</code> — pakai key
+            <strong>Paket:</strong> <code>{`{"options":[...],"stockMap":{...}}`}</code> - pakai key
             gabungan dgn separator <code>|</code> sesuai urutan.
           </p>
         </div>

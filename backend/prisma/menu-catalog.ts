@@ -1,5 +1,6 @@
-// Sumber kebenaran tunggal katalog menu Resto Ayam Bakar Banjar Monosuko (REV 2).
-// Dipakai oleh seed.ts (fresh DB).
+// Sumber kebenaran tunggal katalog menu Resto Ayam Bakar Banjar Monosuko.
+// Sinkron dengan `docs/menu-ayam-bakar-banjar-monosuko.md` (canonical reference).
+// Dipakai oleh seed.ts (fresh DB) dan scripts/update-menu.ts (sync ke DB existing).
 //
 // 3 kategori stockType:
 //   - 'portion'  : menu adalah stok porsi sendiri (auto-decrement saat order, 1:1 dengan PortionStock).
@@ -28,36 +29,84 @@ export interface MenuCatalogItem {
   subOptions?: Prisma.InputJsonValue;
 }
 
-// ----- Konstanta foto (re-use yang sudah ada di frontend/public/menu/) -----
-const AYAM_BAKAR_IMG = '/menu/ayam-bakar.webp';
-const AYAM_GORENG_IMG = '/menu/ayam-goreng.webp';
+// ----- Konstanta foto (slug match dengan output `npm run menu:optimize-images`).
+// Source: docs/gambar makanan/*.{png,jpg,jpeg,webp}; output: frontend/public/menu/*.webp.
+// Sharing diperbolehkan untuk variant visual mirip (linked stock atau pasangan ayam/daging) -
+// lihat komentar inline per menu.
+
+// --- Ayam (1 ekor + bagian) ---
+const AYAM_BAKAR_1_EKOR_IMG = '/menu/ayam-bakar-1-ekor.webp';
+const AYAM_GORENG_1_EKOR_IMG = '/menu/ayam-goreng-1-ekor.webp';
+const PAHA_BAKAR_IMG = '/menu/paha-bakar.webp';
+const PAHA_GORENG_IMG = '/menu/paha-goreng.webp';
+const DADA_BAKAR_IMG = '/menu/dada-bakar.webp';
+const DADA_GORENG_IMG = '/menu/dada-goreng.webp';
+const KEPALA_AYAM_IMG = '/menu/kepala-ayam.webp';
 const AYAM_TAUCO_IMG = '/menu/ayam-kuah-tauco.webp';
-const BAKWAN_IMG = '/menu/bakwan-goreng.webp';
-const GARANG_ASEM_IMG = '/menu/garang-asem.webp';
-const GULAI_IMG = '/menu/gulai.webp';
-const GURAME_IMG = '/menu/gurami-goreng.webp';
+
+// --- Seafood ---
+const UDANG_BAKAR_IMG = '/menu/udang-bakar.webp';
+const UDANG_GORENG_IMG = '/menu/udang-windu-goreng.webp'; // dipakai juga oleh Udang Promo isi 5
+const GURAME_BAKAR_IMG = '/menu/gurami-bakar.webp';
+const GURAME_GORENG_IMG = '/menu/gurami-goreng.webp';
+const JEROAN_IMG = '/menu/ati-bakar.webp'; // share Ati Ayam & Rempelo Ayam (tusukan jeroan, visual mirip)
+
+// --- Sayur & sup ---
+const CAH_KANGKUNG_IMG = '/menu/cah-kangkung.webp';
+const SAYUR_ASEM_IMG = '/menu/sayur-asem.webp';
+const GARANG_ASEM_IMG = '/menu/garang-asem.webp'; // share Garang Asem Ayam & Daging
 const RAWON_IMG = '/menu/rawon.webp';
-const UDANG_IMG = '/menu/udang-bakar.webp';
+const SEMUR_DAGING_IMG = '/menu/semur-daging.webp';
+const GULAI_IMG = '/menu/gulai.webp'; // share Gulai Daging & Babat
+
+// --- Side dish ---
+const EMPAL_PENYET_IMG = '/menu/empal-penyet.webp';
+const BAKWAN_PENYET_IMG = '/menu/bakwan-penyet.webp';
+const PETAI_IMG = '/menu/petai.webp';
+const TAHU_TEMPE_IMG = '/menu/tahu-tempe.webp'; // share semua varian Tahu/Tempe (4 menu)
+const TELUR_IMG = '/menu/telur.webp'; // share Telur Mata Sapi & Dadar
+const NASI_IMG = '/menu/nasi.webp'; // share Nasi Putih & Goreng
+const SAMBAL_IMG = '/menu/sambal.webp'; // share Sambal Terasi & Tomat
+
+// --- Minuman ---
+const SARANG_BURUNG_IMG = '/menu/sarang-burung-walet.webp';
+const AIR_MINERAL_IMG = '/menu/air-mineral.webp';
+const ES_TEH_IMG = '/menu/es-teh.webp'; // share 4 varian Teh (Tawar/Manis × Biasa/Jumbo)
+const ES_SIRUP_IMG = '/menu/es-sirup.webp';
+const JERUK_NIPIS_IMG = '/menu/es-jeruk-nipis.webp';
+const JERUK_PERAS_IMG = '/menu/es-jeruk-peras.webp';
+const JERUK_MURNI_IMG = '/menu/es-jeruk-murni.webp';
+const ES_DEGAN_IMG = '/menu/es-degan.webp';
+const KOPI_IMG = '/menu/kopi.webp';
+const SUSU_KEDELAI_IMG = '/menu/susu-kedelai.webp';
+const ES_CINCAU_IMG = '/menu/es-cincau.webp';
+
+// --- Paket Hemat ---
+const PAKET_KELUARGA_IMG = '/menu/paket-keluarga.webp';
+const PAKET_A_IMG = '/menu/paket-a.webp';
+const PAKET_B_IMG = '/menu/paket-b.webp';
+const PAKET_C_IMG = '/menu/paket-c.webp';
+const PAKET_D_IMG = '/menu/paket-d.webp';
 
 export const MENU_CATALOG: MenuCatalogItem[] = [
   // ============================================================
-  // KATEGORI: Signature Ayam Bakar
+  // KATEGORI: Signature Ayam Bakar (8 item, canonical doc baris 11-20)
   // ============================================================
-  // "1 Ekor Ayam Bakar (Merah)" jadi stok master; "Kecap" linked (berbagi stok).
+  // "1 Ekor Ayam Bakar (Merah)" jadi stok master; "Kecap" linked (berbagi stok + foto).
   {
     name: '1 Ekor Ayam Bakar Merah',
     category: 'Signature Ayam Bakar',
     price: 120000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: AYAM_BAKAR_1_EKOR_IMG,
   },
   {
     name: '1 Ekor Ayam Bakar Kecap',
     category: 'Signature Ayam Bakar',
     price: 120000,
     stockType: 'linked',
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: AYAM_BAKAR_1_EKOR_IMG,
     subOptions: { stockTarget: '1 Ekor Ayam Bakar Merah' },
   },
   {
@@ -66,7 +115,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 120000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: AYAM_GORENG_IMG,
+    imageUrl: AYAM_GORENG_1_EKOR_IMG,
   },
   {
     name: 'Paha Ayam Bakar',
@@ -74,7 +123,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: PAHA_BAKAR_IMG,
   },
   {
     name: 'Paha Ayam Goreng',
@@ -82,7 +131,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: AYAM_GORENG_IMG,
+    imageUrl: PAHA_GORENG_IMG,
   },
   {
     name: 'Dada Ayam Bakar',
@@ -90,7 +139,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: DADA_BAKAR_IMG,
   },
   {
     name: 'Dada Ayam Goreng',
@@ -98,7 +147,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: AYAM_GORENG_IMG,
+    imageUrl: DADA_GORENG_IMG,
   },
   {
     name: 'Kepala Ayam',
@@ -106,11 +155,11 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 2500,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: KEPALA_AYAM_IMG,
   },
 
   // ============================================================
-  // KATEGORI: Seafood
+  // KATEGORI: Seafood (5 item)
   // ============================================================
   {
     name: 'Udang Windu Bakar (isi 7)',
@@ -118,7 +167,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 150000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: UDANG_IMG,
+    imageUrl: UDANG_BAKAR_IMG,
   },
   {
     name: 'Udang Windu Goreng (isi 7)',
@@ -126,7 +175,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 150000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: UDANG_IMG,
+    imageUrl: UDANG_GORENG_IMG,
   },
   {
     name: 'Udang Promo (isi 5)',
@@ -134,7 +183,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 3,
-    imageUrl: UDANG_IMG,
+    imageUrl: UDANG_GORENG_IMG,
   },
   {
     name: 'Gurame Bakar',
@@ -142,7 +191,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 100000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: GURAME_IMG,
+    imageUrl: GURAME_BAKAR_IMG,
   },
   {
     name: 'Gurame Goreng',
@@ -150,19 +199,21 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 100000,
     stockType: 'portion',
     minStock: 2,
-    imageUrl: GURAME_IMG,
+    imageUrl: GURAME_GORENG_IMG,
   },
-  // Jeroan — per tusuk, satuan = porsi (1 tusuk = 1 porsi).
-  { name: 'Ati Bakar', category: 'Seafood', price: 5000, stockType: 'portion', minStock: 10 },
-  { name: 'Ati Goreng', category: 'Seafood', price: 5000, stockType: 'portion', minStock: 10 },
-  { name: 'Rampela Bakar', category: 'Seafood', price: 5000, stockType: 'portion', minStock: 10 },
-  { name: 'Rampela Goreng', category: 'Seafood', price: 5000, stockType: 'portion', minStock: 10 },
 
   // ============================================================
-  // KATEGORI: Sayur & Sup (mix portion + nonStock)
+  // KATEGORI: Jeroan (2 item, per tusuk - 1 tusuk = 1 porsi)
   // ============================================================
-  { name: 'Cah Kangkung', category: 'Sayur & Sup', price: 20000, stockType: 'nonStock' },
-  { name: 'Sayur Asem', category: 'Sayur & Sup', price: 15000, stockType: 'nonStock' },
+  // Tidak ada split Bakar/Goreng - keputusan masak inline di dapur.
+  { name: 'Ati Ayam', category: 'Jeroan', price: 5000, stockType: 'portion', minStock: 10, imageUrl: JEROAN_IMG },
+  { name: 'Rempelo Ayam', category: 'Jeroan', price: 5000, stockType: 'portion', minStock: 10, imageUrl: JEROAN_IMG },
+
+  // ============================================================
+  // KATEGORI: Sayur & Sup (9 item, canonical doc baris 33-44)
+  // ============================================================
+  { name: 'Cah Kangkung', category: 'Sayur & Sup', price: 20000, stockType: 'nonStock', imageUrl: CAH_KANGKUNG_IMG },
+  { name: 'Sayur Asem', category: 'Sayur & Sup', price: 15000, stockType: 'nonStock', imageUrl: SAYUR_ASEM_IMG },
   {
     name: 'Ayam Tauco',
     category: 'Sayur & Sup',
@@ -201,6 +252,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     price: 30000,
     stockType: 'portion',
     minStock: 5,
+    imageUrl: SEMUR_DAGING_IMG,
   },
   {
     name: 'Gulai Daging',
@@ -220,65 +272,58 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   },
 
   // ============================================================
-  // KATEGORI: Side Dish & Tambahan (mix)
+  // KATEGORI: Side Dish (13 item, canonical doc baris 46-61)
   // ============================================================
-  // Empal & Bakwan: penyet adalah varian saji (ada sambal). Stok porsi pakai nama "Empal" / "Bakwan" raw — varian penyet linked.
-  { name: 'Empal', category: 'Side Dish', price: 25000, stockType: 'portion', minStock: 10 },
+  // Empal Penyet & Bakwan Penyet = portion sendiri (canonical doc tidak mencantum
+  // varian raw "Empal" / "Bakwan" tanpa penyet).
   {
     name: 'Empal Penyet',
     category: 'Side Dish',
     price: 25000,
-    stockType: 'linked',
-    subOptions: { stockTarget: 'Empal' },
-  },
-  {
-    name: 'Bakwan',
-    category: 'Side Dish',
-    price: 30000,
     stockType: 'portion',
     minStock: 10,
-    imageUrl: BAKWAN_IMG,
+    imageUrl: EMPAL_PENYET_IMG,
   },
   {
     name: 'Bakwan Penyet',
     category: 'Side Dish',
     price: 30000,
-    stockType: 'linked',
-    imageUrl: BAKWAN_IMG,
-    subOptions: { stockTarget: 'Bakwan' },
+    stockType: 'portion',
+    minStock: 10,
+    imageUrl: BAKWAN_PENYET_IMG,
   },
-  { name: 'Petai Goreng', category: 'Side Dish', price: 20000, stockType: 'nonStock' },
-  { name: 'Tahu Tempe Penyet', category: 'Side Dish', price: 20000, stockType: 'nonStock' },
-  { name: 'Tahu Tempe Goreng', category: 'Side Dish', price: 12000, stockType: 'nonStock' },
-  { name: 'Tahu Goreng', category: 'Side Dish', price: 10000, stockType: 'nonStock' },
-  { name: 'Tempe Goreng', category: 'Side Dish', price: 10000, stockType: 'nonStock' },
-  { name: 'Telur Mata Sapi', category: 'Side Dish', price: 10000, stockType: 'nonStock' },
-  { name: 'Telur Dadar', category: 'Side Dish', price: 10000, stockType: 'nonStock' },
-  { name: 'Nasi Putih', category: 'Side Dish', price: 10000, stockType: 'nonStock' },
-  { name: 'Nasi Goreng', category: 'Side Dish', price: 15000, stockType: 'nonStock' },
-  { name: 'Sambal Terasi', category: 'Side Dish', price: 5000, stockType: 'nonStock' },
-  { name: 'Sambal Tomat', category: 'Side Dish', price: 5000, stockType: 'nonStock' },
+  { name: 'Petai Goreng', category: 'Side Dish', price: 20000, stockType: 'nonStock', imageUrl: PETAI_IMG },
+  { name: 'Tahu Tempe Penyet', category: 'Side Dish', price: 20000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
+  { name: 'Tahu Tempe Goreng', category: 'Side Dish', price: 12000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
+  { name: 'Tahu Goreng', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
+  { name: 'Tempe Goreng', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
+  { name: 'Telur Mata Sapi', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: TELUR_IMG },
+  { name: 'Telur Dadar', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: TELUR_IMG },
+  { name: 'Nasi Putih', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: NASI_IMG },
+  { name: 'Nasi Goreng', category: 'Side Dish', price: 15000, stockType: 'nonStock', imageUrl: NASI_IMG },
+  { name: 'Sambal Terasi', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
+  { name: 'Sambal Tomat', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
 
   // ============================================================
-  // KATEGORI: Minuman (semua nonStock)
+  // KATEGORI: Minuman (14 item - sesuai catalog versi user edit)
   // ============================================================
-  { name: 'Sarang Burung', category: 'Minuman', price: 80000, stockType: 'nonStock' },
-  { name: 'Air Mineral', category: 'Minuman', price: 5000, stockType: 'nonStock' },
-  { name: 'Teh Tawar Biasa', category: 'Minuman', price: 8000, stockType: 'nonStock' },
-  { name: 'Teh Tawar Jumbo', category: 'Minuman', price: 12000, stockType: 'nonStock' },
-  { name: 'Teh Manis Biasa', category: 'Minuman', price: 10000, stockType: 'nonStock' },
-  { name: 'Teh Manis Jumbo', category: 'Minuman', price: 15000, stockType: 'nonStock' },
-  { name: 'Es Sirup', category: 'Minuman', price: 10000, stockType: 'nonStock' },
-  { name: 'Jeruk Nipis', category: 'Minuman', price: 10000, stockType: 'nonStock' },
-  { name: 'Es Degan', category: 'Minuman', price: 15000, stockType: 'nonStock' },
-  { name: 'Jeruk Peras', category: 'Minuman', price: 15000, stockType: 'nonStock' },
-  { name: 'Jeruk Murni', category: 'Minuman', price: 25000, stockType: 'nonStock' },
-  { name: 'Kopi', category: 'Minuman', price: 15000, stockType: 'nonStock' },
-  { name: 'Susu Kedelai', category: 'Minuman', price: 15000, stockType: 'nonStock' },
-  { name: 'Cincau', category: 'Minuman', price: 12000, stockType: 'nonStock' },
+  { name: 'Sarang Burung', category: 'Minuman', price: 80000, stockType: 'nonStock', imageUrl: SARANG_BURUNG_IMG },
+  { name: 'Air Mineral', category: 'Minuman', price: 5000, stockType: 'nonStock', imageUrl: AIR_MINERAL_IMG },
+  { name: 'Teh Tawar Biasa', category: 'Minuman', price: 8000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
+  { name: 'Teh Tawar Jumbo', category: 'Minuman', price: 12000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
+  { name: 'Teh Manis Biasa', category: 'Minuman', price: 10000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
+  { name: 'Teh Manis Jumbo', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
+  { name: 'Es Sirup', category: 'Minuman', price: 10000, stockType: 'nonStock', imageUrl: ES_SIRUP_IMG },
+  { name: 'Jeruk Nipis', category: 'Minuman', price: 10000, stockType: 'nonStock', imageUrl: JERUK_NIPIS_IMG },
+  { name: 'Es Degan', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: ES_DEGAN_IMG },
+  { name: 'Jeruk Peras', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: JERUK_PERAS_IMG },
+  { name: 'Jeruk Murni', category: 'Minuman', price: 25000, stockType: 'nonStock', imageUrl: JERUK_MURNI_IMG },
+  { name: 'Kopi', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: KOPI_IMG },
+  { name: 'Susu Kedelai', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: SUSU_KEDELAI_IMG },
+  { name: 'Es Cincau', category: 'Minuman', price: 12000, stockType: 'nonStock', imageUrl: ES_CINCAU_IMG },
 
   // ============================================================
-  // KATEGORI: Paket Hemat (5 paket dengan sub-options dinamis)
+  // KATEGORI: Paket Hemat (5 item, canonical doc baris 81-88)
   // ============================================================
   // Format stockMap key = nilai sub-options dijoin "|" mengikuti urutan options array.
   // Mis. options=[{key:"cook"}], stockMap "Bakar"->"1 Ekor Ayam Bakar Merah".
@@ -288,7 +333,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     category: 'Paket Hemat',
     price: 150000,
     stockType: 'nonStock',
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: PAKET_KELUARGA_IMG,
     subOptions: {
       description: '1 Ekor Ayam + 4 Nasi Putih + 4 Teh Tawar',
       options: [{ key: 'cook', label: 'Cara Masak', options: ['Bakar', 'Goreng'] }],
@@ -303,7 +348,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     category: 'Paket Hemat',
     price: 50000,
     stockType: 'nonStock',
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: PAKET_A_IMG,
     subOptions: {
       description: 'Paha/Dada Ayam + Nasi + Tahu Tempe + Sayur Asem + Minuman',
       options: [
@@ -328,7 +373,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     category: 'Paket Hemat',
     price: 40000,
     stockType: 'nonStock',
-    imageUrl: AYAM_BAKAR_IMG,
+    imageUrl: PAKET_B_IMG,
     subOptions: {
       description: 'Paha/Dada Ayam + Nasi + Tahu Tempe',
       options: [
@@ -348,19 +393,18 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     category: 'Paket Hemat',
     price: 40000,
     stockType: 'nonStock',
-    imageUrl: RAWON_IMG,
+    imageUrl: PAKET_C_IMG,
     subOptions: {
       description: '1 Kuah + Nasi Putih + Minuman',
       options: [
         {
           key: 'kuah',
           label: 'Pilihan Kuah',
-          options: ['Rawon', 'Gulai', 'Garang Asem', 'Bakwan', 'Semur'],
+          options: ['Rawon', 'Gulai', 'Garang Asem', 'Bakwan Penyet', 'Semur'],
         },
         { key: 'minuman', label: 'Minuman', options: ['Teh Tawar', 'Teh Manis', 'Air Mineral'] },
       ],
       // Catatan: Garang Asem default ke Ayam (lebih umum). Gulai default Daging.
-      // Kalau resto mau bisa pilih Daging untuk Garang Asem juga, tambah sub-option ke-3.
       stockMap: {
         'Rawon|Teh Tawar': 'Rawon Daging',
         'Rawon|Teh Manis': 'Rawon Daging',
@@ -371,9 +415,9 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
         'Garang Asem|Teh Tawar': 'Garang Asem Ayam',
         'Garang Asem|Teh Manis': 'Garang Asem Ayam',
         'Garang Asem|Air Mineral': 'Garang Asem Ayam',
-        'Bakwan|Teh Tawar': 'Bakwan',
-        'Bakwan|Teh Manis': 'Bakwan',
-        'Bakwan|Air Mineral': 'Bakwan',
+        'Bakwan Penyet|Teh Tawar': 'Bakwan Penyet',
+        'Bakwan Penyet|Teh Manis': 'Bakwan Penyet',
+        'Bakwan Penyet|Air Mineral': 'Bakwan Penyet',
         'Semur|Teh Tawar': 'Semur Daging',
         'Semur|Teh Manis': 'Semur Daging',
         'Semur|Air Mineral': 'Semur Daging',
@@ -383,17 +427,18 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   {
     name: 'Paket D (1 org)',
     category: 'Paket Hemat',
-    price: 38000,
+    price: 40000,
     stockType: 'nonStock',
+    imageUrl: PAKET_D_IMG,
     subOptions: {
       description: 'Empal Penyet + Nasi + Minuman',
       options: [
         { key: 'minuman', label: 'Minuman', options: ['Teh Tawar', 'Teh Manis', 'Air Mineral'] },
       ],
       stockMap: {
-        'Teh Tawar': 'Empal',
-        'Teh Manis': 'Empal',
-        'Air Mineral': 'Empal',
+        'Teh Tawar': 'Empal Penyet',
+        'Teh Manis': 'Empal Penyet',
+        'Air Mineral': 'Empal Penyet',
       },
     },
   },

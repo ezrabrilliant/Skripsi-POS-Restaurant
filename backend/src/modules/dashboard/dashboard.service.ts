@@ -1,4 +1,4 @@
-// Service modul dashboard. REV 2.3 — 3 endpoint untuk 3 role.
+// Service modul dashboard. REV 2.3 - 3 endpoint untuk 3 role.
 //
 // Konsep:
 //   - Owner: laporan finansial penuh periode (today/month/year/custom). Pendapatan
@@ -198,45 +198,52 @@ function emptyMethodTotals(): MethodTotals {
 async function revenueByMethod(
   where: Prisma.TransactionWhereInput,
 ): Promise<{ total: number; count: number; byMethod: MethodTotals }> {
-  const grouped = await prisma.transaction.groupBy({
-    by: ['paymentMethod'],
-    // REV 2.3 Phase 4b: exclude merged sources supaya tidak double-count revenue.
-    where: { ...where, mergedIntoId: null },
-    _sum: { total: true },
-    _count: { _all: true },
-  });
+  // REV 2.5: total + count dari Tx aggregate; byMethod via TransactionPayment groupBy.
+  // Filter mergedIntoId IS NULL untuk hindari double-count merged sources.
+  const txWhere = { ...where, mergedIntoId: null };
+
+  const [txAgg, grouped] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: txWhere,
+      _sum: { total: true },
+      _count: { _all: true },
+    }),
+    prisma.transactionPayment.groupBy({
+      by: ['method'],
+      where: { transaction: txWhere },
+      _sum: { amount: true },
+    }),
+  ]);
+
   const byMethod = emptyMethodTotals();
-  let total = 0;
-  let count = 0;
   for (const g of grouped) {
-    if (!g.paymentMethod) continue;
-    const amount = g._sum.total?.toNumber() ?? 0;
-    byMethod[g.paymentMethod] = amount;
-    total += amount;
-    count += g._count._all;
+    const amount = g._sum.amount?.toNumber() ?? 0;
+    byMethod[g.method] = amount;
   }
+  const total = txAgg._sum.total?.toNumber() ?? 0;
+  const count = txAgg._count._all;
   return { total, count, byMethod };
 }
 
 async function bankBreakdown(
   where: Prisma.TransactionWhereInput,
 ): Promise<BankBreakdownEntry[]> {
-  const rows = await prisma.transaction.groupBy({
-    by: ['paymentMethod', 'paymentBank'],
+  // REV 2.5: bank breakdown via TransactionPayment.bank groupBy.
+  const rows = await prisma.transactionPayment.groupBy({
+    by: ['method', 'bank'],
     where: {
-      ...where,
-      mergedIntoId: null,
-      paymentMethod: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
-      paymentBank: { not: null },
+      transaction: { ...where, mergedIntoId: null },
+      method: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
+      bank: { not: null },
     },
-    _sum: { total: true },
+    _sum: { amount: true },
   });
   return rows
-    .filter((r) => r.paymentMethod && r.paymentBank)
+    .filter((r) => r.bank)
     .map((r) => ({
-      method: r.paymentMethod as 'edc' | 'transfer',
-      bank: r.paymentBank!,
-      total: r._sum.total?.toNumber() ?? 0,
+      method: r.method as 'edc' | 'transfer',
+      bank: r.bank!,
+      total: r._sum.amount?.toNumber() ?? 0,
     }))
     .sort((a, b) => a.method.localeCompare(b.method) || a.bank.localeCompare(b.bank));
 }
@@ -300,7 +307,7 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
               _sum: { amount: true },
             })
           : prisma.bill.aggregate({
-              // 'today' & 'custom' — pakai bills bulan saat ini sebagai approx
+              // 'today' & 'custom' - pakai bills bulan saat ini sebagai approx
               // (bills bersifat bulanan, jadi untuk laporan harian tampilkan bills bulan saat ini)
               where: { month: todayMonthString() },
               _sum: { amount: true },

@@ -1,7 +1,7 @@
 // REV 2.3 shift-decoupling: standalone dialog buka kasir. Dipakai oleh CashierDashboard
 // dan POSPage saat kasir login + belum ada shift aktif system-wide.
 // Permission: caller WAJIB pastikan user.role === 'cashier' sebelum render (per matrix
-// REV 2.3 — buka shift kasir-only, owner/waiter tidak punya CTA).
+// REV 2.3 - buka shift kasir-only, owner/waiter tidak punya CTA).
 //
 // REV 2.5 multi-cashier sharing: caller bisa pass `activeShifts` supaya tombol pilih
 // tipe yang sudah aktif (oleh kasir manapun) di-render grayed out + tooltip. Default

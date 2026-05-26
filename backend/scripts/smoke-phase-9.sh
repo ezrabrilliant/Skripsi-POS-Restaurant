@@ -46,17 +46,17 @@ echo "=== 7. GET /dashboard/cashier (waiter) → 403 ==="
 curl -s -o /dev/null -w "status=%{http_code}\n" $BASE/dashboard/cashier -H "Authorization: Bearer $AMEL_TOKEN"
 
 echo ""
-echo "=== 8. GET /dashboard/cashier (Jason kasir — pagi shift closed earlier) → 200, activeShift=null ==="
+echo "=== 8. GET /dashboard/cashier (Jason kasir - pagi shift closed earlier) → 200, activeShift=null ==="
 curl -s $BASE/dashboard/cashier -H "Authorization: Bearer $JASON_TOKEN" | jq_field 'const d=j.data.dashboard; console.log(JSON.stringify({activeShift:d.activeShift,today:d.today,reminders:d.reminders},null,2))'
 
 echo ""
-echo "=== 9. Open shift baru untuk Jason, lalu GET /dashboard/cashier — activeShift terisi ==="
+echo "=== 9. Open shift baru untuk Jason, lalu GET /dashboard/cashier - activeShift terisi ==="
 NEW_SHIFT=$(curl -s -X POST $BASE/shifts/open -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d '{"type":"malam","openingCash":200000}' 2>&1)
 echo "$NEW_SHIFT" | head -c 200; echo
 NEW_SHIFT_ID=$(echo "$NEW_SHIFT" | jq_field 'console.log(j.data?.shift?.id || "EXISTING")')
 
 if [ "$NEW_SHIFT_ID" = "EXISTING" ] || [ -z "$NEW_SHIFT_ID" ]; then
-  echo "  (Bryant malam shift sudah ada — skip new open)"
+  echo "  (Bryant malam shift sudah ada - skip new open)"
 else
   echo "  Bryant new malam shift id=$NEW_SHIFT_ID"
 fi
@@ -65,7 +65,7 @@ echo "Bryant /dashboard/cashier:"
 curl -s $BASE/dashboard/cashier -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'const d=j.data.dashboard; console.log(JSON.stringify({activeShift:d.activeShift,today:d.today,reminders:d.reminders},null,2))'
 
 echo ""
-echo "=== 10. GET /dashboard/cashier (owner — also allowed) → 200 ==="
+echo "=== 10. GET /dashboard/cashier (owner - also allowed) → 200 ==="
 curl -s -o /dev/null -w "status=%{http_code}\n" $BASE/dashboard/cashier -H "Authorization: Bearer $OWNER_TOKEN"
 
 echo ""
@@ -75,7 +75,7 @@ echo "=== 11. GET /dashboard/waiter (waiter Amel) → 200 ==="
 curl -s $BASE/dashboard/waiter -H "Authorization: Bearer $AMEL_TOKEN" | jq_field 'const d=j.data.dashboard; console.log(JSON.stringify({portionStocks:{totalCount:d.portionStocks.totalCount,lowCount:d.portionStocks.lowCount,top3LowSamples:d.portionStocks.lowSamples.slice(0,3)},rawMaterials:{lowCount:d.rawMaterials.lowCount,nearExpiryCount:d.rawMaterials.nearExpiryCount,top3LowSamples:d.rawMaterials.lowSamples.slice(0,3)},activeShiftsToday:d.activeShiftsToday},null,2))'
 
 echo ""
-echo "=== 12. GET /dashboard/waiter (owner — also allowed) → 200 ==="
+echo "=== 12. GET /dashboard/waiter (owner - also allowed) → 200 ==="
 curl -s -o /dev/null -w "status=%{http_code}\n" $BASE/dashboard/waiter -H "Authorization: Bearer $OWNER_TOKEN"
 
 echo ""

@@ -3,14 +3,14 @@
 // Saat purchase di-submit, untuk TIAP item:
 //   1. Create PurchaseItem (qty + unitPrice + subtotal = qty*unitPrice)
 //   2. Update raw_materials.last_buy_date = purchase.date (selalu)
-//   3. Update raw_materials.unit_price = item.unitPrice (selalu — snapshot harga terbaru)
+//   3. Update raw_materials.unit_price = item.unitPrice (selalu - snapshot harga terbaru)
 //   4. Update raw_materials.stock_qty += qty (HANYA kalau isTracked=true)
 //   5. Insert raw_material_movements reason=`purchase` delta=+qty (SELALU, audit untuk
-//      semua item — non-tracked tetap log untuk akuntabilitas pengeluaran)
+//      semua item - non-tracked tetap log untuk akuntabilitas pengeluaran)
 //
-// totalAmount header = sum(subtotal items) — dihitung di server, bukan dari client.
+// totalAmount header = sum(subtotal items) - dihitung di server, bukan dari client.
 //
-// Tidak ada operasi update/delete purchase di Phase 7 — kalau salah input, kasir
+// Tidak ada operasi update/delete purchase di Phase 7 - kalau salah input, kasir
 // catat purchase baru sebagai koreksi (audit trail tetap utuh). Bisa ditambah
 // kalau dibutuhkan, tapi out-of-scope untuk REV 2.3 ini.
 

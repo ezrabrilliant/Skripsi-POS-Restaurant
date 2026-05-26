@@ -1,4 +1,4 @@
-// REV 2.3 MenuGrid — display menu cards grouped per category dengan filter pencarian.
+// REV 2.3 MenuGrid - display menu cards grouped per category dengan filter pencarian.
 // onClick delegate ke parent (POSPage): paket dgn subOptions → buka modal;
 // menu biasa → langsung addItem.
 
@@ -30,8 +30,18 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
   const [activeCategory, setActiveCategory] = useState<string | 'all'>('all')
 
   const categories = useMemo(() => {
-    const set = new Set(menus.map((m) => m.category))
-    return Array.from(set).sort()
+    // Sort kategori by total salesCount per kategori (desc) supaya kategori
+    // terlaris muncul kiri. Tiebreak alfabet. Kalau backend belum kirim
+    // salesCount (mis. cache lama), fallback ke alfabet murni.
+    const totals = new Map<string, number>()
+    for (const m of menus) {
+      totals.set(m.category, (totals.get(m.category) ?? 0) + (m.salesCount ?? 0))
+    }
+    return Array.from(totals.keys()).sort((a, b) => {
+      const diff = (totals.get(b) ?? 0) - (totals.get(a) ?? 0)
+      if (diff !== 0) return diff
+      return a.localeCompare(b)
+    })
   }, [menus])
 
   const filtered = useMemo(() => {
@@ -41,7 +51,17 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
       const q = search.toLowerCase()
       list = list.filter((m) => m.name.toLowerCase().includes(q))
     }
-    return list
+    // Sort: menu habis (portion qty<=0) ke paling bawah, sisanya terlaris (salesCount)
+    // di atas, alfabet sebagai tiebreaker. Backend kirim salesCount via includePopularity.
+    return [...list].sort((a, b) => {
+      const aHabis = a.stockType === 'portion' && (a.portionStock?.currentQty ?? 0) <= 0
+      const bHabis = b.stockType === 'portion' && (b.portionStock?.currentQty ?? 0) <= 0
+      if (aHabis !== bHabis) return aHabis ? 1 : -1
+      const aSales = a.salesCount ?? 0
+      const bSales = b.salesCount ?? 0
+      if (aSales !== bSales) return bSales - aSales
+      return a.name.localeCompare(b.name)
+    })
   }, [menus, activeCategory, search])
 
   const categoryItems = useMemo(
@@ -53,7 +73,10 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
   )
 
   return (
-    <div className="h-full flex flex-col">
+    // REV 2.4 fix mobile cut-off: flex-1 + min-h-0 supaya MenuGrid TIDAK overflow
+    // parent flex-col (h-full sebelumnya = 100% parent → overflow di-luar header
+    // dan bottom nav). flex-1 = fill remaining space setelah sibling header.
+    <div className="flex-1 min-h-0 flex flex-col">
       {/* Sticky filter bar */}
       <div className="sticky top-0 bg-neutral-100/95 backdrop-blur z-sticky px-3 py-2.5 space-y-2 border-b border-neutral-200/60">
         <Input

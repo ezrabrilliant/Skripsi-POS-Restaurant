@@ -123,7 +123,7 @@ export default function OwnerDashboard() {
 
         {report && (
           <>
-            {/* Top metrics — Revenue / Expense / Profit */}
+            {/* Top metrics - Revenue / Expense / Profit */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Stat
                 label="Pendapatan"
@@ -370,9 +370,9 @@ function ShiftPanel({
       <ul className="text-body-sm space-y-1 text-neutral-700">
         {shifts.map((s) => (
           <li key={s.id} className="flex flex-wrap gap-x-2">
-            <span className="font-medium text-neutral-900">{s.cashierName ?? '—'}</span>
+            <span className="font-medium text-neutral-900">{s.cashierName ?? '-'}</span>
             <span className="text-neutral-500">·</span>
-            <span>{s.type === 'pagi' ? 'Pagi' : s.type === 'malam' ? 'Malam' : '—'}</span>
+            <span>{s.type === 'pagi' ? 'Pagi' : s.type === 'malam' ? 'Malam' : '-'}</span>
             <span className="text-neutral-500">·</span>
             <span>modal awal {formatCurrency(s.openingCash)}</span>
           </li>
@@ -381,7 +381,7 @@ function ShiftPanel({
       {isOverlap && (
         <p className="mt-2 text-caption text-warning-700">
           Input order baru akan ditolak sampai salah satu shift ditutup. Owner force-close
-          belum tersedia di UI — minta kasir tutup shift via menu Settlement.
+          belum tersedia di UI - minta kasir tutup shift via menu Settlement.
         </p>
       )}
     </div>

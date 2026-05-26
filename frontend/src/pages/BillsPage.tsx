@@ -1,4 +1,4 @@
-// BillsPage — REV 2.3 owner-only tagihan operasional bulanan.
+// BillsPage - REV 2.3 owner-only tagihan operasional bulanan.
 // 5 BillCategory: kebersihan / listrik / air / parkir / sewa.
 
 import { useState } from 'react'
@@ -12,18 +12,18 @@ import {
   Button,
   IconButton,
   Input,
-  Select,
+  Combobox,
   Skeleton,
   DataTable,
   Dialog,
   type DataTableColumn,
-  type SelectOption,
+  type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 
 const CATEGORIES: BillCategory[] = ['kebersihan', 'listrik', 'air', 'parkir', 'sewa']
-const CATEGORY_OPTIONS: SelectOption[] = CATEGORIES.map((c) => ({
+const CATEGORY_OPTIONS: ComboboxOption[] = CATEGORIES.map((c) => ({
   value: c,
   label: BILL_CATEGORY_LABEL[c],
 }))
@@ -80,7 +80,7 @@ export default function BillsPage() {
       key: 'note',
       header: 'Catatan',
       hideMobile: true,
-      cell: (b) => <span className="text-neutral-700">{b.note ?? '—'}</span>,
+      cell: (b) => <span className="text-neutral-700">{b.note ?? '-'}</span>,
     },
     {
       key: 'amount',
@@ -268,11 +268,12 @@ function BillFormModal({
               className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
             />
           </div>
-          <Select
+          <Combobox
             label="Kategori"
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value as BillCategory })}
+            onValueChange={(v) => setForm({ ...form, category: v as BillCategory })}
             options={CATEGORY_OPTIONS}
+            searchPlaceholder="Cari kategori..."
           />
         </div>
         <Input

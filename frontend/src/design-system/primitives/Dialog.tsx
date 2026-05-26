@@ -1,7 +1,12 @@
 /**
- * Dialog — modal universal. Mobile (`<md`) auto-slide-up dari bawah
+ * Dialog - modal universal. Mobile (`<sm`) auto-slide-up dari bawah
  * (sheet style). Tablet+ centered scaleIn. Pakai Radix Dialog untuk
  * focus trap, ESC handling, scroll lock, a11y (aria-modal, role).
+ *
+ * IMPORTANT: positioning pakai flexbox di wrapper, motion.div HANYA
+ * handle animation transform. Kalau pakai Tailwind `-translate-x-1/2`
+ * di motion.div, framer-motion's inline transform akan override Tailwind
+ * → dialog muncul off-center.
  */
 
 import { type ReactNode } from 'react'
@@ -22,7 +27,7 @@ interface DialogProps {
   size?: DialogSize
   /** Hide close button (kalau action wajib pilih) */
   hideClose?: boolean
-  /** Footer slot — biasanya untuk action buttons */
+  /** Footer slot - biasanya untuk action buttons */
   footer?: ReactNode
   children: ReactNode
   /** Disable click outside to close */
@@ -58,7 +63,7 @@ export function Dialog({
           <RDialog.Portal forceMount>
             <RDialog.Overlay asChild forceMount>
               <motion.div
-                className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm z-modal"
+                className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm"
                 style={{ zIndex: 40 }}
                 variants={fadeIn}
                 initial="initial"
@@ -66,66 +71,75 @@ export function Dialog({
                 exit="exit"
               />
             </RDialog.Overlay>
+            {/* Wrapper handles positioning via flexbox - no transforms here.
+               Motion.div inside hanya animate (transform property bebas dipakai). */}
             <RDialog.Content
               asChild
               forceMount
               onPointerDownOutside={preventOutsideClose ? (e) => e.preventDefault() : undefined}
               onEscapeKeyDown={preventOutsideClose ? (e) => e.preventDefault() : undefined}
+              // Radix a11y: kalau description tidak diset, pass aria-describedby={undefined}
+              // EXPLICITLY supaya Radix tidak warn "Missing Description". Bila description
+              // diset, RDialog.Description di body auto-wire aria-describedby ke Content.
+              {...(!description && { 'aria-describedby': undefined })}
             >
-              <motion.div
+              <div
                 style={{ zIndex: 40 }}
-                className={cn(
-                  'fixed left-1/2 -translate-x-1/2',
-                  // Mobile: bottom sheet
-                  'bottom-0 w-full max-h-[92dvh] rounded-t-2xl',
-                  // Tablet+: centered modal
-                  'sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:max-h-[85dvh]',
-                  SIZE[size],
-                  'bg-white shadow-lg flex flex-col overflow-hidden',
-                  'pb-safe'
-                )}
-                variants={variants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
+                className="fixed inset-0 flex justify-center items-end sm:items-center pointer-events-none sm:p-4"
               >
-                {/* Mobile drag handle */}
-                <div className="sm:hidden flex items-center justify-center pt-2.5 pb-1">
-                  <div className="h-1 w-10 rounded-full bg-neutral-300" aria-hidden />
-                </div>
+                <motion.div
+                  className={cn(
+                    'pointer-events-auto bg-white shadow-lg flex flex-col overflow-hidden',
+                    // Mobile: bottom sheet - full width, attached to bottom edge
+                    'w-full max-h-[92dvh] rounded-t-2xl',
+                    // Tablet+: max-width capped, rounded full + max height adjusted
+                    'sm:rounded-2xl sm:max-h-[85dvh]',
+                    SIZE[size],
+                    'pb-safe'
+                  )}
+                  variants={variants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  {/* Mobile drag handle */}
+                  <div className="sm:hidden flex items-center justify-center pt-2.5 pb-1">
+                    <div className="h-1 w-10 rounded-full bg-neutral-300" aria-hidden />
+                  </div>
 
-                <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
-                  <div className="min-w-0 flex-1">
-                    <RDialog.Title className="text-title font-semibold text-neutral-900">
-                      {title}
-                    </RDialog.Title>
-                    {description && (
-                      <RDialog.Description className="mt-1 text-body-sm text-neutral-600">
-                        {description}
-                      </RDialog.Description>
+                  <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
+                    <div className="min-w-0 flex-1">
+                      <RDialog.Title className="text-title font-semibold text-neutral-900">
+                        {title}
+                      </RDialog.Title>
+                      {description && (
+                        <RDialog.Description className="mt-1 text-body-sm text-neutral-600">
+                          {description}
+                        </RDialog.Description>
+                      )}
+                    </div>
+                    {!hideClose && (
+                      <RDialog.Close asChild>
+                        <button
+                          type="button"
+                          aria-label="Tutup"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </RDialog.Close>
                     )}
                   </div>
-                  {!hideClose && (
-                    <RDialog.Close asChild>
-                      <button
-                        type="button"
-                        aria-label="Tutup"
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </RDialog.Close>
+
+                  <div className="flex-1 overflow-y-auto px-5 pb-4">{children}</div>
+
+                  {footer && (
+                    <div className="px-5 pt-3 pb-4 border-t border-neutral-200 bg-neutral-50/50 flex items-center justify-end gap-2">
+                      {footer}
+                    </div>
                   )}
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-5 pb-4">{children}</div>
-
-                {footer && (
-                  <div className="px-5 pt-3 pb-4 border-t border-neutral-200 bg-neutral-50/50 flex items-center justify-end gap-2">
-                    {footer}
-                  </div>
-                )}
-              </motion.div>
+                </motion.div>
+              </div>
             </RDialog.Content>
           </RDialog.Portal>
         )}

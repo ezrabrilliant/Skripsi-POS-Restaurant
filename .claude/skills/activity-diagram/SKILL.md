@@ -29,18 +29,18 @@ Aktivitas = **apa yang sistem dan aktor lakukan** dalam bahasa bisnis, bukan imp
 
 ---
 
-## 2. Action naming - BAHASA MANUSIA, BUKAN code (CRITICAL — paling penting!)
+## 2. Action naming - BAHASA MANUSIA, BUKAN code (CRITICAL - paling penting!)
 
 **Audiens activity diagram = manusia non-teknis** (kasir, waiter, owner, dosen, penguji). Bukan developer. Action name harus enak dibaca seperti instruksi di buku manual pelatihan pegawai.
 
 **Aturan keras:**
 1. Title Case Indonesian, verb phrase 2-5 kata
 2. **DILARANG**: nama tabel/kolom (`portion_stocks`, `current_qty`), nama field/enum (`payment_method`, `reason=order`), nama property (`status=open`), istilah teknis (`localStorage`, `cache`, `array`, `JSON`, `endpoint`), formula (`qty × price`, `roundup((min-current)/5)*5`), implementasi detail (`grid 9 meja`, `lookup nama + cek PIN`)
-3. **Hindari parenthesis penjelasan teknis** seperti `(existing kalau terisi, baru kalau kosong)` — kalau perlu detail itu, pecah jadi action terpisah atau pakai decision
+3. **Hindari parenthesis penjelasan teknis** seperti `(existing kalau terisi, baru kalau kosong)` - kalau perlu detail itu, pecah jadi action terpisah atau pakai decision
 4. Kalau 1 action ngerjain 2 hal beda, pecah jadi 2 action (mis. "Mengurangi Stok Porsi" + "Mencatat Log Perubahan Stok")
 
 **Smell test sebelum tulis nama action:**
-- Baca nama keras-keras. Apa kasir Amel (lulusan SMA, bukan programmer) bisa paham? Kalau ngerasa harus jelasin "ini maksudnya program X", **nama jelek — rename**.
+- Baca nama keras-keras. Apa kasir Amel (lulusan SMA, bukan programmer) bisa paham? Kalau ngerasa harus jelasin "ini maksudnya program X", **nama jelek - rename**.
 - Cek: ada nama teknis di nama action? (`localStorage`, `portion_stocks`, `decrement`, `JSON`, `cache`, `SubOptionsModal`, `dashboard component`) → bukan bahasa manusia.
 
 **Contoh konkret rename (PENTING dipakai sebagai template):**
@@ -196,11 +196,11 @@ Bad karena MergeA tidak menambah semantic value. Fix:
 
 ---
 
-## 8. Build di StarUML via staruml-mcp — STRICT SEQUENCE
+## 8. Build di StarUML via staruml-mcp - STRICT SEQUENCE
 
 **CRITICAL: harus urutan ini karena partition assignment, parent constraint, dan bug update_element.**
 
-### Step 1 — create diagram & find UMLActivity wrapper
+### Step 1 - create diagram & find UMLActivity wrapper
 ```
 mcp__staruml__create_diagram type=UMLActivityDiagram parentId=<UMLModel> name="Activity Diagram - <nama>"
 ```
@@ -208,30 +208,30 @@ StarUML auto-create UMLActivity wrapper yang owns diagram. **WAJIB** find via:
 ```
 mcp__staruml__find_elements type=UMLActivity name="Activity1"
 ```
-Simpan ID-nya — pakai sebagai `parentId` untuk SEMUA nodes & edges berikutnya.
+Simpan ID-nya - pakai sebagai `parentId` untuk SEMUA nodes & edges berikutnya.
 
 Rename Activity ke `<Nama> Activity` di akhir (langkah save).
 
-### Step 2 — create swimlanes (UMLActivityPartition) DULU, SEBELUM nodes apapun
+### Step 2 - create swimlanes (UMLActivityPartition) DULU, SEBELUM nodes apapun
 ```
 mcp__staruml__create_element_with_view type=UMLActivityPartition parentId=<UMLActivity> diagramId=<diagram> name="User" x=20 y=20 x2=380 y2=1300
 mcp__staruml__create_element_with_view type=UMLActivityPartition parentId=<UMLActivity> diagramId=<diagram> name="Sistem" x=400 y=20 x2=780 y2=1300
 ```
 
-**WHY this order matters:** Saat nodes di-create, StarUML auto-assign `containerView` ke partition berdasarkan posisi x/y. Kalau partitions belum ada saat node create, node akan jadi `containerView: null` (orphan, render di kolom yang salah). Susah di-fix later — `update_element` pada view coords punya bug serius (lihat §8c).
+**WHY this order matters:** Saat nodes di-create, StarUML auto-assign `containerView` ke partition berdasarkan posisi x/y. Kalau partitions belum ada saat node create, node akan jadi `containerView: null` (orphan, render di kolom yang salah). Susah di-fix later - `update_element` pada view coords punya bug serius (lihat §8c).
 
 Sebaiknya jangan batch partition + nodes dalam 1 message. Send partition creates SAJA, tunggu response, lalu send nodes batch.
 
 Spacing 20px antar swimlane (mis. col 1 x=20-380, col 2 x=400-780).
 
-### Step 3 — create nodes
-Semua `parentId` = UMLActivity ID (BUKAN UMLModel — kalau pakai UMLModel, InitialNode/DecisionNode akan fail dengan "cannot be placed here").
+### Step 3 - create nodes
+Semua `parentId` = UMLActivity ID (BUKAN UMLModel - kalau pakai UMLModel, InitialNode/DecisionNode akan fail dengan "cannot be placed here").
 
 ```
 type=UMLInitialNode          # start, 30x30 px
 type=UMLActivityFinalNode    # end, 30x30 px (bullseye/mata sapi). NB: PAKAI ini, bukan UMLFinalNode.
 type=UMLAction name="..."    # action, ~280x50 px, Title Case Indonesian, NO [Aktor] prefix
-type=UMLDecisionNode name="Stok cukup?"   # diamond with label, MINIMAL 100x60 (kalau lebih kecil label tidak render — bug StarUML)
+type=UMLDecisionNode name="Stok cukup?"   # diamond with label, MINIMAL 100x60 (kalau lebih kecil label tidak render - bug StarUML)
 type=UMLMergeNode            # diamond polos, ~60x60
 ```
 
@@ -239,16 +239,16 @@ type=UMLMergeNode            # diamond polos, ~60x60
 
 **Action name = pure verb phrase, NO prefix `[Aktor]`.** Swimlane sudah menunjukkan aktor. Prefix di action name = redundancy + bad style.
 
-**Decision label visibility:** untuk decision label terlihat di body diamond, kasih ukuran minimal **100x60** (StarUML hide label kalau shape lebih kecil dari label). Atau pakai Style C (decision polos, guards di edge saja — `name`-nya dikosongkan, label semantik via "Cek X" action sebelumnya).
+**Decision label visibility:** untuk decision label terlihat di body diamond, kasih ukuran minimal **100x60** (StarUML hide label kalau shape lebih kecil dari label). Atau pakai Style C (decision polos, guards di edge saja - `name`-nya dikosongkan, label semantik via "Cek X" action sebelumnya).
 
-### Step 4 — create edges (UMLControlFlow)
+### Step 4 - create edges (UMLControlFlow)
 ```
 mcp__staruml__create_edge_with_view type=UMLControlFlow parentId=<UMLActivity> diagramId=<diagram> tailViewId=<from> headViewId=<to> name="Ya"
 ```
 
 Guard plain text tanpa `[]` (ikuti skripsi) di `name`. Untuk edge tanpa guard, omit `name`.
 
-### Step 5 — rename activity + switch + fit + save
+### Step 5 - rename activity + switch + fit + save
 ```
 mcp__staruml__update_element id=<UMLActivity> field=name value="<Nama> Activity"
 mcp__staruml__switch_diagram id=<diagram>
@@ -256,23 +256,23 @@ mcp__staruml__execute_command id="view:fit-to-window"
 mcp__staruml__save_project filename="<absolute path .mdj>"
 ```
 
-`save_project` REQUIRES `filename` parameter (extension bug — empty filename crashes dengan "path must be string").
+`save_project` REQUIRES `filename` parameter (extension bug - empty filename crashes dengan "path must be string").
 
-## 8b. Decision label visibility — fix patterns
+## 8b. Decision label visibility - fix patterns
 
 UMLDecisionNode `name` property hanya muncul visually kalau:
 1. **Shape cukup besar**: minimal 100×60 px (default 40×40 terlalu kecil, label hidden)
 2. **wordWrap=true** kadang membantu untuk label multi-line
 3. **Style C fallback**: decision polos (no name), tulis pertanyaan via action "Cek X" sebelum decision; guards `Ya`/`Tidak` di edge sudah jelas semantic-nya
 
-Pilih style C kalau ragu — paling robust di StarUML rendering.
+Pilih style C kalau ragu - paling robust di StarUML rendering.
 
 ## 8c. ⚠️ Bug: update_element pada view coords concat string
 
-**JANGAN PERNAH update_element pada view properties `left`/`top`/`width`/`height` dengan value STRING** — StarUML extension melakukan string concatenation, bukan numeric assignment:
+**JANGAN PERNAH update_element pada view properties `left`/`top`/`width`/`height` dengan value STRING** - StarUML extension melakukan string concatenation, bukan numeric assignment:
 
 ```
-# BAD — width akan jadi corrupted (e.g., "440440440438520" lalu meledak jadi 4.4e+86)
+# BAD - width akan jadi corrupted (e.g., "440440440438520" lalu meledak jadi 4.4e+86)
 update_element id=<view> field=left value="440"   # ❌ STRING
 update_element id=<view> field=width value="280"  # ❌ STRING
 ```
@@ -291,10 +291,10 @@ Saat `create_element_with_view` di diagram yang sudah ada partitions, StarUML au
 
 ## 8e. ⚠️ CRITICAL: Move action ke partition (proper)
 
-Untuk pindah action ke swimlane PROPERLY (visual + model + explorer tree), butuh **2 update via direct HTTP POST** (BUKAN mcp__staruml__update_element — tool itu stringify value, lihat §8c bug):
+Untuk pindah action ke swimlane PROPERLY (visual + model + explorer tree), butuh **2 update via direct HTTP POST** (BUKAN mcp__staruml__update_element - tool itu stringify value, lihat §8c bug):
 
 ```bash
-# Step 1: Update view's containerView ke partition view ID (cosmetic — visual placement in canvas)
+# Step 1: Update view's containerView ke partition view ID (cosmetic - visual placement in canvas)
 curl -X POST http://127.0.0.1:58322/update_element \
   -H "Content-Type: application/json" \
   -d '{"id":"<action_view_id>","field":"containerView","value":"<partition_view_id>"}'
@@ -337,7 +337,7 @@ Untuk activity diagram dengan 2 swimlane "User | Sistem":
 ```
 1. Create UMLActivityDiagram (auto-create UMLActivity Activity1)
 2. Find_elements UMLActivity name="Activity1" → simpan ID
-3. Create 2 UMLActivityPartition (User, Sistem) — paralel OK
+3. Create 2 UMLActivityPartition (User, Sistem) - paralel OK
    - parent = UMLActivity ID
    - Simpan partition model IDs + view IDs
 4. Create N UMLAction + decisions + Init + Final
@@ -347,7 +347,7 @@ Untuk activity diagram dengan 2 swimlane "User | Sistem":
 5. Untuk setiap partition, set `nodes` array via direct HTTP POST:
    - User.nodes = [action_model_ids in User column]
    - Sistem.nodes = [action_model_ids in Sistem column + decisions + Final]
-   - (Init dikecualikan — tidak bisa nest, lihat §8f)
+   - (Init dikecualikan - tidak bisa nest, lihat §8f)
 6. Optional: update setiap action's _parent ke partition object reference via HTTP
 7. Create UMLControlFlow edges (parent = UMLActivity ID, paralel OK)
 8. Rename UMLActivity "Activity1" → "<Nama> Activity"

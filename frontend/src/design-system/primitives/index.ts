@@ -1,4 +1,4 @@
-// Barrel export — design system primitives.
+// Barrel export - design system primitives.
 // Import dari '@/design-system/primitives' supaya jelas asalnya.
 
 export { Button, type ButtonVariant, type ButtonSize } from './Button'
@@ -15,5 +15,13 @@ export { Tabs, type TabItem } from './Tabs'
 export { Tooltip, TooltipProvider } from './Tooltip'
 export { Input, type InputProps } from './Input'
 export { Select, type SelectOption, type SelectProps } from './Select'
+export { Checkbox, type CheckboxProps } from './Checkbox'
+export {
+  Combobox,
+  ComboboxFree,
+  type ComboboxOption,
+  type ComboboxProps,
+  type ComboboxFreeProps,
+} from './Combobox'
 export { FormField } from './FormField'
 export { DataTable, type DataTableColumn } from './DataTable'

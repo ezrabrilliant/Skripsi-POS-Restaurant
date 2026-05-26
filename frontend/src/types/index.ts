@@ -64,6 +64,8 @@ export interface Menu {
   createdAt: string
   updatedAt: string
   portionStock: MenuPortionStockView | null
+  // Hanya ada saat list dipanggil dengan includePopularity=true (POS).
+  salesCount?: number
 }
 
 // ============================================================
@@ -100,6 +102,18 @@ export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
   transfer: 'Transfer',
 }
 
+/** REV 2.5: payment slice per Transaction. Single tender = 1 record, split tender = N.
+ * sum(payments.amount) === Transaction.total saat status=paid. */
+export interface TransactionPayment {
+  id: number
+  method: PaymentMethod
+  bank: string | null
+  amount: number
+  recordedAt: string
+  recordedById: number
+  recordedByName: string
+}
+
 export interface TransactionItem {
   id: number
   menuId: number
@@ -109,8 +123,10 @@ export interface TransactionItem {
   subtotal: number
   /** REV 2.2: hasil pilihan SubOptionsModal untuk paket. */
   subOptionsSelected: Record<string, string> | null
-  /** REV 2.2: untuk split bill — item dengan partyId sama = 1 struk terpisah. Null = tidak split. */
-  partyId: number | null
+  /** REV 2.4: catatan per item dari waiter/kasir saat input order - komunikasi
+   * customer ke dapur (mis. "kurang manis", "pedas level 2", "Panas"/"Dingin"
+   * untuk teh & jeruk yang ambigu suhu). */
+  notes: string | null
   createdAt: string
 }
 
@@ -128,9 +144,6 @@ export interface Transaction {
    * kalau kasir input transaksi-nya sendiri. */
   shiftCashierName: string
   status: TransactionStatus
-  paymentMethod: PaymentMethod | null
-  /** REV 2.1: terisi hanya kalau paymentMethod=edc atau transfer. */
-  paymentBank: string | null
   /** REV 2.1: self-reference untuk merge bill. */
   mergedIntoId: number | null
   subtotal: number
@@ -138,6 +151,9 @@ export interface Transaction {
   taxAmount: number
   total: number
   items: TransactionItem[]
+  /** REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
+   * sum(payments.amount) === total saat status=paid. */
+  payments: TransactionPayment[]
   createdAt: string
   paidAt: string | null
   voidedAt: string | null
@@ -191,7 +207,7 @@ export interface Shift {
 }
 
 // ============================================================
-// Settlement (REV 2.2 — 6 buckets)
+// Settlement (REV 2.2 - 6 buckets)
 // ============================================================
 
 export interface MethodTotals {

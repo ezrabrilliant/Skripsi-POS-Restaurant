@@ -114,6 +114,13 @@ export const listQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((v) => v === 'true'),
+  // includePopularity=true mengaktifkan kolom salesCount per menu (sum qty dari
+  // TransactionItem yang transaksinya status=paid + bukan source merge bill).
+  // Dipakai POS untuk sort by penjualan terbanyak.
+  includePopularity: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export type CreateMenuInput = z.infer<typeof createMenuSchema>;

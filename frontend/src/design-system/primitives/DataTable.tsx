@@ -1,5 +1,5 @@
 /**
- * DataTable — responsive list. Desktop tampilan <table> standard,
+ * DataTable - responsive list. Desktop tampilan <table> standard,
  * mobile auto-fallback ke card stack via mobileCard render-prop.
  *
  * Tidak include sorting/pagination/virtualization built-in supaya tetap

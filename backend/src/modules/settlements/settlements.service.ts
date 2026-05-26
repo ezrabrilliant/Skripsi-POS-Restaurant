@@ -1,4 +1,4 @@
-// Service modul settlements. REV 2.2/2.3:
+// Service modul settlements. REV 2.5:
 //   - Settlement = rekap akhir hari per shift (1:1 dengan Shift via UNIQUE shiftId).
 //   - 6 buckets: cash, edc, qris, gojek, grab, transfer (system + actual disimpan).
 //   - Per matrix REV 2.3:
@@ -6,8 +6,9 @@
 //         dicek inline di service karena route layer tidak tahu shift type)
 //       * Review settlement -> owner only
 //   - Variance dihitung runtime di view (bukan disimpan ke DB).
-//   - Bank breakdown (untuk EDC + transfer) dihitung runtime via GROUP BY
-//     paymentBank pada transaksi shift terkait.
+//   - REV 2.5: System totals + bank breakdown dihitung dari TransactionPayment
+//     (multi-slice per Tx), bukan dari Tx.paymentMethod yang sudah di-drop.
+//     Filter mergedIntoId IS NULL via relation untuk hindari double-count.
 
 import {
   PaymentMethod,
@@ -149,42 +150,51 @@ function toSettlementView(s: SettlementWithRelations, bankBreakdown: BankBreakdo
 // ============================================================
 
 async function computeSystemTotals(shiftId: number): Promise<SettlementMethodTotals> {
-  const grouped = await prisma.transaction.groupBy({
-    by: ['paymentMethod'],
-    // mergedIntoId=null filter mencegah double-count: merged sources punya total=0
-    // tapi tetap exclude untuk konsistensi (parent yang mewakili payment penuh).
-    where: { shiftId, status: TransactionStatus.paid, mergedIntoId: null },
-    _sum: { total: true },
+  // REV 2.5: aggregate dari TransactionPayment.amount (multi-slice per Tx),
+  // filter via relation Tx.shiftId + Tx.status=paid + Tx.mergedIntoId IS NULL
+  // (exclude source yang di-merge supaya tidak double-count).
+  const grouped = await prisma.transactionPayment.groupBy({
+    by: ['method'],
+    where: {
+      transaction: {
+        shiftId,
+        status: TransactionStatus.paid,
+        mergedIntoId: null,
+      },
+    },
+    _sum: { amount: true },
   });
 
   const totals = toMethodTotalsZero();
   for (const g of grouped) {
-    if (!g.paymentMethod) continue;
-    const amount = g._sum.total?.toNumber() ?? 0;
-    totals[g.paymentMethod] = amount;
+    const amount = g._sum.amount?.toNumber() ?? 0;
+    totals[g.method] = amount;
   }
   return totals;
 }
 
 async function computeBankBreakdown(shiftId: number): Promise<BankBreakdownEntry[]> {
-  const rows = await prisma.transaction.groupBy({
-    by: ['paymentMethod', 'paymentBank'],
+  // REV 2.5: bank breakdown via TransactionPayment.bank groupBy.
+  const rows = await prisma.transactionPayment.groupBy({
+    by: ['method', 'bank'],
     where: {
-      shiftId,
-      status: TransactionStatus.paid,
-      mergedIntoId: null,
-      paymentMethod: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
-      paymentBank: { not: null },
+      transaction: {
+        shiftId,
+        status: TransactionStatus.paid,
+        mergedIntoId: null,
+      },
+      method: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
+      bank: { not: null },
     },
-    _sum: { total: true },
+    _sum: { amount: true },
   });
 
   return rows
-    .filter((r) => r.paymentMethod && r.paymentBank)
+    .filter((r) => r.bank)
     .map((r) => ({
-      method: r.paymentMethod as 'edc' | 'transfer',
-      bank: r.paymentBank!,
-      total: r._sum.total?.toNumber() ?? 0,
+      method: r.method as 'edc' | 'transfer',
+      bank: r.bank!,
+      total: r._sum.amount?.toNumber() ?? 0,
     }))
     .sort((a, b) => a.method.localeCompare(b.method) || a.bank.localeCompare(b.bank));
 }

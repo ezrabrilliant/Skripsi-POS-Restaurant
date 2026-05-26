@@ -2,7 +2,7 @@
 //   - GET / + GET /:id           -> owner + kasir (waiter ✗, tidak terlibat belanja)
 //   - POST /                     -> owner + kasir (mencatat pembelian belanja pasar)
 //
-// Update/delete purchase TIDAK ada (REV 2.3 — kalau salah input, catat purchase
+// Update/delete purchase TIDAK ada (REV 2.3 - kalau salah input, catat purchase
 // baru sebagai koreksi supaya audit trail tetap utuh).
 
 import { Router } from 'express';

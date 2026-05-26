@@ -3,7 +3,7 @@
 //   - GET (list/detail)             -> semua authenticated (kasir/waiter butuh tahu untuk reminder)
 //   - POST /opname, /:id/mark-habis -> semua authenticated (opname terbuka per matrix)
 //   - POST /, PUT /:id, DELETE /:id -> OWNER only (edit master: rename, ubah unit,
-//     ubah is_tracked, ubah min_stock — per matrix "Edit master raw material")
+//     ubah is_tracked, ubah min_stock - per matrix "Edit master raw material")
 
 import { Router } from 'express';
 import { UserRole } from '@prisma/client';

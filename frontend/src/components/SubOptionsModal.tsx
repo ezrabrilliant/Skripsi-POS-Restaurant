@@ -1,4 +1,4 @@
-// REV 2.3 SubOptionsModal — buka saat customer pilih menu paket dengan dynamic
+// REV 2.3 SubOptionsModal - buka saat customer pilih menu paket dengan dynamic
 // options. Display button group per group sub-option, validasi semua group
 // terisi, lalu kirim selection {key: value} ke onConfirm. Parent (POSPage)
 // yang push ke cart.
@@ -49,7 +49,7 @@ export default function SubOptionsModal({ menu, paket, onConfirm, onClose }: Pro
       size="md"
       footer={
         <Button variant="primary" size="md" fullWidth onClick={handleConfirm}>
-          Tambah ke Keranjang
+          Tambah ke Pesanan
         </Button>
       }
     >

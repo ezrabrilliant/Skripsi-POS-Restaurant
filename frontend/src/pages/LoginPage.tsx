@@ -1,11 +1,11 @@
-// REV 2.3.1 LoginPage — 2 mode:
+// REV 2.3.1 LoginPage - 2 mode:
 //   (A) Cached mode: nama pegawai terakhir disimpan di localStorage. Tampilan
 //       welcome "Halo, [Nama]" + numpad PIN 6 digit langsung. "Ganti Pengguna"
 //       link reset ke fresh mode.
 //   (B) Fresh mode: form 2 field nama + PIN (untuk first time atau setelah
 //       ganti pengguna).
 //
-// Numpad: tactile mobile-first — pegawai pakai HP. Tombol min 56×56 (jauh di
+// Numpad: tactile mobile-first - pegawai pakai HP. Tombol min 56×56 (jauh di
 // atas 44px min touch target).
 
 import { useState, useRef, useEffect, type FormEvent, type ReactNode } from 'react'
@@ -157,7 +157,7 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-caption text-neutral-500 mt-4">
-          Skripsi · Ezra Brilliant (C14220315)
+          
         </p>
       </motion.div>
     </div>

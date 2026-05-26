@@ -1,49 +1,58 @@
-// HistoryPage — REV 2.3 owner+kasir. List transaksi dengan filter status/date/orderType.
-// Mobile-first DataTable dengan card view + DropdownMenu actions (split/merge/void).
-// Click row untuk expand detail items + payment breakdown.
+// HistoryPage - REV 2.3 base + REV 2.5 cleanup.
+// List transaksi dengan filter status/date/orderType. Mobile-first DataTable dengan
+// card view + DropdownMenu actions (void). Click row untuk expand detail items +
+// payment breakdown.
+//
+// REV 2.5 changes:
+//   - Drop Split Bill + Merge Bill row actions (split bill multi-party dihapus dari
+//     scope, merge bill trigger pindah ke TablesPage + PaymentModal).
+//   - Drop SplitBillModal + MergeBillModal imports + state.
+//   - Refactor payment display dari tx.paymentMethod/paymentBank tunggal jadi iterate
+//     tx.payments[] (support split tender N slice).
+//   - Tambah audit badges di expanded body:
+//       * Tx target (mergedFrom ada) → "🔗 Gabungan dari #A, #B" (clickable scroll)
+//       * Tx source (mergedIntoId set) → "🔗 Tergabung ke → #X" (clickable scroll)
+//     Click badge → setExpandedId(target) + scrollIntoView.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
   ChevronDown,
   Ban,
-  Users,
-  GitMerge,
   MoreVertical,
   Filter,
   Receipt,
+  Link2,
 } from 'lucide-react'
 import { transactionService } from '@/services/transactionService'
-import SplitBillModal from '@/components/SplitBillModal'
-import MergeBillModal from '@/components/MergeBillModal'
 import { PAYMENT_LABEL, ORDER_TYPE_LABELS } from '@/types'
 import type { TransactionStatus, OrderType, Transaction } from '@/types'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import {
   Button,
   Input,
-  Select,
+  Combobox,
   Badge,
   Skeleton,
   EmptyState,
   Sheet,
   DropdownMenu,
-  type SelectOption,
+  type ComboboxOption,
   type DropdownItem,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
 
-const STATUS_OPTIONS: SelectOption[] = [
+const STATUS_OPTIONS: ComboboxOption[] = [
   { value: 'all', label: 'Semua status' },
   { value: 'open', label: 'Open' },
   { value: 'paid', label: 'Dibayar' },
   { value: 'void', label: 'Void' },
 ]
 
-const ORDER_TYPE_OPTIONS: SelectOption[] = [
+const ORDER_TYPE_OPTIONS: ComboboxOption[] = [
   { value: 'all', label: 'Semua tipe' },
   { value: 'dineIn', label: 'Dine-in' },
   { value: 'takeaway', label: 'Takeaway' },
@@ -65,8 +74,6 @@ export default function HistoryPage() {
   const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all')
   const [filterOrderType, setFilterOrderType] = useState<OrderType | 'all'>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
-  const [mergeTarget, setMergeTarget] = useState<Transaction | null>(null)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   const { data: transactions = [], isLoading } = useQuery({
@@ -78,6 +85,20 @@ export default function HistoryPage() {
         orderType: filterOrderType === 'all' ? undefined : filterOrderType,
       }),
   })
+
+  // REV 2.5: derive mergedFromMap dari list - untuk setiap Tx yang jadi target,
+  // kumpulkan id-id source. Hanya tampil di dataset hasil filter (visibility).
+  const mergedFromMap = useMemo(() => {
+    const map = new Map<number, number[]>()
+    for (const tx of transactions) {
+      if (tx.mergedIntoId !== null) {
+        const arr = map.get(tx.mergedIntoId) ?? []
+        arr.push(tx.id)
+        map.set(tx.mergedIntoId, arr)
+      }
+    }
+    return map
+  }, [transactions])
 
   const voidMutation = useMutation({
     mutationFn: (id: number) => transactionService.void(id),
@@ -95,12 +116,23 @@ export default function HistoryPage() {
     }
     const ok = await confirm({
       title: `Batalkan transaksi #${tx.id}?`,
-      description: 'Stok akan dikembalikan otomatis dan audit log tercatat. Tindakan tidak bisa di-undo.',
+      description:
+        'Stok akan dikembalikan otomatis dan audit log tercatat. Tindakan tidak bisa di-undo.',
       confirmText: 'Ya, Batalkan',
       tone: 'danger',
     })
     if (!ok) return
     voidMutation.mutate(tx.id)
+  }
+
+  // REV 2.5: scroll-to-Tx helper untuk audit badges. Cari node via data-tx-row
+  // attribute (DOM query lebih simple daripada ref Map untuk variable-length list).
+  const handleScrollToTx = (id: number) => {
+    setExpandedId(id)
+    requestAnimationFrame(() => {
+      const node = document.querySelector(`[data-tx-row="${id}"]`)
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
   }
 
   const totalRevenue = transactions
@@ -118,17 +150,19 @@ export default function HistoryPage() {
         value={filterDate}
         onChange={(e) => setFilterDate(e.target.value)}
       />
-      <Select
+      <Combobox
         label="Status"
         value={filterStatus}
-        onChange={(e) => setFilterStatus(e.target.value as TransactionStatus | 'all')}
+        onValueChange={(v) => setFilterStatus(v as TransactionStatus | 'all')}
         options={STATUS_OPTIONS}
+        searchPlaceholder="Cari status..."
       />
-      <Select
+      <Combobox
         label="Tipe Order"
         value={filterOrderType}
-        onChange={(e) => setFilterOrderType(e.target.value as OrderType | 'all')}
+        onValueChange={(v) => setFilterOrderType(v as OrderType | 'all')}
         options={ORDER_TYPE_OPTIONS}
+        searchPlaceholder="Cari tipe..."
       />
     </div>
   )
@@ -180,35 +214,14 @@ export default function HistoryPage() {
               <TransactionRow
                 key={tx.id}
                 tx={tx}
+                mergedFromIds={mergedFromMap.get(tx.id) ?? []}
                 expanded={expandedId === tx.id}
                 onToggle={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
                 onVoid={() => handleVoid(tx)}
-                onSplit={() => setSplitTarget(tx)}
-                onMerge={() => setMergeTarget(tx)}
+                onScrollToTx={handleScrollToTx}
               />
             ))}
           </div>
-        )}
-
-        {splitTarget && (
-          <SplitBillModal
-            transaction={splitTarget}
-            onClose={() => setSplitTarget(null)}
-            onSuccess={() => {
-              setSplitTarget(null)
-              qc.invalidateQueries({ queryKey: ['transactions'] })
-            }}
-          />
-        )}
-        {mergeTarget && (
-          <MergeBillModal
-            targetTransaction={mergeTarget}
-            onClose={() => setMergeTarget(null)}
-            onSuccess={() => {
-              setMergeTarget(null)
-              qc.invalidateQueries({ queryKey: ['transactions'] })
-            }}
-          />
         )}
 
         {/* Filter Sheet mobile */}
@@ -232,7 +245,12 @@ export default function HistoryPage() {
               >
                 Reset
               </Button>
-              <Button variant="primary" size="md" fullWidth onClick={() => setFilterSheetOpen(false)}>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                onClick={() => setFilterSheetOpen(false)}
+              >
                 Terapkan
               </Button>
             </div>
@@ -245,78 +263,104 @@ export default function HistoryPage() {
 
 function TransactionRow({
   tx,
+  mergedFromIds,
   expanded,
   onToggle,
   onVoid,
-  onSplit,
-  onMerge,
+  onScrollToTx,
 }: {
   tx: Transaction
+  mergedFromIds: number[]
   expanded: boolean
   onToggle: () => void
   onVoid: () => void
-  onSplit: () => void
-  onMerge: () => void
+  onScrollToTx: (id: number) => void
 }) {
-  const canSplitMerge = tx.status === 'open' && tx.mergedIntoId === null
   const canVoid = tx.status !== 'void'
+  const isMergedSource = tx.mergedIntoId !== null
+  const isMergedTarget = mergedFromIds.length > 0
+  const hasMergeRelation = isMergedSource || isMergedTarget
 
   const menuItems: DropdownItem[] = []
-  if (canSplitMerge) {
-    menuItems.push(
-      { label: 'Split Bill', icon: <Users />, onSelect: onSplit },
-      { label: 'Merge Bill', icon: <GitMerge />, onSelect: onMerge }
-    )
-  }
   if (canVoid) {
-    if (menuItems.length > 0) menuItems.push({ label: '', separator: true })
-    menuItems.push({ label: 'Batalkan Transaksi', icon: <Ban />, onSelect: onVoid, danger: true })
+    menuItems.push({
+      label: 'Batalkan Transaksi',
+      icon: <Ban />,
+      onSelect: onVoid,
+      danger: true,
+    })
   }
 
+  // REV 2.5: payments display - iterate tx.payments[] supaya support split tender.
+  // Single tender (1 slice) tampil compact "Tunai" / "EDC BCA". Multi-slice tampil
+  // comma-separated "Tunai + QRIS". Bank dipisah spasi setelah method label.
+  const paymentsLabel = tx.payments.length > 0
+    ? tx.payments
+        .map((p) => (p.bank ? `${PAYMENT_LABEL[p.method]} ${p.bank}` : PAYMENT_LABEL[p.method]))
+        .join(' + ')
+    : null
+
   return (
-    <div className={cn(expanded && 'bg-neutral-50/50')}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left p-3 sm:p-4 flex items-center gap-2 hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-inset"
-      >
-        {expanded ? (
-          <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-neutral-900 tabular-nums">#{tx.id}</span>
-            <Badge tone="neutral" size="sm">
-              {ORDER_TYPE_LABELS[tx.orderType]}
-              {tx.tableNumber && ` · Meja ${tx.tableNumber}`}
-            </Badge>
-            <Badge tone={STATUS_TONE[tx.status]} size="sm">
-              {tx.status}
-            </Badge>
-            {tx.paymentMethod && (
-              <span className="text-caption text-neutral-500">
-                {PAYMENT_LABEL[tx.paymentMethod]}
-                {tx.paymentBank && ` · ${tx.paymentBank}`}
+    <div
+      data-tx-row={tx.id}
+      className={cn(expanded && 'bg-neutral-50/50', 'scroll-mt-4')}
+    >
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 min-w-0 text-left p-3 sm:p-4 flex items-center gap-2 hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-inset"
+        >
+          {expanded ? (
+            <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-neutral-900 tabular-nums inline-flex items-center gap-1">
+                #{tx.id}
+                {hasMergeRelation && (
+                  <Link2
+                    className="w-3.5 h-3.5 text-primary-600"
+                    aria-label="Transaksi terkait merge"
+                  />
+                )}
               </span>
-            )}
+              <Badge tone="neutral" size="sm">
+                {ORDER_TYPE_LABELS[tx.orderType]}
+                {tx.tableNumber && ` · Meja ${tx.tableNumber}`}
+              </Badge>
+              <Badge tone={STATUS_TONE[tx.status]} size="sm">
+                {tx.status}
+              </Badge>
+              {paymentsLabel && (
+                <span className="text-caption text-neutral-500">{paymentsLabel}</span>
+              )}
+            </div>
+            <div className="text-caption text-neutral-500 mt-0.5">
+              {formatDateTime(tx.createdAt)} · oleh {tx.createdByName}
+              {tx.createdByName !== tx.shiftCashierName && (
+                <span className="text-neutral-400"> · shift {tx.shiftCashierName}</span>
+              )}
+            </div>
           </div>
-          <div className="text-caption text-neutral-500 mt-0.5">
-            {formatDateTime(tx.createdAt)} · oleh {tx.createdByName}
-            {tx.createdByName !== tx.shiftCashierName && (
-              <span className="text-neutral-400"> · shift {tx.shiftCashierName}</span>
+          <div className="text-right shrink-0">
+            {isMergedSource ? (
+              // REV 2.5: source Tx post-merge - total=0 setelah cascade pembayaran di
+              // parent. Tampilkan label jelas "Digabung" supaya user tidak bingung
+              // kira-kira Tx ini terhapus atau masih belum bayar.
+              <p className="font-medium text-neutral-500 italic text-body-sm">Digabung</p>
+            ) : (
+              <p className="font-semibold text-neutral-900 tabular-nums">
+                {formatCurrency(tx.total || tx.subtotal)}
+              </p>
             )}
+            <p className="text-caption text-neutral-500">{tx.items.length} item</p>
           </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="font-semibold text-neutral-900 tabular-nums">
-            {formatCurrency(tx.total || tx.subtotal)}
-          </p>
-          <p className="text-caption text-neutral-500">{tx.items.length} item</p>
-        </div>
+        </button>
         {menuItems.length > 0 && (
-          <div onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center pr-3 sm:pr-4">
             <DropdownMenu
               trigger={
                 <button
@@ -332,19 +376,60 @@ function TransactionRow({
             />
           </div>
         )}
-      </button>
+      </div>
 
       {expanded && (
-        <div className="px-3 sm:px-4 pb-4 pl-9 sm:pl-10 -mt-1">
+        <div className="px-3 sm:px-4 pb-4 pl-9 sm:pl-10 -mt-1 space-y-3">
+          {/* REV 2.5: audit badges merge - clickable scroll-to-Tx target. */}
+          {hasMergeRelation && (
+            <div className="flex flex-wrap items-center gap-2">
+              {isMergedTarget && (
+                <div className="inline-flex items-center gap-1.5 flex-wrap rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-primary-600 shrink-0" />
+                  <span className="text-caption text-primary-800">Gabungan dari:</span>
+                  {mergedFromIds.map((sid) => (
+                    <button
+                      key={sid}
+                      type="button"
+                      onClick={() => onScrollToTx(sid)}
+                      className="text-caption font-semibold tabular-nums text-primary-700 hover:text-primary-800 hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 rounded px-0.5"
+                    >
+                      #{sid}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isMergedSource && tx.mergedIntoId !== null && (
+                <button
+                  type="button"
+                  onClick={() => onScrollToTx(tx.mergedIntoId!)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                >
+                  <Link2 className="w-3.5 h-3.5 text-neutral-600" />
+                  <span className="text-caption text-neutral-700">Tergabung ke</span>
+                  <span className="text-caption font-semibold tabular-nums text-primary-700">
+                    #{tx.mergedIntoId}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="rounded-lg border border-neutral-200/60 bg-white p-3">
             <ul className="text-body-sm space-y-1.5 mb-3">
               {tx.items.map((it) => (
                 <li key={it.id} className="flex justify-between text-neutral-800 gap-2">
                   <span className="min-w-0">
-                    {it.menuName} <span className="text-neutral-500 tabular-nums">× {it.qty}</span>
+                    {it.menuName}{' '}
+                    <span className="text-neutral-500 tabular-nums">× {it.qty}</span>
                     {it.subOptionsSelected && (
                       <span className="ml-1.5 text-caption text-primary-700">
                         ({Object.values(it.subOptionsSelected).join(', ')})
+                      </span>
+                    )}
+                    {it.notes && (
+                      <span className="ml-1.5 text-caption text-neutral-500 italic">
+                        📝 {it.notes}
                       </span>
                     )}
                   </span>
@@ -353,21 +438,56 @@ function TransactionRow({
                   </span>
                 </li>
               ))}
+              {tx.items.length === 0 && (
+                <li className="text-caption text-neutral-500 italic">
+                  Tidak ada item (sudah di-merge ke parent).
+                </li>
+              )}
             </ul>
             <div className="text-body-sm text-neutral-700 space-y-0.5 pt-3 border-t border-neutral-100 tabular-nums">
               <Row label="Subtotal" value={formatCurrency(tx.subtotal)} />
               {tx.discountAmount > 0 && (
-                <Row label="Diskon" value={`− ${formatCurrency(tx.discountAmount)}`} tone="warning" />
+                <Row
+                  label="Diskon"
+                  value={`− ${formatCurrency(tx.discountAmount)}`}
+                  tone="warning"
+                />
               )}
-              {tx.taxAmount > 0 && <Row label="PB1 10%" value={formatCurrency(tx.taxAmount)} />}
+              {tx.taxAmount > 0 && (
+                <Row label="PB1 10%" value={formatCurrency(tx.taxAmount)} />
+              )}
               <div className="pt-1.5 mt-1 border-t border-neutral-100">
                 <Row label="Total" value={formatCurrency(tx.total)} bold />
               </div>
             </div>
-            {tx.mergedIntoId !== null && (
-              <p className="mt-2 text-caption text-neutral-500 italic">
-                Merged ke transaksi #{tx.mergedIntoId}
-              </p>
+
+            {/* REV 2.5: payments breakdown - tampil di expanded body untuk split tender
+                detail (header cuma compact summary). */}
+            {tx.payments.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-neutral-100">
+                <p className="text-label text-neutral-600 mb-1.5">
+                  Pembayaran ({tx.payments.length} slice
+                  {tx.payments.length > 1 ? ' - split tender' : ''})
+                </p>
+                <ul className="space-y-1 text-body-sm tabular-nums">
+                  {tx.payments.map((p, idx) => (
+                    <li
+                      key={p.id}
+                      className="flex justify-between text-neutral-800"
+                    >
+                      <span className="text-neutral-700">
+                        #{idx + 1} · {PAYMENT_LABEL[p.method]}
+                        {p.bank && (
+                          <Badge tone="neutral" size="sm" className="ml-1.5">
+                            {p.bank}
+                          </Badge>
+                        )}
+                      </span>
+                      <span className="font-medium">{formatCurrency(p.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>
@@ -390,7 +510,12 @@ function Row({
   return (
     <div className="flex justify-between">
       <span className={cn(bold && 'font-semibold')}>{label}</span>
-      <span className={cn(bold && 'font-semibold text-neutral-900', tone === 'warning' && 'text-warning-700')}>
+      <span
+        className={cn(
+          bold && 'font-semibold text-neutral-900',
+          tone === 'warning' && 'text-warning-700',
+        )}
+      >
         {value}
       </span>
     </div>

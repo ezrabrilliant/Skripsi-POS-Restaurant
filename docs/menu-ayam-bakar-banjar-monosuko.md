@@ -1,4 +1,4 @@
-# Daftar Menu — Ayam Bakar Banjar Monosuko
+# Daftar Menu - Ayam Bakar Banjar Monosuko
 
 > Sumber kebenaran tunggal katalog menu ada di
 > [`backend/prisma/menu-catalog.ts`](../backend/prisma/menu-catalog.ts).
@@ -85,15 +85,15 @@
 | Paket A (1 org) | 50.000 | Paha/Dada Ayam + Tahu Tempe + Sayur Asem + Nasi + Minuman (Teh/Air) |
 | Paket B (1 org) | 40.000 | Paha/Dada Ayam + Tahu Tempe + Nasi |
 | Paket C (1 org) | 40.000 | Pilihan Rawon/Gulai/Garang Asem/Bakwan/Semur + Nasi + Minuman |
-| Paket D (1 org) | 38.000 | Empal Penyet + Nasi + Minuman |
+| Paket D (1 org) | 40.000 | Empal Penyet + Nasi + Minuman |
 
 ---
 
 ## Catatan Operasional
 
 **Item slash di menu cetak dipecah jadi SKU terpisah di POS.** Contoh:
-`Paha Ayam Bakar/Goreng 30K` di menu cetak menjadi dua entri di sistem —
-`Paha Ayam Bakar` dan `Paha Ayam Goreng` — supaya stok tiap variant
+`Paha Ayam Bakar/Goreng 30K` di menu cetak menjadi dua entri di sistem -
+`Paha Ayam Bakar` dan `Paha Ayam Goreng` - supaya stok tiap variant
 tercatat sendiri-sendiri dan dapur tidak perlu konfirmasi ulang.
 
 **Foto menu.** Sumber foto JPEG di
@@ -104,11 +104,3 @@ tercatat sendiri-sendiri dan dapur tidak perlu konfirmasi ulang.
 Service worker PWA otomatis cache foto setelah kunjungan pertama,
 sehingga kunjungan berikutnya tampil instan tanpa hit jaringan
 (stale-while-revalidate, cache 30 hari).
-
-**Item lama yang dihapus** (per sinkronisasi terbaru): `Daging Sapi Yakiniku`,
-`Empal Goreng` standalone (Empal tetap ada sebagai `Empal Penyet`),
-`Urap-Urap`, `3T (Tahu Tempe Telur)`, `Ati/Ampela Bakar`, `Ati/Ampela Goreng`
-(diganti `Ati Ayam` & `Rempelo Ayam` per tusuk di kategori Seafood),
-`Teh Kendur/Tebu/Cincau` (diganti `Cincau` standalone), `Udang Bakar`
-generik (diganti `Udang Windu` & `Udang Promo`). Item-item tersebut
-di-nonaktifkan (`isActive=false`) — riwayat transaksi tetap utuh.

@@ -1,4 +1,4 @@
-// REV 2.3 StockPage — 2 tab: Stok Porsi + Raw Materials.
+// REV 2.3 StockPage - 2 tab: Stok Porsi + Raw Materials.
 // Akses semua role (per matrix REV 2.3: view + opname + mark-habis terbuka).
 // Aksi per tab: restock pagi (kelipatan 5), barang masuk darurat, opname batch,
 // mark habis quick. CRUD raw material owner-only.

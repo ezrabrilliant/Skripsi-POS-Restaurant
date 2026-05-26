@@ -1,5 +1,5 @@
 /**
- * useConfirm — imperative confirmation dialog menggunakan Radix Dialog.
+ * useConfirm - imperative confirmation dialog menggunakan Radix Dialog.
  *
  * Pakai untuk replace window.confirm() (void transaction, delete user, dll)
  * dengan a11y-compliant + styled modal yang konsisten dgn design system.

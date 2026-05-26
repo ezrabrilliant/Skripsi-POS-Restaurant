@@ -87,7 +87,7 @@ create_and_pay() {
     pay_body="{\"paymentMethod\":\"$method\",\"discountAmount\":0}"
   fi
   local total=$(curl -s -X POST $BASE/transactions/$tx_id/payment -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$pay_body" | jq_field 'console.log(j.data.transaction.total)')
-  echo "  tx=$tx_id method=$method bank=${bank:-—} qty=$qty (5000 each) → total=$total"
+  echo "  tx=$tx_id method=$method bank=${bank:--} qty=$qty (5000 each) → total=$total"
 }
 
 create_and_pay cash "" 1        # 5500 (5000 + 10% tax)
@@ -113,7 +113,7 @@ curl -s -o /dev/null -w "status=%{http_code} " -X POST $BASE/settlements -H "Con
 curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
 
 echo ""
-echo "=== 16. POST submit (Bryant — owner shift malam-nya sendiri) → 201 ==="
+echo "=== 16. POST submit (Bryant - owner shift malam-nya sendiri) → 201 ==="
 SETTLE_RESP=$(curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$SUBMIT_BODY")
 echo "$SETTLE_RESP" | head -c 500; echo
 SETTLE_ID=$(echo "$SETTLE_RESP" | jq_field 'console.log(j.data.settlement.id)')

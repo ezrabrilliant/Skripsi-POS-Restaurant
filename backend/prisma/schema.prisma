@@ -1,14 +1,15 @@
-// Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko (REV 2.2).
-// Sumber kebenaran alur bisnis: docs/operasional-resto.md REV 2.3
-// Sumber struktur data: docs/knowledge/ERD.md REV 2.3 (schema identik REV 2.2)
-// Refactor plan: ~/.claude/plans/ubah-backend-dari-laravel-crystalline-wilkes.md REV 2.3
+// Skema basis data Sistem POS Restoran Ayam Bakar Banjar Monosuko (REV 2.5).
+// Sumber kebenaran alur bisnis: docs/operasional-resto.md REV 2.3 (REV 2.5 bump pending)
+// Sumber struktur data: docs/knowledge/ERD.md
+// Spec implementasi REV 2.5: docs/superpowers/specs/2026-05-26-split-tender-combine-design.md
 //
-// 14 entitas, 19 relasi. Primary key memakai auto-increment integer (INT MySQL),
+// 15 entitas, 21 relasi. Primary key memakai auto-increment integer (INT MySQL),
 // kecuali PortionStock yang PK-nya menu_id (1:1 dengan Menu).
 //
-// REV 2.3 catatan: tidak ada perubahan schema dari REV 2.2 — permission per role
-// ditangani di app layer (middleware backend + frontend conditional UI), bukan di DB.
-// users.role enum tetap single source of truth.
+// REV 2.5 (2026-05-26): tambah TransactionPayment table untuk support multi-method
+// per transaction (Split Tender). Drop Transaction.paymentMethod + paymentBank
+// (single field obsolete), drop TransactionItem.partyId (split bill multi-party drop).
+// Settlement & dashboard byMethod query refactor pakai groupBy TransactionPayment.
 
 generator client {
   provider = "prisma-client-js"
@@ -23,7 +24,7 @@ datasource db {
 // ENUMS
 // ============================================================
 
-/// 3 role: owner, kasir, waiter. Tidak ada "kitchen" — masak out of scope.
+/// 3 role: owner, kasir, waiter. Tidak ada "kitchen" - masak out of scope.
 enum UserRole {
   owner
   cashier
@@ -124,7 +125,7 @@ enum BillCategory {
 // ============================================================
 
 /// 1. Pengguna sistem: owner, cashier, waiter. Login via (nama, PIN 6 digit).
-/// PIN BOLEH DUPLIKAT antar pegawai — identifikasi via nama, PIN cuma password.
+/// PIN BOLEH DUPLIKAT antar pegawai - identifikasi via nama, PIN cuma password.
 /// REV 2.3 catatan: tidak ada layar pilih nama dari daftar. Form 2 field input
 /// nama + PIN murni setiap login (no localStorage remember last user).
 model User {
@@ -147,6 +148,8 @@ model User {
   bills                Bill[]
   portionMovements     PortionMovement[]
   rawMaterialMovements RawMaterialMovement[]
+  /// REV 2.5: payment slices yang user ini record (audit per slice di split tender).
+  recordedPayments     TransactionPayment[]
 
   @@map("users")
 }
@@ -180,7 +183,7 @@ model Menu {
 }
 
 /// 3. Live count stok porsi per menu (1:1 dengan Menu yang stockType=portion).
-/// Tidak per-tanggal — currentQty adalah snapshot saat ini yang terus berubah.
+/// Tidak per-tanggal - currentQty adalah snapshot saat ini yang terus berubah.
 /// Boleh negatif (stok minus dibolehkan; restock via "Barang Masuk" akan menambah).
 ///
 /// REV 2.1 BARU: openingQtyToday + openingQtyDate auto-snapshot saat user pertama
@@ -298,12 +301,12 @@ model Vendor {
 
 /// 8. Siklus shift kasir. REV 2.5 multi-cashier sharing: shift = container per
 /// (tanggal, tipe). Hanya 1 shift pagi + 1 shift malam AKTIF (closedAt null) per
-/// hari — di-enforce di app layer via shifts.service.openShift (cek findFirst
+/// hari - di-enforce di app layer via shifts.service.openShift (cek findFirst
 /// closedAt=null sebelum create). Kasir bisa buka, tutup, lalu buka lagi di hari
 /// yang sama (mis. typo modal awal, atau pergantian shift balik lagi).
 ///
 /// REV 2.5 catatan: `@@unique([date, cashierId, type])` di-DROP karena terlalu
-/// strict — menahan kasir buka shift tipe sama setelah tutup di hari yang sama.
+/// strict - menahan kasir buka shift tipe sama setelah tutup di hari yang sama.
 /// App-layer constraint cukup (findFirst aktif), audit/dedup via app logic.
 model Shift {
   id          Int       @id @default(autoincrement())
@@ -324,13 +327,16 @@ model Shift {
 
 /// 9. Header pesanan.
 /// - Dine-in: wajib tableNumber. Multi-round per sesi meja.
-/// - Takeaway: tableNumber null. Sumber order dibedakan via payment method.
+/// - Takeaway: tableNumber null. Sumber order dibedakan via payment method (lihat TransactionPayment).
 /// - taxAmount = PB1 10% dari (subtotal - discountAmount).
 /// - total = subtotal - discountAmount + taxAmount.
 ///
-/// REV 2.1 BARU:
-/// - paymentBank: terisi hanya kalau payment_method=edc atau transfer
-///   (untuk laporan rekonsiliasi per bank).
+/// REV 2.5 (2026-05-26):
+/// - paymentMethod + paymentBank fields DI-DROP. Pindah ke TransactionPayment table
+///   (1-N) untuk support Split Tender (1 transaction multi payment method).
+/// - sum(payments.amount) == total saat status=paid. Validasi di service layer.
+///
+/// REV 2.1 catatan yang tetap berlaku:
 /// - mergedIntoId: self-ref nullable untuk merge bill. Transaksi sumber yang
 ///   di-merge punya merged_into_id = parent gabungan.
 ///
@@ -346,9 +352,6 @@ model Transaction {
   tableNumber    Int?              @map("table_number")
   createdById    Int               @map("created_by_id")
   status         TransactionStatus @default(open)
-  paymentMethod  PaymentMethod?    @map("payment_method")
-  /// REV 2.1: terisi hanya untuk paymentMethod=edc atau transfer (mis. "BCA", "Mandiri").
-  paymentBank    String?           @map("payment_bank") @db.VarChar(50)
   /// REV 2.1: self-reference untuk merge bill. Null = transaksi normal/parent.
   /// Non-null = transaksi sumber yang sudah di-merge ke parent (id parent).
   mergedIntoId   Int?              @map("merged_into_id")
@@ -360,11 +363,12 @@ model Transaction {
   paidAt         DateTime?         @map("paid_at")
   voidedAt       DateTime?         @map("voided_at")
 
-  shift      Shift             @relation(fields: [shiftId], references: [id])
-  createdBy  User              @relation(fields: [createdById], references: [id])
+  shift      Shift                @relation(fields: [shiftId], references: [id])
+  createdBy  User                 @relation(fields: [createdById], references: [id])
   items      TransactionItem[]
-  mergedInto Transaction?      @relation("MergeBill", fields: [mergedIntoId], references: [id])
-  mergedFrom Transaction[]     @relation("MergeBill")
+  payments   TransactionPayment[]
+  mergedInto Transaction?         @relation("MergeBill", fields: [mergedIntoId], references: [id])
+  mergedFrom Transaction[]        @relation("MergeBill")
 
   @@map("transactions")
 }
@@ -372,11 +376,13 @@ model Transaction {
 /// 10. Detail item dalam transaksi. unitPrice = snapshot saat order.
 /// subOptionsSelected (JSON): hasil pilihan SubOptionsModal untuk paket
 ///   format: { ayamPart: "Paha", cook: "Bakar", minuman: "Teh Tawar" }
-/// partyId: untuk split bill, item dengan partyId sama = 1 struk terpisah.
-///   Null = tidak split (default).
 /// notes (REV 2.4): catatan per item dari waiter/kasir saat input order
-///   — komunikasi customer ke dapur (mis. "kurang manis", "pedas level 2",
+///   - komunikasi customer ke dapur (mis. "kurang manis", "pedas level 2",
 ///   "Panas" / "Dingin" untuk teh & jeruk yang ambigu suhu).
+///
+/// REV 2.5: partyId field DI-DROP. Split bill multi-party tidak diadopsi di REV 2.5
+/// (konteks Indo: rare, customer pakai Splitwise / transfer pribadi). Untuk
+/// scenario serupa, pakai Split Tender (TransactionPayment multi-method).
 model TransactionItem {
   id                 Int      @id @default(autoincrement())
   transactionId      Int      @map("transaction_id")
@@ -386,7 +392,6 @@ model TransactionItem {
   subtotal           Decimal  @db.Decimal(12, 2)
   subOptionsSelected Json?    @map("sub_options_selected")
   notes              String?  @db.VarChar(255)
-  partyId            Int?     @map("party_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -395,12 +400,37 @@ model TransactionItem {
   @@map("transaction_items")
 }
 
+/// 10b. Slice pembayaran per Transaction (REV 2.5 BARU - support Split Tender).
+/// 1 Transaction punya 1+ TransactionPayment records. Sum(amount) == Transaction.total
+/// saat status=paid (validasi di service layer addPayment).
+///
+/// Single tender: 1 record (method+bank+amount=total).
+/// Split tender:  N records (cash 100k + qris 65k, dst).
+///
+/// Bank wajib untuk method=edc atau transfer (validasi Zod superRefine + service).
+/// recordedBy = user yang submit slice (audit per slice, bukan user pemilik shift).
+model TransactionPayment {
+  id            Int           @id @default(autoincrement())
+  transactionId Int           @map("transaction_id")
+  method        PaymentMethod
+  bank          String?       @db.VarChar(50)
+  amount        Decimal       @db.Decimal(12, 2)
+  recordedAt    DateTime      @default(now()) @map("recorded_at")
+  recordedById  Int           @map("recorded_by_id")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  recordedBy  User        @relation(fields: [recordedById], references: [id])
+
+  @@index([transactionId])
+  @@map("transaction_payments")
+}
+
 /// 11. Rekap akhir hari (kasir shift malam saja). 1:1 dengan Shift (shift malam).
-/// Bukan blind count rumit — simpel 6 totals (sistem) + 6 totals (fisik) + variance di runtime.
+/// Bukan blind count rumit - simpel 6 totals (sistem) + 6 totals (fisik) + variance di runtime.
 /// Modal awal kasir di-track di Shift, ditampilkan di summary tapi tidak ikut variance.
 ///
 /// Breakdown per bank untuk EDC dan transfer dihitung di runtime dari
-/// transactions GROUP BY payment_bank di tanggal yang sama, tidak disimpan duplikat.
+/// TransactionPayment GROUP BY method, bank (REV 2.5), tidak disimpan duplikat.
 model Settlement {
   id             Int              @id @default(autoincrement())
   shiftId        Int              @unique @map("shift_id")
@@ -473,7 +503,7 @@ model PurchaseItem {
   @@map("purchase_items")
 }
 
-/// 14. Tagihan operasional bulanan — owner only (validasi di service layer).
+/// 14. Tagihan operasional bulanan - owner only (validasi di service layer).
 /// REV 2.3: month tetap VARCHAR(7) format "YYYY-MM".
 model Bill {
   id        Int          @id @default(autoincrement())

@@ -1,13 +1,12 @@
-// Service modul transactions. REV 2.2/2.3:
-//   - POST / create dengan auto-decrement PortionStock + resolusi subOptions
-//     REV 2.3 shift-decoupling: payload TIDAK kirim shiftId, backend auto-resolve
-//     dari single active shift (0 atau 2+ active -> 409).
-//   - POST /:id/items add multi-round
-//   - POST /:id/payment dengan PB1 10% + paymentBank wajib EDC/transfer
-//   - POST /:id/void reverse decrement
-//   - Permission: POST semua role (waiter fallback), payment/void owner+kasir
-//   - Response shape: TransactionView punya createdById/createdByName +
-//     shiftCashierName (replace cashierId/cashierName REV 2.2).
+// Service modul transactions. REV 2.5:
+//   - Drop split (split bill multi-party - schema partyId dihapus, lihat
+//     docs/knowledge/SPLIT-MERGE-PATTERNS.md untuk justifikasi konteks Indo).
+//   - Replace pay (single method) → addPayment + removePayment untuk support
+//     Split Tender (1 Tx multi-method via TransactionPayment table).
+//   - mergeBills tetap; di REV 2.5 juga dipakai untuk Combine Tables inter-table
+//     (UI trigger baru di TablesPage + PaymentModal, logika backend identik).
+//   - createTransaction tetap REV 2.3 auto-resolve shift dari single active shift
+//     system-wide (frontend tidak kirim shiftId; backend 409 kalau 0 atau 2+ active).
 
 import api from '@/lib/api'
 import type {
@@ -22,6 +21,8 @@ export interface OrderItemInput {
   menuId: number
   qty: number
   subOptionsSelected?: Record<string, string>
+  /** REV 2.4: catatan per item (komunikasi customer → dapur). */
+  notes?: string
 }
 
 /** REV 2.3 shift-decoupling: shiftId TIDAK dikirim. Backend auto-resolve dari single
@@ -36,9 +37,13 @@ export interface AddItemsPayload {
   items: OrderItemInput[]
 }
 
-export interface PaymentPayload {
-  paymentMethod: PaymentMethod
-  paymentBank?: string
+/** REV 2.5: payload untuk POST /:id/payments (1 slice).
+ * - bank wajib untuk method=edc atau transfer (validasi Zod superRefine backend).
+ * - discountAmount hanya valid kalau payments[] empty (first slice). Default 0. */
+export interface AddPaymentPayload {
+  method: PaymentMethod
+  bank?: string
+  amount: number
   discountAmount?: number
 }
 
@@ -47,16 +52,6 @@ export interface ListTransactionsQuery {
   shiftId?: number
   orderType?: OrderType
   date?: string
-}
-
-// REV 2.3 Phase 4b — Split + Merge
-export interface SplitAssignment {
-  itemId: number
-  partyId: number | null
-}
-
-export interface SplitPayload {
-  assignments: SplitAssignment[]
 }
 
 export interface MergePayload {
@@ -74,6 +69,22 @@ export const transactionService = {
     const res = await api.get<ApiResponse<{ transactions: Transaction[] }>>('/transactions', {
       params,
     })
+    return res.data.data.transactions
+  },
+
+  /** REV 2.4: fetch semua transaksi dineIn di meja tertentu (untuk POS view-mode
+   * multi-Pesanan). Backend implicit filter: orderType=dineIn, mergedIntoId=null.
+   * Result orderBy createdAt ASC (Pesanan #1 = paling lama). */
+  listByTable: async (
+    tableNumber: number,
+    status?: TransactionStatus,
+  ): Promise<Transaction[]> => {
+    const params: Record<string, string> = {}
+    if (status) params.status = status
+    const res = await api.get<ApiResponse<{ transactions: Transaction[] }>>(
+      `/transactions/table/${tableNumber}`,
+      { params },
+    )
     return res.data.data.transactions
   },
 
@@ -98,10 +109,45 @@ export const transactionService = {
     return res.data.data.transaction
   },
 
-  pay: async (id: number, payload: PaymentPayload): Promise<Transaction> => {
-    const res = await api.post<ApiResponse<{ transaction: Transaction }>>(
-      `/transactions/${id}/payment`,
+  /** REV 2.4: hapus single item dari Tx open. Backend reverse stock + audit log + recompute subtotal. */
+  deleteItem: async (transactionId: number, itemId: number): Promise<Transaction> => {
+    const res = await api.delete<ApiResponse<{ transaction: Transaction }>>(
+      `/transactions/${transactionId}/items/${itemId}`,
+    )
+    return res.data.data.transaction
+  },
+
+  /** REV 2.4: update item qty atau notes. Setidaknya salah satu field harus disertakan.
+   * Backend adjust stock decrement secara delta saat qty berubah. */
+  updateItem: async (
+    transactionId: number,
+    itemId: number,
+    payload: { qty?: number; notes?: string | null },
+  ): Promise<Transaction> => {
+    const res = await api.patch<ApiResponse<{ transaction: Transaction }>>(
+      `/transactions/${transactionId}/items/${itemId}`,
       payload,
+    )
+    return res.data.data.transaction
+  },
+
+  /** REV 2.5: POST /transactions/:id/payments — tambah 1 payment slice.
+   * Single tender: 1x call dengan amount = total.
+   * Split tender:  Nx call sampai sum payments >= total.
+   * Backend auto-set status=paid + cascade ke mergedFrom saat sum payments >= total. */
+  addPayment: async (id: number, payload: AddPaymentPayload): Promise<Transaction> => {
+    const res = await api.post<ApiResponse<{ transaction: Transaction }>>(
+      `/transactions/${id}/payments`,
+      payload,
+    )
+    return res.data.data.transaction
+  },
+
+  /** REV 2.5: DELETE /transactions/:id/payments/:paymentId — hapus 1 slice.
+   * Hanya valid kalau Tx masih open. */
+  removePayment: async (id: number, paymentId: number): Promise<Transaction> => {
+    const res = await api.delete<ApiResponse<{ transaction: Transaction }>>(
+      `/transactions/${id}/payments/${paymentId}`,
     )
     return res.data.data.transaction
   },
@@ -113,19 +159,24 @@ export const transactionService = {
     return res.data.data.transaction
   },
 
-  // REV 2.3 Phase 4b — Split + Merge
-  split: async (id: number, payload: SplitPayload): Promise<Transaction> => {
-    const res = await api.put<ApiResponse<{ transaction: Transaction }>>(
-      `/transactions/${id}/split`,
+  /** REV 2.5: Combine Tables (inter-table) atau Add Round intra-table (REV 2.4).
+   * Source Tx mendapat mergedIntoId=targetId. Validasi backend: same shift,
+   * semua status=open, belum merged ke lain. */
+  merge: async (payload: MergePayload): Promise<Transaction> => {
+    const res = await api.post<ApiResponse<{ transaction: Transaction }>>(
+      '/transactions/merge',
       payload,
     )
     return res.data.data.transaction
   },
 
-  merge: async (payload: MergePayload): Promise<Transaction> => {
+  /** REV 2.5: Reverse merge - lepas source Tx kembali jadi standalone.
+   * Validasi backend: source mergedIntoId !== null, source AND target status=open,
+   * target.payments.length === 0 (belum ada slice; aggregate belum locked).
+   * Return target Tx terbaru (subtotal aggregate sudah recompute kalau diquery ulang). */
+  unmerge: async (sourceId: number): Promise<Transaction> => {
     const res = await api.post<ApiResponse<{ transaction: Transaction }>>(
-      '/transactions/merge',
-      payload,
+      `/transactions/${sourceId}/unmerge`,
     )
     return res.data.data.transaction
   },

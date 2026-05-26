@@ -1,4 +1,4 @@
-// UsersPage — REV 2.3 owner-only manajemen user.
+// UsersPage - REV 2.3 owner-only manajemen user.
 // Group: Owner + Staf (kasir + waiter). CRUD dgn Dialog form, confirm delete.
 
 import { useState, type FormEvent } from 'react'
@@ -16,9 +16,9 @@ import {
   Skeleton,
   Dialog,
   Input,
-  Select,
+  Combobox,
   EmptyState,
-  type SelectOption,
+  type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
@@ -29,7 +29,7 @@ type UserFormData = {
   role: UserRole
 }
 
-const ROLE_OPTIONS: SelectOption[] = [
+const ROLE_OPTIONS: ComboboxOption[] = [
   { value: 'cashier', label: 'Kasir' },
   { value: 'waiter', label: 'Pelayan' },
   { value: 'owner', label: 'Owner' },
@@ -174,7 +174,7 @@ export default function UsersPage() {
             />
             <UserGroup
               icon={<UsersIcon className="w-5 h-5 text-primary-700" />}
-              title="Staf — Kasir & Pelayan"
+              title="Staf - Kasir & Pelayan"
               count={staff.length}
               users={staff}
               currentUserId={currentUser?.id}
@@ -219,7 +219,7 @@ export default function UsersPage() {
                 autoFocus
               />
               <Input
-                label={`PIN (4-6 digit)${editingUser ? ' — kosongkan jika tidak diubah' : ''}`}
+                label={`PIN (4-6 digit)${editingUser ? ' - kosongkan jika tidak diubah' : ''}`}
                 type="password"
                 inputMode="numeric"
                 value={formData.pin}
@@ -230,13 +230,14 @@ export default function UsersPage() {
                 maxLength={6}
                 placeholder="••••••"
               />
-              <Select
+              <Combobox
                 label="Role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
                 options={ROLE_OPTIONS}
                 disabled={isSelfEdit}
                 helper={isSelfEdit ? 'Tidak dapat mengubah role sendiri' : undefined}
+                searchPlaceholder="Cari role..."
               />
             </form>
           </Dialog>

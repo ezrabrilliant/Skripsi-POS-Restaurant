@@ -1,6 +1,6 @@
 // Service modul vendors. CRUD master toko/pasar tempat kasir belanja.
 // Permission (per matrix REV 2.3): owner+kasir untuk CRUD dan view.
-// Hard delete dilindungi FK ke purchases — kalau vendor sudah pernah dipakai,
+// Hard delete dilindungi FK ke purchases - kalau vendor sudah pernah dipakai,
 // tolak dengan pesan ramah supaya owner/kasir bisa edit saja.
 
 import { Prisma } from '@prisma/client';
@@ -71,7 +71,7 @@ export async function getVendorById(id: number): Promise<VendorView> {
 }
 
 export async function createVendor(input: CreateVendorInput): Promise<VendorView> {
-  // Dedup name (sama strategi dengan RawMaterial — MySQL collation case-insensitive).
+  // Dedup name (sama strategi dengan RawMaterial - MySQL collation case-insensitive).
   const existing = await prisma.vendor.findFirst({ where: { name: input.name } });
   if (existing) {
     throw new AppError(`Vendor "${input.name}" sudah ada`, 409);
@@ -114,7 +114,7 @@ export async function deleteVendor(id: number): Promise<{ id: number; name: stri
   const purchaseCount = await prisma.purchase.count({ where: { vendorId: id } });
   if (purchaseCount > 0) {
     throw new AppError(
-      `Vendor "${existing.name}" tidak bisa dihapus — sudah dipakai di ${purchaseCount} purchase. Edit saja datanya.`,
+      `Vendor "${existing.name}" tidak bisa dihapus - sudah dipakai di ${purchaseCount} purchase. Edit saja datanya.`,
       409,
     );
   }

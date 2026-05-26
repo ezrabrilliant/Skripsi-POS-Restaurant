@@ -37,6 +37,9 @@ export interface MenuView {
   createdAt: string;
   updatedAt: string;
   portionStock: MenuPortionStockView | null;
+  // Hanya ada saat list dipanggil dengan includePopularity=true. Sum qty
+  // TransactionItem dari Tx status=paid + bukan source merge bill (all-time).
+  salesCount?: number;
 }
 
 type MenuWithStock = Prisma.MenuGetPayload<{ include: { portionStock: true } }>;
@@ -79,7 +82,30 @@ export async function listMenus(query: ListMenuQuery): Promise<MenuView[]> {
     orderBy: [{ category: 'asc' }, { name: 'asc' }],
     include: { portionStock: true },
   });
-  return menus.map(toMenuView);
+
+  // includePopularity: hitung sum qty per menuId dari TransactionItem yang
+  // transaksinya status=paid + mergedIntoId=null (exclude source merge supaya
+  // qty tidak double-count). Frontend pakai field ini untuk sort di POS.
+  let salesMap: Map<number, number> | null = null;
+  if (query.includePopularity) {
+    const grouped = await prisma.transactionItem.groupBy({
+      by: ['menuId'],
+      where: {
+        transaction: {
+          status: 'paid',
+          mergedIntoId: null,
+        },
+      },
+      _sum: { qty: true },
+    });
+    salesMap = new Map(grouped.map((g) => [g.menuId, g._sum.qty ?? 0]));
+  }
+
+  return menus.map((m) => {
+    const view = toMenuView(m);
+    if (salesMap) view.salesCount = salesMap.get(m.id) ?? 0;
+    return view;
+  });
 }
 
 export async function getMenuById(id: number): Promise<MenuView> {

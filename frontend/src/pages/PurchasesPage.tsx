@@ -1,4 +1,4 @@
-// PurchasesPage — REV 2.3 owner+kasir. List belanja pasar + create dengan
+// PurchasesPage - REV 2.3 owner+kasir. List belanja pasar + create dengan
 // vendor picker (optional) + multiple items. Auto-effect ke raw_materials di
 // backend (stockQty + unitPrice + lastBuyDate untuk tracked items).
 
@@ -17,12 +17,12 @@ import {
   Button,
   IconButton,
   Input,
-  Select,
+  Combobox,
   Badge,
   Skeleton,
   EmptyState,
   Dialog,
-  type SelectOption,
+  type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 
@@ -211,14 +211,15 @@ function CreatePurchaseModal({
     })
   }
 
-  const vendorOptions: SelectOption[] = [
-    { value: '', label: '— Tidak dicatat —' },
-    ...vendors.map((v) => ({ value: String(v.id), label: `${v.name} (${v.type})` })),
+  const vendorOptions: ComboboxOption[] = [
+    { value: '', label: '- Tidak dicatat -' },
+    ...vendors.map((v) => ({ value: String(v.id), label: v.name, helper: v.type })),
   ]
 
-  const rmOptions: SelectOption[] = rawMaterials.map((r) => ({
+  const rmOptions: ComboboxOption[] = rawMaterials.map((r) => ({
     value: String(r.id),
-    label: `${r.name} (${r.unit})`,
+    label: r.name,
+    helper: r.unit,
   }))
 
   return (
@@ -259,11 +260,13 @@ function CreatePurchaseModal({
               className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
             />
           </div>
-          <Select
+          <Combobox
             label="Vendor (opsional)"
             value={vendorId !== null ? String(vendorId) : ''}
-            onChange={(e) => setVendorId(e.target.value ? Number(e.target.value) : null)}
+            onValueChange={(v) => setVendorId(v ? Number(v) : null)}
             options={vendorOptions}
+            searchPlaceholder="Cari vendor..."
+            emptyText="Vendor tidak ditemukan"
           />
         </div>
         <Input
@@ -303,33 +306,44 @@ function CreatePurchaseModal({
                     className="bg-neutral-50/80 border border-neutral-200/60 rounded-lg p-2.5 space-y-2"
                   >
                     <div className="grid grid-cols-12 gap-2 items-end">
-                      <Select
+                      <Combobox
                         label="Bahan"
                         hideLabel
                         value={String(it.rawMaterialId)}
-                        onChange={(e) => updateItem(idx, { rawMaterialId: Number(e.target.value) })}
+                        onValueChange={(v) => updateItem(idx, { rawMaterialId: Number(v) })}
                         options={rmOptions}
+                        placeholder="Pilih bahan..."
+                        searchPlaceholder="Cari bahan..."
+                        emptyText="Bahan tidak ditemukan"
                         containerClassName="col-span-12 sm:col-span-5"
                       />
-                      <input
+                      <Input
+                        label={`Qty item ${idx + 1}`}
+                        hideLabel
                         type="number"
+                        inputMode="decimal"
                         value={it.qty || ''}
                         onChange={(e) => updateItem(idx, { qty: Number(e.target.value) || 0 })}
                         placeholder="qty"
                         min={0}
                         step={0.01}
-                        className="col-span-3 sm:col-span-2 h-10 px-2 bg-white border border-neutral-300 rounded-md text-right text-body-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                        containerClassName="col-span-3 sm:col-span-2"
+                        className="text-right tabular-nums"
                       />
-                      <input
+                      <Input
+                        label={`Harga unit item ${idx + 1}`}
+                        hideLabel
                         type="number"
+                        inputMode="numeric"
                         value={it.unitPrice || ''}
                         onChange={(e) => updateItem(idx, { unitPrice: Number(e.target.value) || 0 })}
                         placeholder="harga/unit"
                         min={0}
-                        className="col-span-5 sm:col-span-3 h-10 px-2 bg-white border border-neutral-300 rounded-md text-right text-body-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                        containerClassName="col-span-5 sm:col-span-3"
+                        className="text-right tabular-nums"
                       />
                       <div className={cn('col-span-3 sm:col-span-1 text-right text-body-sm font-medium text-neutral-900 tabular-nums')}>
-                        {subtotal > 0 ? formatCurrency(subtotal).replace('Rp', '').trim() : '—'}
+                        {subtotal > 0 ? formatCurrency(subtotal).replace('Rp', '').trim() : '-'}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <IconButton
@@ -344,7 +358,7 @@ function CreatePurchaseModal({
                     </div>
                     {rm && !rm.isTracked && (
                       <p className="text-caption text-neutral-500 italic">
-                        Item ini log-only — stok tidak ditrack di sistem.
+                        Item ini log-only - stok tidak ditrack di sistem.
                       </p>
                     )}
                   </div>

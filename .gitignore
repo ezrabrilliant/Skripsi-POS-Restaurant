@@ -76,6 +76,23 @@ prisma/*.db-journal
 .playwright-mcp/
 .obsidian/
 
+# Vite compiled config artifacts (sumber: vite.config.ts)
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Debug screenshot di root (one-off testing artifacts)
+/mobile-fixed.png
+/pos-empty-fixed.png
+/pos-page-no-shift.png
+
+# StarUML backup/untitled (working files, bukan source of truth)
+Skripsi.mdj.bak-*
+Untitled.mdj
+
+# Personal skripsi docx (jangan commit ke repo proyek - simpan terpisah)
+docs/Skripsi Ezra Brilliant *.docx
+docs/~$*.docx
+
 # Package locks (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock

@@ -68,6 +68,8 @@ export default function Layout() {
   const [moreOpen, setMoreOpen] = useState(false)
 
   const handleLogout = async () => {
+    // Tutup Sheet "Lainnya" duluan supaya tidak tumpang tindih dgn confirm Dialog.
+    setMoreOpen(false)
     const ok = await confirm({
       title: 'Keluar dari sistem?',
       description: 'Anda akan kembali ke halaman login. Pastikan tidak ada transaksi yang belum diproses.',
@@ -78,7 +80,6 @@ export default function Layout() {
     if (!ok) return
     clearCart()
     logout()
-    setMoreOpen(false)
     navigate('/login')
   }
 

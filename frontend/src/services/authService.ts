@@ -1,6 +1,6 @@
 // REV 2.3: login = form 2 field input nama + PIN murni.
 // Tidak ada lagi `verifyPin` (waiter fallback ditangani via UI saja, bukan elevasi PIN)
-// dan tidak ada call `/auth/logout` (server stateless — token cukup dihapus di klien).
+// dan tidak ada call `/auth/logout` (server stateless - token cukup dihapus di klien).
 
 import api from '@/lib/api'
 import type { User, ApiResponse } from '@/types'

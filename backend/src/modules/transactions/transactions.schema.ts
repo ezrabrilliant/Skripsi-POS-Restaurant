@@ -1,8 +1,10 @@
-// Zod schema untuk modul transactions. REV 2.2:
+// Zod schema untuk modul transactions. REV 2.5:
 //   - 2 OrderType: dineIn (wajib tableNumber 1-N) / takeaway (tableNumber null)
-//   - 6 PaymentMethod; paymentBank wajib untuk edc/transfer, dilarang untuk lainnya
+//   - 6 PaymentMethod; bank wajib untuk edc/transfer, dilarang untuk lainnya
 //   - subOptionsSelected: object key→value untuk paket dinamis (lookup di stockMap)
-//   - Split bill (partyId) dan merge bill (mergedIntoId) DEFERRED ke Phase 4b
+//   - Split tender (multi-method per Tx) via addPaymentSchema
+//   - Merge bill (mergedIntoId) tetap - dipakai untuk Combine Tables (REV 2.5)
+//   - Split bill multi-party (partyId, splitTransaction) DROPPED - lihat spec REV 2.5
 
 import { z } from 'zod';
 import { OrderType, PaymentMethod, TransactionStatus } from '@prisma/client';
@@ -12,6 +14,9 @@ export const orderItemSchema = z.object({
   qty: z.number().int().positive('Qty minimal 1'),
   /// Untuk paket dengan subOptions. Key = options[].key, value = pilihan customer (harus ada di options[].options).
   subOptionsSelected: z.record(z.string(), z.string()).optional(),
+  /// REV 2.4: catatan per item (komunikasi customer → dapur).
+  /// Mis. "kurang manis", "pedas level 2", "Panas" / "Dingin" untuk teh/jeruk.
+  notes: z.string().trim().max(255).optional(),
 });
 
 /// REV 2.3 shift-decoupling: shiftId TIDAK lagi di-input frontend.
@@ -29,29 +34,44 @@ export const addItemsSchema = z.object({
   items: z.array(orderItemSchema).min(1, 'Minimal 1 item'),
 });
 
-export const paymentSchema = z
+/// REV 2.4: PATCH /transactions/:id/items/:itemId. Update qty atau notes (atau keduanya).
+/// Setidaknya 1 field wajib disertakan. Qty harus > 0 (untuk hapus pakai DELETE endpoint).
+export const updateItemSchema = z
   .object({
-    paymentMethod: z.nativeEnum(PaymentMethod, {
-      errorMap: () => ({ message: 'paymentMethod tidak valid' }),
+    qty: z.number().int().positive('Qty harus > 0 (untuk hapus pakai DELETE)').optional(),
+    notes: z.string().trim().max(255).nullable().optional(),
+  })
+  .refine((data) => data.qty !== undefined || data.notes !== undefined, {
+    message: 'Setidaknya salah satu field qty atau notes harus disertakan',
+  });
+
+/// REV 2.5: addPayment - tambah 1 payment slice.
+/// Validasi: bank wajib untuk edc/transfer, dilarang untuk lainnya.
+/// discountAmount opsional - hanya valid saat first slice (validasi di service).
+export const addPaymentSchema = z
+  .object({
+    method: z.nativeEnum(PaymentMethod, {
+      errorMap: () => ({ message: 'method tidak valid' }),
     }),
-    paymentBank: z.string().trim().min(1).max(50).optional(),
-    discountAmount: z.number().nonnegative().default(0),
+    bank: z.string().trim().min(1).max(50).optional(),
+    amount: z.number().positive('Nominal harus > 0'),
+    discountAmount: z.number().nonnegative().optional(),
   })
   .superRefine((data, ctx) => {
     const needsBank =
-      data.paymentMethod === PaymentMethod.edc || data.paymentMethod === PaymentMethod.transfer;
-    if (needsBank && !data.paymentBank) {
+      data.method === PaymentMethod.edc || data.method === PaymentMethod.transfer;
+    if (needsBank && !data.bank) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['paymentBank'],
-        message: `paymentBank wajib untuk metode ${data.paymentMethod}`,
+        path: ['bank'],
+        message: `bank wajib untuk metode ${data.method}`,
       });
     }
-    if (!needsBank && data.paymentBank) {
+    if (!needsBank && data.bank) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['paymentBank'],
-        message: `paymentBank hanya berlaku untuk metode edc atau transfer`,
+        path: ['bank'],
+        message: 'bank hanya berlaku untuk metode edc atau transfer',
       });
     }
   });
@@ -66,25 +86,22 @@ export const listTransactionsQuerySchema = z.object({
     .optional(),
 });
 
-// ============================================================
-// REV 2.3 Phase 4b — Split + Merge
-// ============================================================
-
-/// PUT /transactions/:id/split — assign partyId per item.
-/// partyId null = bagian "main" (default). Integer >= 1 = party terpisah.
-/// Items tidak disebut di assignments → biarkan partyId existing (no change).
-export const splitAssignmentSchema = z.object({
-  itemId: z.number().int().positive(),
-  partyId: z.number().int().positive().nullable(),
+/// REV 2.4: query schema untuk GET /transactions/table/:tableNumber.
+/// tableNumber di-parse dari path param (validasi terpisah di controller).
+/// Body query cuma optional status filter.
+export const listByTableQuerySchema = z.object({
+  status: z.nativeEnum(TransactionStatus).optional(),
 });
 
-export const splitSchema = z.object({
-  assignments: z.array(splitAssignmentSchema).min(1, 'Minimal 1 assignment'),
-});
+// ============================================================
+// Merge Bill (REV 2.1, REV 2.5 reused untuk Combine Tables)
+// ============================================================
 
-/// POST /transactions/merge — gabungkan source transactions ke target.
+/// POST /transactions/merge - gabungkan source transactions ke target.
 /// Sources akan punya mergedIntoId=targetId. Target jadi parent yang menerima
 /// payment untuk total agregat (parent.items + sum(mergedFrom.items)).
+///
+/// REV 2.5: dipakai untuk Add Round (intra-table) DAN Combine Tables (inter-table).
 export const mergeSchema = z.object({
   sourceIds: z.array(z.number().int().positive()).min(1, 'Minimal 1 source'),
   targetId: z.number().int().positive(),
@@ -95,7 +112,8 @@ export const mergeSchema = z.object({
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type AddItemsInput = z.infer<typeof addItemsSchema>;
-export type PaymentInput = z.infer<typeof paymentSchema>;
+export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+export type AddPaymentInput = z.infer<typeof addPaymentSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
-export type SplitInput = z.infer<typeof splitSchema>;
+export type ListByTableQuery = z.infer<typeof listByTableQuerySchema>;
 export type MergeInput = z.infer<typeof mergeSchema>;

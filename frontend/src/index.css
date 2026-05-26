@@ -63,8 +63,11 @@
     padding-right: max(env(safe-area-inset-right), 0px);
   }
   .pb-safe-nav {
-    /* For floating elements above bottom nav (h-16 = 4rem) */
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.5rem);
+    /* For floating elements above bottom nav (h-16 = 4rem + pb-safe internal).
+       REV 2.4: pakai max() identik dengan pb-safe (min 0.75rem) supaya match
+       tinggi nav saat env(safe-area-inset-bottom) = 0 (desktop emulation, browser
+       tanpa notch). Tanpa max(), padding < nav height → konten ketutup nav. */
+    padding-bottom: calc(4rem + max(env(safe-area-inset-bottom), 0.75rem) + 0.5rem);
   }
 
   /* Fade gradient indicator for horizontal scroll containers */

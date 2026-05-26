@@ -2,7 +2,7 @@
 //   - openShift: kasir buka kasir dengan modal awal. Per matrix REV 2.3, mutasi
 //     buka/tutup kasir = kasir-only (validasi role di route layer).
 //   - closeShift: kasir tutup sendiri ATAU owner tutup paksa.
-//   - getActiveShifts: REV 2.3 shift-decoupling — return SEMUA shift dengan
+//   - getActiveShifts: REV 2.3 shift-decoupling - return SEMUA shift dengan
 //     closedAt=null (system-wide, bukan per-user). Frontend yang filter sendiri
 //     untuk display "shift sendiri" vs "shift kasir lain (overlap)".
 //   - Permission view (list/detail): semua authenticated (waiter butuh tahu shift
@@ -69,7 +69,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   // REV 2.5 multi-cashier sharing: shift adalah CONTAINER per (tanggal, tipe).
   // Hanya boleh 1 shift pagi + 1 shift malam per hari, regardless of cashier.
   // Kasir kedua yang login saat tipe relevan sudah aktif TIDAK perlu buka shift
-  // baru — langsung input order via /pos (Transaction.createdById track audit
+  // baru - langsung input order via /pos (Transaction.createdById track audit
   // "siapa input"; pemilik shift = orang yang pegang cash drawer / modal awal).
   const existing = await prisma.shift.findFirst({
     where: { date: today, type: input.type, closedAt: null },
@@ -78,7 +78,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   if (existing) {
     throw new AppError(
       `Shift ${input.type} hari ini sudah dibuka oleh ${existing.cashier.name}. ` +
-      `Tidak perlu buka shift baru — input pesanan langsung ke shift itu.`,
+      `Tidak perlu buka shift baru - input pesanan langsung ke shift itu.`,
       409,
     );
   }
@@ -122,7 +122,7 @@ export async function closeShift(
 /// Return semua shift dengan closedAt=null.
 /// - 0 row : belum ada kasir buka shift
 /// - 1 row : happy path
-/// - 2+ row: pergantian shift overlap — input order akan ditolak sampai
+/// - 2+ row: pergantian shift overlap - input order akan ditolak sampai
 ///           salah satu ditutup (validasi di transactions.service)
 export async function getActiveShifts(): Promise<ShiftView[]> {
   const shifts = await prisma.shift.findMany({

@@ -1,5 +1,5 @@
 /**
- * Sheet — drawer khusus mobile-friendly. Slide dari bottom (default)
+ * Sheet - drawer khusus mobile-friendly. Slide dari bottom (default)
  * atau right. Pakai Radix Dialog sebagai foundation untuk a11y +
  * focus trap, motion via framer-motion. Untuk full-page experience
  * di mobile (cart, filter, settlement steps).

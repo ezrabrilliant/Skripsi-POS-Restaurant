@@ -29,12 +29,12 @@ echo "openingQtyDate distinct: $SNAPSHOT_DATES (expected today=$TODAY)"
 echo ""
 echo "=== 3. GET /stocks/portion?lowStock=true (kasir Jason) → filter currentQty <= minStock ==="
 LOW=$(curl -s "$BASE/stocks/portion?lowStock=true" -H "Authorization: Bearer $JASON_TOKEN")
-echo "$LOW" | jq_field 'console.log("low items:", j.data.stocks.length, "— sample:", j.data.stocks.slice(0,3).map(s=>({name:s.menuName,qty:s.currentQty,min:s.minStock,suggest:s.suggestedRestockMorning})))'
+echo "$LOW" | jq_field 'console.log("low items:", j.data.stocks.length, "- sample:", j.data.stocks.slice(0,3).map(s=>({name:s.menuName,qty:s.currentQty,min:s.minStock,suggest:s.suggestedRestockMorning})))'
 
 echo ""
 echo "=== 4. GET /stocks/portion?category=Signature%20Ayam%20Bakar (owner) ==="
 curl -s "$BASE/stocks/portion?category=Signature%20Ayam%20Bakar" -H "Authorization: Bearer $OWNER_TOKEN" \
-  | jq_field 'console.log("count:", j.data.stocks.length, "— names:", j.data.stocks.map(s=>s.menuName).slice(0,5))'
+  | jq_field 'console.log("count:", j.data.stocks.length, "- names:", j.data.stocks.map(s=>s.menuName).slice(0,5))'
 
 echo ""
 echo "=== 5. Find Paha Ayam Bakar id + current state ==="
@@ -64,14 +64,14 @@ curl -s -X POST $BASE/stocks/portion/emergency-in -H "Content-Type: application/
   | jq_field 'console.log("Ati Bakar after emergency-in: qty="+j.data.stock.currentQty+" (was '"$ATI_BEFORE"', expected +3)")'
 
 echo ""
-echo "=== 9. POST opname [{Paha Bakar:12}] (owner) — selisih akan dihitung ==="
+echo "=== 9. POST opname [{Paha Bakar:12}] (owner) - selisih akan dihitung ==="
 PAHA_NOW=$(curl -s $BASE/stocks/portion -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const s=j.data.stocks.find(x=>x.menuName==="Paha Ayam Bakar"); console.log(s.currentQty)')
 echo "Paha Bakar qty sebelum opname: $PAHA_NOW (akan di-set ke 12)"
 curl -s -X POST $BASE/stocks/portion/opname -H "Content-Type: application/json" -H "Authorization: Bearer $OWNER_TOKEN" -d "{\"items\":[{\"menuId\":$PAHA_BAKAR_ID,\"qtyFisik\":12}],\"note\":\"Opname pagi\"}" \
   | jq_field 'console.log("After opname: qty="+j.data.stocks[0].currentQty)'
 
 echo ""
-echo "=== 10. POST opname [{Paha Bakar:12}] AGAIN — selisih=0, no movement created (idempotent) ==="
+echo "=== 10. POST opname [{Paha Bakar:12}] AGAIN - selisih=0, no movement created (idempotent) ==="
 MOVE_COUNT_BEFORE=$(curl -s "$BASE/stocks/portion/$PAHA_BAKAR_ID?limit=50" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log(j.data.stock.recentMovements.length)')
 curl -s -X POST $BASE/stocks/portion/opname -H "Content-Type: application/json" -H "Authorization: Bearer $OWNER_TOKEN" -d "{\"items\":[{\"menuId\":$PAHA_BAKAR_ID,\"qtyFisik\":12}]}" \
   | jq_field 'console.log("After opname idempotent: qty="+j.data.stocks[0].currentQty)'
@@ -89,7 +89,7 @@ curl -s "$BASE/stocks/portion/$PAHA_BAKAR_ID?limit=10" -H "Authorization: Bearer
   | jq_field 'const s=j.data.stock; console.log(JSON.stringify({menu:s.menuName,qty:s.currentQty,recentMovements:s.recentMovements.map(m=>({delta:m.delta,reason:m.reason,note:m.note.slice(0,50)})).slice(0,5)},null,2))'
 
 echo ""
-echo "=== 13. POST mark-habis lagi (idempotent — sudah 0) ==="
+echo "=== 13. POST mark-habis lagi (idempotent - sudah 0) ==="
 MOVE_COUNT_BEFORE_2=$(curl -s "$BASE/stocks/portion/$PAHA_BAKAR_ID?limit=50" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log(j.data.stock.recentMovements.length)')
 curl -s -X POST $BASE/stocks/portion/$PAHA_BAKAR_ID/mark-habis -H "Content-Type: application/json" -H "Authorization: Bearer $OWNER_TOKEN" -d '{}' \
   | jq_field 'console.log("After 2nd mark-habis: qty="+j.data.stock.currentQty)'

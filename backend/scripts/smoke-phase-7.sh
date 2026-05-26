@@ -20,7 +20,7 @@ curl -s -o /dev/null -w "status=%{http_code}\n" $BASE/vendors -H "Authorization:
 
 echo ""
 echo "=== 2. GET /vendors (Jason kasir) → 200 + 3 items (seed: Pasar Pagi, Bu Sari, Toko Pak Budi) ==="
-curl -s $BASE/vendors -H "Authorization: Bearer $JASON_TOKEN" | jq_field 'console.log("count:", j.data.vendors.length, "— sample:", j.data.vendors.slice(0,3).map(v=>({name:v.name, type:v.type, phone:v.phone, purchaseCount:v.purchaseCount})))'
+curl -s $BASE/vendors -H "Authorization: Bearer $JASON_TOKEN" | jq_field 'console.log("count:", j.data.vendors.length, "- sample:", j.data.vendors.slice(0,3).map(v=>({name:v.name, type:v.type, phone:v.phone, purchaseCount:v.purchaseCount})))'
 
 echo ""
 echo "=== 3. POST create (kasir Jason) → 201 ==="
@@ -33,7 +33,7 @@ echo "=== 4. POST duplicate name → 409 ==="
 curl -s -X POST $BASE/vendors -H "Content-Type: application/json" -H "Authorization: Bearer $OWNER_TOKEN" -d '{"name":"Toko Sayur Maju","type":"toko"}' | head -c 200; echo
 
 echo ""
-echo "=== 5. PUT update (owner) — ubah phone + note jadi null ==="
+echo "=== 5. PUT update (owner) - ubah phone + note jadi null ==="
 curl -s -X PUT $BASE/vendors/$NEW_VENDOR_ID -H "Content-Type: application/json" -H "Authorization: Bearer $OWNER_TOKEN" -d '{"phone":null,"note":"Pindah ke kios depan"}' | jq_field 'console.log(JSON.stringify({name:j.data.vendor.name,phone:j.data.vendor.phone,note:j.data.vendor.note},null,2))'
 
 echo ""
@@ -53,7 +53,7 @@ TAHU_ID=$(echo "$TAHU" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('
 CABAI_ID=$(echo "$CABAI" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).id))")
 
 echo ""
-echo "=== 8. POST /purchases (kasir Jason) — 3 balok Tahu + 200 gram Cabai Rawit ==="
+echo "=== 8. POST /purchases (kasir Jason) - 3 balok Tahu + 200 gram Cabai Rawit ==="
 PURCHASE_BODY=$(cat <<EOF
 {
   "date":"2026-05-24",
@@ -109,7 +109,7 @@ curl -s -X POST $BASE/purchases -H "Content-Type: application/json" -H "Authoriz
 
 echo ""
 echo "=== 16. GET /purchases?date=2026-05-24 filter ==="
-curl -s "$BASE/purchases?date=2026-05-24" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("today total:", j.data.purchases.length, "— totals:", j.data.purchases.map(p=>({id:p.id,total:p.totalAmount,vendor:p.vendorName})))'
+curl -s "$BASE/purchases?date=2026-05-24" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("today total:", j.data.purchases.length, "- totals:", j.data.purchases.map(p=>({id:p.id,total:p.totalAmount,vendor:p.vendorName})))'
 
 echo ""
 echo "=== 17. GET /purchases?month=2026-05 filter ==="

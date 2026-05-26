@@ -97,7 +97,7 @@ async function seedUsers() {
 async function seedMenus() {
   const menuCount = await prisma.menu.count();
   if (menuCount > 0) {
-    console.log(`Katalog menu sudah berisi ${menuCount} item — seed menu dilewati.`);
+    console.log(`Katalog menu sudah berisi ${menuCount} item - seed menu dilewati.`);
     return;
   }
 
