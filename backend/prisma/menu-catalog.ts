@@ -7,15 +7,25 @@
 //   - 'nonStock' : tampil di POS tapi tidak memengaruhi stok apapun.
 //   - 'linked'   : menu adalah varian dari menu lain yang punya stok porsi (mis. 1 Ekor Bakar Merah/Kecap berbagi stok).
 //
-// subOptions JSON:
-//   - null                                           => menu sederhana
-//   - { stockTarget: "Nama Menu" }                   => stockType='linked', decrement menu target
-//   - { options: [...], stockMap: { key: target } }  => stockType='nonStock' tipe paket dengan pilihan customer
+// subOptions JSON (REV 2.6):
+//   - null                                                          => menu sederhana
+//   - { stockTarget: "Nama Menu" }                                  => stockType='linked', decrement menu target
+//   - { fixedItems: [...], choices: [...], description? }           => stockType='nonStock' tipe paket
 //
-// Format options untuk paket:
-//   [{ key: "ayamPart", label: "Pilih Bagian Ayam", options: ["Paha", "Dada"] }, ...]
-//
-// Format stockMap: key = nilai join sub-options dengan separator "|", value = nama menu stok porsi target.
+// Format paket subOptions:
+//   {
+//     fixedItems: ["Nasi Putih", "Sayur Asem"],   // menu yang selalu masuk; portion/linked di-decrement otomatis
+//     choices: [
+//       {
+//         key: "ayam",                            // unik di antara choices, dipakai sebagai key subOptionsSelected
+//         label: "Pilih Ayam",                    // ditampilkan ke customer
+//         options: [
+//           { label: "Paha Bakar", stockTarget: "Paha Ayam Bakar" },  // stockTarget=null kalau info-only
+//           { label: "Dada Bakar", stockTarget: "Dada Ayam Bakar" },
+//         ],
+//       },
+//     ],
+//   }
 
 import type { Prisma } from '@prisma/client';
 
@@ -325,9 +335,11 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   // ============================================================
   // KATEGORI: Paket Hemat (5 item, canonical doc baris 81-88)
   // ============================================================
-  // Format stockMap key = nilai sub-options dijoin "|" mengikuti urutan options array.
-  // Mis. options=[{key:"cook"}], stockMap "Bakar"->"1 Ekor Ayam Bakar Merah".
-  // Stok target hanya stok porsi yang relevan; minuman/sayur asem/tahu tempe nonStock tidak perlu di stockMap.
+  // REV 2.6 schema: paket = fixedItems (selalu masuk) + choices (slot pilihan customer).
+  // - fixedItems[]: nama menu yang otomatis decrement stock kalau portion/linked;
+  //   nonStock (mis. Nasi Putih, Sayur Asem) cuma jadi catatan ke dapur.
+  // - choices[]: tiap slot punya N opsi, tiap opsi punya stockTarget (nullable
+  //   kalau slot cuma informational seperti pilihan minuman).
   {
     name: 'Paket Keluarga (3-4 org)',
     category: 'Paket Hemat',
@@ -336,11 +348,17 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     imageUrl: PAKET_KELUARGA_IMG,
     subOptions: {
       description: '1 Ekor Ayam + 4 Nasi Putih + 4 Teh Tawar',
-      options: [{ key: 'cook', label: 'Cara Masak', options: ['Bakar', 'Goreng'] }],
-      stockMap: {
-        Bakar: '1 Ekor Ayam Bakar Merah',
-        Goreng: '1 Ekor Ayam Goreng',
-      },
+      fixedItems: ['Nasi Putih', 'Teh Tawar Biasa'],
+      choices: [
+        {
+          key: 'ayam',
+          label: 'Pilih Ayam',
+          options: [
+            { label: 'Bakar', stockTarget: '1 Ekor Ayam Bakar Merah' },
+            { label: 'Goreng', stockTarget: '1 Ekor Ayam Goreng' },
+          ],
+        },
+      ],
     },
   },
   {
@@ -351,21 +369,27 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     imageUrl: PAKET_A_IMG,
     subOptions: {
       description: 'Paha/Dada Ayam + Nasi + Tahu Tempe + Sayur Asem + Minuman',
-      options: [
-        { key: 'ayamPart', label: 'Bagian Ayam', options: ['Paha', 'Dada'] },
-        { key: 'cook', label: 'Cara Masak', options: ['Bakar', 'Goreng'] },
-        { key: 'minuman', label: 'Minuman', options: ['Teh Tawar', 'Teh Manis'] },
+      fixedItems: ['Nasi Putih', 'Tahu Tempe Goreng', 'Sayur Asem'],
+      choices: [
+        {
+          key: 'ayam',
+          label: 'Pilih Ayam',
+          options: [
+            { label: 'Paha Bakar', stockTarget: 'Paha Ayam Bakar' },
+            { label: 'Paha Goreng', stockTarget: 'Paha Ayam Goreng' },
+            { label: 'Dada Bakar', stockTarget: 'Dada Ayam Bakar' },
+            { label: 'Dada Goreng', stockTarget: 'Dada Ayam Goreng' },
+          ],
+        },
+        {
+          key: 'minuman',
+          label: 'Pilih Minuman',
+          options: [
+            { label: 'Teh Tawar', stockTarget: null },
+            { label: 'Teh Manis', stockTarget: null },
+          ],
+        },
       ],
-      stockMap: {
-        'Paha|Bakar|Teh Tawar': 'Paha Ayam Bakar',
-        'Paha|Bakar|Teh Manis': 'Paha Ayam Bakar',
-        'Paha|Goreng|Teh Tawar': 'Paha Ayam Goreng',
-        'Paha|Goreng|Teh Manis': 'Paha Ayam Goreng',
-        'Dada|Bakar|Teh Tawar': 'Dada Ayam Bakar',
-        'Dada|Bakar|Teh Manis': 'Dada Ayam Bakar',
-        'Dada|Goreng|Teh Tawar': 'Dada Ayam Goreng',
-        'Dada|Goreng|Teh Manis': 'Dada Ayam Goreng',
-      },
     },
   },
   {
@@ -376,16 +400,19 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     imageUrl: PAKET_B_IMG,
     subOptions: {
       description: 'Paha/Dada Ayam + Nasi + Tahu Tempe',
-      options: [
-        { key: 'ayamPart', label: 'Bagian Ayam', options: ['Paha', 'Dada'] },
-        { key: 'cook', label: 'Cara Masak', options: ['Bakar', 'Goreng'] },
+      fixedItems: ['Nasi Putih', 'Tahu Tempe Goreng'],
+      choices: [
+        {
+          key: 'ayam',
+          label: 'Pilih Ayam',
+          options: [
+            { label: 'Paha Bakar', stockTarget: 'Paha Ayam Bakar' },
+            { label: 'Paha Goreng', stockTarget: 'Paha Ayam Goreng' },
+            { label: 'Dada Bakar', stockTarget: 'Dada Ayam Bakar' },
+            { label: 'Dada Goreng', stockTarget: 'Dada Ayam Goreng' },
+          ],
+        },
       ],
-      stockMap: {
-        'Paha|Bakar': 'Paha Ayam Bakar',
-        'Paha|Goreng': 'Paha Ayam Goreng',
-        'Dada|Bakar': 'Dada Ayam Bakar',
-        'Dada|Goreng': 'Dada Ayam Goreng',
-      },
     },
   },
   {
@@ -396,32 +423,30 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     imageUrl: PAKET_C_IMG,
     subOptions: {
       description: '1 Kuah + Nasi Putih + Minuman',
-      options: [
+      fixedItems: ['Nasi Putih'],
+      choices: [
         {
           key: 'kuah',
-          label: 'Pilihan Kuah',
-          options: ['Rawon', 'Gulai', 'Garang Asem', 'Bakwan Penyet', 'Semur'],
+          label: 'Pilih Kuah',
+          // Catatan: Garang Asem default ke Ayam (lebih umum). Gulai default Daging.
+          options: [
+            { label: 'Rawon', stockTarget: 'Rawon Daging' },
+            { label: 'Gulai', stockTarget: 'Gulai Daging' },
+            { label: 'Garang Asem', stockTarget: 'Garang Asem Ayam' },
+            { label: 'Bakwan Penyet', stockTarget: 'Bakwan Penyet' },
+            { label: 'Semur', stockTarget: 'Semur Daging' },
+          ],
         },
-        { key: 'minuman', label: 'Minuman', options: ['Teh Tawar', 'Teh Manis', 'Air Mineral'] },
+        {
+          key: 'minuman',
+          label: 'Pilih Minuman',
+          options: [
+            { label: 'Teh Tawar', stockTarget: null },
+            { label: 'Teh Manis', stockTarget: null },
+            { label: 'Air Mineral', stockTarget: null },
+          ],
+        },
       ],
-      // Catatan: Garang Asem default ke Ayam (lebih umum). Gulai default Daging.
-      stockMap: {
-        'Rawon|Teh Tawar': 'Rawon Daging',
-        'Rawon|Teh Manis': 'Rawon Daging',
-        'Rawon|Air Mineral': 'Rawon Daging',
-        'Gulai|Teh Tawar': 'Gulai Daging',
-        'Gulai|Teh Manis': 'Gulai Daging',
-        'Gulai|Air Mineral': 'Gulai Daging',
-        'Garang Asem|Teh Tawar': 'Garang Asem Ayam',
-        'Garang Asem|Teh Manis': 'Garang Asem Ayam',
-        'Garang Asem|Air Mineral': 'Garang Asem Ayam',
-        'Bakwan Penyet|Teh Tawar': 'Bakwan Penyet',
-        'Bakwan Penyet|Teh Manis': 'Bakwan Penyet',
-        'Bakwan Penyet|Air Mineral': 'Bakwan Penyet',
-        'Semur|Teh Tawar': 'Semur Daging',
-        'Semur|Teh Manis': 'Semur Daging',
-        'Semur|Air Mineral': 'Semur Daging',
-      },
     },
   },
   {
@@ -432,14 +457,18 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     imageUrl: PAKET_D_IMG,
     subOptions: {
       description: 'Empal Penyet + Nasi + Minuman',
-      options: [
-        { key: 'minuman', label: 'Minuman', options: ['Teh Tawar', 'Teh Manis', 'Air Mineral'] },
+      fixedItems: ['Nasi Putih', 'Empal Penyet'],
+      choices: [
+        {
+          key: 'minuman',
+          label: 'Pilih Minuman',
+          options: [
+            { label: 'Teh Tawar', stockTarget: null },
+            { label: 'Teh Manis', stockTarget: null },
+            { label: 'Air Mineral', stockTarget: null },
+          ],
+        },
       ],
-      stockMap: {
-        'Teh Tawar': 'Empal Penyet',
-        'Teh Manis': 'Empal Penyet',
-        'Air Mineral': 'Empal Penyet',
-      },
     },
   },
 ];

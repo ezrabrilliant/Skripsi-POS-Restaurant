@@ -174,7 +174,39 @@ const transactionInclude = {
 interface ResolvedItem {
   input: OrderItemInput;
   menu: { id: number; name: string; price: Prisma.Decimal; stockType: StockType };
-  stockTargetMenuId: number | null; // null = tidak ada decrement (nonStock tanpa subOptions)
+  /// Menu IDs yang harus di-decrement (bisa lebih dari 1 untuk paket dengan
+  /// fixedItems + chosen options). Array kosong = tidak ada decrement.
+  stockTargetMenuIds: number[];
+}
+
+/// Resolve nama menu target → ID menu portion. Throw kalau tidak ketemu atau
+/// stockType tidak valid. Linked di-resolve rekursif satu hop ke target final.
+async function resolveTargetNameToPortionId(
+  targetName: string,
+  context: string,
+): Promise<number | null> {
+  const target = await prisma.menu.findFirst({ where: { name: targetName } });
+  if (!target) {
+    throw new AppError(`Stock target "${targetName}" (${context}) tidak ditemukan`, 500);
+  }
+  if (target.stockType === StockType.portion) {
+    return target.id;
+  }
+  if (target.stockType === StockType.linked) {
+    const linkedParsed = linkedSubOptionsSchema.safeParse(target.subOptions);
+    if (!linkedParsed.success) {
+      throw new AppError(
+        `Linked target "${target.name}" subOptions tidak valid (butuh {stockTarget})`,
+        500,
+      );
+    }
+    return resolveTargetNameToPortionId(
+      linkedParsed.data.stockTarget,
+      `${context} → linked dari "${target.name}"`,
+    );
+  }
+  // nonStock target = skip decrement (mis. Nasi Putih sebagai fixed item di paket)
+  return null;
 }
 
 /// Validasi item + resolve stok target untuk setiap item.
@@ -191,10 +223,10 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
       throw new AppError(`Menu "${menu.name}" sudah nonaktif`, 400);
     }
 
-    let stockTargetMenuId: number | null = null;
+    const stockTargetMenuIds: number[] = [];
 
     if (menu.stockType === StockType.portion) {
-      stockTargetMenuId = menu.id;
+      stockTargetMenuIds.push(menu.id);
     } else if (menu.stockType === StockType.linked) {
       const parsed = linkedSubOptionsSchema.safeParse(menu.subOptions);
       if (!parsed.success) {
@@ -203,25 +235,23 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
           500,
         );
       }
-      const target = await prisma.menu.findFirst({ where: { name: parsed.data.stockTarget } });
-      if (!target) {
-        throw new AppError(`Stock target "${parsed.data.stockTarget}" tidak ditemukan`, 500);
-      }
-      if (target.stockType !== StockType.portion) {
+      const targetId = await resolveTargetNameToPortionId(
+        parsed.data.stockTarget,
+        `linked dari "${menu.name}"`,
+      );
+      if (targetId === null) {
         throw new AppError(
-          `Stock target "${parsed.data.stockTarget}" harus stockType=portion`,
+          `Linked target "${parsed.data.stockTarget}" harus resolve ke menu portion`,
           500,
         );
       }
-      stockTargetMenuId = target.id;
+      stockTargetMenuIds.push(targetId);
     } else if (menu.stockType === StockType.nonStock && menu.subOptions !== null) {
-      // Paket dengan pilihan dinamis
+      // Paket REV 2.6: fixedItems + choices struktur
       const parsed = paketSubOptionsSchema.safeParse(menu.subOptions);
       if (!parsed.success) {
-        // Bisa nonStock dengan subOptions bentuk lain (jarang); skip decrement.
-        // Tapi kalau memang mau paket, structure-nya salah → error.
-        // Karena kita tidak yakin maksudnya, skip dengan log: anggap tidak ada decrement.
-        // Hanya error kalau user kirim subOptionsSelected (mengindikasi mereka kira ini paket).
+        // subOptions ada tapi bukan paket shape valid - mungkin masih shape lama.
+        // Hanya error kalau user kirim subOptionsSelected (kemungkinan kira ini paket).
         if (input.subOptionsSelected) {
           throw new AppError(
             `Menu "${menu.name}" tidak menerima sub-options (structure subOptions tidak valid)`,
@@ -230,42 +260,52 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
         }
       } else {
         const paket = parsed.data;
-        if (!input.subOptionsSelected) {
-          throw new AppError(`Menu "${menu.name}" wajib pilih sub-options`, 400);
-        }
-        // Validasi setiap group ada pilihan + pilihan valid
-        for (const group of paket.options) {
-          const selected = input.subOptionsSelected[group.key];
-          if (selected === undefined) {
-            throw new AppError(
-              `Pilihan untuk "${group.label}" (key=${group.key}) wajib diisi`,
-              400,
-            );
+
+        // Validasi customer pilihan untuk setiap choice slot (kalau ada)
+        if (paket.choices.length > 0) {
+          if (!input.subOptionsSelected) {
+            throw new AppError(`Menu "${menu.name}" wajib pilih sub-options`, 400);
           }
-          if (!group.options.includes(selected)) {
-            throw new AppError(
-              `Pilihan "${selected}" tidak valid untuk "${group.label}" (opsi: ${group.options.join(', ')})`,
-              400,
-            );
+          for (const choice of paket.choices) {
+            const picked = input.subOptionsSelected[choice.key];
+            if (picked === undefined) {
+              throw new AppError(
+                `Pilihan untuk "${choice.label}" (key=${choice.key}) wajib diisi`,
+                400,
+              );
+            }
+            const matchOpt = choice.options.find((o) => o.label === picked);
+            if (!matchOpt) {
+              throw new AppError(
+                `Pilihan "${picked}" tidak valid untuk "${choice.label}" (opsi: ${choice.options.map((o) => o.label).join(', ')})`,
+                400,
+              );
+            }
           }
         }
-        // Susun key gabungan sesuai urutan options[]
-        const joined = paket.options.map((g) => input.subOptionsSelected![g.key]).join('|');
-        const targetName = paket.stockMap[joined];
-        if (!targetName) {
-          throw new AppError(
-            `Kombinasi pilihan "${joined}" tidak ada di stockMap menu "${menu.name}"`,
-            500,
+
+        // Kumpulkan target stockMenuIds: dari fixedItems + dari chosen options
+        const targetNames: string[] = [...paket.fixedItems];
+        if (input.subOptionsSelected) {
+          for (const choice of paket.choices) {
+            const picked = input.subOptionsSelected[choice.key];
+            const matchOpt = choice.options.find((o) => o.label === picked);
+            if (matchOpt?.stockTarget) {
+              targetNames.push(matchOpt.stockTarget);
+            }
+          }
+        }
+
+        for (const targetName of targetNames) {
+          const targetId = await resolveTargetNameToPortionId(
+            targetName,
+            `paket "${menu.name}"`,
           );
+          // null = nonStock target (mis. Nasi Putih) → skip decrement
+          if (targetId !== null) {
+            stockTargetMenuIds.push(targetId);
+          }
         }
-        const target = await prisma.menu.findFirst({ where: { name: targetName } });
-        if (!target) {
-          throw new AppError(`Stock target "${targetName}" tidak ditemukan`, 500);
-        }
-        if (target.stockType !== StockType.portion) {
-          throw new AppError(`Stock target "${targetName}" harus stockType=portion`, 500);
-        }
-        stockTargetMenuId = target.id;
       }
     }
     // else: nonStock tanpa subOptions → tidak ada decrement (minuman, nasi, dll)
@@ -273,7 +313,7 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
     resolved.push({
       input,
       menu: { id: menu.id, name: menu.name, price: menu.price, stockType: menu.stockType },
-      stockTargetMenuId,
+      stockTargetMenuIds,
     });
   }
 
@@ -304,14 +344,14 @@ async function persistItemsAndDecrement(
       },
     });
 
-    if (r.stockTargetMenuId !== null) {
+    for (const targetMenuId of r.stockTargetMenuIds) {
       await tx.portionStock.update({
-        where: { menuId: r.stockTargetMenuId },
+        where: { menuId: targetMenuId },
         data: { currentQty: { decrement: r.input.qty } },
       });
       await tx.portionMovement.create({
         data: {
-          menuId: r.stockTargetMenuId,
+          menuId: targetMenuId,
           delta: -r.input.qty,
           reason: PortionMovementReason.order,
           note: `transactionId=${transactionId} via "${r.menu.name}"`,
@@ -681,14 +721,14 @@ export async function voidTransaction(
 
   await prisma.$transaction(async (tx) => {
     for (const r of resolved) {
-      if (r.stockTargetMenuId !== null) {
+      for (const targetMenuId of r.stockTargetMenuIds) {
         await tx.portionStock.update({
-          where: { menuId: r.stockTargetMenuId },
+          where: { menuId: targetMenuId },
           data: { currentQty: { increment: r.input.qty } },
         });
         await tx.portionMovement.create({
           data: {
-            menuId: r.stockTargetMenuId,
+            menuId: targetMenuId,
             delta: r.input.qty,
             reason: PortionMovementReason.refundVoid,
             note: `void transactionId=${transactionId} reverse "${r.menu.name}"`,
@@ -751,7 +791,7 @@ export async function updateTransactionItem(
   const newSubtotal = item.unitPrice.mul(newQty);
 
   // Resolve stock target hanya kalau qty berubah (notes-only update skip stok).
-  let stockTargetMenuId: number | null = null;
+  let stockTargetMenuIds: number[] = [];
   let resolvedMenuName: string = '';
   if (qtyDelta !== 0) {
     const resolved = await resolveItems([
@@ -764,7 +804,7 @@ export async function updateTransactionItem(
             : undefined,
       },
     ]);
-    stockTargetMenuId = resolved[0]!.stockTargetMenuId;
+    stockTargetMenuIds = resolved[0]!.stockTargetMenuIds;
     resolvedMenuName = resolved[0]!.menu.name;
   }
 
@@ -777,38 +817,40 @@ export async function updateTransactionItem(
         notes: newNotes,
       },
     });
-    if (qtyDelta !== 0 && stockTargetMenuId !== null) {
-      if (qtyDelta > 0) {
-        // qty naik → decrement stok lebih banyak (audit reason=order)
-        await tx.portionStock.update({
-          where: { menuId: stockTargetMenuId },
-          data: { currentQty: { decrement: qtyDelta } },
-        });
-        await tx.portionMovement.create({
-          data: {
-            menuId: stockTargetMenuId,
-            delta: -qtyDelta,
-            reason: PortionMovementReason.order,
-            note: `Edit Tx ${transactionId} item ${itemId} qty +${qtyDelta} (${resolvedMenuName})`,
-            userId,
-          },
-        });
-      } else {
-        // qty turun → reverse stok (audit reason=refundVoid)
-        const reverseAmt = Math.abs(qtyDelta);
-        await tx.portionStock.update({
-          where: { menuId: stockTargetMenuId },
-          data: { currentQty: { increment: reverseAmt } },
-        });
-        await tx.portionMovement.create({
-          data: {
-            menuId: stockTargetMenuId,
-            delta: reverseAmt,
-            reason: PortionMovementReason.refundVoid,
-            note: `Edit Tx ${transactionId} item ${itemId} qty ${qtyDelta} (${resolvedMenuName})`,
-            userId,
-          },
-        });
+    if (qtyDelta !== 0) {
+      for (const targetMenuId of stockTargetMenuIds) {
+        if (qtyDelta > 0) {
+          // qty naik → decrement stok lebih banyak (audit reason=order)
+          await tx.portionStock.update({
+            where: { menuId: targetMenuId },
+            data: { currentQty: { decrement: qtyDelta } },
+          });
+          await tx.portionMovement.create({
+            data: {
+              menuId: targetMenuId,
+              delta: -qtyDelta,
+              reason: PortionMovementReason.order,
+              note: `Edit Tx ${transactionId} item ${itemId} qty +${qtyDelta} (${resolvedMenuName})`,
+              userId,
+            },
+          });
+        } else {
+          // qty turun → reverse stok (audit reason=refundVoid)
+          const reverseAmt = Math.abs(qtyDelta);
+          await tx.portionStock.update({
+            where: { menuId: targetMenuId },
+            data: { currentQty: { increment: reverseAmt } },
+          });
+          await tx.portionMovement.create({
+            data: {
+              menuId: targetMenuId,
+              delta: reverseAmt,
+              reason: PortionMovementReason.refundVoid,
+              note: `Edit Tx ${transactionId} item ${itemId} qty ${qtyDelta} (${resolvedMenuName})`,
+              userId,
+            },
+          });
+        }
       }
     }
     await recomputeSubtotal(tx, transactionId);
@@ -857,14 +899,14 @@ export async function deleteTransactionItem(
 
   await prisma.$transaction(async (tx) => {
     await tx.transactionItem.delete({ where: { id: itemId } });
-    if (r.stockTargetMenuId !== null) {
+    for (const targetMenuId of r.stockTargetMenuIds) {
       await tx.portionStock.update({
-        where: { menuId: r.stockTargetMenuId },
+        where: { menuId: targetMenuId },
         data: { currentQty: { increment: item.qty } },
       });
       await tx.portionMovement.create({
         data: {
-          menuId: r.stockTargetMenuId,
+          menuId: targetMenuId,
           delta: item.qty,
           reason: PortionMovementReason.refundVoid,
           note: `Edit Tx ${transactionId}: hapus item "${r.menu.name}" qty=${item.qty}`,

@@ -18,21 +18,45 @@ export const linkedSubOptionsSchema = z.object({
   stockTarget: z.string().min(1, 'stockTarget tidak boleh kosong'),
 });
 
-/// Varian "paket": menu nonStock dengan pilihan dinamis customer.
-/// options[].options adalah array string pilihan; stockMap memetakan kombinasi
-/// pilihan (dijoin "|" sesuai urutan options[]) ke nama menu stok porsi target.
+/// Varian "paket": menu nonStock yang terdiri dari kombinasi item tetap +
+/// slot pilihan customer.
+///
+/// - `fixedItems`: nama menu yang SELALU termasuk dalam paket (mis. Nasi Putih,
+///   Sayur Asem). Saat order paket, masing-masing fixedItem di-decrement kalau
+///   stockType-nya portion/linked; untuk nonStock cuma jadi catatan ke dapur.
+/// - `choices`: slot pilihan yang HARUS dipilih customer satu opsi per slot.
+///   Tiap opsi punya `label` (yang customer lihat) + `stockTarget` (nama menu
+///   yang di-decrement bila opsi itu dipilih; null = informational saja).
+///
+/// Contoh Paket A:
+///   fixedItems: ['Nasi Putih', 'Tahu Tempe Goreng', 'Sayur Asem']
+///   choices: [
+///     { key: 'ayam', label: 'Pilih Ayam', options: [
+///       { label: 'Paha Bakar', stockTarget: 'Paha Ayam Bakar' },
+///       { label: 'Paha Goreng', stockTarget: 'Paha Ayam Goreng' },
+///       { label: 'Dada Bakar', stockTarget: 'Dada Ayam Bakar' },
+///       { label: 'Dada Goreng', stockTarget: 'Dada Ayam Goreng' },
+///     ]},
+///     { key: 'minuman', label: 'Pilih Minuman', options: [
+///       { label: 'Teh Tawar', stockTarget: null },
+///       { label: 'Teh Manis', stockTarget: null },
+///     ]},
+///   ]
+export const paketChoiceOptionSchema = z.object({
+  label: z.string().trim().min(1),
+  stockTarget: z.string().trim().min(1).nullable(),
+});
+
+export const paketChoiceSchema = z.object({
+  key: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  options: z.array(paketChoiceOptionSchema).min(1, 'Minimal 1 opsi per slot pilihan'),
+});
+
 export const paketSubOptionsSchema = z.object({
   description: z.string().optional(),
-  options: z
-    .array(
-      z.object({
-        key: z.string().min(1),
-        label: z.string().min(1),
-        options: z.array(z.string().min(1)).min(1, 'Minimal 1 pilihan per group'),
-      }),
-    )
-    .min(1, 'Minimal 1 group sub-option untuk paket'),
-  stockMap: z.record(z.string().min(1), z.string().min(1)),
+  fixedItems: z.array(z.string().trim().min(1)).default([]),
+  choices: z.array(paketChoiceSchema).default([]),
 });
 
 export const subOptionsSchema = z
