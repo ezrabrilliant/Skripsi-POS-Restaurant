@@ -1,12 +1,19 @@
 // RawMaterialsTab - tab kedua di StockPage.
 // REV 2.3 permission: view + opname + mark-habis semua role; CRUD master owner-only.
+// REV 2.5: unit dari master `units` (UnitDropdown). Opname row UI bifurcation per
+// opnameMode unit (exact → input angka; scale_0_5 → segmented 0-5). Edit unit yang
+// ganti + stock > 0 → sub-modal "Konversi stok ke satuan baru".
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ClipboardCheck, XCircle, Edit2, Trash2 } from 'lucide-react'
-import { rawMaterialsService, type CreateRawMaterialPayload } from '@/services/rawMaterialsService'
+import {
+  rawMaterialsService,
+  type CreateRawMaterialPayload,
+  type UpdateRawMaterialPayload,
+} from '@/services/rawMaterialsService'
 import { useAuthStore } from '@/stores/authStore'
-import type { RawMaterialView, RawMaterialCategory } from '@/types'
+import type { RawMaterialView, RawMaterialCategory, Unit } from '@/types'
 import { RAW_MATERIAL_CATEGORY_LABEL } from '@/types'
 import { cn } from '@/lib/utils'
 import {
@@ -24,6 +31,7 @@ import {
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
+import UnitDropdown from '@/components/UnitDropdown'
 
 const CATEGORIES: RawMaterialCategory[] = [
   'bumbuDasar',
@@ -117,7 +125,7 @@ export default function RawMaterialsTab() {
         <div>
           <div className="font-medium text-neutral-900">{rm.name}</div>
           <div className="text-caption text-neutral-500">
-            {rm.unit} · {rm.isTracked ? 'tracked' : 'log-only'}
+            {rm.unit.label} · {rm.isTracked ? 'tracked' : 'log-only'}
           </div>
         </div>
       ),
@@ -134,7 +142,7 @@ export default function RawMaterialsTab() {
       align: 'right',
       cell: (rm) => (
         <span className={cn('font-semibold tabular-nums', rm.isLowStock ? 'text-warning-700' : 'text-neutral-900')}>
-          {rm.stockQty} <span className="text-caption text-neutral-500">{rm.unit}</span>
+          {rm.stockQty} <span className="text-caption text-neutral-500">{rm.unit.label}</span>
         </span>
       ),
     },
@@ -263,7 +271,7 @@ export default function RawMaterialsTab() {
                       rm.isLowStock ? 'text-warning-700' : 'text-neutral-900'
                     )}
                   >
-                    {rm.stockQty} {rm.unit}
+                    {rm.stockQty} {rm.unit.label}
                   </p>
                   {rm.minStock !== null && (
                     <p className="text-caption text-neutral-500 tabular-nums">min {rm.minStock}</p>
@@ -335,7 +343,7 @@ export default function RawMaterialsTab() {
 }
 
 // ============================================================
-// Modals
+// Opname Modal — REV 2.5 bifurcation per unit.opnameMode
 // ============================================================
 
 function RmOpnameModal({
@@ -348,6 +356,7 @@ function RmOpnameModal({
   onSuccess: () => void
 }) {
   const toast = useToast()
+  // REV 2.5: scale_0_5 menyimpan integer 0..5; exact menyimpan number desimal.
   const [qtyByRm, setQtyByRm] = useState<Record<number, number>>({})
 
   const opname = useMutation({
@@ -375,7 +384,7 @@ function RmOpnameModal({
       open
       onOpenChange={(o) => !o && onClose()}
       title="Opname Raw Materials"
-      description="Isi qty fisik aktual (boleh desimal, mis. 1.5). Audit log dibuat untuk yang ada selisih."
+      description="Isi qty fisik aktual. Item skala 0-5 pilih segmented; item eksak input angka (boleh desimal). Audit log dibuat untuk yang ada selisih."
       size="lg"
       footer={
         <Button variant="primary" size="md" fullWidth onClick={handleSubmit} loading={opname.isPending}>
@@ -384,33 +393,101 @@ function RmOpnameModal({
       }
     >
       <div className="space-y-2">
-        {rawMaterials.map((rm) => (
-          <div
-            key={rm.id}
-            className="flex items-center gap-3 py-2 border-b border-neutral-100 last:border-0"
-          >
-            <span className="flex-1 truncate text-body-sm text-neutral-800">{rm.name}</span>
-            <span className="text-caption text-neutral-500 w-20 text-right tabular-nums">
-              sistem {rm.stockQty} {rm.unit}
-            </span>
-            <Input
-              label={`Qty fisik ${rm.name}`}
-              hideLabel
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={qtyByRm[rm.id] ?? ''}
-              onChange={(e) => setQtyByRm((prev) => ({ ...prev, [rm.id]: Number(e.target.value) }))}
-              placeholder="-"
-              containerClassName="w-24"
-              className="text-right tabular-nums"
-            />
-          </div>
-        ))}
+        {rawMaterials.map((rm) => {
+          const isScale = rm.unit.opnameMode === 'scale_0_5'
+          return (
+            <div
+              key={rm.id}
+              className="flex items-center gap-3 py-2 border-b border-neutral-100 last:border-0"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="truncate text-body-sm text-neutral-800">{rm.name}</div>
+                <div className="text-caption text-neutral-500 tabular-nums">
+                  sistem {rm.stockQty} {rm.unit.label}
+                </div>
+              </div>
+              {isScale ? (
+                <ScaleSegmented
+                  value={qtyByRm[rm.id]}
+                  onChange={(v) => setQtyByRm((prev) => ({ ...prev, [rm.id]: v }))}
+                  ariaLabel={`Skala 0-5 untuk ${rm.name}`}
+                />
+              ) : (
+                <Input
+                  label={`Qty fisik ${rm.name}`}
+                  hideLabel
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={qtyByRm[rm.id] ?? ''}
+                  onChange={(e) =>
+                    setQtyByRm((prev) => ({ ...prev, [rm.id]: Number(e.target.value) }))
+                  }
+                  placeholder="-"
+                  containerClassName="w-24"
+                  className="text-right tabular-nums"
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     </Dialog>
   )
+}
+
+// ScaleSegmented — button group 0..5 (aria-pressed pattern konsisten dengan OpenShiftDialog
+// + UnitDropdown opname mode picker).
+function ScaleSegmented({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: number | undefined
+  onChange: (v: number) => void
+  ariaLabel: string
+}) {
+  return (
+    <div className="inline-flex items-center gap-1" role="group" aria-label={ariaLabel}>
+      {[0, 1, 2, 3, 4, 5].map((n) => {
+        const active = value === n
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-pressed={active}
+            className={cn(
+              'w-8 h-8 rounded-md border text-body-sm font-medium tabular-nums transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+              active
+                ? 'bg-primary-50 border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
+                : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50'
+            )}
+          >
+            {n}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ============================================================
+// Form Modal — REV 2.5 pakai UnitDropdown + sub-modal konversi stok saat edit unit
+// ============================================================
+
+interface RmFormState {
+  name: string
+  unitId: number | null
+  unit: Unit | null
+  category: RawMaterialCategory
+  isTracked: boolean
+  stockQty: number
+  minStock: number | null
+  unitPrice: number | null
+  freshnessDays: number | null
 }
 
 function RmFormModal({
@@ -423,9 +500,21 @@ function RmFormModal({
   onSuccess: () => void
 }) {
   const toast = useToast()
-  const [form, setForm] = useState<CreateRawMaterialPayload>({
+
+  const [form, setForm] = useState<RmFormState>({
     name: existing?.name ?? '',
-    unit: existing?.unit ?? '',
+    unitId: existing?.unitId ?? null,
+    // REV 2.5: existing.unit cuma punya {id,label,opnameMode}; cast ke Unit cukup
+    // untuk akses opnameMode (createdAt/updatedAt tidak dipakai di sini).
+    unit: existing
+      ? ({
+          id: existing.unit.id,
+          label: existing.unit.label,
+          opnameMode: existing.unit.opnameMode,
+          createdAt: '',
+          updatedAt: '',
+        } as Unit)
+      : null,
     category: existing?.category ?? 'bumbuDasar',
     isTracked: existing?.isTracked ?? false,
     stockQty: existing?.stockQty ?? 0,
@@ -434,108 +523,248 @@ function RmFormModal({
     freshnessDays: existing?.freshnessDays ?? null,
   })
 
+  // Sub-modal "Konversi stok": muncul saat edit + unitId ganti + stockQty > 0.
+  const [showConvertPrompt, setShowConvertPrompt] = useState(false)
+  const [convertNewQty, setConvertNewQty] = useState<string>('')
+
+  const unitChanged = !!existing && form.unitId !== existing.unitId
+  const hasStock = !!existing && existing.stockQty > 0
+
   const mutation = useMutation({
-    mutationFn: () =>
-      existing
-        ? rawMaterialsService.update(existing.id, {
-            name: form.name,
-            unit: form.unit,
-            category: form.category,
-            isTracked: form.isTracked,
-            minStock: form.minStock,
-            unitPrice: form.unitPrice,
-            freshnessDays: form.freshnessDays,
-          })
-        : rawMaterialsService.create(form),
+    mutationFn: (newStockQty?: number | null) => {
+      if (existing) {
+        const payload: UpdateRawMaterialPayload = {
+          name: form.name,
+          unitId: form.unitId ?? undefined,
+          category: form.category,
+          isTracked: form.isTracked,
+          minStock: form.minStock,
+          unitPrice: form.unitPrice,
+          freshnessDays: form.freshnessDays,
+        }
+        // REV 2.5: hanya kirim newStockQty kalau unit ganti + stock > 0. Backend
+        // reject kalau dikirim tanpa unitId atau saat unit sama.
+        if (unitChanged && hasStock) {
+          payload.newStockQty = newStockQty ?? null
+        }
+        return rawMaterialsService.update(existing.id, payload)
+      }
+      // Create — unitId wajib (validated di submit handler).
+      const createPayload: CreateRawMaterialPayload = {
+        name: form.name,
+        unitId: form.unitId as number,
+        category: form.category,
+        isTracked: form.isTracked,
+        stockQty: form.stockQty,
+        minStock: form.minStock,
+        unitPrice: form.unitPrice,
+        freshnessDays: form.freshnessDays,
+      }
+      return rawMaterialsService.create(createPayload)
+    },
     onSuccess: () => {
       toast.success(existing ? 'Raw material diperbarui' : 'Raw material dibuat')
+      setShowConvertPrompt(false)
       onSuccess()
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
   })
 
+  const handlePrimarySubmit = () => {
+    if (!form.name.trim()) {
+      toast.error('Nama wajib diisi')
+      return
+    }
+    if (form.unitId == null) {
+      toast.error('Satuan wajib dipilih')
+      return
+    }
+    // REV 2.5: edit dengan unit ganti + masih ada stok → tampilkan sub-modal konversi
+    // dulu sebelum kirim ke backend. User pilih: input qty baru, atau reset 0.
+    if (unitChanged && hasStock && !showConvertPrompt) {
+      setShowConvertPrompt(true)
+      return
+    }
+    mutation.mutate(undefined)
+  }
+
+  const handleConvertSubmit = (resetToZero: boolean) => {
+    if (resetToZero) {
+      mutation.mutate(null)
+      return
+    }
+    const num = Number(convertNewQty)
+    if (!Number.isFinite(num) || num < 0) {
+      toast.error('Stok baru tidak valid')
+      return
+    }
+    mutation.mutate(num)
+  }
+
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={existing ? `Edit: ${existing.name}` : 'Tambah Raw Material'}
-      description={existing ? 'Nama tidak bisa diubah untuk menjaga referensi historis.' : undefined}
-      size="md"
-      footer={
-        <Button
-          variant="primary"
-          size="md"
-          fullWidth
-          onClick={() => mutation.mutate()}
-          disabled={!form.name || !form.unit}
-          loading={mutation.isPending}
+    <>
+      <Dialog
+        open
+        onOpenChange={(o) => !o && !mutation.isPending && onClose()}
+        title={existing ? `Edit: ${existing.name}` : 'Tambah Raw Material'}
+        description={existing ? 'Nama tidak bisa diubah untuk menjaga referensi historis.' : undefined}
+        size="md"
+        preventOutsideClose={mutation.isPending}
+        footer={
+          <Button
+            type="submit"
+            form="rm-form"
+            variant="primary"
+            size="md"
+            fullWidth
+            disabled={!form.name || form.unitId == null}
+            loading={mutation.isPending && !showConvertPrompt}
+          >
+            Simpan
+          </Button>
+        }
+      >
+        <form
+          id="rm-form"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault()
+            handlePrimarySubmit()
+          }}
+          className="space-y-3"
         >
-          Simpan
-        </Button>
-      }
-    >
-      <div className="space-y-3">
-        <Input
-          label="Nama"
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          disabled={!!existing}
-          required
-        />
-        <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Unit"
+            label="Nama"
             type="text"
-            value={form.unit}
-            onChange={(e) => setForm({ ...form, unit: e.target.value })}
-            placeholder="kg, ikat, gram"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            disabled={!!existing}
             required
           />
-          <Combobox
-            label="Kategori"
-            value={form.category}
-            onValueChange={(v) => setForm({ ...form, category: v as RawMaterialCategory })}
-            options={CATEGORY_FORM_OPTIONS}
-            searchPlaceholder="Cari kategori..."
-          />
-        </div>
-        <Checkbox
-          label="Track stok"
-          description="Update qty saat purchase + tampilkan reminder kalau rendah/dekat expired"
-          checked={form.isTracked}
-          onCheckedChange={(c) => setForm({ ...form, isTracked: c })}
-        />
-        {form.isTracked && (
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Min Stock"
-              type="number"
-              value={form.minStock ?? ''}
-              onChange={(e) =>
-                setForm({ ...form, minStock: e.target.value ? Number(e.target.value) : null })
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <UnitDropdown
+              value={form.unitId}
+              onChange={(unitId, unit) => setForm({ ...form, unitId, unit })}
+              required
+              helper={
+                existing && unitChanged && hasStock
+                  ? 'Ganti satuan akan minta konversi stok saat simpan.'
+                  : undefined
               }
             />
-            <Input
-              label="Freshness (hari)"
-              type="number"
-              value={form.freshnessDays ?? ''}
-              onChange={(e) =>
-                setForm({ ...form, freshnessDays: e.target.value ? Number(e.target.value) : null })
-              }
-              placeholder="opsional"
+            <Combobox
+              label="Kategori"
+              value={form.category}
+              onValueChange={(v) => setForm({ ...form, category: v as RawMaterialCategory })}
+              options={CATEGORY_FORM_OPTIONS}
+              searchPlaceholder="Cari kategori..."
             />
           </div>
-        )}
-        <Input
-          label="Harga unit terakhir (opsional)"
-          type="number"
-          value={form.unitPrice ?? ''}
-          onChange={(e) =>
-            setForm({ ...form, unitPrice: e.target.value ? Number(e.target.value) : null })
+          <Checkbox
+            label="Track stok"
+            description="Update qty saat purchase + tampilkan reminder kalau rendah/dekat expired"
+            checked={form.isTracked}
+            onCheckedChange={(c) => setForm({ ...form, isTracked: c })}
+          />
+          {form.isTracked && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Min Stock"
+                type="number"
+                value={form.minStock ?? ''}
+                onChange={(e) =>
+                  setForm({ ...form, minStock: e.target.value ? Number(e.target.value) : null })
+                }
+              />
+              <Input
+                label="Freshness (hari)"
+                type="number"
+                value={form.freshnessDays ?? ''}
+                onChange={(e) =>
+                  setForm({ ...form, freshnessDays: e.target.value ? Number(e.target.value) : null })
+                }
+                placeholder="opsional"
+              />
+            </div>
+          )}
+          <Input
+            label="Harga unit terakhir (opsional)"
+            type="number"
+            value={form.unitPrice ?? ''}
+            onChange={(e) =>
+              setForm({ ...form, unitPrice: e.target.value ? Number(e.target.value) : null })
+            }
+          />
+        </form>
+      </Dialog>
+
+      {showConvertPrompt && existing && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && !mutation.isPending && setShowConvertPrompt(false)}
+          title="Konversi stok ke satuan baru"
+          description="Satuan diubah, stok lama tidak otomatis bisa dikonversi. Pilih stok dalam satuan baru, atau reset ke 0 untuk opname ulang."
+          size="sm"
+          preventOutsideClose={mutation.isPending}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="md"
+                onClick={() => handleConvertSubmit(true)}
+                disabled={mutation.isPending}
+              >
+                Reset ke 0
+              </Button>
+              <Button
+                type="submit"
+                form="rm-convert-form"
+                variant="primary"
+                size="md"
+                loading={mutation.isPending}
+                disabled={convertNewQty === ''}
+              >
+                Lanjut
+              </Button>
+            </>
           }
-        />
-      </div>
-    </Dialog>
+        >
+          <form
+            id="rm-convert-form"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault()
+              handleConvertSubmit(false)
+            }}
+            className="space-y-3"
+          >
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-body-sm space-y-1">
+              <div>
+                Stok saat ini:{' '}
+                <strong className="tabular-nums">
+                  {existing.stockQty} {existing.unit.label}
+                </strong>
+              </div>
+              <div>
+                Satuan baru: <strong>{form.unit?.label ?? '-'}</strong>
+              </div>
+            </div>
+            <Input
+              label={`Stok baru (${form.unit?.label ?? 'satuan baru'})`}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={convertNewQty}
+              onChange={(e) => setConvertNewQty(e.target.value)}
+              placeholder="contoh: 2.5"
+              helper="Kosongkan dan klik 'Reset ke 0' untuk opname ulang."
+              autoFocus
+            />
+          </form>
+        </Dialog>
+      )}
+    </>
   )
 }
