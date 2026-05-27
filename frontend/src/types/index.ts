@@ -96,26 +96,15 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
 
 export type TransactionStatus = 'open' | 'paid' | 'void'
 
-/** REV 2.2: 6 metode. edc gabung debit+kredit. gojek/grab untuk merchant app settlement. */
-export type PaymentMethod = 'cash' | 'edc' | 'qris' | 'gojek' | 'grab' | 'transfer'
-
-export const PAYMENT_METHODS: { value: PaymentMethod; label: string; needsBank: boolean }[] = [
-  { value: 'cash', label: 'Tunai', needsBank: false },
-  { value: 'edc', label: 'EDC', needsBank: true },
-  { value: 'qris', label: 'QRIS', needsBank: false },
-  { value: 'gojek', label: 'GoFood', needsBank: false },
-  { value: 'grab', label: 'GrabFood', needsBank: false },
-  { value: 'transfer', label: 'Transfer Bank', needsBank: true },
-]
-
-export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
-  cash: 'Tunai',
-  edc: 'EDC',
-  qris: 'QRIS',
-  gojek: 'GoFood',
-  grab: 'GrabFood',
-  transfer: 'Transfer',
-}
+/** REV 2.6: payment method code adalah string dinamis (snake_case lowercase) yang
+ * sumbernya tabel `payment_methods` di backend. Tidak ada lagi enum hardcoded di FE.
+ * Konsumer pakai `paymentMethodService.list()` untuk fetch master metode + label +
+ * colorHex + iconName + bank assignment.
+ *
+ * Backwards compatibility: tipe alias `PaymentMethod = string` dipertahankan
+ * sementara supaya import existing (di transactionService, PaymentModal, dll) tidak
+ * pecah. Phase 11+ akan refactor konsumer untuk drop alias ini sepenuhnya. */
+export type PaymentMethod = string
 
 /** REV 2.5: payment slice per Transaction. Single tender = 1 record, split tender = N.
  * sum(payments.amount) === Transaction.total saat status=paid. */
@@ -222,20 +211,91 @@ export interface Shift {
 }
 
 // ============================================================
-// Settlement (REV 2.2 - 6 buckets)
+// Payment method + Bank master (REV 2.6)
 // ============================================================
 
-export interface MethodTotals {
-  cash: number
-  edc: number
-  qris: number
-  gojek: number
-  grab: number
-  transfer: number
+/** REV 2.6: ringkasan bank yang ter-assign ke 1 payment method.
+ * `isActive=false` artinya bank itu soft-deleted di master — UI render dengan
+ * style muted + tooltip "(nonaktif)". */
+export interface BankSummary {
+  id: number
+  name: string
+  isActive: boolean
 }
 
+/** REV 2.6: view payment method dari master `payment_methods` (owner-configurable).
+ * - `code` immutable setelah create (foreign-key reference oleh
+ *   `transaction_payments.method`, `settlement_method_counts.payment_method_code`).
+ * - `requiresBank=true` artinya kasir wajib pilih bank saat record payment
+ *   (mis. EDC, transfer).
+ * - `iconName` salah satu lucide-react preset yang di-whitelist backend. */
+export interface PaymentMethodView {
+  id: number
+  code: string
+  label: string
+  colorHex: string
+  iconName: string
+  requiresBank: boolean
+  allowDineIn: boolean
+  allowTakeaway: boolean
+  isActive: boolean
+  displayOrder: number
+  banks: BankSummary[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** REV 2.6: view bank dari master `banks`. `methodCount` = jumlah payment_method
+ * yang link ke bank ini (untuk display di tab Banks). */
+export interface BankView {
+  id: number
+  name: string
+  isActive: boolean
+  methodCount: number
+  createdAt: string
+}
+
+/** REV 2.6: entry agregat per payment method untuk dashboard `byMethod`. Backend
+ * kirim sorted descending by total. Method code mapping ke `label` + `colorHex`
+ * dari master `payment_methods` (fallback `{label: code, colorHex: '#888888'}`
+ * kalau method sudah deleted dari master). */
+export interface MethodTotalEntry {
+  paymentMethodCode: string
+  methodLabel: string
+  colorHex: string
+  total: number
+}
+
+// ============================================================
+// Settlement (REV 2.6 - dinamis per payment method code)
+// ============================================================
+
+/** REV 2.6: 1 row per payment_method_code untuk Settlement.
+ * counted = jumlah fisik input kasir. system = jumlah aggregate dari
+ * transaction_payments. variance = counted - system (computed runtime). */
+export interface SettlementMethodCountView {
+  paymentMethodCode: string
+  methodLabel: string
+  colorHex: string
+  counted: number
+  system: number
+  variance: number
+}
+
+/** REV 2.6: entry untuk Settlement.preview.system — system totals dari
+ * transactions per method code. */
+export interface SettlementSystemEntry {
+  paymentMethodCode: string
+  methodLabel: string
+  colorHex: string
+  total: number
+}
+
+/** REV 2.6: bank breakdown method jadi generic string (drop union
+ * 'edc' | 'transfer'). Backend kirim semua payment_method.code yang
+ * `requiresBank=true` punya transaksi di periode. */
 export interface BankBreakdownEntry {
-  method: 'edc' | 'transfer'
+  method: string
   bank: string
   total: number
 }
@@ -250,12 +310,14 @@ export interface Settlement {
   cashierName: string
   reviewerId: number | null
   reviewerName: string | null
-  system: MethodTotals
-  actual: MethodTotals
-  variance: MethodTotals
+  /** REV 2.6: array dinamis per payment method code (drop 12 field hardcoded
+   * `system*`/`actual*`/`variance*`). Totals computed runtime di view. */
+  methodCounts: SettlementMethodCountView[]
+  totalCounted: number
   totalSystem: number
-  totalActual: number
   totalVariance: number
+  /** Reserved untuk future migration; backend Phase 6 belum punya kolom note. */
+  note: string | null
   status: SettlementStatus
   submittedAt: string
   reviewedAt: string | null
@@ -269,7 +331,8 @@ export interface SettlementPreview {
   cashierId: number
   cashierName: string
   closedAt: string | null
-  system: MethodTotals
+  /** REV 2.6: dinamis array per payment method code. */
+  system: SettlementSystemEntry[]
   totalSystem: number
   bankBreakdown: BankBreakdownEntry[]
   existingSettlementId: number | null
