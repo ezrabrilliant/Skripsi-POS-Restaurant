@@ -33,6 +33,7 @@ import {
   StockType,
   TransactionStatus,
   UserRole,
+  type Shift,
 } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
@@ -383,48 +384,54 @@ async function recomputeSubtotal(
 // Operations
 // ============================================================
 
-export async function createTransaction(
-  userId: number,
-  input: CreateTransactionInput,
-): Promise<TransactionView> {
-  // REV 2.3 shift-decoupling + REV 2.5 multi-cashier sharing:
-  // Auto-resolve shift dari active shifts system-wide. Frontend tidak kirim shiftId.
-  //   - 0 active           -> 409 (kasir harus buka shift dulu).
-  //   - 1 active           -> attach ke shift itu.
-  //   - 2 active beda tipe -> pagi+malam transition (valid). Resolve via jam
-  //                           server: pagi < 18:00, malam >= 18:00.
-  //   - 2+ active tipe sama-> Anomaly. Shouldn't happen post-REV 2.5 openShift
-  //                           constraint. Defensive 409.
+/// Resolve single active shift system-wide untuk attach order baru atau migrate
+/// target merge ke shift kasir yang sedang pegang kas.
+///
+/// REV 2.3 shift-decoupling + REV 2.5 multi-cashier sharing:
+///   - 0 active           -> 409 (kasir harus buka shift dulu).
+///   - 1 active           -> return it.
+///   - 2 active beda tipe -> pagi+malam transition (valid). Resolve via jam
+///                           server: pagi < 18:00, malam >= 18:00.
+///   - 2+ active tipe sama-> Anomaly. Shouldn't happen post-REV 2.5 openShift
+///                           constraint. Defensive 409.
+///
+/// Param `context` muncul di error message buat klarifikasi kapan helper ini
+/// gagal (mis. "saat order baru" vs "saat merge bill").
+export async function resolveActiveShift(context: string = 'order baru'): Promise<Shift> {
   const activeShifts = await prisma.shift.findMany({
     where: { closedAt: null },
     orderBy: { createdAt: 'desc' },
   });
   if (activeShifts.length === 0) {
     throw new AppError(
-      'Belum ada shift kasir aktif. Kasir harus buka shift dulu sebelum order bisa dimasukkan.',
+      `Belum ada shift kasir aktif. Kasir harus buka shift dulu sebelum ${context} bisa diproses.`,
       409,
     );
   }
-  let shift: typeof activeShifts[number];
   if (activeShifts.length === 1) {
-    shift = activeShifts[0]!;
-  } else {
-    const types = new Set(activeShifts.map((s) => s.type));
-    if (types.size === activeShifts.length) {
-      // 2+ beda tipe (mis. pagi + malam transition). Pick via jam server.
-      const hour = new Date().getHours();
-      const targetType = hour >= 18 ? ShiftType.malam : ShiftType.pagi;
-      shift = activeShifts.find((s) => s.type === targetType) ?? activeShifts[0]!;
-    } else {
-      // Anomaly: tipe duplikat.
-      const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
-      throw new AppError(
-        `Anomaly: ada ${activeShifts.length} shift aktif dengan tipe duplikat (${list}). ` +
-        `Hubungi owner untuk audit data.`,
-        409,
-      );
-    }
+    return activeShifts[0]!;
   }
+  const types = new Set(activeShifts.map((s) => s.type));
+  if (types.size === activeShifts.length) {
+    // 2+ beda tipe (mis. pagi + malam transition). Pick via jam server.
+    const hour = new Date().getHours();
+    const targetType = hour >= 18 ? ShiftType.malam : ShiftType.pagi;
+    return activeShifts.find((s) => s.type === targetType) ?? activeShifts[0]!;
+  }
+  // Anomaly: tipe duplikat.
+  const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
+  throw new AppError(
+    `Anomaly: ada ${activeShifts.length} shift aktif dengan tipe duplikat (${list}). ` +
+      `Hubungi owner untuk audit data.`,
+    409,
+  );
+}
+
+export async function createTransaction(
+  userId: number,
+  input: CreateTransactionInput,
+): Promise<TransactionView> {
+  const shift = await resolveActiveShift('order baru');
 
   // Validasi order type vs tableNumber
   if (input.orderType === OrderType.dineIn) {
@@ -997,12 +1004,19 @@ export { UserRole };
 // Merge Bill (REV 2.1 dasar, REV 2.5 reused untuk Combine Tables)
 // ============================================================
 
-/// Merge bill: sourceIds mendapat mergedIntoId=targetId. Semua harus status=open
-/// + sama shift + bukan sudah merged ke transaksi lain.
+/// Merge bill: sourceIds mendapat mergedIntoId=targetId. Source + target harus
+/// status=open + belum merged ke transaksi lain.
 ///
 /// REV 2.5: dipakai untuk 2 use case dengan UI berbeda tapi logic sama:
 ///   1. Add Round (intra-table, sudah ada REV 2.4) - merge multi-Tx sebelum bayar
 ///   2. Combine Tables (inter-table, baru REV 2.5) - merge dari TablesPage atau PaymentModal
+///
+/// REV 2.6 cross-shift fix: cek "sama shift" dihapus. Kalau target/source span
+/// shift berbeda (mis. shift A close di tengah hari, Tx open carried over ke
+/// shift B), target.shiftId di-migrate ke shift aktif saat ini supaya revenue
+/// jatuh ke shift kasir yang sedang pegang kas (yang akan terima payment),
+/// bukan ke shift lama. Source tetap di shift lama-nya - tidak masalah karena
+/// revenue queries sudah exclude mergedIntoId IS NOT NULL.
 export async function mergeBills(input: MergeInput): Promise<TransactionView> {
   const target = await prisma.transaction.findUnique({ where: { id: input.targetId } });
   if (!target) throw notFound('Target transaction');
@@ -1027,14 +1041,32 @@ export async function mergeBills(input: MergeInput): Promise<TransactionView> {
     if (s.mergedIntoId !== null) {
       throw new AppError(`Source transaction ${s.id} sudah merged ke ${s.mergedIntoId}`, 400);
     }
-    if (s.shiftId !== target.shiftId) {
-      throw new AppError(`Source transaction ${s.id} beda shift dengan target - tidak bisa merged`, 400);
+  }
+
+  // Kalau ada cross-shift Tx (source/target beda shift), resolve current active
+  // shift dan migrate target.shiftId ke sana. Cuma panggil resolveActiveShift
+  // kalau memang perlu migrate - intra-shift merge tetap jalan tanpa requirement
+  // active shift (defensive untuk edge case shift transition window).
+  const hasCrossShift = sources.some((s) => s.shiftId !== target.shiftId);
+  let migrateTargetTo: number | null = null;
+  if (hasCrossShift) {
+    const currentShift = await resolveActiveShift('merge bill cross-shift');
+    if (target.shiftId !== currentShift.id) {
+      migrateTargetTo = currentShift.id;
     }
   }
 
-  await prisma.transaction.updateMany({
-    where: { id: { in: input.sourceIds } },
-    data: { mergedIntoId: target.id },
+  await prisma.$transaction(async (tx) => {
+    if (migrateTargetTo !== null) {
+      await tx.transaction.update({
+        where: { id: target.id },
+        data: { shiftId: migrateTargetTo },
+      });
+    }
+    await tx.transaction.updateMany({
+      where: { id: { in: input.sourceIds } },
+      data: { mergedIntoId: target.id },
+    });
   });
 
   return getTransactionById(target.id);

@@ -11,9 +11,11 @@
 // target meja (konsisten dengan pattern Add Round multi-Pesanan: parent =
 // Pesanan #1 chronologically).
 //
-// Backend mergeBills validate same shift. Frontend trust backend reject 400
-// kalau pilih meja shift berbeda (jarang terjadi pasca-REV 2.5 single active
-// shift system-wide). Filter hari ini saja (resto buka 10-22, tidak crossing).
+// REV 2.6 cross-shift: backend mergeBills SUDAH BUKAN strict same-shift. Kalau
+// source/target span shift berbeda (mis. shift A tutup sementara Tx masih open
+// → carry over ke shift B saat customer balik bayar), target.shiftId otomatis
+// di-migrate ke shift aktif saat ini. Frontend tidak perlu filter shift.
+// Filter hari ini saja (resto buka 10-22, tidak crossing).
 
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
