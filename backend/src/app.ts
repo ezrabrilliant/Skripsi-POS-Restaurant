@@ -19,6 +19,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import vendorRoutes from './modules/vendors/vendors.routes';
 import purchaseRoutes from './modules/purchases/purchases.routes';
 import billRoutes from './modules/bills/bills.routes';
+import banksRoutes from './modules/banks/banks.routes';
 import unitsRoutes from './modules/units/units.routes';
 // REV 2.2: modul `tables` dihapus (table number jadi field di Transaction, 9 meja fixed)
 // REV 2.2: modul `expenses` dihapus (split jadi `purchases` di Phase 7 + `bills` di Phase 8)
@@ -47,6 +48,7 @@ export function createApp() {
   app.use('/api/vendors', vendorRoutes);
   app.use('/api/purchases', purchaseRoutes);
   app.use('/api/bills', billRoutes);
+  app.use('/api/banks', banksRoutes);
   app.use('/api/units', unitsRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 
