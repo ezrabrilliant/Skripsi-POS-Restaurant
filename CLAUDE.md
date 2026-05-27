@@ -141,6 +141,39 @@ PIN boleh duplikat antar pegawai karena identifikasi via nama saat login.
 - Backend port 8000, frontend port 3000; changing them updates `VITE_API_URL` + `CORS_ORIGIN`.
 - **Per-phase build, incremental** - explain each phase dan tunggu review user sebelum lanjut. Ezra preferensi diskusi panjang dulu, plan/code belakangan.
 
+## Superpowers Full Pipeline (MANDATE untuk setiap perubahan)
+
+Setiap perubahan non-trivial (fitur baru, refactor besar, schema migration, redesign UX) **WAJIB** lewat pipeline superpowers berurutan. Subagent juga ikut pipeline ini (instruct subagent untuk pakai skill yang relevan).
+
+| Step | Skill | Output |
+|---|---|---|
+| 1. Map intent + decisions | `superpowers:brainstorming` | Design spec di `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` |
+| 2. Decompose ke tasks | `superpowers:writing-plans` | Plan di `~/.claude/plans/<auto-name>.md` dengan phase + checkpoint |
+| 3. Isolate workspace | `superpowers:using-git-worktrees` | Worktree branch baru (jangan langsung di branch utama) |
+| 4. Implementasi backend | `superpowers:test-driven-development` | Test dulu (Zod schema + service), baru impl |
+| 5. Eksekusi plan | `superpowers:executing-plans` ATAU `superpowers:subagent-driven-development` | Per-phase checkpoint review |
+| 6. Pre-claim verification | `superpowers:verification-before-completion` | Run tests + tsc + vite build + manual e2e, bukti sebelum claim |
+| 7. Code review | `superpowers:requesting-code-review` | Review pass sebelum commit-push |
+| 8. Branch finishing | `superpowers:finishing-a-development-branch` | Merge/PR strategy |
+
+**Jangan skip step.** Kalau ragu apakah perubahan butuh full pipeline atau cuma quick edit, default ke full pipeline — overhead diskusi lebih murah daripada rework.
+
+## Frontend Consistency Mandate
+
+Sebelum tulis komponen UI baru (page, modal, form, dialog), **WAJIB**:
+
+1. **Audit 2-3 referensi sejenis** di project. Untuk page CRUD owner: lihat [MenuPage.tsx](frontend/src/pages/MenuPage.tsx), [BillsPage.tsx](frontend/src/pages/BillsPage.tsx), [PaymentMethodsPage.tsx](frontend/src/pages/PaymentMethodsPage.tsx). Untuk modal: lihat [PaymentModal.tsx](frontend/src/components/PaymentModal.tsx), modal di [RawMaterialsTab](frontend/src/pages/StockPage.tsx).
+2. **Pakai primitive existing**:
+   - Dialog: `frontend/src/components/ui/dialog.tsx`
+   - Combobox/Select: `frontend/src/components/ui/combobox.tsx`
+   - Button, Badge, Card, Input dari `frontend/src/components/ui/`
+3. **Match tone+typography**: `text-body-sm text-neutral-700`, Badge variant existing, Button primary/secondary, padding card konsisten dengan halaman existing.
+4. **Mobile-first**: 1-column di HP, 2-column di desktop. Tap target minimum `h-12 md:h-14`.
+5. **State management**: React Query untuk server state (key `['resource-name']`, invalidate on mutation), Zustand cuma untuk client state (auth, cart).
+6. **Service layer**: 1 file per resource di `frontend/src/services/<name>Service.ts`, pakai shared Axios instance dari `frontend/src/lib/api.ts`.
+
+**Jangan one-off styling.** Kalau butuh primitive baru, diskusi dulu — jangan langsung bikin. Frontend penting karena ini POS yang dipakai harian — konsistensi visual = trust user.
+
 ## Memory Rules (wajib ikuti)
 
 - **Tanya dulu** sebelum desain operasional baru - jangan asumsi dari template generik. (Lihat memory `feedback_ask_resto_specifics`.)
