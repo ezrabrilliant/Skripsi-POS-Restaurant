@@ -7,7 +7,14 @@
 //   - Split bill multi-party (partyId, splitTransaction) DROPPED - lihat spec REV 2.5
 
 import { z } from 'zod';
-import { OrderType, PaymentMethod, TransactionStatus } from '@prisma/client';
+// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema
+// (karena REV 2.6 introduce model PaymentMethod sebagai master table).
+// Re-alias di sini untuk minimize code change di module ini sampai Phase 5 refactor.
+import {
+  OrderType,
+  PaymentMethodLegacy as PaymentMethod,
+  TransactionStatus,
+} from '@prisma/client';
 
 export const orderItemSchema = z.object({
   menuId: z.number().int().positive(),

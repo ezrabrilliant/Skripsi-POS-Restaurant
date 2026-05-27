@@ -11,8 +11,10 @@
 //   - Waiter: dashboard primary stok porsi + raw materials reminders, plus active
 //     shifts hari ini (supaya tahu shift mana yang attach kalau fallback input order).
 
+// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
+// Re-alias di sini untuk minimize code change di module ini sampai Phase 6 refactor.
 import {
-  PaymentMethod,
+  PaymentMethodLegacy as PaymentMethod,
   Prisma,
   ShiftType,
   TransactionStatus,

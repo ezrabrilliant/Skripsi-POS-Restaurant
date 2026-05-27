@@ -24,9 +24,11 @@
 //   - PB1 10% dihitung saat payment pertama dari (subtotal - discount).
 //   - Void boleh dilakukan kasir sendiri tanpa approval.
 
+// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
+// Re-alias di sini untuk minimize code change di module ini sampai Phase 5 refactor.
 import {
   OrderType,
-  PaymentMethod,
+  PaymentMethodLegacy as PaymentMethod,
   Prisma,
   PortionMovementReason,
   ShiftType,

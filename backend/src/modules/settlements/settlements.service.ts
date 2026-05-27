@@ -10,8 +10,10 @@
 //     (multi-slice per Tx), bukan dari Tx.paymentMethod yang sudah di-drop.
 //     Filter mergedIntoId IS NULL via relation untuk hindari double-count.
 
+// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
+// Re-alias di sini untuk minimize code change di module ini sampai Phase 6 refactor.
 import {
-  PaymentMethod,
+  PaymentMethodLegacy as PaymentMethod,
   Prisma,
   SettlementStatus,
   ShiftType,
