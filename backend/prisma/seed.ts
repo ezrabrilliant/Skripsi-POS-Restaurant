@@ -17,6 +17,7 @@
 
 import { PrismaClient, UserRole, StockType, RawMaterialCategory, OpnameMode } from '@prisma/client';
 import { MENU_CATALOG } from './menu-catalog';
+import { seedPaymentMethods } from '../scripts/seed-payment-methods';
 
 const prisma = new PrismaClient();
 
@@ -206,7 +207,9 @@ async function main() {
   const unitByLabel = await seedUnits();
   await seedRawMaterials(unitByLabel);
   await seedVendors();
-  console.log('\nSeed selesai (REV 2.5). Login default:');
+  // REV 2.6: master payment_methods + banks + default junctions.
+  await seedPaymentMethods(prisma);
+  console.log('\nSeed selesai (REV 2.6). Login default:');
   console.log('  Owner    → nama "Owner", PIN 123456');
   console.log('  Kasir    → nama Jason/Bryant/Chen Hong, PIN 111111');
   console.log('  Waiter   → nama Amel/Yanti, PIN 222222');
