@@ -1,20 +1,15 @@
-// Zod schema untuk modul transactions. REV 2.5:
+// Zod schema untuk modul transactions. REV 2.6:
 //   - 2 OrderType: dineIn (wajib tableNumber 1-N) / takeaway (tableNumber null)
-//   - 6 PaymentMethod; bank wajib untuk edc/transfer, dilarang untuk lainnya
+//   - PaymentMethod = master table (payment_methods); schema cuma format check.
+//     Validasi bank (requiresBank + junction membership) pindah ke runtime di
+//     service (lookup payment_methods by code).
 //   - subOptionsSelected: object key→value untuk paket dinamis (lookup di stockMap)
 //   - Split tender (multi-method per Tx) via addPaymentSchema
 //   - Merge bill (mergedIntoId) tetap - dipakai untuk Combine Tables (REV 2.5)
 //   - Split bill multi-party (partyId, splitTransaction) DROPPED - lihat spec REV 2.5
 
 import { z } from 'zod';
-// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema
-// (karena REV 2.6 introduce model PaymentMethod sebagai master table).
-// Re-alias di sini untuk minimize code change di module ini sampai Phase 5 refactor.
-import {
-  OrderType,
-  PaymentMethodLegacy as PaymentMethod,
-  TransactionStatus,
-} from '@prisma/client';
+import { OrderType, TransactionStatus } from '@prisma/client';
 
 export const orderItemSchema = z.object({
   menuId: z.number().int().positive(),
@@ -52,36 +47,23 @@ export const updateItemSchema = z
     message: 'Setidaknya salah satu field qty atau notes harus disertakan',
   });
 
-/// REV 2.5: addPayment - tambah 1 payment slice.
-/// Validasi: bank wajib untuk edc/transfer, dilarang untuk lainnya.
+/// REV 2.6: addPayment - tambah 1 payment slice.
+/// Validasi format saja di sini:
+///   - method: string non-empty (lowercase, max 20) - lookup di payment_methods table di service.
+///   - bank: string opsional/nullable (max 50) - validasi requiresBank + junction membership di service.
+///   - amount: positive number.
 /// discountAmount opsional - hanya valid saat first slice (validasi di service).
-export const addPaymentSchema = z
-  .object({
-    method: z.nativeEnum(PaymentMethod, {
-      errorMap: () => ({ message: 'method tidak valid' }),
-    }),
-    bank: z.string().trim().min(1).max(50).optional(),
-    amount: z.number().positive('Nominal harus > 0'),
-    discountAmount: z.number().nonnegative().optional(),
-  })
-  .superRefine((data, ctx) => {
-    const needsBank =
-      data.method === PaymentMethod.edc || data.method === PaymentMethod.transfer;
-    if (needsBank && !data.bank) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['bank'],
-        message: `bank wajib untuk metode ${data.method}`,
-      });
-    }
-    if (!needsBank && data.bank) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['bank'],
-        message: 'bank hanya berlaku untuk metode edc atau transfer',
-      });
-    }
-  });
+export const addPaymentSchema = z.object({
+  method: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, 'Method wajib diisi')
+    .max(20, 'Method maksimal 20 karakter'),
+  bank: z.string().trim().max(50).nullable().optional(),
+  amount: z.number().positive('Nominal harus > 0'),
+  discountAmount: z.number().nonnegative().optional(),
+});
 
 export const listTransactionsQuerySchema = z.object({
   status: z.nativeEnum(TransactionStatus).optional(),
