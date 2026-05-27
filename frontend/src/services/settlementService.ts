@@ -1,6 +1,9 @@
-// Service modul settlements. REV 2.2: 6 buckets.
-//   - preview, create, list, detail = owner + kasir (kasir-malam-own enforce di server)
-//   - review = owner only
+// Service modul settlements. REV 2.6:
+//   - preview, create, list, detail = owner + kasir (kasir-malam-own enforce di server).
+//   - review = owner only.
+//   - counts dinamis per payment_method.code (drop 6 actualXxx field hardcoded).
+//   - System totals + bank breakdown computed dari TransactionPayment di backend;
+//     FE konsumsi result via `methodCounts[]` + `bankBreakdown[]` di view shape.
 
 import api from '@/lib/api'
 import type {
@@ -10,14 +13,16 @@ import type {
   SettlementStatus,
 } from '@/types'
 
+/** REV 2.6: counts dinamis per method code. Backend validate keys harus
+ * exist di master payment_methods (422 kalau ada code tak dikenal). Method
+ * yang tidak disebut di counts otomatis di-treat sebagai counted=0 (tapi
+ * row tetap muncul kalau punya system total > 0). */
 export interface CreateSettlementPayload {
   shiftId: number
-  actualCash: number
-  actualEdc: number
-  actualQris: number
-  actualGojek: number
-  actualGrab: number
-  actualTransfer: number
+  counts: Record<string, number>
+  /** Reserved untuk future migration; backend Phase 6 accept tapi discard
+   * sampai kolom note ditambahkan ke tabel settlements. */
+  note?: string | null
 }
 
 export interface ListSettlementsQuery {

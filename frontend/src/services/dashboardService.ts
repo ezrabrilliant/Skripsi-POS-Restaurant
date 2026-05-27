@@ -1,30 +1,25 @@
-// Service modul dashboard. REV 2.3: 3 endpoint per role.
+// Service modul dashboard. REV 2.6: 3 endpoint per role + shape dinamis.
 //
 // - getOwnerReport(query): owner-only, full financial report dengan period filter.
+//   revenue.byMethod jadi MethodTotalEntry[] (sebelumnya MethodTotals fixed 6 key).
 // - getCashierDashboard(): owner + kasir, ringkasan today + active shift.
+//   today.byMethod jadi MethodTotalEntry[].
 // - getWaiterDashboard(): semua role, portion + raw materials reminder + active shifts today.
+//
+// BankBreakdownEntry.method generic string supaya support method requiresBank
+// custom (mis. shopeepay) — bukan hanya 'edc' | 'transfer' hardcoded.
 
 import api from '@/lib/api'
-import type { ApiResponse, ShiftType } from '@/types'
+import type {
+  ApiResponse,
+  BankBreakdownEntry,
+  MethodTotalEntry,
+  ShiftType,
+} from '@/types'
 
 // ============================================================
 // Common types
 // ============================================================
-
-export interface MethodTotals {
-  cash: number
-  edc: number
-  qris: number
-  gojek: number
-  grab: number
-  transfer: number
-}
-
-export interface BankBreakdownEntry {
-  method: 'edc' | 'transfer'
-  bank: string
-  total: number
-}
 
 export interface ReminderCounts {
   portionLowCount: number
@@ -48,7 +43,10 @@ export interface OwnerReport {
   revenue: {
     total: number
     transactionCount: number
-    byMethod: MethodTotals
+    /** REV 2.6: dinamis per payment method code (sorted descending by total). */
+    byMethod: MethodTotalEntry[]
+    /** REV 2.6: method generic string — semua payment_method.code yang
+     * `requiresBank=true` dan punya transaksi di periode. */
     bankBreakdown: BankBreakdownEntry[]
   }
   expense: {
@@ -83,7 +81,8 @@ export interface CashierDashboard {
   today: {
     revenue: number
     transactionCount: number
-    byMethod: MethodTotals
+    /** REV 2.6: dinamis per payment method code. */
+    byMethod: MethodTotalEntry[]
     openTransactionCount: number
   }
   reminders: ReminderCounts
