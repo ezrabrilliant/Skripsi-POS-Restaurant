@@ -4,43 +4,34 @@
 //   - Owner: laporan finansial penuh periode (today/month/year/custom). Pendapatan
 //     total dari transactions paid, pengeluaran = sum(purchases) + sum(bills),
 //     laba kotor = pendapatan − pengeluaran. Plus bank breakdown EDC/transfer
-//     dan reminder counts dari semua sumber.
+//     (dan method requiresBank lain) + reminder counts dari semua sumber.
 //   - Cashier: ringkasan today (per matrix "kasir laporan hari ini saja, untuk
 //     verifikasi shift"). Tampilkan active shift (kalau ada), today's revenue,
 //     open transactions, reminders.
 //   - Waiter: dashboard primary stok porsi + raw materials reminders, plus active
 //     shifts hari ini (supaya tahu shift mana yang attach kalau fallback input order).
+//
+// REV 2.6: byMethod dinamis (MethodTotalEntry[]) — bukan object 6 fixed key.
+// Mendukung method custom (mis. ShopeePay) muncul otomatis di chart owner.
+// BankBreakdownEntry.method jadi generic string (drop hardcoded 'edc' | 'transfer').
 
-// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
-// Re-alias di sini untuk minimize code change di module ini sampai Phase 7 refactor.
-import {
-  PaymentMethodLegacy as PaymentMethod,
-  Prisma,
-  ShiftType,
-  TransactionStatus,
-} from '@prisma/client';
+import { Prisma, ShiftType, TransactionStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import type { OwnerReportQuery } from './dashboard.schema';
 
 // ============================================================
-// View shape
+// View shape (REV 2.6: dinamis array)
 // ============================================================
 
-// REV 2.6: tambah index signature [key: string] supaya compatible dengan
-// TransactionPayment.method yang sekarang String (bukan enum). Sampai Phase 7
-// refactor jadi MethodTotalEntry[] dinamis.
-export interface MethodTotals {
-  cash: number;
-  edc: number;
-  qris: number;
-  gojek: number;
-  grab: number;
-  transfer: number;
-  [key: string]: number;
+export interface MethodTotalEntry {
+  paymentMethodCode: string;
+  methodLabel: string;
+  colorHex: string;
+  total: number;
 }
 
 export interface BankBreakdownEntry {
-  method: 'edc' | 'transfer';
+  method: string; // REV 2.6: any method code yang requiresBank (mis. edc, transfer, future custom)
   bank: string;
   total: number;
 }
@@ -61,7 +52,7 @@ export interface OwnerReportView {
   revenue: {
     total: number;
     transactionCount: number;
-    byMethod: MethodTotals;
+    byMethod: MethodTotalEntry[];
     bankBreakdown: BankBreakdownEntry[];
   };
   expense: {
@@ -83,7 +74,7 @@ export interface CashierDashboardView {
   today: {
     revenue: number;
     transactionCount: number;
-    byMethod: MethodTotals;
+    byMethod: MethodTotalEntry[];
     openTransactionCount: number;
   };
   reminders: ReminderCounts;
@@ -194,38 +185,54 @@ function resolvePeriod(query: OwnerReportQuery): PeriodRange {
 }
 
 // ============================================================
-// Aggregation helpers
+// Aggregation helpers (REV 2.6: dinamis)
 // ============================================================
 
-function emptyMethodTotals(): MethodTotals {
-  return { cash: 0, edc: 0, qris: 0, gojek: 0, grab: 0, transfer: 0 };
+// REV 2.6: byMethod dinamis sesuai active methods (atau methods yang punya data di period).
+// groupBy method dari TransactionPayment, lalu enrich dengan label + colorHex dari master.
+async function computeByMethod(
+  where: Prisma.TransactionPaymentWhereInput,
+): Promise<MethodTotalEntry[]> {
+  const rows = await prisma.transactionPayment.groupBy({
+    by: ['method'],
+    where,
+    _sum: { amount: true },
+  });
+  const methodCodes = rows.map((r) => r.method);
+  const methods = methodCodes.length
+    ? await prisma.paymentMethod.findMany({ where: { code: { in: methodCodes } } })
+    : [];
+  const methodMap = new Map(methods.map((m) => [m.code, m]));
+
+  return rows
+    .map((r) => {
+      const meta = methodMap.get(r.method);
+      return {
+        paymentMethodCode: r.method,
+        methodLabel: meta?.label ?? r.method,
+        colorHex: meta?.colorHex ?? '#888888',
+        total: r._sum.amount?.toNumber() ?? 0,
+      };
+    })
+    .sort((a, b) => b.total - a.total); // descending by total
 }
 
 async function revenueByMethod(
   where: Prisma.TransactionWhereInput,
-): Promise<{ total: number; count: number; byMethod: MethodTotals }> {
+): Promise<{ total: number; count: number; byMethod: MethodTotalEntry[] }> {
   // REV 2.5: total + count dari Tx aggregate; byMethod via TransactionPayment groupBy.
   // Filter mergedIntoId IS NULL untuk hindari double-count merged sources.
   const txWhere = { ...where, mergedIntoId: null };
 
-  const [txAgg, grouped] = await Promise.all([
+  const [txAgg, byMethod] = await Promise.all([
     prisma.transaction.aggregate({
       where: txWhere,
       _sum: { total: true },
       _count: { _all: true },
     }),
-    prisma.transactionPayment.groupBy({
-      by: ['method'],
-      where: { transaction: txWhere },
-      _sum: { amount: true },
-    }),
+    computeByMethod({ transaction: txWhere }),
   ]);
 
-  const byMethod = emptyMethodTotals();
-  for (const g of grouped) {
-    const amount = g._sum.amount?.toNumber() ?? 0;
-    byMethod[g.method] = amount;
-  }
   const total = txAgg._sum.total?.toNumber() ?? 0;
   const count = txAgg._count._all;
   return { total, count, byMethod };
@@ -234,12 +241,14 @@ async function revenueByMethod(
 async function bankBreakdown(
   where: Prisma.TransactionWhereInput,
 ): Promise<BankBreakdownEntry[]> {
-  // REV 2.5: bank breakdown via TransactionPayment.bank groupBy.
+  // REV 2.6: bank breakdown via TransactionPayment.bank groupBy. Drop hardcoded
+  // method filter ('edc' | 'transfer'); pakai filter bank IS NOT NULL — sama
+  // dengan pattern settlements module Phase 6 (method requiresBank=true di master
+  // akan punya bank value pada payment row).
   const rows = await prisma.transactionPayment.groupBy({
     by: ['method', 'bank'],
     where: {
       transaction: { ...where, mergedIntoId: null },
-      method: { in: [PaymentMethod.edc, PaymentMethod.transfer] },
       bank: { not: null },
     },
     _sum: { amount: true },
@@ -247,7 +256,7 @@ async function bankBreakdown(
   return rows
     .filter((r) => r.bank)
     .map((r) => ({
-      method: r.method as 'edc' | 'transfer',
+      method: r.method,
       bank: r.bank!,
       total: r._sum.amount?.toNumber() ?? 0,
     }))
