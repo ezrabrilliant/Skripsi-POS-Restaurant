@@ -24,11 +24,11 @@
 //   - PB1 10% dihitung saat payment pertama dari (subtotal - discount).
 //   - Void boleh dilakukan kasir sendiri tanpa approval.
 
-// REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
-// Re-alias di sini untuk minimize code change di module ini sampai Phase 5 refactor.
+// REV 2.6: PaymentMethod sekarang dynamic master table (payment_methods).
+// Method values di runtime adalah string code dari payment_methods.code.
+// Lookup + validasi requiresBank/junction terjadi di addPayment via prisma query.
 import {
   OrderType,
-  PaymentMethodLegacy as PaymentMethod,
   Prisma,
   PortionMovementReason,
   ShiftType,
@@ -73,9 +73,9 @@ export interface TransactionItemView {
 }
 
 /// REV 2.5: payment slice per Transaction. Single tender = 1 record, split tender = N records.
-/// REV 2.6: method jadi plain string (denormalize dari payment_methods.code).
-/// Sampai Phase 5 refactor, comparison dengan PaymentMethod enum values masih kompatibel
-/// karena enum value adalah string literal di runtime.
+/// REV 2.6: method = plain string (denormalize dari payment_methods.code).
+/// Validasi method existence + bank rules dilakukan di addPayment service via
+/// lookup payment_methods table (lihat addPayment for detail).
 export interface TransactionPaymentView {
   id: number;
   method: string;
@@ -498,7 +498,7 @@ export async function addItems(
   return getTransactionById(transactionId);
 }
 
-/// REV 2.5: addPayment - tambah 1 payment slice ke Transaction.
+/// REV 2.6: addPayment - tambah 1 payment slice ke Transaction.
 ///
 /// Single tender: 1x call dengan amount = total.
 /// Split tender:  Nx call sampai sum payments >= total. Tx status auto-update ke paid.
@@ -509,7 +509,9 @@ export async function addItems(
 ///   - amount > 0
 ///   - amount <= remaining (sisa tagihan)
 ///   - discountAmount HANYA valid kalau payments[] empty (first slice). Default 0.
-///   - bank wajib untuk method=edc atau transfer (validasi Zod superRefine)
+///   - REV 2.6: method dilookup di payment_methods table. requiresBank diverifikasi
+///     runtime + bank harus ∈ junction (payment_methods.banks) yang isActive.
+///     dineInAllowed flag dari payment_methods (gantikan hardcoded gojek/grab block).
 ///
 /// Effect:
 ///   - Kalau first slice + discountAmount > 0: update Tx.discountAmount + recompute taxAmount + total
@@ -538,16 +540,64 @@ export async function addPayment(
     );
   }
 
-  // REV 2.5: gojek + grab = GoFood/GrabFood merchant app settlement → takeaway only.
-  // Per docs/operasional-resto.md Mapping pembayaran: dine-in customer datang ke
-  // resto, tidak masuk via app merchant. Block di service layer (Zod schema tidak
-  // punya akses ke Tx.orderType).
-  if (
-    existing.orderType === OrderType.dineIn &&
-    (input.method === PaymentMethod.gojek || input.method === PaymentMethod.grab)
-  ) {
+  // REV 2.6: lookup payment_methods master + verify bank rules runtime.
+  // Method = string code dari payment_methods.code (case-insensitive lookup).
+  const paymentMethod = await prisma.paymentMethod.findUnique({
+    where: { code: input.method },
+    include: {
+      banks: {
+        include: { bank: true },
+      },
+    },
+  });
+  if (!paymentMethod) {
+    throw new AppError(`Payment method "${input.method}" tidak ditemukan`, 400);
+  }
+  if (!paymentMethod.isActive) {
+    throw new AppError(`Payment method "${paymentMethod.label}" sedang nonaktif`, 400);
+  }
+
+  // OrderType restriction (REV 2.6: flag allowDineIn/allowTakeaway dari master
+  // table; gantikan hardcoded gojek/grab block).
+  if (existing.orderType === OrderType.dineIn && !paymentMethod.allowDineIn) {
     throw new AppError(
-      'Metode GoFood/GrabFood hanya untuk takeaway (settlement merchant app). Pilih cash/EDC/QRIS/transfer untuk dine-in.',
+      `Metode "${paymentMethod.label}" tidak tersedia untuk dine-in. Pilih metode lain.`,
+      400,
+    );
+  }
+  if (existing.orderType === OrderType.takeaway && !paymentMethod.allowTakeaway) {
+    throw new AppError(
+      `Metode "${paymentMethod.label}" tidak tersedia untuk takeaway. Pilih metode lain.`,
+      400,
+    );
+  }
+
+  // Bank validation runtime:
+  //   requiresBank=true  + no bank          -> 400
+  //   requiresBank=true  + bank ∉ junction  -> 400
+  //   requiresBank=false + bank provided    -> 400
+  const bankInput = input.bank ?? null;
+  if (paymentMethod.requiresBank) {
+    if (!bankInput) {
+      throw new AppError(
+        `Bank wajib diisi untuk metode "${paymentMethod.label}"`,
+        400,
+      );
+    }
+    const validBankNames = new Set(
+      paymentMethod.banks
+        .filter((j) => j.bank.isActive)
+        .map((j) => j.bank.name.toLowerCase()),
+    );
+    if (!validBankNames.has(bankInput.toLowerCase())) {
+      throw new AppError(
+        `Bank "${bankInput}" tidak tersedia untuk metode ${paymentMethod.label}`,
+        400,
+      );
+    }
+  } else if (bankInput) {
+    throw new AppError(
+      `Metode "${paymentMethod.label}" tidak butuh bank`,
       400,
     );
   }
