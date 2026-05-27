@@ -12,7 +12,7 @@
 //     shifts hari ini (supaya tahu shift mana yang attach kalau fallback input order).
 
 // REV 2.6: PaymentMethod enum di-rename jadi PaymentMethodLegacy di Prisma schema.
-// Re-alias di sini untuk minimize code change di module ini sampai Phase 6 refactor.
+// Re-alias di sini untuk minimize code change di module ini sampai Phase 7 refactor.
 import {
   PaymentMethodLegacy as PaymentMethod,
   Prisma,

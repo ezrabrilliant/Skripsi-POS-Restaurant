@@ -619,6 +619,7 @@ model Bank {
   name      String              @unique @db.VarChar(50)
   isActive  Boolean             @default(true) @map("is_active")
   createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
   methods   PaymentMethodBank[]
 
   @@map("banks")
@@ -639,11 +640,13 @@ model PaymentMethodBank {
 /// 18. REV 2.6: Settlement child table — dinamis per method, ganti 12 kolom fixed di Settlement.
 /// paymentMethodCode denormalize dari payment_methods.code (audit-safe kalau method dihapus/rename).
 /// Catatan: relasi `paymentMethod` pakai `onDelete: NoAction` karena paymentMethodCode adalah
-/// bagian dari PK composite (tidak boleh null). Original spec mention `SetNull` tapi Prisma
+/// bagian dari PK composite (tidak boleh null). Original plan mention `SetNull` tapi Prisma
 /// tidak izinkan SetNull pada required field. NoAction = MySQL default RESTRICT semantic —
 /// method tidak bisa di-hard-delete kalau masih ada settlement_method_counts refers; owner
 /// HARUS pakai soft-delete via isActive=false (yang memang flow seharusnya per spec).
 /// String code tetap audit-safe karena denormalized as VARCHAR, bukan FK to id.
+/// Relation typed nullable (`PaymentMethod?`) adalah Prisma quirk wajib karena relation target
+/// `code` (@unique, bukan PK); runtime SELALU resolve row karena NoAction enforce existence.
 model SettlementMethodCount {
   settlementId      Int            @map("settlement_id")
   paymentMethodCode String         @map("payment_method_code") @db.VarChar(20)
