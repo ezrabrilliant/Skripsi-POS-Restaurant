@@ -50,29 +50,6 @@ enum OrderType {
   takeaway
 }
 
-/// REV 2.6 RENAME: was `PaymentMethod`, renamed jadi `PaymentMethodLegacy` karena
-/// REV 2.6 introduce model `PaymentMethod` (master table). Enum tetap di-keep untuk
-/// legacy code di transactions/settlements/dashboard service yang refer ke enum
-/// values; akan di-drop FULL di Phase 9 setelah semua call-site migrate ke
-/// master-table lookup. Mapped ke MySQL enum type lama via @@map.
-///
-/// 6 metode pembayaran. EDC dan transfer dipisah per bank via field
-/// Transaction.payment_bank nullable.
-///
-/// cash/edc/qris   -> dine-in & takeaway walk-in
-/// gojek/grab      -> takeaway via aggregator merchant app (settlement)
-/// transfer        -> dine-in / takeaway / gosend teman owner
-enum PaymentMethodLegacy {
-  cash
-  edc
-  qris
-  gojek
-  grab
-  transfer
-
-  @@map("PaymentMethod")
-}
-
 enum SettlementStatus {
   submitted
   reviewed
@@ -481,32 +458,21 @@ model TransactionPayment {
 }
 
 /// 11. Rekap akhir hari (kasir shift malam saja). 1:1 dengan Shift (shift malam).
-/// Bukan blind count rumit - simpel 6 totals (sistem) + 6 totals (fisik) + variance di runtime.
-/// Modal awal kasir di-track di Shift, ditampilkan di summary tapi tidak ikut variance.
+/// Rekap dinamis per payment method via child table SettlementMethodCount (REV 2.6) —
+/// system + actual + variance tersimpan per baris. Modal awal kasir di-track di
+/// Shift, ditampilkan di summary tapi tidak ikut variance.
 ///
 /// Breakdown per bank untuk EDC dan transfer dihitung di runtime dari
 /// TransactionPayment GROUP BY method, bank (REV 2.5), tidak disimpan duplikat.
 model Settlement {
-  id             Int              @id @default(autoincrement())
-  shiftId        Int              @unique @map("shift_id")
-  date           DateTime         @db.Date
-  cashierId      Int              @map("cashier_id")
-  reviewerId     Int?             @map("reviewer_id")
-  systemCash     Decimal          @map("system_cash") @db.Decimal(12, 2)
-  systemEdc      Decimal          @map("system_edc") @db.Decimal(12, 2)
-  systemQris     Decimal          @map("system_qris") @db.Decimal(12, 2)
-  systemGojek    Decimal          @map("system_gojek") @db.Decimal(12, 2)
-  systemGrab     Decimal          @map("system_grab") @db.Decimal(12, 2)
-  systemTransfer Decimal          @map("system_transfer") @db.Decimal(12, 2)
-  actualCash     Decimal          @map("actual_cash") @db.Decimal(12, 2)
-  actualEdc      Decimal          @map("actual_edc") @db.Decimal(12, 2)
-  actualQris     Decimal          @map("actual_qris") @db.Decimal(12, 2)
-  actualGojek    Decimal          @map("actual_gojek") @db.Decimal(12, 2)
-  actualGrab     Decimal          @map("actual_grab") @db.Decimal(12, 2)
-  actualTransfer Decimal          @map("actual_transfer") @db.Decimal(12, 2)
-  status         SettlementStatus @default(submitted)
-  submittedAt    DateTime         @default(now()) @map("submitted_at")
-  reviewedAt     DateTime?        @map("reviewed_at")
+  id          Int              @id @default(autoincrement())
+  shiftId     Int              @unique @map("shift_id")
+  date        DateTime         @db.Date
+  cashierId   Int              @map("cashier_id")
+  reviewerId  Int?             @map("reviewer_id")
+  status      SettlementStatus @default(submitted)
+  submittedAt DateTime         @default(now()) @map("submitted_at")
+  reviewedAt  DateTime?        @map("reviewed_at")
 
   shift        Shift                   @relation(fields: [shiftId], references: [id])
   cashier      User                    @relation("SettlementCashier", fields: [cashierId], references: [id])

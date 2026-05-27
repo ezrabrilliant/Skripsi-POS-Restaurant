@@ -358,20 +358,6 @@ export async function createSettlement(
       shiftId: input.shiftId,
       date: shift.date,
       cashierId: shift.cashierId,
-      // 12 kolom legacy: set 0 placeholder (akan di-drop Phase 9 cleanup).
-      // Source of truth real ada di settlement_method_counts child table.
-      systemCash: new Prisma.Decimal(0),
-      systemEdc: new Prisma.Decimal(0),
-      systemQris: new Prisma.Decimal(0),
-      systemGojek: new Prisma.Decimal(0),
-      systemGrab: new Prisma.Decimal(0),
-      systemTransfer: new Prisma.Decimal(0),
-      actualCash: new Prisma.Decimal(0),
-      actualEdc: new Prisma.Decimal(0),
-      actualQris: new Prisma.Decimal(0),
-      actualGojek: new Prisma.Decimal(0),
-      actualGrab: new Prisma.Decimal(0),
-      actualTransfer: new Prisma.Decimal(0),
       status: SettlementStatus.submitted,
       methodCounts: {
         create: childRows,
