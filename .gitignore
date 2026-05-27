@@ -76,6 +76,9 @@ prisma/*.db-journal
 .playwright-mcp/
 .obsidian/
 
+# Git worktrees (superpowers isolation workspaces)
+.worktrees/
+
 # Vite compiled config artifacts (sumber: vite.config.ts)
 frontend/vite.config.js
 frontend/vite.config.d.ts
