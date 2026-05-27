@@ -31,6 +31,9 @@ import type {
 // View shape
 // ============================================================
 
+// REV 2.6: tambah index signature [key: string] supaya compatible dengan
+// TransactionPayment.method yang sekarang String (bukan enum). Sampai Phase 6
+// refactor jadi SettlementSystemEntry[] dinamis.
 export interface SettlementMethodTotals {
   cash: number;
   edc: number;
@@ -38,6 +41,7 @@ export interface SettlementMethodTotals {
   gojek: number;
   grab: number;
   transfer: number;
+  [key: string]: number;
 }
 
 export interface BankBreakdownEntry {

@@ -26,6 +26,9 @@ import type { OwnerReportQuery } from './dashboard.schema';
 // View shape
 // ============================================================
 
+// REV 2.6: tambah index signature [key: string] supaya compatible dengan
+// TransactionPayment.method yang sekarang String (bukan enum). Sampai Phase 7
+// refactor jadi MethodTotalEntry[] dinamis.
 export interface MethodTotals {
   cash: number;
   edc: number;
@@ -33,6 +36,7 @@ export interface MethodTotals {
   gojek: number;
   grab: number;
   transfer: number;
+  [key: string]: number;
 }
 
 export interface BankBreakdownEntry {

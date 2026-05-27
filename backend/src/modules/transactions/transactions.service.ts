@@ -73,9 +73,12 @@ export interface TransactionItemView {
 }
 
 /// REV 2.5: payment slice per Transaction. Single tender = 1 record, split tender = N records.
+/// REV 2.6: method jadi plain string (denormalize dari payment_methods.code).
+/// Sampai Phase 5 refactor, comparison dengan PaymentMethod enum values masih kompatibel
+/// karena enum value adalah string literal di runtime.
 export interface TransactionPaymentView {
   id: number;
-  method: PaymentMethod;
+  method: string;
   bank: string | null;
   amount: number;
   recordedAt: string;
