@@ -13,6 +13,7 @@ import {
   UsersPage,
   PurchasesPage,
   BillsPage,
+  PaymentMethodsPage,
   OwnerDashboard,
   CashierDashboard,
   WaiterDashboard,
@@ -86,6 +87,7 @@ function App() {
           <Route path="menu" element={<RoleRoute allow={['owner']}><MenuPage /></RoleRoute>} />
           <Route path="users" element={<RoleRoute allow={['owner']}><UsersPage /></RoleRoute>} />
           <Route path="bills" element={<RoleRoute allow={['owner']}><BillsPage /></RoleRoute>} />
+          <Route path="payment-methods" element={<RoleRoute allow={['owner']}><PaymentMethodsPage /></RoleRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
