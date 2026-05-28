@@ -39,23 +39,10 @@ const PERIOD_OPTIONS = [
   { value: 'year', label: 'Tahun Ini' },
 ]
 
-const METHOD_LABEL: Record<string, string> = {
-  cash: 'Tunai',
-  edc: 'EDC',
-  qris: 'QRIS',
-  gojek: 'Gojek',
-  grab: 'Grab',
-  transfer: 'Transfer',
-}
-
-const METHOD_COLOR: Record<string, string> = {
-  cash: '#1f7a4d',
-  edc: '#2563eb',
-  qris: '#9333ea',
-  gojek: '#16a34a',
-  grab: '#dc2626',
-  transfer: '#d97706',
-}
+// REV 2.6: METHOD_LABEL + METHOD_COLOR hardcoded dihapus. Label + warna sekarang
+// datang dari `report.revenue.byMethod[i].methodLabel` + `colorHex` (sumber:
+// master `payment_methods` owner-configurable). Method custom (mis. ShopeePay)
+// otomatis muncul dengan warna pilihan owner.
 
 export default function OwnerDashboard() {
   const { user } = useAuthStore()
@@ -73,16 +60,19 @@ export default function OwnerDashboard() {
     queryFn: () => shiftService.getActiveShifts(),
   })
 
+  // REV 2.6: byMethod sudah MethodTotalEntry[] (sorted descending by total dari
+  // backend), tinggal filter entry yang total > 0 untuk hide method tanpa
+  // transaksi di periode.
   const chartData = useMemo(() => {
     if (!report) return []
-    return (Object.keys(report.revenue.byMethod) as Array<keyof typeof report.revenue.byMethod>)
-      .map((m) => ({
-        method: METHOD_LABEL[m as string],
-        key: m as string,
-        amount: report.revenue.byMethod[m],
+    return report.revenue.byMethod
+      .filter((entry) => entry.total > 0)
+      .map((entry) => ({
+        method: entry.methodLabel,
+        key: entry.paymentMethodCode,
+        amount: entry.total,
+        color: entry.colorHex,
       }))
-      .filter((d) => d.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
   }, [report])
 
   return (
@@ -202,7 +192,7 @@ export default function OwnerDashboard() {
                         />
                         <Bar dataKey="amount" radius={[0, 6, 6, 0]} barSize={22}>
                           {chartData.map((d) => (
-                            <Cell key={d.key} fill={METHOD_COLOR[d.key] ?? '#5a655e'} />
+                            <Cell key={d.key} fill={d.color || '#5a655e'} />
                           ))}
                         </Bar>
                       </BarChart>

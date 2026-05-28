@@ -63,11 +63,24 @@ curl -s -X DELETE $BASE/bills/$BILL_ID -H "Authorization: Bearer $OWNER_TOKEN" |
 echo ""
 echo "========== SETTLEMENTS =========="
 echo ""
-echo "=== 11. Bryant buka shift MALAM ==="
-SHIFT_RESP=$(curl -s -X POST $BASE/shifts/open -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d '{"type":"malam","openingCash":300000}')
-echo "$SHIFT_RESP" | head -c 200; echo
-MALAM_SHIFT_ID=$(echo "$SHIFT_RESP" | jq_field 'console.log(j.data.shift.id)')
-echo "Malam shift id=$MALAM_SHIFT_ID"
+echo "=== 11. Buka shift MALAM (atau reuse kalau sudah ada) ==="
+# REV 2.3 shift-decoupling: cek dulu /shifts/active (array). Kalau ada malam aktif, reuse.
+ACTIVE_SHIFTS=$(curl -s "$BASE/shifts/active" -H "Authorization: Bearer $BRYANT_TOKEN")
+MALAM_SHIFT_ID=$(echo "$ACTIVE_SHIFTS" | jq_field 'const arr=j.data?.shifts||[];const m=arr.find(s=>s.type==="malam");console.log(m?.id||"")')
+if [ -z "$MALAM_SHIFT_ID" ]; then
+  SHIFT_RESP=$(curl -s -X POST $BASE/shifts/open -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d '{"type":"malam","openingCash":300000}')
+  MALAM_SHIFT_ID=$(echo "$SHIFT_RESP" | jq_field 'console.log(j.data?.shift?.id||"")')
+  echo "Opened new malam shift: $MALAM_SHIFT_ID"
+else
+  echo "Reusing active malam shift: $MALAM_SHIFT_ID"
+fi
+if [ -z "$MALAM_SHIFT_ID" ]; then
+  echo "ERROR: gagal dapat malam shift id. Server log + DB state perlu diperiksa. Exit."
+  exit 1
+fi
+# Cek owner shift dari relasi (mungkin Jason, bukan Bryant — settle gating tetap perlu match)
+MALAM_CASHIER=$(curl -s "$BASE/shifts/$MALAM_SHIFT_ID" -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'console.log(j.data.shift.cashierName)')
+echo "Malam shift cashier = $MALAM_CASHIER (id=$MALAM_SHIFT_ID)"
 
 echo ""
 echo "=== 12. Buat & bayar 6 transaksi dengan beragam payment method ==="
@@ -78,15 +91,22 @@ create_and_pay() {
   local method=$1
   local bank=$2
   local qty=$3
-  local body="{\"shiftId\":$MALAM_SHIFT_ID,\"orderType\":\"takeaway\",\"items\":[{\"menuId\":$AIR_MINERAL_ID,\"qty\":$qty}]}"
-  local tx_id=$(curl -s -X POST $BASE/transactions -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$body" | jq_field 'console.log(j.data.transaction.id)')
+  # REV 2.3 shift-decoupling: shiftId tidak di-input, backend auto-resolve dari active shift.
+  local body="{\"orderType\":\"takeaway\",\"items\":[{\"menuId\":$AIR_MINERAL_ID,\"qty\":$qty}]}"
+  local tx_resp=$(curl -s -X POST $BASE/transactions -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$body")
+  local tx_id=$(echo "$tx_resp" | jq_field 'console.log(j.data.transaction.id)')
+  local tx_total=$(echo "$tx_resp" | jq_field 'console.log(j.data.transaction.total)')
+  # REV 2.5: split tender endpoint - POST /:id/payments + amount wajib.
+  # PB1 10% di-auto-compute saat first payment (discountAmount first slice).
+  # Tax = subtotal * 0.1, jadi total = subtotal * 1.1 = qty*5000*1.1.
+  local total_with_tax=$(node -e "console.log(${qty}*5000*1.1)")
   local pay_body
   if [ -n "$bank" ]; then
-    pay_body="{\"paymentMethod\":\"$method\",\"paymentBank\":\"$bank\",\"discountAmount\":0}"
+    pay_body="{\"method\":\"$method\",\"bank\":\"$bank\",\"amount\":$total_with_tax,\"discountAmount\":0}"
   else
-    pay_body="{\"paymentMethod\":\"$method\",\"discountAmount\":0}"
+    pay_body="{\"method\":\"$method\",\"amount\":$total_with_tax,\"discountAmount\":0}"
   fi
-  local total=$(curl -s -X POST $BASE/transactions/$tx_id/payment -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$pay_body" | jq_field 'console.log(j.data.transaction.total)')
+  local total=$(curl -s -X POST $BASE/transactions/$tx_id/payments -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$pay_body" | jq_field 'console.log(j.data.transaction.total)')
   echo "  tx=$tx_id method=$method bank=${bank:--} qty=$qty (5000 each) → total=$total"
 }
 
@@ -99,37 +119,48 @@ create_and_pay grab "" 1        # 5500
 create_and_pay transfer BCA 4   # 22000
 
 echo ""
-echo "=== 13. Tutup shift malam Bryant ==="
-curl -s -X POST $BASE/shifts/$MALAM_SHIFT_ID/close -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'console.log("shift closed:", j.data.shift.closedAt)'
+echo "=== 13. Tutup shift malam ($MALAM_CASHIER) ==="
+# Owner forcedly closes (allowed) untuk konsisten siapapun cashier-nya
+curl -s -X POST $BASE/shifts/$MALAM_SHIFT_ID/close -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("shift closed:", j.data.shift.closedAt)'
 
 echo ""
-echo "=== 14. GET /settlements/preview?shiftId=X (Bryant) ==="
-curl -s "$BASE/settlements/preview?shiftId=$MALAM_SHIFT_ID" -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'const p=j.data.preview; console.log(JSON.stringify({shiftId:p.shiftId,shiftType:p.shiftType,cashier:p.cashierName,system:p.system,totalSystem:p.totalSystem,bankBreakdown:p.bankBreakdown,existingSettlementId:p.existingSettlementId},null,2))'
+echo "=== 14. GET /settlements/preview?shiftId=X — REV 2.6 system: array ==="
+curl -s "$BASE/settlements/preview?shiftId=$MALAM_SHIFT_ID" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const p=j.data.preview; console.log(JSON.stringify({shiftId:p.shiftId,shiftType:p.shiftType,cashier:p.cashierName,system:p.system,totalSystem:p.totalSystem,bankBreakdown:p.bankBreakdown,existingSettlementId:p.existingSettlementId},null,2))'
 
 echo ""
-echo "=== 15. POST submit settlement (Jason coba settle shift Bryant) → 403 ==="
-SUBMIT_BODY="{\"shiftId\":$MALAM_SHIFT_ID,\"actualCash\":5500,\"actualEdc\":27500,\"actualQris\":5500,\"actualGojek\":11000,\"actualGrab\":5500,\"actualTransfer\":22000}"
-curl -s -o /dev/null -w "status=%{http_code} " -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d "$SUBMIT_BODY"
-curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
+echo "=== 15. POST submit (kasir lain coba settle shift $MALAM_CASHIER) → 403 — REV 2.6 counts: {} ==="
+# REV 2.6: counts dinamis, bukan 6 field actualXxx fixed.
+# System totals (sesuai step 12): cash=5500, edc=27500, qris=5500, gojek=11000, grab=5500, transfer=22000.
+SUBMIT_BODY="{\"shiftId\":$MALAM_SHIFT_ID,\"counts\":{\"cash\":5500,\"edc\":27500,\"qris\":5500,\"gojek\":11000,\"grab\":5500,\"transfer\":22000}}"
+# Pilih token kasir yang BUKAN owner shift (kalau Jason cashier → pakai Bryant token, vice versa)
+if [ "$MALAM_CASHIER" = "Jason" ]; then
+  OTHER_KASIR_TOKEN=$BRYANT_TOKEN
+  OWN_KASIR_TOKEN=$JASON_TOKEN
+else
+  OTHER_KASIR_TOKEN=$JASON_TOKEN
+  OWN_KASIR_TOKEN=$BRYANT_TOKEN
+fi
+curl -s -o /dev/null -w "status=%{http_code} " -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $OTHER_KASIR_TOKEN" -d "$SUBMIT_BODY"
+curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $OTHER_KASIR_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
 
 echo ""
-echo "=== 16. POST submit (Bryant - owner shift malam-nya sendiri) → 201 ==="
-SETTLE_RESP=$(curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$SUBMIT_BODY")
+echo "=== 16. POST submit (kasir owner shift malam-nya sendiri) → 201 ==="
+SETTLE_RESP=$(curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $OWN_KASIR_TOKEN" -d "$SUBMIT_BODY")
 echo "$SETTLE_RESP" | head -c 500; echo
 SETTLE_ID=$(echo "$SETTLE_RESP" | jq_field 'console.log(j.data.settlement.id)')
 echo "Settlement id=$SETTLE_ID"
 
 echo ""
 echo "=== 17. POST submit lagi (duplicate) → 409 UNIQUE ==="
-curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
+curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $OWN_KASIR_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
 
 echo ""
-echo "=== 18. GET /settlements/:id verify variance (actual=system semua → variance=0) ==="
-curl -s "$BASE/settlements/$SETTLE_ID" -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'const s=j.data.settlement; console.log(JSON.stringify({status:s.status,system:s.system,actual:s.actual,variance:s.variance,totalSystem:s.totalSystem,totalActual:s.totalActual,totalVariance:s.totalVariance,bankBreakdown:s.bankBreakdown},null,2))'
+echo "=== 18. GET /settlements/:id verify variance (counted=system semua → variance=0) — REV 2.6 methodCounts: [] ==="
+curl -s "$BASE/settlements/$SETTLE_ID" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const s=j.data.settlement; console.log(JSON.stringify({status:s.status,methodCounts:s.methodCounts,totalCounted:s.totalCounted,totalSystem:s.totalSystem,totalVariance:s.totalVariance,bankBreakdown:s.bankBreakdown},null,2))'
 
 echo ""
-echo "=== 19. PUT /:id/review (Bryant kasir) → 403 (owner-only) ==="
-curl -s -o /dev/null -w "status=%{http_code}\n" -X PUT $BASE/settlements/$SETTLE_ID/review -H "Authorization: Bearer $BRYANT_TOKEN"
+echo "=== 19. PUT /:id/review (kasir) → 403 (owner-only) ==="
+curl -s -o /dev/null -w "status=%{http_code}\n" -X PUT $BASE/settlements/$SETTLE_ID/review -H "Authorization: Bearer $OWN_KASIR_TOKEN"
 
 echo ""
 echo "=== 20. PUT /:id/review (owner) → 200 status=reviewed ==="
@@ -141,13 +172,18 @@ curl -s -X PUT $BASE/settlements/$SETTLE_ID/review -H "Authorization: Bearer $OW
 
 echo ""
 echo "=== 22. POST submit settlement untuk shift PAGI Jason oleh Bryant → 403 (cashier-malam-only constraint) ==="
-# Open pagi shift Jason
-JASON_PAGI=$(curl -s -X POST $BASE/shifts/open -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d '{"type":"pagi","openingCash":500000}' | jq_field 'console.log(j.data.shift?.id || "ALREADY")')
+# Reuse active pagi shift kalau ada; otherwise open baru
+ACTIVE_AFTER_22=$(curl -s "$BASE/shifts/active" -H "Authorization: Bearer $JASON_TOKEN")
+JASON_PAGI=$(echo "$ACTIVE_AFTER_22" | jq_field 'const arr=j.data?.shifts||[];const p=arr.find(s=>s.type==="pagi"&&s.cashierName==="Jason");console.log(p?.id||"")')
+if [ -z "$JASON_PAGI" ]; then
+  JASON_PAGI=$(curl -s -X POST $BASE/shifts/open -H "Content-Type: application/json" -H "Authorization: Bearer $JASON_TOKEN" -d '{"type":"pagi","openingCash":500000}' | jq_field 'console.log(j.data?.shift?.id||"")')
+  echo "Opened Jason pagi shift: $JASON_PAGI"
+fi
 echo "Jason pagi shift id: $JASON_PAGI"
-if [ "$JASON_PAGI" != "ALREADY" ]; then
+if [ -n "$JASON_PAGI" ]; then
   curl -s -X POST $BASE/shifts/$JASON_PAGI/close -H "Authorization: Bearer $JASON_TOKEN" > /dev/null
-  # Bryant coba settle Jason's pagi shift
-  BAD_BODY="{\"shiftId\":$JASON_PAGI,\"actualCash\":0,\"actualEdc\":0,\"actualQris\":0,\"actualGojek\":0,\"actualGrab\":0,\"actualTransfer\":0}"
+  # Bryant coba settle Jason's pagi shift - REV 2.6 counts dinamis (kosong = no transactions)
+  BAD_BODY="{\"shiftId\":$JASON_PAGI,\"counts\":{}}"
   curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $BRYANT_TOKEN" -d "$BAD_BODY" | head -c 250; echo
   echo "(Bryant ↑ tidak own Jason's pagi shift)"
   # Jason settles own pagi shift → 403 because not malam

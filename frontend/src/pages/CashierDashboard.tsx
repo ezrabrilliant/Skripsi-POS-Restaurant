@@ -27,20 +27,14 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
-import { dashboardService, type MethodTotals } from '@/services/dashboardService'
-import type { ShiftType } from '@/types'
+import { dashboardService } from '@/services/dashboardService'
+import type { ShiftType, MethodTotalEntry } from '@/types'
 import { formatCurrency, formatTime, cn } from '@/lib/utils'
 import { Button, Badge, Skeleton } from '@/design-system/primitives'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
 
-const METHOD_LABEL: Record<string, string> = {
-  cash: 'Tunai',
-  edc: 'EDC',
-  qris: 'QRIS',
-  gojek: 'Gojek',
-  grab: 'Grab',
-  transfer: 'Transfer',
-}
+// REV 2.6: METHOD_LABEL hardcoded dihapus. Label datang dari `entry.methodLabel`
+// (sumber: master `payment_methods`). Lihat ActiveShiftPanel.today.byMethod render.
 
 export default function CashierDashboard() {
   const { user } = useAuthStore()
@@ -167,7 +161,8 @@ function ActiveShiftPanel({
   today: {
     revenue: number
     transactionCount: number
-    byMethod: MethodTotals
+    /** REV 2.6: array dinamis per payment method code (drop MethodTotals 6-key). */
+    byMethod: MethodTotalEntry[]
     openTransactionCount: number
   }
 }) {
@@ -233,16 +228,32 @@ function ActiveShiftPanel({
           <p className="text-caption text-neutral-500">Total pendapatan</p>
           <p className="text-display text-neutral-900 tabular-nums">{formatCurrency(today.revenue)}</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-neutral-100">
-          {(Object.keys(today.byMethod) as Array<keyof typeof today.byMethod>).map((m) => (
-            <div key={m}>
-              <p className="text-caption text-neutral-500">{METHOD_LABEL[m as string]}</p>
-              <p className="text-body-sm font-semibold text-neutral-900 tabular-nums">
-                {formatCurrency(today.byMethod[m])}
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* REV 2.6: iterate MethodTotalEntry[] - label + colorHex per row dari
+            backend (sumber master payment_methods). Empty state kalau belum ada
+            transaksi hari ini (semua method total=0 atau backend kirim []). */}
+        {today.byMethod.length === 0 ? (
+          <p className="text-body-sm text-neutral-500 pt-3 border-t border-neutral-100">
+            Belum ada penjualan hari ini.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-neutral-100">
+            {today.byMethod.map((entry) => (
+              <div key={entry.paymentMethodCode}>
+                <p className="text-caption text-neutral-500 inline-flex items-center gap-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: entry.colorHex }}
+                    aria-hidden
+                  />
+                  {entry.methodLabel}
+                </p>
+                <p className="text-body-sm font-semibold text-neutral-900 tabular-nums">
+                  {formatCurrency(entry.total)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   )

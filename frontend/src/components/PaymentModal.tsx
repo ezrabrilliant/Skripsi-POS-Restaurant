@@ -24,12 +24,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Receipt,
-  Banknote,
   CreditCard,
-  QrCode,
-  Bike,
-  Truck,
-  ArrowLeftRight,
   Link2,
   Loader2,
   Trash2,
@@ -37,27 +32,36 @@ import {
   Check,
   Unlink,
 } from 'lucide-react'
+import * as LucideIcons from 'lucide-react'
 import {
-  PAYMENT_METHODS,
-  PAYMENT_LABEL,
   type PaymentMethod,
+  type PaymentMethodView,
   type Transaction,
   type TransactionPayment,
 } from '@/types'
 import { transactionService, type AddPaymentPayload, type MergePayload } from '@/services/transactionService'
+import { paymentMethodService } from '@/services/paymentMethodService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { calculatePB1 } from '@/lib/decimal'
 import {
   Dialog,
   Button,
   Input,
-  ComboboxFree,
+  Combobox,
   type ComboboxOption,
   Badge,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import CombineTableModal from './CombineTableModal'
+
+/** Resolve nama icon lucide ke komponen React. Fallback CreditCard kalau
+ * iconName tidak terdaftar (defensive — backend whitelist tapi data lama
+ * atau method custom mungkin saja punya nilai berbeda). */
+function resolveIcon(iconName: string): React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }> {
+  const Icon = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>>)[iconName]
+  return Icon ?? CreditCard
+}
 
 interface PaymentModalProps {
   transactionId: number
@@ -76,42 +80,6 @@ interface PaymentModalProps {
 
 type Mode = 'single' | 'split'
 
-const METHOD_ICON: Record<PaymentMethod, typeof Banknote> = {
-  cash: Banknote,
-  edc: CreditCard,
-  qris: QrCode,
-  gojek: Bike,
-  grab: Truck,
-  transfer: ArrowLeftRight,
-}
-
-const RECENT_BANKS_KEY = 'pos.recent-banks'
-const RECENT_BANKS_MAX = 6
-
-function loadRecentBanks(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_BANKS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-function saveRecentBank(bank: string) {
-  const cur = loadRecentBanks()
-  const next = [bank, ...cur.filter((b) => b.toLowerCase() !== bank.toLowerCase())].slice(
-    0,
-    RECENT_BANKS_MAX,
-  )
-  try {
-    localStorage.setItem(RECENT_BANKS_KEY, JSON.stringify(next))
-  } catch {
-    /* ignore */
-  }
-}
-
 export default function PaymentModal({
   transactionId,
   tableNumber,
@@ -122,6 +90,16 @@ export default function PaymentModal({
   const toast = useToast()
   const qc = useQueryClient()
   const confirm = useConfirm()
+
+  // REV 2.6: payment methods fetched from /payment-methods master (owner-configurable).
+  // Drop hardcoded PAYMENT_METHODS const. List terbatas (~6-8 entries) + jarang berubah
+  // → staleTime 5 menit aman, refetchOnWindowFocus false.
+  const methodsQuery = useQuery({
+    queryKey: ['paymentMethods', 'active'],
+    queryFn: () => paymentMethodService.list(false),
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  })
 
   // Query target Tx (subscribed - refetch via invalidate setelah mutation).
   const { data: transaction, isLoading: txLoading } = useQuery({
@@ -169,16 +147,13 @@ export default function PaymentModal({
     () => candidateTxs.filter((t) => selectedCandidates.has(t.id)),
     [candidateTxs, selectedCandidates],
   )
-  const [method, setMethod] = useState<PaymentMethod>('cash')
+  // REV 2.6: methodCode = string (code dari master). 'cash' fallback initial pakai
+  // first available method setelah query resolve (lihat effect di bawah).
+  const [methodCode, setMethodCode] = useState<PaymentMethod>('')
   const [bank, setBank] = useState('')
   const [discountAmount, setDiscountAmount] = useState(0)
   const [amount, setAmount] = useState(0)
   const [combineOpen, setCombineOpen] = useState(false)
-  const [recentBanks, setRecentBanks] = useState<string[]>([])
-
-  useEffect(() => {
-    setRecentBanks(loadRecentBanks())
-  }, [])
 
   // Sync mode: kalau payments sudah ada → force 'split'.
   useEffect(() => {
@@ -234,34 +209,46 @@ export default function PaymentModal({
     return () => clearTimeout(timer)
   }, [isPaid, onSuccess])
 
-  // REV 2.5: filter metode pembayaran by orderType. Per docs/operasional-resto.md:
-  //   - dineIn: cash + EDC + QRIS + transfer (4 methods - customer datang ke resto)
-  //   - takeaway: + gojek (GoFood) + grab (GrabFood) (6 methods - merchant app settlement)
-  // Backend juga validate (defense in depth), tapi UI filter mencegah click yang
-  // bakal di-reject.
-  const availableMethods = useMemo(() => {
-    if (!transaction) return PAYMENT_METHODS
-    if (transaction.orderType === 'dineIn') {
-      return PAYMENT_METHODS.filter((m) => m.value !== 'gojek' && m.value !== 'grab')
+  // REV 2.6: filter metode pembayaran dinamis berdasarkan flag master di backend:
+  //   - isActive (sudah filtered di list(false) tapi double-check defensive)
+  //   - allowDineIn / allowTakeaway sesuai orderType transaction
+  // Sort by displayOrder ASC supaya owner control urutan visual.
+  // allMethods stable reference via useMemo supaya tidak invalidate filteredMethods setiap render.
+  const allMethods = useMemo<PaymentMethodView[]>(() => methodsQuery.data ?? [], [methodsQuery.data])
+  const filteredMethods = useMemo<PaymentMethodView[]>(() => {
+    if (!transaction) return []
+    return allMethods
+      .filter((m) => m.isActive)
+      .filter((m) => (transaction.orderType === 'dineIn' ? m.allowDineIn : m.allowTakeaway))
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+  }, [allMethods, transaction])
+
+  // Auto-pick first available method saat query resolve / orderType change.
+  useEffect(() => {
+    if (!methodCode && filteredMethods.length > 0) {
+      setMethodCode(filteredMethods[0].code)
     }
-    return PAYMENT_METHODS
-  }, [transaction])
+    // Reset kalau current methodCode tidak ada di filteredMethods (mis. switch dineIn↔takeaway).
+    if (methodCode && filteredMethods.length > 0 && !filteredMethods.some((m) => m.code === methodCode)) {
+      setMethodCode(filteredMethods[0].code)
+      setBank('')
+    }
+  }, [methodCode, filteredMethods])
 
-  const selectedMethodMeta = PAYMENT_METHODS.find((m) => m.value === method)
-  const needsBank = selectedMethodMeta?.needsBank ?? false
+  const selectedMethod = useMemo(
+    () => filteredMethods.find((m) => m.code === methodCode) ?? null,
+    [filteredMethods, methodCode],
+  )
+  const needsBank = selectedMethod?.requiresBank ?? false
 
+  // REV 2.6: bank options = closed list dari selectedMethod.banks (filter active).
+  // Drop free-text input + localStorage recent-banks. Bank master controlled by owner.
   const bankOptions = useMemo<ComboboxOption[]>(() => {
-    const defaults = ['BCA', 'Mandiri', 'BNI', 'BRI']
-    const merged: string[] = []
-    for (const b of [...recentBanks, ...defaults]) {
-      if (!merged.some((x) => x.toLowerCase() === b.toLowerCase())) merged.push(b)
-    }
-    return merged.map((b, idx) => ({
-      value: b,
-      label: b,
-      helper: idx < recentBanks.length ? 'terakhir dipakai' : undefined,
-    }))
-  }, [recentBanks])
+    if (!selectedMethod) return []
+    return selectedMethod.banks
+      .filter((b) => b.isActive)
+      .map((b) => ({ value: b.name, label: b.name }))
+  }, [selectedMethod])
 
   // Mutations
   const addPayMutation = useMutation({
@@ -337,11 +324,11 @@ export default function PaymentModal({
   // permanently di backend (cuma bisa di-remove via Trash button per slice di split mode).
   const handleSingleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!transaction || isPaid) return
+    if (!transaction || isPaid || !selectedMethod) return
     if (needsBank && !bank.trim()) return
     if (discountAmount > aggregateSubtotal) return
     const finalBank = needsBank ? bank.trim() : undefined
-    const methodDisplay = `${PAYMENT_LABEL[method]}${finalBank ? ` · ${finalBank}` : ''}`
+    const methodDisplay = `${selectedMethod.label}${finalBank ? ` · ${finalBank}` : ''}`
     const pesananCount = 1 + selectedCandidates.size
     const ok = await confirm({
       title: `Konfirmasi bayar ${formatCurrency(total)}?`,
@@ -384,9 +371,8 @@ export default function PaymentModal({
         return // toast handled in mutation onError
       }
     }
-    if (finalBank) saveRecentBank(finalBank)
     addPayMutation.mutate({
-      method,
+      method: selectedMethod.code,
       bank: finalBank,
       amount: total,
       discountAmount,
@@ -395,12 +381,12 @@ export default function PaymentModal({
 
   const handleAddSlice = async (e: FormEvent) => {
     e.preventDefault()
-    if (!transaction || isPaid) return
+    if (!transaction || isPaid || !selectedMethod) return
     if (amount <= 0 || amount > sisa) return
     if (needsBank && !bank.trim()) return
     if (isFirstSlice && discountAmount > aggregateSubtotal) return
     const finalBank = needsBank ? bank.trim() : undefined
-    const methodDisplay = `${PAYMENT_LABEL[method]}${finalBank ? ` · ${finalBank}` : ''}`
+    const methodDisplay = `${selectedMethod.label}${finalBank ? ` · ${finalBank}` : ''}`
     const willCloseTx = amount >= sisa
     const sisaAfter = Math.max(0, sisa - amount)
     const pesananCount = 1 + selectedCandidates.size
@@ -450,9 +436,8 @@ export default function PaymentModal({
         return // toast handled in mutation onError
       }
     }
-    if (finalBank) saveRecentBank(finalBank)
     addPayMutation.mutate({
-      method,
+      method: selectedMethod.code,
       bank: finalBank,
       amount,
       // discountAmount HANYA dikirim di first slice. Backend reject kalau slice ke-2+ kirim > 0.
@@ -476,19 +461,21 @@ export default function PaymentModal({
   const submitting = addPayMutation.isPending || mergeMutation.isPending
   const singleSubmitDisabled =
     submitting ||
+    !selectedMethod ||
     (needsBank && !bank.trim()) ||
     discountAmount > aggregateSubtotal ||
     aggregateSubtotal <= 0
 
   const sliceSubmitDisabled =
     submitting ||
+    !selectedMethod ||
     amount <= 0 ||
     amount > sisa ||
     (needsBank && !bank.trim()) ||
     (isFirstSlice && discountAmount > aggregateSubtotal)
 
   // Render
-  if (txLoading || !transaction) {
+  if (txLoading || !transaction || methodsQuery.isLoading) {
     return (
       <Dialog
         open
@@ -498,6 +485,21 @@ export default function PaymentModal({
       >
         <div className="text-center py-8 text-neutral-500">
           <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+        </div>
+      </Dialog>
+    )
+  }
+
+  if (methodsQuery.isError) {
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => !o && onClose()}
+        title="Pembayaran"
+        size="md"
+      >
+        <div className="text-center py-8 text-danger-700 text-body-sm">
+          Gagal memuat metode pembayaran. Coba refresh halaman.
         </div>
       </Dialog>
     )
@@ -671,6 +673,7 @@ export default function PaymentModal({
           {mode === 'split' && transaction.payments.length > 0 && (
             <PaymentSlicesList
               slices={transaction.payments}
+              methods={allMethods}
               onRemove={handleRemoveSlice}
               removing={removePayMutation.isPending}
               locked={isPaid}
@@ -682,22 +685,31 @@ export default function PaymentModal({
             <>
               {mode === 'single' ? (
                 <form id="payment-single-form" onSubmit={handleSingleSubmit} className="space-y-4">
-                  <MethodGrid methods={availableMethods} method={method} onChange={(m) => {
-                    setMethod(m)
-                    if (!PAYMENT_METHODS.find((mt) => mt.value === m)?.needsBank) setBank('')
-                  }} />
+                  <MethodGrid
+                    methods={filteredMethods}
+                    selectedCode={methodCode}
+                    onChange={(m) => {
+                      setMethodCode(m.code)
+                      if (!m.requiresBank) setBank('')
+                    }}
+                  />
                   {needsBank && (
-                    <ComboboxFree
-                      label={`Bank (${selectedMethodMeta?.label})`}
-                      value={bank}
-                      onValueChange={setBank}
-                      options={bankOptions}
-                      placeholder="Pilih atau ketik bank..."
-                      searchPlaceholder="Cari atau ketik nama bank..."
-                      emptyText="Belum ada bank tersimpan"
-                      addLabel="Pakai bank"
-                      helper={recentBanks.length > 0 ? 'Bank terakhir muncul di daftar' : undefined}
-                    />
+                    <div>
+                      <Combobox
+                        label={`Bank (${selectedMethod?.label})`}
+                        value={bank}
+                        onValueChange={setBank}
+                        options={bankOptions}
+                        placeholder="Pilih bank..."
+                        searchPlaceholder="Cari nama bank..."
+                        emptyText="Tidak ada bank cocok"
+                        error={
+                          bankOptions.length === 0
+                            ? 'Belum ada bank aktif untuk metode ini. Hubungi owner.'
+                            : undefined
+                        }
+                      />
+                    </div>
                   )}
                   <Input
                     label="Diskon (opsional)"
@@ -729,21 +741,31 @@ export default function PaymentModal({
                 </form>
               ) : (
                 <form id="payment-slice-form" onSubmit={handleAddSlice} className="space-y-4">
-                  <MethodGrid methods={availableMethods} method={method} onChange={(m) => {
-                    setMethod(m)
-                    if (!PAYMENT_METHODS.find((mt) => mt.value === m)?.needsBank) setBank('')
-                  }} />
+                  <MethodGrid
+                    methods={filteredMethods}
+                    selectedCode={methodCode}
+                    onChange={(m) => {
+                      setMethodCode(m.code)
+                      if (!m.requiresBank) setBank('')
+                    }}
+                  />
                   {needsBank && (
-                    <ComboboxFree
-                      label={`Bank (${selectedMethodMeta?.label})`}
-                      value={bank}
-                      onValueChange={setBank}
-                      options={bankOptions}
-                      placeholder="Pilih atau ketik bank..."
-                      searchPlaceholder="Cari atau ketik nama bank..."
-                      emptyText="Belum ada bank tersimpan"
-                      addLabel="Pakai bank"
-                    />
+                    <div>
+                      <Combobox
+                        label={`Bank (${selectedMethod?.label})`}
+                        value={bank}
+                        onValueChange={setBank}
+                        options={bankOptions}
+                        placeholder="Pilih bank..."
+                        searchPlaceholder="Cari nama bank..."
+                        emptyText="Tidak ada bank cocok"
+                        error={
+                          bankOptions.length === 0
+                            ? 'Belum ada bank aktif untuk metode ini. Hubungi owner.'
+                            : undefined
+                        }
+                      />
+                    </div>
                   )}
                   <div>
                     <Input
@@ -1143,38 +1165,52 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 
 function MethodGrid({
   methods,
-  method,
+  selectedCode,
   onChange,
 }: {
-  /** REV 2.5: filtered list - dineIn exclude gojek/grab (takeaway-only methods). */
-  methods: typeof PAYMENT_METHODS
-  method: PaymentMethod
-  onChange: (m: PaymentMethod) => void
+  /** REV 2.6: filtered list dari /payment-methods master (isActive + allowDineIn/Takeaway). */
+  methods: PaymentMethodView[]
+  selectedCode: string
+  onChange: (m: PaymentMethodView) => void
 }) {
+  if (methods.length === 0) {
+    return (
+      <div className="rounded-xl border border-warning-200 bg-warning-50/60 p-3 text-body-sm text-warning-800">
+        Belum ada metode pembayaran aktif untuk tipe pesanan ini. Hubungi owner.
+      </div>
+    )
+  }
   return (
     <div>
       <p className="text-label text-neutral-700 mb-2">Metode Pembayaran</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {methods.map((m) => {
-          const Icon = METHOD_ICON[m.value]
-          const active = method === m.value
+          const Icon = resolveIcon(m.iconName)
+          const active = selectedCode === m.code
+          // Gunakan colorHex dari master untuk accent ring + icon tint kalau active.
           return (
             <button
-              key={m.value}
+              key={m.code}
               type="button"
-              onClick={() => onChange(m.value)}
+              onClick={() => onChange(m)}
               aria-pressed={active}
               className={cn(
                 'min-h-[72px] py-3 px-2 rounded-lg border text-body-sm font-medium transition-colors',
                 'flex flex-col items-center justify-center gap-1.5',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
                 active
-                  ? 'bg-primary-50 border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
+                  ? 'border-primary-500 text-primary-800 ring-1 ring-primary-500/40'
                   : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100',
               )}
+              style={
+                active
+                  ? { backgroundColor: `${m.colorHex}15`, borderColor: m.colorHex }
+                  : undefined
+              }
             >
               <Icon
-                className={cn('w-5 h-5', active ? 'text-primary-600' : 'text-neutral-500')}
+                className={cn('w-5 h-5', !active && 'text-neutral-500')}
+                style={active ? { color: m.colorHex } : undefined}
               />
               <span className="leading-tight text-center">{m.label}</span>
             </button>
@@ -1187,11 +1223,14 @@ function MethodGrid({
 
 function PaymentSlicesList({
   slices,
+  methods,
   onRemove,
   removing,
   locked,
 }: {
   slices: TransactionPayment[]
+  /** REV 2.6: list payment methods master untuk lookup label + icon per slice. */
+  methods: PaymentMethodView[]
   onRemove: (paymentId: number) => void
   removing: boolean
   locked: boolean
@@ -1203,18 +1242,20 @@ function PaymentSlicesList({
       </p>
       <div className="space-y-2">
         {slices.map((slice, idx) => {
-          const Icon = METHOD_ICON[slice.method]
+          const meta = methods.find((m) => m.code === slice.method)
+          const Icon = resolveIcon(meta?.iconName ?? 'CreditCard')
+          const label = meta?.label ?? slice.method
           return (
             <div
               key={slice.id}
               className="flex items-center gap-3 p-2.5 rounded-lg bg-neutral-50/80 border border-neutral-200/60"
             >
               <span className="h-7 w-7 shrink-0 rounded-md bg-white border border-neutral-200 inline-flex items-center justify-center text-primary-600">
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" style={meta ? { color: meta.colorHex } : undefined} />
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-body-sm font-medium text-neutral-900 inline-flex items-center gap-2">
-                  #{idx + 1} · {PAYMENT_LABEL[slice.method]}
+                  #{idx + 1} · {label}
                   {slice.bank && (
                     <Badge tone="neutral" size="sm">
                       {slice.bank}

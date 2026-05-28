@@ -26,7 +26,8 @@ import {
   Link2,
 } from 'lucide-react'
 import { transactionService } from '@/services/transactionService'
-import { PAYMENT_LABEL, ORDER_TYPE_LABELS } from '@/types'
+import { paymentMethodService } from '@/services/paymentMethodService'
+import { ORDER_TYPE_LABELS } from '@/types'
 import type { TransactionStatus, OrderType, Transaction } from '@/types'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import {
@@ -85,6 +86,23 @@ export default function HistoryPage() {
         orderType: filterOrderType === 'all' ? undefined : filterOrderType,
       }),
   })
+
+  // REV 2.6: lookup label dari master payment_methods (sumber: tabel
+  // `payment_methods` owner-configurable). Pakai shared queryKey 'active' supaya
+  // cache hit dengan PaymentModal. Fallback ke uppercase code kalau method
+  // sudah dihapus dari master (historical Tx tetap render readable).
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ['paymentMethods', 'active'],
+    queryFn: () => paymentMethodService.list(false),
+    staleTime: 5 * 60_000,
+  })
+  const methodLabelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const pm of paymentMethods) map.set(pm.code, pm.label)
+    return map
+  }, [paymentMethods])
+  const labelForMethod = (code: string): string =>
+    methodLabelMap.get(code) ?? code.toUpperCase()
 
   // REV 2.5: derive mergedFromMap dari list - untuk setiap Tx yang jadi target,
   // kumpulkan id-id source. Hanya tampil di dataset hasil filter (visibility).
@@ -219,6 +237,7 @@ export default function HistoryPage() {
                 onToggle={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
                 onVoid={() => handleVoid(tx)}
                 onScrollToTx={handleScrollToTx}
+                labelForMethod={labelForMethod}
               />
             ))}
           </div>
@@ -268,6 +287,7 @@ function TransactionRow({
   onToggle,
   onVoid,
   onScrollToTx,
+  labelForMethod,
 }: {
   tx: Transaction
   mergedFromIds: number[]
@@ -275,6 +295,8 @@ function TransactionRow({
   onToggle: () => void
   onVoid: () => void
   onScrollToTx: (id: number) => void
+  /** REV 2.6: lookup label dari master payment_methods (fallback uppercase code). */
+  labelForMethod: (code: string) => string
 }) {
   const canVoid = tx.status !== 'void'
   const isMergedSource = tx.mergedIntoId !== null
@@ -296,7 +318,7 @@ function TransactionRow({
   // comma-separated "Tunai + QRIS". Bank dipisah spasi setelah method label.
   const paymentsLabel = tx.payments.length > 0
     ? tx.payments
-        .map((p) => (p.bank ? `${PAYMENT_LABEL[p.method]} ${p.bank}` : PAYMENT_LABEL[p.method]))
+        .map((p) => (p.bank ? `${labelForMethod(p.method)} ${p.bank}` : labelForMethod(p.method)))
         .join(' + ')
     : null
 
@@ -476,7 +498,7 @@ function TransactionRow({
                       className="flex justify-between text-neutral-800"
                     >
                       <span className="text-neutral-700">
-                        #{idx + 1} · {PAYMENT_LABEL[p.method]}
+                        #{idx + 1} · {labelForMethod(p.method)}
                         {p.bank && (
                           <Badge tone="neutral" size="sm" className="ml-1.5">
                             {p.bank}

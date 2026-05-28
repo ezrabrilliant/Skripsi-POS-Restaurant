@@ -11,6 +11,7 @@ export { default as MenuPage } from './MenuPage'
 export { default as UsersPage } from './UsersPage'
 export { default as PurchasesPage } from './PurchasesPage'
 export { default as BillsPage } from './BillsPage'
+export { default as PaymentMethodsPage } from './PaymentMethodsPage'
 
 // REV 2.3: 3 dashboard per role
 export { default as OwnerDashboard } from './OwnerDashboard'

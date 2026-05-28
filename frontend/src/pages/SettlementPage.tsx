@@ -1,8 +1,8 @@
-// SettlementPage - REV 2.3 owner+kasir.
+// SettlementPage - REV 2.6 dinamis per payment_method.code (drop 6-bucket hardcoded).
 // 4 mode:
 //   1. Tidak ada shift active → CTA balik ke /dashboard.
 //   2. Shift active belum closed → reminder tutup shift dulu (pakai useMutation).
-//   3. Shift closed + belum ada settlement → preview + blind count form.
+//   3. Shift closed + belum ada settlement → preview + blind count form dinamis.
 //   4. Sudah ada settlement → display detail + button review (owner only).
 
 import { useEffect, useState } from 'react'
@@ -12,24 +12,11 @@ import { Calculator, CheckCircle, AlertCircle, Wallet } from 'lucide-react'
 import { shiftService } from '@/services/shiftService'
 import { settlementService, type CreateSettlementPayload } from '@/services/settlementService'
 import { useAuthStore } from '@/stores/authStore'
-import { PAYMENT_LABEL } from '@/types'
 import type { SettlementPreview, Settlement } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Button, Badge, Skeleton, Checkbox } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
-
-type ActualState = {
-  cash: number
-  edc: number
-  qris: number
-  gojek: number
-  grab: number
-  transfer: number
-}
-
-const ZERO_ACTUAL: ActualState = { cash: 0, edc: 0, qris: 0, gojek: 0, grab: 0, transfer: 0 }
-const METHODS = ['cash', 'edc', 'qris', 'gojek', 'grab', 'transfer'] as const
 
 export default function SettlementPage() {
   const { user } = useAuthStore()
@@ -72,7 +59,9 @@ export default function SettlementPage() {
       <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
         <header>
           <h1 className="text-headline font-semibold text-neutral-900">Settlement Shift</h1>
-          <p className="text-body-sm text-neutral-600">Rekap akhir shift - 6 metode pembayaran</p>
+          <p className="text-body-sm text-neutral-600">
+            Rekap akhir shift - dinamis per metode pembayaran
+          </p>
         </header>
 
         {shiftsLoading && <Skeleton className="h-48" />}
@@ -153,19 +142,27 @@ function SettlementFlow({ shiftId }: { shiftId: number }) {
 function BlindCountForm({ preview }: { preview: SettlementPreview }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [actual, setActual] = useState<ActualState>(ZERO_ACTUAL)
+  // REV 2.6: counts dinamis per payment_method.code (drop 6-field hardcoded).
+  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [countsInitialized, setCountsInitialized] = useState(false)
   const [useSystemAsActual, setUseSystemAsActual] = useState(false)
 
+  // Initialize counts dari methods yang muncul di preview.system (sekali saja).
+  useEffect(() => {
+    if (!countsInitialized && preview.system.length > 0) {
+      const initial: Record<string, number> = {}
+      for (const s of preview.system) initial[s.paymentMethodCode] = 0
+      setCounts(initial)
+      setCountsInitialized(true)
+    }
+  }, [preview.system, countsInitialized])
+
+  // Auto-isi dari sistem: copy system totals ke counts.
   useEffect(() => {
     if (useSystemAsActual) {
-      setActual({
-        cash: preview.system.cash,
-        edc: preview.system.edc,
-        qris: preview.system.qris,
-        gojek: preview.system.gojek,
-        grab: preview.system.grab,
-        transfer: preview.system.transfer,
-      })
+      const next: Record<string, number> = {}
+      for (const s of preview.system) next[s.paymentMethodCode] = s.total
+      setCounts(next)
     }
   }, [useSystemAsActual, preview.system])
 
@@ -182,17 +179,16 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
   const handleSubmit = () => {
     submit.mutate({
       shiftId: preview.shiftId,
-      actualCash: actual.cash,
-      actualEdc: actual.edc,
-      actualQris: actual.qris,
-      actualGojek: actual.gojek,
-      actualGrab: actual.grab,
-      actualTransfer: actual.transfer,
+      counts,
     })
   }
 
-  const totalActual = METHODS.reduce((s, m) => s + actual[m], 0)
+  const totalActual = preview.system.reduce(
+    (s, m) => s + (counts[m.paymentMethodCode] ?? 0),
+    0,
+  )
   const totalVariance = totalActual - preview.totalSystem
+  const hasAnyCount = preview.system.some((m) => (counts[m.paymentMethodCode] ?? 0) > 0)
 
   return (
     <div className="space-y-3">
@@ -221,91 +217,117 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
 
       {/* Form */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60 space-y-3">
-        <div className="bg-neutral-50 p-3 rounded-lg">
-          <Checkbox
-            label={<span className="font-medium">Auto-isi dari sistem</span>}
-            description="Skip blind count - gunakan kalau yakin tidak ada selisih."
-            checked={useSystemAsActual}
-            onCheckedChange={setUseSystemAsActual}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <div className="grid grid-cols-12 gap-2 text-label text-neutral-500 px-1">
-            <span className="col-span-4">Metode</span>
-            <span className="col-span-4 text-right">Sistem</span>
-            <span className="col-span-4 text-right">Fisik</span>
+        {preview.system.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-body-sm text-neutral-600">
+              Belum ada transaksi paid di shift ini. Settlement tetap bisa disubmit
+              dengan total Rp 0.
+            </p>
           </div>
-          {METHODS.map((m) => {
-            const sysVal = preview.system[m]
-            const actVal = actual[m]
-            const diff = actVal - sysVal
-            return (
-              <div
-                key={m}
-                className="grid grid-cols-12 gap-2 items-center py-1.5 border-b border-neutral-100 last:border-0"
-              >
-                <span className="col-span-4 text-body-sm font-medium text-neutral-800">
-                  {PAYMENT_LABEL[m]}
-                </span>
-                <span className="col-span-4 text-right text-body-sm text-neutral-600 tabular-nums">
-                  {formatCurrency(sysVal)}
-                </span>
-                <input
-                  type="number"
-                  value={actual[m] || ''}
-                  onChange={(e) =>
-                    setActual({ ...actual, [m]: Number(e.target.value) || 0 })
-                  }
-                  min={0}
-                  step={1000}
-                  disabled={useSystemAsActual}
-                  placeholder="0"
-                  className={cn(
-                    'col-span-4 px-2 py-2 border border-neutral-300 rounded-md text-right text-body-sm tabular-nums',
-                    'focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500',
-                    'disabled:bg-neutral-50 disabled:cursor-not-allowed',
-                    diff !== 0 && actVal > 0 && (diff > 0 ? 'border-primary-300' : 'border-danger-300')
-                  )}
-                />
+        ) : (
+          <>
+            <div className="bg-neutral-50 p-3 rounded-lg">
+              <Checkbox
+                label={<span className="font-medium">Auto-isi dari sistem</span>}
+                description="Skip blind count - gunakan kalau yakin tidak ada selisih."
+                checked={useSystemAsActual}
+                onCheckedChange={setUseSystemAsActual}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="grid grid-cols-12 gap-2 text-label text-neutral-500 px-1">
+                <span className="col-span-4">Metode</span>
+                <span className="col-span-4 text-right">Sistem</span>
+                <span className="col-span-4 text-right">Fisik</span>
               </div>
-            )
-          })}
-        </div>
+              {preview.system.map((s) => {
+                const sysVal = s.total
+                const actVal = counts[s.paymentMethodCode] ?? 0
+                const diff = actVal - sysVal
+                return (
+                  <div
+                    key={s.paymentMethodCode}
+                    className="grid grid-cols-12 gap-2 items-center py-1.5 border-b border-neutral-100 last:border-0"
+                  >
+                    <span className="col-span-4 text-body-sm font-medium text-neutral-800 flex items-center gap-2 min-w-0">
+                      <span
+                        className="h-3 w-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: s.colorHex }}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{s.methodLabel}</span>
+                    </span>
+                    <span className="col-span-4 text-right text-body-sm text-neutral-600 tabular-nums">
+                      {formatCurrency(sysVal)}
+                    </span>
+                    <input
+                      type="number"
+                      value={counts[s.paymentMethodCode] || ''}
+                      onChange={(e) =>
+                        setCounts((c) => ({
+                          ...c,
+                          [s.paymentMethodCode]: Number(e.target.value) || 0,
+                        }))
+                      }
+                      min={0}
+                      step={1000}
+                      disabled={useSystemAsActual}
+                      placeholder="0"
+                      className={cn(
+                        'col-span-4 px-2 py-2 border border-neutral-300 rounded-md text-right text-body-sm tabular-nums',
+                        'focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500',
+                        'disabled:bg-neutral-50 disabled:cursor-not-allowed',
+                        diff !== 0 &&
+                          actVal > 0 &&
+                          (diff > 0 ? 'border-primary-300' : 'border-danger-300'),
+                      )}
+                    />
+                  </div>
+                )
+              })}
+            </div>
 
-        {/* Live variance preview */}
-        {totalActual > 0 && (
-          <div
-            className={cn(
-              'mt-3 p-3 rounded-lg flex items-center justify-between',
-              totalVariance === 0 && 'bg-success-50 text-success-800',
-              totalVariance > 0 && 'bg-primary-50 text-primary-800',
-              totalVariance < 0 && 'bg-danger-50 text-danger-800'
+            {/* Live variance preview */}
+            {hasAnyCount && (
+              <div
+                className={cn(
+                  'mt-3 p-3 rounded-lg flex items-center justify-between',
+                  totalVariance === 0 && 'bg-success-50 text-success-800',
+                  totalVariance > 0 && 'bg-primary-50 text-primary-800',
+                  totalVariance < 0 && 'bg-danger-50 text-danger-800',
+                )}
+              >
+                <span className="text-body-sm font-medium">Selisih total</span>
+                <span className="text-body font-semibold tabular-nums">
+                  {totalVariance >= 0 ? '+' : ''}
+                  {formatCurrency(totalVariance)}
+                </span>
+              </div>
             )}
-          >
-            <span className="text-body-sm font-medium">Selisih total</span>
-            <span className="text-body font-semibold tabular-nums">
-              {totalVariance >= 0 ? '+' : ''}
-              {formatCurrency(totalVariance)}
-            </span>
-          </div>
-        )}
 
-        {preview.bankBreakdown.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-neutral-100">
-            <p className="text-label text-neutral-600 mb-2">Breakdown per Bank</p>
-            <ul className="space-y-1">
-              {preview.bankBreakdown.map((b, i) => (
-                <li key={i} className="flex justify-between text-body-sm text-neutral-700 tabular-nums">
-                  <span>
-                    <Badge tone="info" variant="soft" size="sm">{b.method.toUpperCase()}</Badge>
-                    <span className="ml-2 font-medium">{b.bank}</span>
-                  </span>
-                  <span>{formatCurrency(b.total)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {preview.bankBreakdown.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-neutral-100">
+                <p className="text-label text-neutral-600 mb-2">Breakdown per Bank</p>
+                <ul className="space-y-1">
+                  {preview.bankBreakdown.map((b, i) => (
+                    <li
+                      key={i}
+                      className="flex justify-between text-body-sm text-neutral-700 tabular-nums"
+                    >
+                      <span>
+                        <Badge tone="info" variant="soft" size="sm">
+                          {b.method.toUpperCase()}
+                        </Badge>
+                        <span className="ml-2 font-medium">{b.bank}</span>
+                      </span>
+                      <span>{formatCurrency(b.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
 
         <Button
@@ -366,13 +388,29 @@ function SettlementDetailView({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {METHODS.map((m) => {
-              const sys = settlement.system[m]
-              const act = settlement.actual[m]
-              const diff = settlement.variance[m]
+            {settlement.methodCounts.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-4 text-center text-neutral-500">
+                  Tidak ada metode pembayaran tercatat.
+                </td>
+              </tr>
+            )}
+            {settlement.methodCounts.map((mc) => {
+              const sys = mc.system
+              const act = mc.counted
+              const diff = mc.variance
               return (
-                <tr key={m}>
-                  <td className="py-2 font-medium text-neutral-800">{PAYMENT_LABEL[m]}</td>
+                <tr key={mc.paymentMethodCode}>
+                  <td className="py-2 font-medium text-neutral-800">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="h-3 w-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: mc.colorHex }}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{mc.methodLabel}</span>
+                    </span>
+                  </td>
                   <td className="py-2 text-right text-neutral-600">{formatCurrency(sys)}</td>
                   <td className="py-2 text-right text-neutral-900 font-medium">
                     {formatCurrency(act)}
@@ -382,7 +420,7 @@ function SettlementDetailView({
                       'py-2 text-right font-medium',
                       diff === 0 && 'text-neutral-400',
                       diff > 0 && 'text-primary-700',
-                      diff < 0 && 'text-danger-700'
+                      diff < 0 && 'text-danger-700',
                     )}
                   >
                     {diff > 0 ? '+' : ''}
@@ -397,14 +435,14 @@ function SettlementDetailView({
                 {formatCurrency(settlement.totalSystem)}
               </td>
               <td className="py-2.5 text-right text-neutral-900">
-                {formatCurrency(settlement.totalActual)}
+                {formatCurrency(settlement.totalCounted)}
               </td>
               <td
                 className={cn(
                   'py-2.5 text-right',
                   totalDiff === 0 && 'text-success-700',
                   totalDiff > 0 && 'text-primary-700',
-                  totalDiff < 0 && 'text-danger-700'
+                  totalDiff < 0 && 'text-danger-700',
                 )}
               >
                 {totalDiff > 0 ? '+' : ''}
@@ -425,7 +463,9 @@ function SettlementDetailView({
                 className="flex justify-between text-body-sm text-neutral-700 py-2 tabular-nums"
               >
                 <span>
-                  <Badge tone="info" variant="soft" size="sm">{b.method.toUpperCase()}</Badge>
+                  <Badge tone="info" variant="soft" size="sm">
+                    {b.method.toUpperCase()}
+                  </Badge>
                   <span className="ml-2 font-medium text-neutral-900">{b.bank}</span>
                 </span>
                 <span>{formatCurrency(b.total)}</span>
