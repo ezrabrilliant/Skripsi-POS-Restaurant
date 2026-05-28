@@ -106,7 +106,24 @@ export function PaymentMethodFormModal({ existing, allBanks, onClose, onSuccess 
   const mutation = useMutation({
     mutationFn: async () => {
       if (isEdit && existing) {
-        // Update field utama (PATCH).
+        // Sync bank junction via diff (assign delta baru, unassign yang hilang).
+        const oldIds = new Set(existing.banks.map((b) => b.id))
+        const newIds = new Set(form.bankIds)
+        const toAdd = [...newIds].filter((id) => !oldIds.has(id))
+        const toRemove = [...oldIds].filter((id) => !newIds.has(id))
+
+        // URUTAN PENTING (REV 2.6 fix): assign DULU → update → unassign TERAKHIR.
+        // Backend `updatePaymentMethod` menolak requiresBank=true kalau bank count
+        // di DB masih 0. Kalau PATCH duluan (sebelum assign), QRIS yang awalnya
+        // 0 bank langsung ditolak walau user sudah pilih bank di form. Assign
+        // duluan memastikan count sudah benar saat flag requiresBank di-flip.
+        // Unassign ditaruh terakhir supaya: (a) kalau requiresBank baru di-set
+        // false, guard "minimal 1 bank" sudah tidak aktif; (b) kalau tetap true,
+        // count sudah grown dari toAdd jadi tidak kena last-bank guard.
+        for (const bankId of toAdd) {
+          await paymentMethodService.assignBank(existing.id, bankId)
+        }
+
         const patch: UpdatePaymentMethodInput = {
           label: form.label,
           colorHex: form.colorHex,
@@ -117,15 +134,6 @@ export function PaymentMethodFormModal({ existing, allBanks, onClose, onSuccess 
         }
         await paymentMethodService.update(existing.id, patch)
 
-        // Sync bank junction via diff (assign delta yang baru, unassign yang
-        // tidak ada lagi). Minimize round-trip dibanding clear-all+re-add.
-        const oldIds = new Set(existing.banks.map((b) => b.id))
-        const newIds = new Set(form.bankIds)
-        const toAdd = [...newIds].filter((id) => !oldIds.has(id))
-        const toRemove = [...oldIds].filter((id) => !newIds.has(id))
-        for (const bankId of toAdd) {
-          await paymentMethodService.assignBank(existing.id, bankId)
-        }
         for (const bankId of toRemove) {
           await paymentMethodService.unassignBank(existing.id, bankId)
         }
