@@ -10,7 +10,7 @@
 // nonaktif" + visual distinction (badge "Nonaktif" + opacity-50) + tombol
 // "Aktifkan" untuk item nonaktif.
 
-import { useState, useMemo, type FormEvent } from 'react'
+import { useEffect, useState, useMemo, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ClipboardCheck, XCircle, Edit2, Trash2, RotateCcw, History } from 'lucide-react'
 import {
@@ -43,6 +43,7 @@ import { useStockListControls } from './useStockListControls'
 import { StockFilterToolbar } from './StockFilterToolbar'
 import { SortableHeader } from './SortableHeader'
 import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
+import type { StockTabHandoff } from './stockDeepLink'
 
 const CATEGORIES: RawMaterialCategory[] = [
   'bumbuDasar',
@@ -57,7 +58,14 @@ const CATEGORY_FORM_OPTIONS: ComboboxOption[] = CATEGORIES.map((c) => ({
   label: RAW_MATERIAL_CATEGORY_LABEL[c],
 }))
 
-export default function RawMaterialsTab() {
+interface RawMaterialsTabProps {
+  /** REV 2.9: intent deep-link (buka modal opname / sorot baris / seed filter). */
+  handoff?: StockTabHandoff | null
+  /** Dipanggil sekali setelah handoff diserap, agar StockPage me-null-kan. */
+  onHandoffConsumed?: () => void
+}
+
+export default function RawMaterialsTab({ handoff, onHandoffConsumed }: RawMaterialsTabProps) {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
@@ -66,10 +74,23 @@ export default function RawMaterialsTab() {
   const canManage = user?.role === 'owner' || user?.role === 'cashier'
   // REV 2.5.2: owner toggle untuk lihat item yang sudah di-soft-delete.
   const [includeInactive, setIncludeInactive] = useState(false)
-  const [showOpname, setShowOpname] = useState(false)
+  // REV 2.9: opname di-seed sekali dari handoff (raw tak punya 'restock').
+  const [showOpname, setShowOpname] = useState(() => handoff?.action === 'opname')
   const [editingRm, setEditingRm] = useState<RawMaterialView | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
   const [historyId, setHistoryId] = useState<number | null>(null)
+  const [highlightId, setHighlightId] = useState<number | null>(() => handoff?.focusId ?? null)
+
+  // Serap handoff sekali: tandai dikonsumsi + bersihkan sorot setelah animasi.
+  useEffect(() => {
+    if (!handoff) return
+    onHandoffConsumed?.()
+    if (handoff.focusId != null) {
+      const t = setTimeout(() => setHighlightId(null), 3000)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: rawMaterials = [], isLoading } = useQuery({
     queryKey: ['rawMaterials', includeInactive],
@@ -171,6 +192,7 @@ export default function RawMaterialsTab() {
     getLastStockedAt: (rm) => rm.lastStockedAt,
     getStatus: (rm) => (rm.stockQty === 0 ? 'habis' : rm.isLowStock ? 'rendah' : 'aman'),
     categoryOptions: CATEGORY_FORM_OPTIONS, // enum tetap (bukan derive dari rows)
+    initial: { search: handoff?.query, status: handoff?.status },
   })
 
   // Riwayat per item (drawer).
@@ -408,6 +430,7 @@ export default function RawMaterialsTab() {
           columns={columns}
           data={controls.view}
           rowKey={(rm) => rm.id}
+          highlightKey={highlightId}
           emptyTitle="Belum ada raw material"
           emptyDescription={
             controls.activeFilterCount > 0

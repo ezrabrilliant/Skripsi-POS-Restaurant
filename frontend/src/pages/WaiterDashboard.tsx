@@ -58,7 +58,7 @@ export default function WaiterDashboard() {
               <h3 className="text-title font-semibold text-neutral-900 mb-3">Aksi Cepat</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <QuickAction
-                  to="/stock?action=opname-portion"
+                  to="/stock?tab=portion&action=opname"
                   icon={ClipboardCheck}
                   label="Opname Stok Porsi"
                 />
@@ -67,10 +67,12 @@ export default function WaiterDashboard() {
                   icon={ClipboardCheck}
                   label="Opname Raw Material"
                 />
+                {/* REV 2.9: mark-habis adalah aksi per-baris, bukan modal batch.
+                    Link ini menyaring ke item stok rendah agar mudah ditandai habis. */}
                 <QuickAction
-                  to="/stock?action=mark-habis"
+                  to="/stock?tab=portion&status=rendah"
                   icon={XCircle}
-                  label="Mark Item Habis"
+                  label="Tandai Item Habis"
                 />
               </div>
             </div>

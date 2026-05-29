@@ -23,6 +23,12 @@ export interface StockListControlsConfig<T> {
   getStatus: (r: T) => StockStatus
   /** Override daftar kategori (mis. enum tetap raw material). Default: derive dari rows. */
   categoryOptions?: { value: string; label: string }[]
+  /**
+   * REV 2.9: nilai awal filter saat tiba via deep-link (`/stock?status=…&q=…`).
+   * Hanya dipakai sekali saat mount (useState initializer); perubahan setelahnya
+   * diabaikan agar interaksi user tidak ter-reset.
+   */
+  initial?: { search?: string; category?: string; status?: StockStatusFilter }
 }
 
 // Arah default saat pertama klik tiap kolom.
@@ -34,9 +40,12 @@ const DEFAULT_DIR: Record<StockSortKey, StockSortDir> = {
 }
 
 export function useStockListControls<T>(config: StockListControlsConfig<T>) {
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>('all')
+  // Seed awal dari deep-link (config.initial) — initializer hanya jalan sekali.
+  const [search, setSearch] = useState(() => config.initial?.search ?? '')
+  const [category, setCategory] = useState(() => config.initial?.category ?? 'all')
+  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>(
+    () => config.initial?.status ?? 'all'
+  )
   const [opnameStatus, setOpnameStatus] = useState<OpnameStatusFilter>('all')
   const [sortKey, setSortKey] = useState<StockSortKey>('category')
   const [sortDir, setSortDir] = useState<StockSortDir>('asc')

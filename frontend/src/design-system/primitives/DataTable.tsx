@@ -7,7 +7,7 @@
  * future kalau perlu.
  */
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { EmptyState } from './EmptyState'
@@ -42,6 +42,14 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void
   /** Key extractor unique per row. */
   rowKey: (row: T, index: number) => string | number
+  /**
+   * REV 2.9: kunci baris yang harus disorot saat tiba via deep-link
+   * (Menu→Stok / Stok→Menu). Saat di-set non-null, baris yang cocok di-scroll
+   * ke tengah viewport + diberi ring sementara (~2.5s) lalu memudar. Idempoten:
+   * set ulang nilai yang sama tidak men-trigger ulang; ubah nilainya untuk
+   * memicu sorot baru.
+   */
+  highlightKey?: string | number | null
   className?: string
 }
 
@@ -68,9 +76,34 @@ export function DataTable<T>({
   mobileCard,
   onRowClick,
   rowKey,
+  highlightKey,
   className,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile()
+
+  // REV 2.9: sorot baris transient saat tiba via deep-link. `pulseKey` aktif
+  // selama window animasi; ref dipasang ke baris yang cocok untuk scrollIntoView.
+  const [pulseKey, setPulseKey] = useState<string | number | null>(null)
+  const highlightRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (highlightKey == null) return
+    setPulseKey(highlightKey)
+    // Tunggu commit agar ref baris sudah terpasang sebelum scroll.
+    const raf = requestAnimationFrame(() => {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    const t = setTimeout(() => setPulseKey(null), 2500)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(t)
+    }
+  }, [highlightKey])
+
+  const rowHighlightClass = (key: string | number) =>
+    key === pulseKey ? 'ring-2 ring-primary-400 ring-inset bg-primary-50/70' : ''
+  const setRowRef = (key: string | number) =>
+    key === highlightKey ? (el: HTMLElement | null) => { highlightRef.current = el } : undefined
 
   if (isLoading) {
     return (
@@ -103,9 +136,13 @@ export function DataTable<T>({
             return (
               <button
                 key={key}
+                ref={setRowRef(key) as ((el: HTMLButtonElement | null) => void) | undefined}
                 type="button"
                 onClick={() => onRowClick(row)}
-                className="w-full text-left rounded-lg bg-white border border-neutral-200 hover:border-neutral-300 active:bg-neutral-50 transition-colors p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                className={cn(
+                  'w-full text-left rounded-lg bg-white border border-neutral-200 hover:border-neutral-300 active:bg-neutral-50 transition-[background-color,box-shadow] duration-500 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+                  rowHighlightClass(key)
+                )}
               >
                 {mobileCard(row, idx)}
               </button>
@@ -114,7 +151,11 @@ export function DataTable<T>({
           return (
             <div
               key={key}
-              className="rounded-lg bg-white border border-neutral-200 p-3"
+              ref={setRowRef(key) as ((el: HTMLDivElement | null) => void) | undefined}
+              className={cn(
+                'rounded-lg bg-white border border-neutral-200 p-3 transition-[background-color,box-shadow] duration-500',
+                rowHighlightClass(key)
+              )}
             >
               {mobileCard(row, idx)}
             </div>
@@ -148,12 +189,17 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {data.map((row, idx) => (
+            {data.map((row, idx) => {
+              const key = rowKey(row, idx)
+              return (
               <tr
-                key={rowKey(row, idx)}
+                key={key}
+                ref={setRowRef(key) as ((el: HTMLTableRowElement | null) => void) | undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={cn(
-                  onRowClick && 'cursor-pointer hover:bg-neutral-50 transition-colors'
+                  'transition-[background-color,box-shadow] duration-500',
+                  onRowClick && 'cursor-pointer hover:bg-neutral-50',
+                  rowHighlightClass(key)
                 )}
               >
                 {visibleCols.map((col) => (
@@ -169,7 +215,8 @@ export function DataTable<T>({
                   </td>
                 ))}
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

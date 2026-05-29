@@ -5,12 +5,13 @@
 //   - Opname (batch, input qty fisik)
 //   - Mark Habis (quick set 0)
 
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
 import { portionService } from '@/services/portionService'
 import { PORTION_REASON_LABEL, type PortionStockView, type StockType } from '@/types'
 import { MenuTypeFilter, toggleStockType } from './MenuTypeFilter'
+import type { StockTabHandoff } from './stockDeepLink'
 import { cn, formatDateTime } from '@/lib/utils'
 import { relativeTime, isSameLocalDate } from '@/lib/relativeTime'
 import {
@@ -30,16 +31,36 @@ import { StockFilterToolbar } from './StockFilterToolbar'
 import { SortableHeader } from './SortableHeader'
 import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
 
-export default function PortionStockTab() {
+interface PortionStockTabProps {
+  /** REV 2.9: intent deep-link (buka modal / sorot baris / seed filter). */
+  handoff?: StockTabHandoff | null
+  /** Dipanggil sekali setelah handoff diserap, agar StockPage me-null-kan. */
+  onHandoffConsumed?: () => void
+}
+
+export default function PortionStockTab({ handoff, onHandoffConsumed }: PortionStockTabProps) {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
-  const [showRestockMorning, setShowRestockMorning] = useState(false)
-  const [showOpname, setShowOpname] = useState(false)
+  // Modal/sorot di-seed sekali dari handoff (initializer hanya jalan saat mount).
+  const [showRestockMorning, setShowRestockMorning] = useState(() => handoff?.action === 'restock')
+  const [showOpname, setShowOpname] = useState(() => handoff?.action === 'opname')
   const [emergencyTarget, setEmergencyTarget] = useState<PortionStockView | null>(null)
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  const [highlightId, setHighlightId] = useState<number | null>(() => handoff?.focusId ?? null)
   // REV 2.8.1: filter tipe stok (multi-select). Default tampilkan yang tracked (portion).
   const [types, setTypes] = useState<Set<StockType>>(() => new Set<StockType>(['portion']))
+
+  // Serap handoff sekali: tandai dikonsumsi + bersihkan sorot setelah animasi.
+  useEffect(() => {
+    if (!handoff) return
+    onHandoffConsumed?.()
+    if (handoff.focusId != null) {
+      const t = setTimeout(() => setHighlightId(null), 3000)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: stocks = [], isLoading } = useQuery({
     queryKey: ['portionStocks'],
@@ -105,6 +126,7 @@ export default function PortionStockTab() {
           : s.isLow
             ? 'rendah'
             : 'aman',
+    initial: { search: handoff?.query, status: handoff?.status },
   })
 
   // Riwayat per item (drawer) — pakai endpoint detail yang membawa recentMovements.
@@ -303,6 +325,7 @@ export default function PortionStockTab() {
           columns={columns}
           data={controls.view}
           rowKey={(s) => s.menuId}
+          highlightKey={highlightId}
           emptyTitle="Tidak ada item"
           emptyDescription={
             controls.activeFilterCount > 0
