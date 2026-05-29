@@ -281,6 +281,72 @@ async function buildMenuGraph(
   return graph;
 }
 
+/// REV 2.10 P3: validasi pilihan slot paket SEBELUM resolveStockTargets.
+/// `resolveStockTargets` adalah pure no-throw resolver yang MEMPERCAYAI input —
+/// tanpa guard ini, paketChoices yang ngawur (slot hilang, slot tak dikenal,
+/// opsi bukan anggota slot) bisa men-decrement stok sembarang menu. Guard ini
+/// memakai daftar opsi yang diizinkan per slot dari graph (node.paket.choices[].options,
+/// yaitu {targetMenuId, targetVariantId} dari PaketChoiceOption).
+///
+/// Aturan match (allowed option = {targetMenuId, targetVariantId}):
+///   - option.targetVariantId != null → match iff picked.variantId === option.targetVariantId.
+///   - else option.targetMenuId != null → picked.targetMenuId harus === option.targetMenuId, DAN
+///       - target menu kind=variant: picked.variantId harus varian nyata menu itu;
+///       - selain itu (simple/paket, mis. Air Mineral): picked.variantId harus null/undefined.
+function validatePaketChoices(
+  graph: Record<number, MenuNode>,
+  node: MenuNode,
+  item: OrderItemInput,
+): void {
+  if (node.kind !== 'paket' || !node.paket) return;
+  const choices = node.paket.choices;
+  const picks = item.paketChoices ?? {};
+
+  // 1. Slot wajib: setiap slot choice paket harus punya entri matching by label.
+  for (const slot of choices) {
+    if (!Object.prototype.hasOwnProperty.call(picks, slot.label)) {
+      throw new AppError(`Pilihan "${slot.label}" wajib diisi`, 400);
+    }
+  }
+
+  // 2. Slot tak dikenal: setiap key di paketChoices harus punya slot dengan label itu.
+  const slotByLabel = new Map(choices.map((c) => [c.label, c]));
+  for (const key of Object.keys(picks)) {
+    if (!slotByLabel.has(key)) {
+      throw new AppError(`Slot pilihan "${key}" tidak dikenal`, 400);
+    }
+  }
+
+  // 3. Keanggotaan: setiap pilihan harus cocok dengan salah satu opsi yang diizinkan.
+  for (const slot of choices) {
+    // Aman: rule 1 sudah memastikan setiap slot punya entri picks[slot.label].
+    const picked = picks[slot.label]!;
+    const pickedVariantId = picked.variantId ?? null;
+    const matched = slot.options.some((opt) => {
+      const optVariantId = opt.targetVariantId ?? null;
+      const optMenuId = opt.targetMenuId ?? null;
+      if (optVariantId != null) {
+        return pickedVariantId === optVariantId;
+      }
+      if (optMenuId != null) {
+        if (picked.targetMenuId !== optMenuId) return false;
+        const targetNode = graph[optMenuId];
+        // Kalau target menu varian → picked.variantId harus varian nyata menu itu;
+        // selain itu (simple/paket, mis. Air Mineral) → picked.variantId harus null.
+        if (targetNode?.kind === 'variant') {
+          return pickedVariantId != null && targetNode.variants?.[pickedVariantId] != null;
+        }
+        return pickedVariantId == null;
+      }
+      return false;
+    });
+    if (!matched) {
+      const label = picked.chosenLabel ?? String(picked.targetMenuId);
+      throw new AppError(`Pilihan "${label}" tidak valid untuk slot "${slot.label}"`, 400);
+    }
+  }
+}
+
 /// Validasi item + resolve stok target untuk setiap item via graph FK-based.
 /// `graph` dibangun sekali oleh caller (buildMenuGraph). `menuMeta` menyimpan
 /// price + name + variant prices untuk unitPrice + audit note.
@@ -318,6 +384,14 @@ async function resolveItems(
         throw new AppError(`Varian id=${variantId} bukan milik menu "${menu.name}"`, 400);
       }
       unitPrice = variant.price;
+    }
+
+    // REV 2.10 P3: validasi slot paket SEBELUM resolve stok (resolveStockTargets
+    // adalah pure no-throw resolver yang mempercayai input). Untuk item non-paket,
+    // helper ini no-op. Mencegah paketChoices ngawur men-decrement stok sembarangan.
+    const node = graph[input.menuId];
+    if (node) {
+      validatePaketChoices(graph, node, input);
     }
 
     const deductions = resolveStockTargets(graph, {
