@@ -2,7 +2,7 @@
 
 **Tanggal:** Jumat, 8 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |

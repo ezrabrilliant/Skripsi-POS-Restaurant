@@ -2,7 +2,7 @@
 
 **Tanggal:** Jumat, 15 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |
@@ -35,7 +35,7 @@
 | No | Deskripsi Pesanan | Nominal (Rp) | Metode Pembayaran |
 | :--- | :--- | :--- | :--- |
 | 1 | 9 Ekor B, 4 Udang W (Fendi, Eming) | 1.680.000 | TF MK |
-| 2 | 1 Ekor, 1 Semur, 1 Gasem, 1 Gule, 1 Rawon, 1 Paha B | 240.000 | TF MK |
+| 2 | 1 Ekor, 1 Semur, 1 Gasem, 1 Gule, 1 Rawon | 240.000 | TF MK |
 | 3 | 2 Paket A (2 Dada B, 2 Teh M), 2 Susuk | 130.000 | Debit BCA |
 | 4 | 1 Paket Hemat (Dada B, AM), 1 Paket C (Gasem D, AM), Jeruk Peras, 1 Krupuk | 105.000 | Qris BCA |
 | 5 | 1 Paket A (Dada B, Teh M) | 50.000 | Qris BCA |

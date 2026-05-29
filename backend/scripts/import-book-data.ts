@@ -23,13 +23,13 @@ function wib(date: string, hh: number, mm: number): Date {
   return new Date(`${date}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`)
 }
 
-async function resetImport() {
-  // Hapus HANYA data import: shift malam tanggal 1-27 Mei 2026 + turunannya (cascade).
-  // Range lebar (UTC) untuk catch shift off-by-one dari run buggy sebelumnya juga.
+async function resetImport(dates: string[]) {
+  // Hapus HANYA data import buku: shift malam pada TANGGAL yang sedang di-import
+  // (scoped — TIDAK menyentuh tanggal di luar scope, mis. data live prod 27-28 Mei).
   const shifts = await prisma.shift.findMany({
     where: {
       type: 'malam',
-      date: { gte: new Date('2026-04-29T00:00:00Z'), lte: new Date('2026-05-28T00:00:00Z') },
+      date: { in: dates.map((d) => new Date(`${d}T00:00:00Z`)) },
     },
     select: { id: true },
   })
@@ -147,17 +147,21 @@ async function importDay(day: BookDay, menuByName: Map<string, { id: number; pri
 }
 
 async function main() {
-  console.log('=== Import Data Buku 1-27 Mei 2026 ===')
+  const untilArg = process.argv.find((a) => a.startsWith('--until='))
+  const until = untilArg ? untilArg.split('=')[1] : '2026-05-27'
+  const days = BOOK_DATA.filter((d) => d.date <= until)
+  console.log(`=== Import Data Buku 1 Mei s/d ${until} (${days.length} hari) ===`)
+
   if (process.argv.includes('--reset')) {
-    console.log('Reset data import lama...')
-    await resetImport()
+    console.log('Reset data import lama (scoped ke tanggal import)...')
+    await resetImport(days.map((d) => d.date))
   }
   const menus = await prisma.menu.findMany({ select: { id: true, name: true, price: true } })
   const menuByName = new Map(menus.map((m) => [m.name, { id: m.id, price: m.price }]))
 
   // Pre-validate semua nama item ada (gagal cepat sebelum insert apa pun)
   const missing = new Set<string>()
-  for (const day of BOOK_DATA)
+  for (const day of days)
     for (const tx of day.transactions)
       for (const it of tx.items)
         if (it.qty > 0 && !menuByName.has(it.name)) missing.add(it.name)
@@ -166,10 +170,10 @@ async function main() {
     process.exit(1)
   }
 
-  for (const day of BOOK_DATA) await importDay(day, menuByName)
+  for (const day of days) await importDay(day, menuByName)
 
   const txCount = await prisma.transaction.count({
-    where: { shift: { type: 'malam', date: { gte: new Date('2026-05-01T00:00:00+07:00'), lte: new Date('2026-05-27T23:59:59+07:00') } } },
+    where: { shift: { type: 'malam', date: { in: days.map((d) => new Date(`${d.date}T00:00:00Z`)) } } },
   })
   console.log(`\n✅ Import selesai. Total transaksi import di DB: ${txCount}`)
 }

@@ -2,7 +2,7 @@
 
 **Tanggal:** Minggu, 10 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |
@@ -34,7 +34,7 @@
 
 | No | Deskripsi Pesanan | Nominal (Rp) | Metode Pembayaran |
 | :--- | :--- | :--- | :--- |
-| 1 | 1 Paket A (Dada B, Teh m), 1 Paket B (Dada G), 1 Dada B, 1 Nasi, 2 Teh M H, 1 Paket D (Empal, AM) | 188.000 | BCA Qris |
+| 1 | 1 Paket A (Dada B, Teh m), 1 Paket B (Dada G), 1 Dada B, 1 Nasi, 2 Teh M H (manis hangat), 1 Paket D (Empal, AM (air mineral)) | 188.000 | BCA Qris |
 | 2 | 2 Paket D (2 Teh m), 2 Paket C (Gasem D, Rawon) (AM, Teh m H) | 156.000 | Cash |
 | 3 | 1 Gurame B, 2 Ati B, 2 Teh T J, 1 Petai, 2 Nasi, 1 Krupuk | 189.000 | BCA Qris |
 | 4 | 2 Paket B (2 Dada B) | 80.000 | BCA Qris |

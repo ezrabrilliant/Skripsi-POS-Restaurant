@@ -264,6 +264,8 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     minStock: 5,
     imageUrl: SEMUR_DAGING_IMG,
   },
+  // REV 2.8: Semur Ayam — item stok-only dari buku (dicatat opname harian, jarang dijual).
+  { name: 'Semur Ayam', category: 'Sayur & Sup', price: 30000, stockType: 'portion', minStock: 5, imageUrl: SEMUR_DAGING_IMG },
   {
     name: 'Gulai Daging',
     category: 'Sayur & Sup',
@@ -302,7 +304,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     minStock: 10,
     imageUrl: BAKWAN_PENYET_IMG,
   },
-  { name: 'Petai Goreng', category: 'Side Dish', price: 20000, stockType: 'nonStock', imageUrl: PETAI_IMG },
+  { name: 'Petai Goreng', category: 'Side Dish', price: 20000, stockType: 'portion', minStock: 5, imageUrl: PETAI_IMG },
   { name: 'Tahu Tempe Penyet', category: 'Side Dish', price: 20000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
   { name: 'Tahu Tempe Goreng', category: 'Side Dish', price: 12000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
   { name: 'Tahu Goreng', category: 'Side Dish', price: 10000, stockType: 'nonStock', imageUrl: TAHU_TEMPE_IMG },
@@ -314,13 +316,14 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   { name: 'Sambal Terasi', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
   { name: 'Sambal Tomat', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
   // REV 2.6: 2 varian kerupuk dari data buku historis (Krupuk B 7k + Krupuk C/Udang 15k).
-  { name: 'Kerupuk', category: 'Side Dish', price: 7000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
-  { name: 'Kerupuk Udang', category: 'Side Dish', price: 15000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
+  // REV 2.8: portion (ditrack opname harian di buku — Krupuk B→Kerupuk, Krupuk C→Kerupuk Udang).
+  { name: 'Kerupuk', category: 'Side Dish', price: 7000, stockType: 'portion', minStock: 5, imageUrl: SAMBAL_IMG },
+  { name: 'Kerupuk Udang', category: 'Side Dish', price: 15000, stockType: 'portion', minStock: 5, imageUrl: SAMBAL_IMG },
 
   // ============================================================
   // KATEGORI: Minuman (14 item - sesuai catalog versi user edit)
   // ============================================================
-  { name: 'Sarang Burung', category: 'Minuman', price: 80000, stockType: 'nonStock', imageUrl: SARANG_BURUNG_IMG },
+  { name: 'Sarang Burung', category: 'Minuman', price: 80000, stockType: 'portion', minStock: 5, imageUrl: SARANG_BURUNG_IMG },
   { name: 'Air Mineral', category: 'Minuman', price: 5000, stockType: 'nonStock', imageUrl: AIR_MINERAL_IMG },
   { name: 'Teh Tawar Biasa', category: 'Minuman', price: 8000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
   { name: 'Teh Tawar Jumbo', category: 'Minuman', price: 12000, stockType: 'nonStock', imageUrl: ES_TEH_IMG },
@@ -332,7 +335,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   { name: 'Jeruk Peras', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: JERUK_PERAS_IMG },
   { name: 'Jeruk Murni', category: 'Minuman', price: 25000, stockType: 'nonStock', imageUrl: JERUK_MURNI_IMG },
   { name: 'Kopi', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: KOPI_IMG },
-  { name: 'Susu Kedelai', category: 'Minuman', price: 15000, stockType: 'nonStock', imageUrl: SUSU_KEDELAI_IMG },
+  { name: 'Susu Kedelai', category: 'Minuman', price: 15000, stockType: 'portion', minStock: 5, imageUrl: SUSU_KEDELAI_IMG },
   { name: 'Es Cincau', category: 'Minuman', price: 12000, stockType: 'nonStock', imageUrl: ES_CINCAU_IMG },
 
   // ============================================================

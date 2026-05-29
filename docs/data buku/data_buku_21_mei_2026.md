@@ -2,7 +2,7 @@
 
 **Tanggal:** Kamis, 21 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |
@@ -34,7 +34,7 @@
 | No | Deskripsi Pesanan | Nominal (Rp) | Metode Pembayaran |
 | :--- | :--- | :--- | :--- |
 | 1 | 3 EKOR B | 360.000 | TF MK |
-| 2 | 2 EKOR, 1 Ikan, 2 jeruk peras, 1 Krupuk | 305.000 | Qris BCA |
+| 2 | 2 EKOR, 1 Ikan, 2 jeruk peras, 1 Krupuk | 385.000 | Qris BCA |
 | 3 | Inhaler | 35.000 | Cash |
 | 4 | PAKET A (DADA B, TEH M), 1 PAKET B (DADA B), 2 Paket C (Gasem G, Gule D), 1 Tahu Tempe G | 182.000 | Cash |
 | 5 | 1 Gurame B, 2 NASI, 2 Teh T, 1 Petai | 156.000 | BCA Qris |

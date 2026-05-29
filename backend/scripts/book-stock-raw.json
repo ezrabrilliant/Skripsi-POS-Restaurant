@@ -1,0 +1,2609 @@
+[
+ {
+  "date": "2026-05-01",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 12
+   },
+   {
+    "name": "DADA B",
+    "qty": 16
+   },
+   {
+    "name": "PAHA G",
+    "qty": 4
+   },
+   {
+    "name": "DADA G",
+    "qty": 6
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 5
+   },
+   {
+    "name": "Kepala",
+    "qty": 9
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Empal",
+    "qty": 12
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Sarang B",
+    "qty": 20
+   },
+   {
+    "name": "Susuk",
+    "qty": 4
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 22
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 39
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-02",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 13
+   },
+   {
+    "name": "DADA B",
+    "qty": 15
+   },
+   {
+    "name": "PAHA C",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 3
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 5
+   },
+   {
+    "name": "Kepala",
+    "qty": 8
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Empal",
+    "qty": 12
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Sarang B",
+    "qty": 20
+   },
+   {
+    "name": "Susuk",
+    "qty": 4
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 22
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 39
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-03",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 11
+   },
+   {
+    "name": "DADA B",
+    "qty": 13
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 3
+   },
+   {
+    "name": "Ati",
+    "qty": 8
+   },
+   {
+    "name": "Rempelo",
+    "qty": 5
+   },
+   {
+    "name": "Kepala",
+    "qty": 8
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Empal",
+    "qty": 11
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 20
+   },
+   {
+    "name": "Susuk",
+    "qty": 4
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 22
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 36
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-04",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 20
+   },
+   {
+    "name": "DADA B",
+    "qty": 21
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 3
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 5
+   },
+   {
+    "name": "Kepala",
+    "qty": 8
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Empal",
+    "qty": 10
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 20
+   },
+   {
+    "name": "Susuk",
+    "qty": 3
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 22
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 36
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-05",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 3
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 9
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Empal",
+    "qty": 10
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 19
+   },
+   {
+    "name": "Susuk",
+    "qty": 3
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 21
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 36
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-06",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 9
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 5
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Empal",
+    "qty": 10
+   },
+   {
+    "name": "Bakwan",
+    "qty": 17
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Sarang B",
+    "qty": 19
+   },
+   {
+    "name": "Susuk",
+    "qty": 3
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 20
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 35
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-07",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 7
+   },
+   {
+    "name": "Rempelo",
+    "qty": 5
+   },
+   {
+    "name": "Kepala",
+    "qty": 9
+   },
+   {
+    "name": "Gasem D",
+    "qty": 1
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 3
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Empal",
+    "qty": 10
+   },
+   {
+    "name": "Bakwan",
+    "qty": 16
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Sarang B",
+    "qty": 0
+   },
+   {
+    "name": "Susuk",
+    "qty": 3
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 18
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 38
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-08",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 23
+   },
+   {
+    "name": "DADA B",
+    "qty": 20
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 1
+   },
+   {
+    "name": "Gasem A",
+    "qty": 5
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 3
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 9
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Ikan",
+    "qty": 5
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Susu K",
+    "qty": 2
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 33
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 30
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-09",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 14
+   },
+   {
+    "name": "DADA B",
+    "qty": 12
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 3
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 1
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 2
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 9
+   },
+   {
+    "name": "Udang W",
+    "qty": 19
+   },
+   {
+    "name": "Ikan",
+    "qty": 5
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Susuk",
+    "qty": 2
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 30
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 33
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   }
+  ]
+ },
+ {
+  "date": "2026-05-10",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 12
+   },
+   {
+    "name": "DADA B",
+    "qty": 15
+   },
+   {
+    "name": "PAHA G",
+    "qty": 6
+   },
+   {
+    "name": "DADA G",
+    "qty": 4
+   },
+   {
+    "name": "Ati",
+    "qty": 9
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 3
+   },
+   {
+    "name": "Gulai D",
+    "qty": 1
+   },
+   {
+    "name": "Gulai B",
+    "qty": 2
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 4
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Ikan",
+    "qty": 4
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Susu K",
+    "qty": 2
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 30
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 31
+   },
+   {
+    "name": "Petai",
+    "qty": 18
+   }
+  ]
+ },
+ {
+  "date": "2026-05-11",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 9
+   },
+   {
+    "name": "DADA B",
+    "qty": 20
+   },
+   {
+    "name": "PAHA G",
+    "qty": 6
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 3
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 4
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Gule D",
+    "qty": 5
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 4
+   },
+   {
+    "name": "Udang W",
+    "qty": 42
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 4
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 29
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   }
+  ]
+ },
+ {
+  "date": "2026-05-12",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 23
+   },
+   {
+    "name": "PAHA G",
+    "qty": 5
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 8
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 4
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Gule D",
+    "qty": 5
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 42
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 4
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 29
+   },
+   {
+    "name": "Susuk",
+    "qty": 5
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   }
+  ]
+ },
+ {
+  "date": "2026-05-13",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 19
+   },
+   {
+    "name": "PAHA G",
+    "qty": 7
+   },
+   {
+    "name": "DADA G",
+    "qty": 7
+   },
+   {
+    "name": "Ati",
+    "qty": 7
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 8
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Gule D",
+    "qty": 5
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Lidang W",
+    "qty": 42
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 4
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 29
+   },
+   {
+    "name": "Susuk",
+    "qty": 4
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   }
+  ]
+ },
+ {
+  "date": "2026-05-14",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 19
+   },
+   {
+    "name": "PAHA G",
+    "qty": 3
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 7
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 9
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 3
+   },
+   {
+    "name": "Gule D",
+    "qty": 5
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 42
+   },
+   {
+    "name": "Bakwan",
+    "qty": 14
+   },
+   {
+    "name": "Empal",
+    "qty": 3
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 28
+   },
+   {
+    "name": "Susuk",
+    "qty": 2
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   }
+  ]
+ },
+ {
+  "date": "2026-05-15",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 32
+   },
+   {
+    "name": "DADA B",
+    "qty": 33
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 0
+   },
+   {
+    "name": "Rempelo",
+    "qty": 0
+   },
+   {
+    "name": "Kepala",
+    "qty": 10
+   },
+   {
+    "name": "Gasem D",
+    "qty": 1
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 4
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 28
+   },
+   {
+    "name": "Bakwan",
+    "qty": 13
+   },
+   {
+    "name": "Empal",
+    "qty": 3
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Susuk",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 28
+   }
+  ]
+ },
+ {
+  "date": "2026-05-16",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "ATI",
+    "qty": 17
+   },
+   {
+    "name": "REMPELO",
+    "qty": 4
+   },
+   {
+    "name": "KEPALA",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "IKAN",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 17
+   },
+   {
+    "name": "Bakwan",
+    "qty": 13
+   },
+   {
+    "name": "Empal",
+    "qty": 3
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Susuk",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 27
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 27
+   }
+  ]
+ },
+ {
+  "date": "2026-05-17",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 25
+   },
+   {
+    "name": "DADA B",
+    "qty": 25
+   },
+   {
+    "name": "PAHA C",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 6
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 7
+   },
+   {
+    "name": "Bakwan",
+    "qty": 13
+   },
+   {
+    "name": "Empal",
+    "qty": 3
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Susu K",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 25
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 26
+   }
+  ]
+ },
+ {
+  "date": "2026-05-18",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 6
+   },
+   {
+    "name": "DADA G",
+    "qty": 4
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 6
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 1
+   },
+   {
+    "name": "Udang W",
+    "qty": 21
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 2
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Susuk",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 24
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 26
+   }
+  ]
+ },
+ {
+  "date": "2026-05-19",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 6
+   },
+   {
+    "name": "Gasem D",
+    "qty": 2
+   },
+   {
+    "name": "Gasem A",
+    "qty": 2
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 2
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "IKAN",
+    "qty": 6
+   },
+   {
+    "name": "Udang W",
+    "qty": 21
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 2
+   },
+   {
+    "name": "Petai",
+    "qty": 19
+   },
+   {
+    "name": "Susu K",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 24
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 26
+   }
+  ]
+ },
+ {
+  "date": "2026-05-20",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 13
+   },
+   {
+    "name": "PAHA C",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 1
+   },
+   {
+    "name": "Gasem A",
+    "qty": 2
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 4
+   },
+   {
+    "name": "Udang W",
+    "qty": 21
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 18
+   },
+   {
+    "name": "Susuk",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 24
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 26
+   }
+  ]
+ },
+ {
+  "date": "2026-05-21",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 20
+   },
+   {
+    "name": "DADA B",
+    "qty": 20
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 1
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B / Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 21
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susu K",
+    "qty": 0
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 24
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 26
+   }
+  ]
+ },
+ {
+  "date": "2026-05-22",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 20
+   },
+   {
+    "name": "DADA B",
+    "qty": 20
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 1
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "IKAN",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 21
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susuk",
+    "qty": 5
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 35
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 24
+   }
+  ]
+ },
+ {
+  "date": "2026-05-23",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 15
+   },
+   {
+    "name": "DADA B",
+    "qty": 16
+   },
+   {
+    "name": "PAHA G",
+    "qty": 2
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 6
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 6
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 4
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 2
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Bakwan",
+    "qty": 12
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susu K",
+    "qty": 5
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 34
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 24
+   }
+  ]
+ },
+ {
+  "date": "2026-05-24",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 15
+   },
+   {
+    "name": "DADA B",
+    "qty": 15
+   },
+   {
+    "name": "PAHA G",
+    "qty": 4
+   },
+   {
+    "name": "DADA G",
+    "qty": 1
+   },
+   {
+    "name": "Ati",
+    "qty": 2
+   },
+   {
+    "name": "Rempelo",
+    "qty": 4
+   },
+   {
+    "name": "Kepala",
+    "qty": 8
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 1
+   },
+   {
+    "name": "IKAN",
+    "qty": 1
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Bakwan",
+    "qty": 11
+   },
+   {
+    "name": "Empal",
+    "qty": 2
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susuk",
+    "qty": 3
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 33
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 22
+   }
+  ]
+ },
+ {
+  "date": "2026-05-25",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 12
+   },
+   {
+    "name": "DADA B",
+    "qty": 13
+   },
+   {
+    "name": "PAHA G",
+    "qty": 4
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 4
+   },
+   {
+    "name": "Rempelo",
+    "qty": 2
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 0
+   },
+   {
+    "name": "Gasem A",
+    "qty": 3
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 4
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 1
+   },
+   {
+    "name": "Ikan",
+    "qty": 1
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Bakwan",
+    "qty": 11
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susuk",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 31
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 21
+   }
+  ]
+ },
+ {
+  "date": "2026-05-26",
+  "stock": [
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "DADA B",
+    "qty": 13
+   },
+   {
+    "name": "PAHA G",
+    "qty": 4
+   },
+   {
+    "name": "DADA G",
+    "qty": 2
+   },
+   {
+    "name": "Ati",
+    "qty": 4
+   },
+   {
+    "name": "Rempelo",
+    "qty": 2
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 1
+   },
+   {
+    "name": "Semur D",
+    "qty": 4
+   },
+   {
+    "name": "Semur A",
+    "qty": 5
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 4
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Bakwan",
+    "qty": 11
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susuk",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Krupuk C",
+    "qty": 28
+   },
+   {
+    "name": "Krupuk B",
+    "qty": 20
+   }
+  ]
+ },
+ {
+  "date": "2026-05-27",
+  "stock": [
+   {
+    "name": "DADA B",
+    "qty": 17
+   },
+   {
+    "name": "PAHA B",
+    "qty": 10
+   },
+   {
+    "name": "PAHA G",
+    "qty": 4
+   },
+   {
+    "name": "DADA G",
+    "qty": 6
+   },
+   {
+    "name": "Ati",
+    "qty": 4
+   },
+   {
+    "name": "Rempelo",
+    "qty": 2
+   },
+   {
+    "name": "Kepala",
+    "qty": 5
+   },
+   {
+    "name": "Gasem D",
+    "qty": 3
+   },
+   {
+    "name": "Gasem A",
+    "qty": 0
+   },
+   {
+    "name": "Semur D",
+    "qty": 5
+   },
+   {
+    "name": "Semur A",
+    "qty": 5
+   },
+   {
+    "name": "Rawon",
+    "qty": 4
+   },
+   {
+    "name": "Gule D",
+    "qty": 4
+   },
+   {
+    "name": "Gule B",
+    "qty": 2
+   },
+   {
+    "name": "Ikan",
+    "qty": 4
+   },
+   {
+    "name": "Udang W",
+    "qty": 14
+   },
+   {
+    "name": "Bakwan",
+    "qty": 11
+   },
+   {
+    "name": "Empal",
+    "qty": 0
+   },
+   {
+    "name": "Petai",
+    "qty": 17
+   },
+   {
+    "name": "Susuk",
+    "qty": 1
+   },
+   {
+    "name": "Sarang B",
+    "qty": 10
+   },
+   {
+    "name": "Kerupuk",
+    "qty": 0
+   }
+  ]
+ }
+]

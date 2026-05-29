@@ -2,7 +2,7 @@
 
 **Tanggal:** Selasa, 19 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |
@@ -35,8 +35,8 @@
 | No | Deskripsi Pesanan | Nominal (Rp) | Metode Pembayaran |
 | :--- | :--- | :--- | :--- |
 | 1 | 1 Gurame, 1 Sayur Asem, 2 Nasi, 1 PAHA G, 2 jeruk peras, 1 krupuk | 210.000 | TF MK |
-| 2 | 1 Gurame, 1 Sayur Asem, 1 Nasi, 2 AM, 1 Pete, 1 Tahu Tempe G, 1 PAKET D (Empal P, Teh M) | 167.000 | Cash |
-| 3 | 1 PAKET B (DADA G), 1 Empal P, 1 Teh M, 1 Teh T | 121.000 | Qris BCA |
+| 2 | 1 Gurame, 1 Sayur Asem, 1 Nasi, 2 AM, 1 Pete, 1 Tahu Tempe G, | 167.000 | Cash |
+| 3 | 1 Paket D (empal), 1 PAKET B (DADA G), 1 Empal P, 1 Teh M, 1 Teh T | 121.000 | Qris BCA |
 | 4 | 1 PAKET C (RAWON, Teh M), 1 PAKET B (DADA B), 1 Teh M, 1 AM | 100.000 | Cash |
 
 ### 📊 Ringkasan Pemasukan

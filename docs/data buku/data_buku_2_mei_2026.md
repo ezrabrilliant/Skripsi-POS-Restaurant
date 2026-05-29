@@ -2,7 +2,7 @@
 
 **Tanggal:** Sabtu, 2 Mei 2026
 
-## 📦 Data Stok / Item (Resto)
+## 📦 Data Stok  Item (Rekonsiliasi Resto pada pagi hari)
 
 | Nama Item | Jumlah |
 | :--- | :--- |
@@ -35,8 +35,8 @@
 | No | Deskripsi Pesanan | Nominal (Rp) | Metode Pembayaran |
 | :--- | :--- | :--- | :--- |
 | 1 | Gurame B | 100.000 | Qris BCA |
-| 2 | PAKET A (DADA B, TEH M), PAKET B (Paha) | 105.000 | Cash |
-| 3 | Jeruk P, Krupuk | 7.000 | Cash |
+| 2 | PAKET A (DADA B, TEH M), PAKET B (Paha), Jeruk P | 105.000 | Cash |
+| 3 | Krupuk | 7.000 | Cash |
 | 4 | 1 Empal P, 1 nasi, 1 Jeruk murni, 1 PAKET C (RAWON, TEH M) 1 Krupuk | 115.000 | Cash |
 
 *(Catatan: Beberapa item yang ditulis di baris berbeda namun digabung dalam satu nominal harga telah saya jadikan satu baris transaksi agar terstruktur rapi untuk database).*
