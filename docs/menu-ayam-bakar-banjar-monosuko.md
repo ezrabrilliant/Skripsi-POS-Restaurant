@@ -39,6 +39,7 @@
 | Garang Asem Ayam | 30.000 |
 | Garang Asem Daging | 30.000 |
 | Rawon Daging | 30.000 |
+| Semur Ayam | 30.000 |
 | Semur Daging | 30.000 |
 | Gulai Daging | 30.000 |
 | Gulai Babat | 30.000 |
