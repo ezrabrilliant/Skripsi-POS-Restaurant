@@ -21,7 +21,8 @@
 //   - Setiap transaksi terikat ke shift yang masih open.
 //   - Decrement PortionStock terjadi saat order di-submit (boleh minus per ground truth).
 //   - Resolusi stok target via stockType menu (portion/linked/nonStock).
-//   - PB1 10% dihitung saat payment pertama dari (subtotal - discount).
+//   - PB1 dihitung saat payment pertama dari (subtotal - discount). REV 2.6: tarif +
+//     toggle on/off dari AppSetting (default OFF, resto tidak charge PB1).
 //   - Void boleh dilakukan kasir sendiri tanpa approval.
 
 // REV 2.6: PaymentMethod sekarang dynamic master table (payment_methods).
@@ -635,7 +636,12 @@ export async function addPayment(
       throw new AppError('Diskon tidak boleh lebih besar dari subtotal agregat', 400);
     }
     const baseAfterDiscount = aggregateSubtotal.sub(effectiveDiscount);
-    effectiveTax = baseAfterDiscount.mul('0.10').toDecimalPlaces(2);
+    // REV 2.6: tarif PB1 dari AppSetting (toggle on/off + custom rate). Default OFF
+    // karena resto tidak charge PB1 ke customer (harga menu = final). Owner nyalakan
+    // via tab Pajak. taxEnabled=false -> ratePct 0 -> tax 0 -> total = baseAfterDiscount.
+    const setting = await prisma.appSetting.findUnique({ where: { id: 1 } });
+    const ratePct = setting?.taxEnabled ? setting.taxRate : new Prisma.Decimal(0);
+    effectiveTax = baseAfterDiscount.mul(ratePct).div(100).toDecimalPlaces(2);
     effectiveTotal = baseAfterDiscount.add(effectiveTax);
   } else {
     // Slice ke-2+: pakai nilai existing yang sudah ter-set saat first slice

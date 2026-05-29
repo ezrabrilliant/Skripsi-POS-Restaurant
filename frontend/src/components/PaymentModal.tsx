@@ -41,6 +41,7 @@ import {
 } from '@/types'
 import { transactionService, type AddPaymentPayload, type MergePayload } from '@/services/transactionService'
 import { paymentMethodService } from '@/services/paymentMethodService'
+import { settingsService } from '@/services/settingsService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { calculatePB1 } from '@/lib/decimal'
 import {
@@ -101,19 +102,40 @@ export default function PaymentModal({
     refetchOnWindowFocus: false,
   })
 
+  // REV 2.6: app settings (PB1 toggle + rate). Dipakai untuk preview tax di breakdown
+  // supaya konsisten dengan backend addPayment. Default OFF (resto tidak charge PB1).
+  const { data: appSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: settingsService.get,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  })
+  // Rate fraction (0.1 = 10%). 0 kalau PB1 disabled → tax 0, total = base.
+  const taxRate = appSettings?.taxEnabled ? appSettings.taxRate / 100 : 0
+
   // Query target Tx (subscribed - refetch via invalidate setelah mutation).
-  const { data: transaction, isLoading: txLoading } = useQuery({
+  // FIX: refetchOnMount 'always' supaya tiap kali modal dibuka, detail Tx target
+  // selalu di-fetch ulang dari network — override global staleTime 5 menit (main.tsx).
+  // Tanpa ini, reopen modal untuk Tx yang sama dalam 5 menit menyajikan snapshot
+  // basi (mis. subtotal sebelum item target diedit/dihapus). Lihat CombineTableModal:91.
+  const { data: transaction, isLoading: txLoading, isFetching: txFetching } = useQuery({
     queryKey: ['transaction', transactionId],
     queryFn: () => transactionService.byId(transactionId),
     refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
   })
 
   // Query open Tx system-wide untuk derive mergedFrom (untuk aggregate subtotal display).
   // Lightweight - resto cuma punya 9 meja, max ~18 open Tx aktif.
-  const { data: openTxs = [] } = useQuery({
+  // FIX: query ini di-key per transactionId dan TIDAK pernah di-invalidate oleh POSPage
+  // create/delete/updateItem mutations. Tanpa refetchOnMount 'always', reopen modal
+  // (mis. setelah "ngecek" lalu nambah Pesanan) menyajikan daftar open-Tx basi → Pesanan
+  // baru di meja yang sama hilang dari picker + aggregate (bug bayar 47k padahal 77k).
+  const { data: openTxs = [], isFetching: openTxsFetching } = useQuery({
     queryKey: ['transactions', 'open-merge-source-of', transactionId],
     queryFn: () => transactionService.list({ status: 'open' }),
     refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
   })
 
   const mergedFromOpen = useMemo(
@@ -175,17 +197,18 @@ export default function PaymentModal({
         selectedCandidateTxs.reduce((s, t) => s + t.subtotal, 0)
       )
     }
-    // After first slice: backend has updated transaction.total aggregate-based.
-    // Reverse-derive aggregateSubtotal = total/1.10 + discountAmount.
-    return Math.round(transaction.total / 1.1) + transaction.discountAmount
+    // After first slice: backend sudah set transaction.total aggregate-based.
+    // REV 2.6: reverse-derive exact dari field tersimpan (rate-independent, aman
+    // walau PB1 toggle berubah): subtotal = total - taxAmount + discountAmount.
+    return transaction.total - transaction.taxAmount + transaction.discountAmount
   }, [transaction, mergedFromOpen, selectedCandidateTxs, isFirstSlice])
 
   // Effective discount (lock setelah first slice).
   const effectiveDiscount = isFirstSlice ? discountAmount : (transaction?.discountAmount ?? 0)
 
   const { tax, total, base } = useMemo(
-    () => calculatePB1(aggregateSubtotal, effectiveDiscount),
-    [aggregateSubtotal, effectiveDiscount],
+    () => calculatePB1(aggregateSubtotal, effectiveDiscount, taxRate),
+    [aggregateSubtotal, effectiveDiscount, taxRate],
   )
 
   const sumPayments = useMemo(
@@ -459,8 +482,15 @@ export default function PaymentModal({
 
   // Submit disable conditions
   const submitting = addPayMutation.isPending || mergeMutation.isPending
+  // FIX: pas first slice, aggregate + daftar candidate dihitung dari query transaction +
+  // openTxs. Selama keduanya masih refetch on mount (refetchOnMount 'always'), angka yang
+  // tampil masih dari cache & bisa basi — blokir submit dulu supaya kasir tidak meng-confirm
+  // nominal stale (mis. 47k padahal 77k). Sub-detik di network normal. Slice ke-2+ tidak
+  // terpengaruh (total sudah locked di Tx.total server-side saat first slice).
+  const firstSliceDataStale = isFirstSlice && (txFetching || openTxsFetching)
   const singleSubmitDisabled =
     submitting ||
+    firstSliceDataStale ||
     !selectedMethod ||
     (needsBank && !bank.trim()) ||
     discountAmount > aggregateSubtotal ||
@@ -468,6 +498,7 @@ export default function PaymentModal({
 
   const sliceSubmitDisabled =
     submitting ||
+    firstSliceDataStale ||
     !selectedMethod ||
     amount <= 0 ||
     amount > sisa ||
@@ -737,6 +768,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
+                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
                   />
                 </form>
               ) : (
@@ -833,6 +865,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
+                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
                   />
                 </form>
               )}
@@ -1299,21 +1332,29 @@ function PaymentBreakdown({
   base,
   tax,
   total,
+  taxRatePercent,
 }: {
   subtotal: number
   discount: number
   base: number
   tax: number
   total: number
+  /** REV 2.6: 0 = PB1 nonaktif (baris pajak + "setelah diskon" disembunyikan). */
+  taxRatePercent: number
 }) {
+  const taxActive = taxRatePercent > 0
   return (
     <div className="bg-primary-50/50 border border-primary-100 rounded-xl p-3.5 space-y-1.5 tabular-nums">
       <Row label="Subtotal" value={formatCurrency(subtotal)} muted />
       {discount > 0 && (
         <Row label="Diskon" value={`− ${formatCurrency(discount)}`} muted />
       )}
-      <Row label="Setelah diskon" value={formatCurrency(base)} muted />
-      <Row label="PB1 10%" value={formatCurrency(tax)} muted />
+      {taxActive && (
+        <>
+          <Row label="Setelah diskon" value={formatCurrency(base)} muted />
+          <Row label={`PB1 ${taxRatePercent}%`} value={formatCurrency(tax)} muted />
+        </>
+      )}
       <div className="pt-2 mt-1 border-t border-primary-200">
         <Row label="Total Bayar" value={formatCurrency(total)} bold />
       </div>
