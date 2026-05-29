@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, Search } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -12,28 +12,50 @@ import {
   IconButton,
   Combobox,
   Checkbox,
+  Input,
   Badge,
   Skeleton,
   DataTable,
   type DataTableColumn,
   type ComboboxOption,
 } from '@/design-system/primitives'
+import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import { MenuFormModal } from '@/components/MenuFormModal'
+import { SortableHeader } from '@/components/stock/SortableHeader'
+import { MenuTypeFilter, toggleStockType } from '@/components/stock/MenuTypeFilter'
+
+type MenuSortKey = 'name' | 'price' | 'category'
+type SortDir = 'asc' | 'desc'
+
+const MENU_SORT_OPTIONS: ComboboxOption[] = [
+  { value: 'category', label: 'Kategori' },
+  { value: 'name', label: 'Nama (A–Z)' },
+  { value: 'price', label: 'Harga (murah dulu)' },
+]
 
 const STOCK_TYPE_LABEL: Record<StockType, string> = {
-  portion: 'Stok Porsi',
-  linked: 'Linked',
-  nonStock: 'Tidak ditrack',
+  portion: 'Stok porsi',
+  linked: 'Ikut menu lain',
+  nonStock: 'Tidak di-track',
 }
 
 export default function MenuPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
+  const isMobile = useIsMobile()
   const [showInactive, setShowInactive] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
+  // Default tampilkan SEMUA tipe (halaman kelola — owner perlu lihat semua menu,
+  // beda dgn tab Stok yang default cuma tracked).
+  const [types, setTypes] = useState<Set<StockType>>(
+    () => new Set<StockType>(['portion', 'linked', 'nonStock'])
+  )
+  const [sortKey, setSortKey] = useState<MenuSortKey>('category')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
 
@@ -47,10 +69,39 @@ export default function MenuPage() {
     return Array.from(set).sort()
   }, [menus])
 
+  const typeCounts = useMemo(() => {
+    const c: Record<StockType, number> = { portion: 0, linked: 0, nonStock: 0 }
+    for (const m of menus) c[m.stockType]++
+    return c
+  }, [menus])
+
+  const setSort = (k: MenuSortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortKey(k)
+      setSortDir('asc')
+    }
+  }
+  const toggleType = (t: StockType) => setTypes((prev) => toggleStockType(prev, t))
+
   const filtered = useMemo(() => {
-    if (categoryFilter === 'all') return menus
-    return menus.filter((m) => m.category === categoryFilter)
-  }, [menus, categoryFilter])
+    let arr = menus.slice()
+    if (categoryFilter !== 'all') arr = arr.filter((m) => m.category === categoryFilter)
+    arr = arr.filter((m) => types.has(m.stockType))
+    const q = search.trim().toLowerCase()
+    if (q) arr = arr.filter((m) => m.name.toLowerCase().includes(q))
+    const dir = sortDir === 'asc' ? 1 : -1
+    const byName = (a: Menu, b: Menu) => a.name.localeCompare(b.name, 'id')
+    arr.sort((a, b) => {
+      let p = 0
+      if (sortKey === 'name') p = byName(a, b)
+      else if (sortKey === 'price') p = Number(a.price) - Number(b.price)
+      else p = a.category.localeCompare(b.category, 'id')
+      if (p !== 0) return p * dir
+      return byName(a, b)
+    })
+    return arr
+  }, [menus, categoryFilter, types, search, sortKey, sortDir])
 
   const deactivate = useMutation({
     mutationFn: (id: number) => menuService.deactivate(id),
@@ -89,7 +140,14 @@ export default function MenuPage() {
   const columns: DataTableColumn<Menu>[] = [
     {
       key: 'name',
-      header: 'Menu',
+      header: (
+        <SortableHeader
+          label="Menu"
+          active={sortKey === 'name'}
+          dir={sortDir}
+          onSort={() => setSort('name')}
+        />
+      ),
       cell: (m) => (
         <div className={cn(!m.isActive && 'opacity-60')}>
           <div className="font-medium text-neutral-900">{m.name}</div>
@@ -112,13 +170,28 @@ export default function MenuPage() {
     },
     {
       key: 'category',
-      header: 'Kategori',
+      header: (
+        <SortableHeader
+          label="Kategori"
+          active={sortKey === 'category'}
+          dir={sortDir}
+          onSort={() => setSort('category')}
+        />
+      ),
       hideMobile: true,
       cell: (m) => <span className="text-neutral-700">{m.category}</span>,
     },
     {
       key: 'price',
-      header: 'Harga',
+      header: (
+        <SortableHeader
+          label="Harga"
+          align="right"
+          active={sortKey === 'price'}
+          dir={sortDir}
+          onSort={() => setSort('price')}
+        />
+      ),
       align: 'right',
       cell: (m) => (
         <span className="font-medium text-neutral-900 tabular-nums">
@@ -180,10 +253,46 @@ export default function MenuPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header className="flex flex-wrap items-end justify-between gap-3">
+        <header className="flex items-center justify-between gap-2">
           <div>
             <h1 className="text-headline font-semibold text-neutral-900">Kelola Menu</h1>
-            <p className="text-body-sm text-neutral-600">{filtered.length} menu</p>
+            <p className="text-body-sm text-neutral-600">
+              {filtered.length} dari {menus.length} menu
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => setCreatingNew(true)}
+          >
+            Menu
+          </Button>
+        </header>
+
+        <div className="bg-white rounded-xl p-3 border border-neutral-200/60 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Input
+              label="Cari"
+              hideLabel
+              type="search"
+              inputMode="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari menu…"
+              leftIcon={<Search className="w-4 h-4" />}
+              containerClassName="flex-1"
+            />
+            {isMobile && (
+              <Combobox
+                hideLabel
+                label="Urutkan"
+                value={sortKey}
+                onValueChange={(v) => setSort(v as MenuSortKey)}
+                options={MENU_SORT_OPTIONS}
+                containerClassName="w-[12rem] shrink-0"
+              />
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Combobox
@@ -193,25 +302,16 @@ export default function MenuPage() {
               onValueChange={setCategoryFilter}
               options={categoryOptions}
               searchPlaceholder="Cari kategori..."
-              containerClassName="min-w-[180px]"
+              containerClassName="min-w-[12rem]"
             />
-            <div className="px-2">
-              <Checkbox
-                label="Tampilkan nonaktif"
-                checked={showInactive}
-                onCheckedChange={setShowInactive}
-              />
-            </div>
-            <Button
-              variant="primary"
-              size="md"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => setCreatingNew(true)}
-            >
-              Menu
-            </Button>
+            <Checkbox
+              label="Tampilkan nonaktif"
+              checked={showInactive}
+              onCheckedChange={setShowInactive}
+            />
           </div>
-        </header>
+          <MenuTypeFilter selected={types} counts={typeCounts} onToggle={toggleType} />
+        </div>
 
         {isLoading ? (
           <Skeleton className="h-64" />
@@ -221,7 +321,11 @@ export default function MenuPage() {
             data={filtered}
             rowKey={(m) => m.id}
             emptyTitle="Tidak ada menu"
-            emptyDescription="Klik tombol Menu di atas untuk menambah."
+            emptyDescription={
+              search || categoryFilter !== 'all' || types.size < 3
+                ? 'Tidak ada menu cocok dengan filter.'
+                : 'Klik tombol Menu di atas untuk menambah.'
+            }
             mobileCard={(m) => (
               <div className={cn(!m.isActive && 'opacity-60', 'space-y-1.5')}>
                 <div className="flex items-start justify-between gap-2">
