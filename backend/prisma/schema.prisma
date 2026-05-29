@@ -4,8 +4,14 @@
 // Spec implementasi REV 2.5 split tender: docs/superpowers/specs/2026-05-26-split-tender-combine-design.md
 // Spec implementasi REV 2.5 raw materials redesign: docs/superpowers/specs/2026-05-26-stok-raw-purchasing-redesign-design.md
 //
-// 16 entitas, 22 relasi. Primary key memakai auto-increment integer (INT MySQL),
+// 16 entitas, 26 relasi. Primary key memakai auto-increment integer (INT MySQL),
 // kecuali PortionStock yang PK-nya menu_id (1:1 dengan Menu).
+//
+// REV 2.8 (2026-05-29): stock movement ledger integrity. PortionMovement +
+// transaction_id/transaction_item_id/qty_before/qty_after; RawMaterialMovement +
+// purchase_id/purchase_item_id/qty_before/qty_after. Semua FK baru onDelete:SetNull
+// (audit utuh meski item/transaksi/purchase terhapus). Tautan dokumen sumber pindah
+// dari teks `note` ke FK proper. +4 relasi (22 → 26).
 //
 // REV 2.5 (2026-05-26): tambah TransactionPayment table untuk support multi-method
 // per transaction (Split Tender). Drop Transaction.paymentMethod + paymentBank

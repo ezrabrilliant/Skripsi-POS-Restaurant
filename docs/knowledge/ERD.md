@@ -6,6 +6,7 @@
 > **Visual:** ERD REV 2.2 sudah di-build di StarUML (file `Skripsi.mdj`). REV 2.3 tidak butuh rebuild - schema identik.
 
 > ⚠️ **Riwayat versi:**
+> - **REV 2.8 (2026-05-29)** - stock ledger integrity: `portion_movements` & `raw_material_movements` dapat FK ke dokumen sumber (transaction/transaction_item, purchase/purchase_item, `ON DELETE SET NULL`) + kolom `qty_before`/`qty_after`. Tautan pindah dari teks `note` ke FK. +4 relasi (19 → 23). (Catatan: dokumen ini baseline himpunan entitas REV 2.3; entitas REV 2.5–2.7 belum dilipat ke sini.)
 > - **REV 2.3 (2026-05-24)** - version bump kosmetik. No schema change. Hanya alignment dengan permission matrix.
 > - **REV 2.2 (2026-05-24)** - tambah `raw_material_movements` (audit log raw materials) + rename `stock_movements` → `portion_movements`. Total entitas naik 13 → 14, relasi naik 17 → 19.
 > - **REV 2.1 (2026-05-23)** - order type 2 enum, raw_materials fleksibel, vendor opsional, purchase_items normalized.
@@ -129,7 +130,11 @@ Total: **14 entitas**.
 | menu_id | INT | FK→menus | Item stok porsi yang berubah |
 | delta | INT | - | + saat restock, − saat order |
 | reason | PortionMovementReason | - | order / restock_morning / restock_emergency / manual_adjust / refund_void |
-| note | VARCHAR(255)? | - | Mis. "transactionId=123" atau "Antar via Gojek 18:30" |
+| transaction_id | INT? | FK→transactions (SET NULL) | **REV 2.8**: transaksi sumber (order/refund_void) |
+| transaction_item_id | INT? | FK→transaction_items (SET NULL) | **REV 2.8**: baris item penyebab decrement |
+| qty_before | INT? | - | **REV 2.8**: stok sebelum perubahan |
+| qty_after | INT? | - | **REV 2.8**: stok sesudah (= qty_before + delta) |
+| note | VARCHAR(255)? | - | **REV 2.8**: konteks manusiawi (tautan via FK, mis. "Antar via Gojek 18:30") |
 | user_id | INT | FK→users | Siapa yang trigger |
 | created_at | DATETIME | - | |
 
@@ -155,7 +160,11 @@ Total: **14 entitas**.
 | raw_material_id | INT | FK→raw_materials | Bahan baku yang berubah |
 | delta | DECIMAL(10,2) | - | + saat purchase atau koreksi naik, − saat opname turun atau koreksi turun |
 | reason | RawMaterialMovementReason | - | purchase / opname / manual_adjust |
-| note | VARCHAR(255)? | - | Mis. "Opname malam: kangkung 0 ikat, sebelum 2 ikat" atau "Purchase from Pasar Pagi Blok A" |
+| purchase_id | INT? | FK→purchases (SET NULL) | **REV 2.8**: pembelian sumber (reason=purchase) |
+| purchase_item_id | INT? | FK→purchase_items (SET NULL) | **REV 2.8**: baris pembelian sumber |
+| qty_before | DECIMAL(10,2)? | - | **REV 2.8**: stok sebelum perubahan |
+| qty_after | DECIMAL(10,2)? | - | **REV 2.8**: stok sesudah (= qty_before + delta) |
+| note | VARCHAR(255)? | - | **REV 2.8**: konteks manusiawi (tautan via FK) |
 | user_id | INT | FK→users | Siapa yang trigger (kasir untuk purchase, waiter/kasir untuk opname) |
 | created_at | DATETIME | - | |
 
@@ -302,8 +311,12 @@ Total: **14 entitas**.
 | 17 | purchases | purchase_items | purchase_id | 1 : 1..N (composition, CASCADE) | Detail per item |
 | 18 | raw_materials | purchase_items | raw_material_id | 1 : N | Histori pembelian per material |
 | 19 | raw_materials | raw_material_movements | raw_material_id | 1 : N | **REV 2.2 BARU** - audit perubahan raw materials |
+| 20 | transactions | portion_movements | transaction_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement order/void ke transaksi sumber |
+| 21 | transaction_items | portion_movements | transaction_item_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement ke baris item penyebab decrement |
+| 22 | purchases | raw_material_movements | purchase_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement purchase ke pembelian sumber |
+| 23 | purchase_items | raw_material_movements | purchase_item_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement ke baris pembelian sumber |
 
-Total: **19 relasi**.
+Total: **19 relasi** (REV 2.2) → **23 relasi** (REV 2.8 ledger; +4 FK movement→dokumen sumber).
 
 ## 8. Mengapa Struktur Ini Menjawab Masalah Skripsi
 

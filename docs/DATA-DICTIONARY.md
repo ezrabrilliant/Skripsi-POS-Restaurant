@@ -90,9 +90,15 @@ Tabel `portion_movements` (revisi penyesuaian nama dari `stock_movements` pada R
 | menu_id | INT - FK → menus | Item stok porsi yang berubah |
 | delta | INT | Perubahan: positif saat restock, negatif saat order/void |
 | reason | ENUM(order, restock_morning, restock_emergency, manual_adjust, refund_void) | Alasan perubahan |
-| note | VARCHAR(255) (nullable) | Catatan opsional (mis. "transactionId=123" atau "Antar via Gojek 18:30") |
+| transaction_id | INT - FK → transactions (nullable, SET NULL) | REV 2.8: transaksi sumber (diisi saat reason order/refund_void; null untuk restock/opname) |
+| transaction_item_id | INT - FK → transaction_items (nullable, SET NULL) | REV 2.8: baris item penyebab decrement (1 item paket bisa men-decrement banyak stok) |
+| qty_before | INT (nullable) | REV 2.8: stok sebelum perubahan ini |
+| qty_after | INT (nullable) | REV 2.8: stok sesudah (`qty_after = qty_before + delta`) |
+| note | VARCHAR(255) (nullable) | Catatan manusiawi opsional (REV 2.8: bukan lagi sumber tautan — pakai FK; mis. "Antar via Gojek 18:30") |
 | user_id | INT - FK → users | Pengguna yang men-trigger perubahan |
 | created_at | DATETIME | Waktu perubahan |
+
+> REV 2.8 (ledger integrity): tautan ke dokumen sumber dipindah dari teks `note` ke *foreign key* proper (`transaction_id`, `transaction_item_id`) dengan `ON DELETE SET NULL` agar jejak audit tetap utuh meski item/transaksi terhapus. Kolom `qty_before`/`qty_after` membuat tiap *record* mandiri (level stok saat itu tanpa menjumlah seluruh histori).
 
 ---
 
@@ -127,7 +133,11 @@ Tabel `raw_material_movements` (penambahan baru pada REV 2.2) menyimpan log audi
 | raw_material_id | INT - FK → raw_materials | Bahan baku yang berubah |
 | delta | DECIMAL(10,2) | Perubahan: positif saat purchase atau koreksi naik, negatif saat opname turun |
 | reason | ENUM(purchase, opname, manual_adjust) | Alasan perubahan |
-| note | VARCHAR(255) (nullable) | Catatan opsional (mis. "Purchase id=X dari Vendor Y", "Opname malam: dari 2 ikat jadi 0 ikat") |
+| purchase_id | INT - FK → purchases (nullable, SET NULL) | REV 2.8: pembelian sumber (diisi saat reason purchase; null untuk opname/manual) |
+| purchase_item_id | INT - FK → purchase_items (nullable, SET NULL) | REV 2.8: baris pembelian penyebab penambahan stok |
+| qty_before | DECIMAL(10,2) (nullable) | REV 2.8: stok sebelum perubahan |
+| qty_after | DECIMAL(10,2) (nullable) | REV 2.8: stok sesudah (`qty_after = qty_before + delta`) |
+| note | VARCHAR(255) (nullable) | Catatan manusiawi opsional (REV 2.8: tautan via FK; mis. "Opname malam: dari 2 ikat jadi 0 ikat") |
 | user_id | INT - FK → users | Pengguna pelaku (kasir untuk purchase, waiter/kasir untuk opname) |
 | created_at | DATETIME | Waktu perubahan |
 
@@ -332,8 +342,12 @@ enum BillCategory              { kebersihan, listrik, air, parkir, sewa }
 | 17 | purchases | purchase_items | purchase_id (CASCADE) | 1 : 1..N | Komposisi detail per pembelian |
 | 18 | raw_materials | purchase_items | raw_material_id | 1 : N | Riwayat pembelian per material |
 | 19 | raw_materials | raw_material_movements | raw_material_id | 1 : N | Audit perubahan raw materials (REV 2.2 BARU) |
+| 20 | transactions | portion_movements | transaction_id (nullable, SET NULL) | 1 : N | REV 2.8: movement order/void ke transaksi sumber |
+| 21 | transaction_items | portion_movements | transaction_item_id (nullable, SET NULL) | 1 : N | REV 2.8: movement ke baris item penyebab decrement |
+| 22 | purchases | raw_material_movements | purchase_id (nullable, SET NULL) | 1 : N | REV 2.8: movement purchase ke pembelian sumber |
+| 23 | purchase_items | raw_material_movements | purchase_item_id (nullable, SET NULL) | 1 : N | REV 2.8: movement ke baris pembelian sumber |
 
-Total: **14 entitas, 19 relasi**.
+Total (baseline REV 2.3): **14 entitas, 23 relasi**. (Catatan: dictionary ini memotret himpunan 14 entitas REV 2.3 + relasi ledger REV 2.8. Entitas tambahan REV 2.5–2.7 — `units`, `payment_methods`, `banks`, `payment_method_banks`, `settlement_method_counts`, `app_settings`, `transaction_payments` — terdokumentasi di spec masing-masing dan `schema.prisma`, belum dilipat ke dictionary ini.)
 
 ---
 
@@ -369,6 +383,7 @@ Total: **14 entitas, 19 relasi**.
 
 | Versi | Tanggal | Perubahan |
 |---|---|---|
+| **REV 2.8** | 2026-05-29 | Stock ledger integrity: tambah FK sumber + qty snapshot di `portion_movements` (`transaction_id`, `transaction_item_id`, `qty_before`, `qty_after`) & `raw_material_movements` (`purchase_id`, `purchase_item_id`, `qty_before`, `qty_after`). Semua FK `ON DELETE SET NULL`. +4 relasi (19 → 23). `note` jadi konteks manusiawi (tautan via FK). |
 | **REV 2.3** | 2026-05-24 | Schema identik REV 2.2 (no entity/column change). Tambah catatan permission di app layer. |
 | **REV 2.2** | 2026-05-24 | Tambah `raw_material_movements` (audit log raw materials). Rename `stock_movements` → `portion_movements`. Total 13 → 14 entitas, 17 → 19 relasi. |
 | **REV 2.1** | 2026-05-23 | Tambah `raw_materials`, `vendors`, `purchases`, `purchase_items`. Drop `bulk_stocks` dan `expenses`. OrderType 2 enum. `payment_bank` field. `opening_qty_today`. `merged_into_id` self-ref. Total 8 → 13 entitas. |
