@@ -5,6 +5,7 @@
 
 import { ArrowRight } from 'lucide-react'
 import { Badge, EmptyState, Sheet, Skeleton } from '@/design-system/primitives'
+import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
 import { cn, formatDateTime } from '@/lib/utils'
 
 export interface HistoryMovement {
@@ -45,16 +46,18 @@ export function StockHistorySheet({
   movements,
   unitSuffix = 'porsi',
 }: StockHistorySheetProps) {
+  // Responsif: HP → bottom sheet (jempol); tablet/desktop → panel kanan (side drawer).
+  const isMobile = useIsMobile()
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
       title={title}
       description={subtitle}
-      side="bottom"
-      height="85vh"
+      side={isMobile ? 'bottom' : 'right'}
+      height={isMobile ? '85vh' : 'auto'}
     >
-      <div className="px-4 py-3">
+      <div className="px-4 py-3 sm:px-5">
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
