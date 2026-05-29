@@ -1,12 +1,14 @@
 // MenuPage - REV 2.3 owner-only CRUD menu.
 // DataTable responsive + MenuFormModal dengan form builder (no raw JSON).
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, RotateCcw, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, Search, PackageSearch } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
+import { resolveMenuStockLink } from '@/lib/menuStockLink'
 import {
   Button,
   IconButton,
@@ -58,6 +60,26 @@ export default function MenuPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
+
+  // REV 2.9 (B2): terima deep-link Stok→Menu (`/menu?focusMenuId=…`). Tangkap
+  // sekali lalu bersihkan URL + sorot baris ~3s (pola sama dengan StockPage).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusMenuIdRef = useRef<number | null>(
+    (() => {
+      const raw = searchParams.get('focusMenuId')
+      const n = raw != null ? Number(raw) : NaN
+      return Number.isInteger(n) && n > 0 ? n : null
+    })()
+  )
+  const [highlightId, setHighlightId] = useState<number | null>(focusMenuIdRef.current)
+  useEffect(() => {
+    if (searchParams.toString()) setSearchParams({}, { replace: true })
+    if (focusMenuIdRef.current != null) {
+      const t = setTimeout(() => setHighlightId(null), 3000)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: menus = [], isLoading } = useQuery({
     queryKey: ['menus', 'admin', showInactive],
@@ -210,6 +232,7 @@ export default function MenuPage() {
               {m.portionStock?.currentQty ?? '-'} / min {m.minStock ?? 0}
             </div>
           )}
+          <StockJumpLink menu={m} menus={menus} />
         </div>
       ),
     },
@@ -320,6 +343,7 @@ export default function MenuPage() {
             columns={columns}
             data={filtered}
             rowKey={(m) => m.id}
+            highlightKey={highlightId}
             emptyTitle="Tidak ada menu"
             emptyDescription={
               search || categoryFilter !== 'all' || types.size < 3
@@ -346,6 +370,7 @@ export default function MenuPage() {
                       )}
                       {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
                     </div>
+                    <StockJumpLink menu={m} menus={menus} />
                   </div>
                   <p className="font-semibold text-neutral-900 tabular-nums shrink-0">
                     {formatCurrency(m.price)}
@@ -394,5 +419,25 @@ export default function MenuPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// REV 2.9 (B2): tautan "lihat stok" kontekstual dari baris menu.
+// portion → fokus baris stoknya sendiri; linked → fokus stok menu target
+// (resolve nama→id, fallback pencarian); nonStock → tidak dirender.
+function StockJumpLink({ menu, menus }: { menu: Menu; menus: Menu[] }) {
+  const link = resolveMenuStockLink(menu, menus)
+  if (!link) return null
+  return (
+    <Link
+      to={link.to}
+      className={cn(
+        'mt-1 inline-flex items-center gap-1 text-caption font-medium hover:underline underline-offset-2',
+        link.isFallback ? 'text-neutral-500 hover:text-neutral-700' : 'text-primary-700 hover:text-primary-800'
+      )}
+    >
+      <PackageSearch className="w-3.5 h-3.5" />
+      {link.label}
+    </Link>
   )
 }

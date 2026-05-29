@@ -6,10 +6,12 @@
 //   - Mark Habis (quick set 0)
 
 import { useEffect, useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Truck, History, UtensilsCrossed } from 'lucide-react'
 import { portionService } from '@/services/portionService'
 import { PORTION_REASON_LABEL, type PortionStockView, type StockType } from '@/types'
+import { useAuthStore } from '@/stores/authStore'
 import { MenuTypeFilter, toggleStockType } from './MenuTypeFilter'
 import type { StockTabHandoff } from './stockDeepLink'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -42,6 +44,9 @@ export default function PortionStockTab({ handoff, onHandoffConsumed }: PortionS
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
+  // REV 2.9 (B2): tautan balik ke kelola Menu — hanya owner (route /menu owner-only).
+  const { user } = useAuthStore()
+  const canSeeMenu = user?.role === 'owner'
   // Modal/sorot di-seed sekali dari handoff (initializer hanya jalan saat mount).
   const [showRestockMorning, setShowRestockMorning] = useState(() => handoff?.action === 'restock')
   const [showOpname, setShowOpname] = useState(() => handoff?.action === 'opname')
@@ -169,6 +174,7 @@ export default function PortionStockTab({ handoff, onHandoffConsumed }: PortionS
               </Badge>
             )}
           </div>
+          {canSeeMenu && <MenuJumpLink menuId={s.menuId} />}
         </div>
       ),
     },
@@ -353,6 +359,7 @@ export default function PortionStockTab({ handoff, onHandoffConsumed }: PortionS
                         {isSameLocalDate(s.lastStockedAt) && ' · dicek hari ini'}
                       </p>
                     )}
+                    {canSeeMenu && <MenuJumpLink menuId={s.menuId} />}
                   </div>
                   <div className="text-right shrink-0">
                     {tracked ? (
@@ -464,6 +471,20 @@ export default function PortionStockTab({ handoff, onHandoffConsumed }: PortionS
         unitSuffix="porsi"
       />
     </div>
+  )
+}
+
+// REV 2.9 (B2): tautan balik dari baris stok ke kelola Menu (owner-only).
+// MenuPage menangkap `focusMenuId` untuk menyorot baris menu yang dituju.
+function MenuJumpLink({ menuId }: { menuId: number }) {
+  return (
+    <Link
+      to={`/menu?focusMenuId=${menuId}`}
+      className="mt-1 inline-flex items-center gap-1 text-caption font-medium text-primary-700 hover:text-primary-800 hover:underline underline-offset-2"
+    >
+      <UtensilsCrossed className="w-3.5 h-3.5" />
+      Kelola di Menu
+    </Link>
   )
 }
 
