@@ -12,7 +12,7 @@
 
 import { useState, useMemo, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Edit2, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Edit2, Trash2, RotateCcw, History } from 'lucide-react'
 import {
   rawMaterialsService,
   type CreateRawMaterialPayload,
@@ -20,8 +20,9 @@ import {
 } from '@/services/rawMaterialsService'
 import { useAuthStore } from '@/stores/authStore'
 import type { RawMaterialView, RawMaterialCategory, Unit } from '@/types'
-import { RAW_MATERIAL_CATEGORY_LABEL } from '@/types'
-import { cn } from '@/lib/utils'
+import { RAW_MATERIAL_CATEGORY_LABEL, RAW_REASON_LABEL } from '@/types'
+import { cn, formatDateTime } from '@/lib/utils'
+import { relativeTime, isSameLocalDate } from '@/lib/relativeTime'
 import {
   Button,
   IconButton,
@@ -38,6 +39,10 @@ import {
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import UnitDropdown from '@/components/UnitDropdown'
+import { useStockListControls } from './useStockListControls'
+import { StockFilterToolbar } from './StockFilterToolbar'
+import { SortableHeader } from './SortableHeader'
+import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
 
 const CATEGORIES: RawMaterialCategory[] = [
   'bumbuDasar',
@@ -45,11 +50,6 @@ const CATEGORIES: RawMaterialCategory[] = [
   'bahanPokok',
   'bahanKering',
   'lainnya',
-]
-
-const CATEGORY_OPTIONS: ComboboxOption[] = [
-  { value: 'all', label: 'Semua kategori' },
-  ...CATEGORIES.map((c) => ({ value: c, label: RAW_MATERIAL_CATEGORY_LABEL[c] })),
 ]
 
 const CATEGORY_FORM_OPTIONS: ComboboxOption[] = CATEGORIES.map((c) => ({
@@ -63,20 +63,21 @@ export default function RawMaterialsTab() {
   const confirm = useConfirm()
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
-  const [filterCategory, setFilterCategory] = useState<RawMaterialCategory | 'all'>('all')
   // REV 2.5.2: owner toggle untuk lihat item yang sudah di-soft-delete.
   const [includeInactive, setIncludeInactive] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
   const [editingRm, setEditingRm] = useState<RawMaterialView | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
+  const [historyId, setHistoryId] = useState<number | null>(null)
 
   const { data: rawMaterials = [], isLoading } = useQuery({
-    queryKey: ['rawMaterials', filterCategory, includeInactive],
+    queryKey: ['rawMaterials', includeInactive],
     queryFn: () =>
-      rawMaterialsService.list({
-        ...(filterCategory !== 'all' ? { category: filterCategory } : {}),
-        ...(includeInactive ? { includeInactive: true } : {}),
-      }),
+      rawMaterialsService.list(includeInactive ? { includeInactive: true } : {}),
+    // REV 2.8: kategori/status filter pindah client-side; includeInactive tetap
+    // server-side (soft-delete). Pembelian mutasi stock_qty di luar key ini →
+    // 'always' supaya stok current saat tab dibuka.
+    refetchOnMount: 'always',
   })
 
   const markHabisMutation = useMutation({
@@ -160,10 +161,46 @@ export default function RawMaterialsTab() {
     [rawMaterials]
   )
 
+  const controls = useStockListControls<RawMaterialView>({
+    rows: rawMaterials,
+    getName: (rm) => rm.name,
+    getCategoryValue: (rm) => rm.category,
+    getCategoryLabel: (rm) => RAW_MATERIAL_CATEGORY_LABEL[rm.category],
+    getQty: (rm) => rm.stockQty,
+    getLastStockedAt: (rm) => rm.lastStockedAt,
+    getStatus: (rm) => (rm.stockQty === 0 ? 'habis' : rm.isLowStock ? 'rendah' : 'aman'),
+    categoryOptions: CATEGORY_FORM_OPTIONS, // enum tetap (bukan derive dari rows)
+  })
+
+  // Riwayat per item (drawer).
+  const { data: historyDetail, isLoading: historyLoading } = useQuery({
+    queryKey: ['rawMaterial', historyId],
+    queryFn: () => rawMaterialsService.detail(historyId!),
+    enabled: historyId != null,
+  })
+  const historyMovements: HistoryMovement[] = (historyDetail?.recentMovements ?? []).map((m) => ({
+    id: m.id,
+    reasonLabel: RAW_REASON_LABEL[m.reason],
+    delta: m.delta,
+    qtyBefore: m.qtyBefore,
+    qtyAfter: m.qtyAfter,
+    note: m.note,
+    userName: m.userName,
+    createdAt: m.createdAt,
+    sourceLabel: m.purchaseId != null ? `Pembelian #${m.purchaseId}` : null,
+  }))
+
   const columns: DataTableColumn<RawMaterialView>[] = [
     {
       key: 'name',
-      header: 'Nama',
+      header: (
+        <SortableHeader
+          label="Nama"
+          active={controls.sortKey === 'name'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('name')}
+        />
+      ),
       cell: (rm) => (
         <div className={cn(!rm.isActive && 'opacity-60')}>
           <div className="flex items-center gap-2 flex-wrap">
@@ -188,7 +225,15 @@ export default function RawMaterialsTab() {
     },
     {
       key: 'stock',
-      header: 'Stok',
+      header: (
+        <SortableHeader
+          label="Stok"
+          align="right"
+          active={controls.sortKey === 'qty'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('qty')}
+        />
+      ),
       align: 'right',
       cell: (rm) => (
         <span
@@ -214,6 +259,29 @@ export default function RawMaterialsTab() {
       ),
     },
     {
+      key: 'lastStocked',
+      header: (
+        <SortableHeader
+          label="Terakhir di-stok"
+          align="right"
+          active={controls.sortKey === 'lastStocked'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('lastStocked')}
+        />
+      ),
+      align: 'right',
+      hideMobile: true,
+      cell: (rm) =>
+        rm.lastStockedAt ? (
+          <div className={cn(!rm.isActive && 'opacity-60')}>
+            <div className="text-neutral-700">{relativeTime(rm.lastStockedAt)}</div>
+            <div className="text-caption text-neutral-400">{formatDateTime(rm.lastStockedAt)}</div>
+          </div>
+        ) : (
+          <span className="text-neutral-400">belum pernah</span>
+        ),
+    },
+    {
       key: 'status',
       header: 'Status',
       hideMobile: true,
@@ -232,6 +300,14 @@ export default function RawMaterialsTab() {
       align: 'right',
       cell: (rm) => (
         <div className="inline-flex items-center gap-1">
+          <IconButton
+            label={`Riwayat ${rm.name}`}
+            icon={<History />}
+            variant="ghost"
+            size="sm"
+            onClick={() => setHistoryId(rm.id)}
+            className="text-neutral-600 hover:bg-neutral-100"
+          />
           {rm.isActive ? (
             <>
               <IconButton
@@ -282,8 +358,26 @@ export default function RawMaterialsTab() {
 
   return (
     <div className="p-3 sm:p-4 space-y-3">
-      {/* Toolbar */}
-      <div className="bg-white rounded-xl p-3 border border-neutral-200/60 flex flex-wrap gap-2 items-center">
+      <StockFilterToolbar
+        controls={controls}
+        searchPlaceholder="Cari bahan…"
+        rightBadge={
+          reminderCount > 0 ? (
+            <Badge tone="warning" size="sm">
+              {reminderCount} perlu perhatian
+            </Badge>
+          ) : undefined
+        }
+        ownerSlot={
+          isOwner ? (
+            <Checkbox
+              label="Tampilkan nonaktif"
+              checked={includeInactive}
+              onCheckedChange={setIncludeInactive}
+            />
+          ) : undefined
+        }
+      >
         <Button
           variant="primary"
           size="md"
@@ -303,30 +397,7 @@ export default function RawMaterialsTab() {
             Tambah Bahan
           </Button>
         )}
-        {isOwner && (
-          // REV 2.5.2: owner-only toggle untuk lihat item soft-deleted.
-          <Checkbox
-            label="Tampilkan nonaktif"
-            checked={includeInactive}
-            onCheckedChange={setIncludeInactive}
-            containerClassName="ml-1"
-          />
-        )}
-        <div className="ml-auto flex items-center gap-2 min-w-[200px]">
-          <Combobox
-            hideLabel
-            label="Filter kategori"
-            value={filterCategory}
-            onValueChange={(v) => setFilterCategory(v as RawMaterialCategory | 'all')}
-            options={CATEGORY_OPTIONS}
-            searchPlaceholder="Cari kategori..."
-            containerClassName="flex-1"
-          />
-          {reminderCount > 0 && (
-            <Badge tone="warning" size="sm">{reminderCount}</Badge>
-          )}
-        </div>
-      </div>
+      </StockFilterToolbar>
 
       {/* List */}
       {isLoading ? (
@@ -334,13 +405,15 @@ export default function RawMaterialsTab() {
       ) : (
         <DataTable
           columns={columns}
-          data={rawMaterials}
+          data={controls.view}
           rowKey={(rm) => rm.id}
           emptyTitle="Belum ada raw material"
           emptyDescription={
-            isOwner
-              ? 'Klik "Tambah Bahan" untuk membuat master baru.'
-              : 'Belum ada master raw material yang terdaftar.'
+            controls.activeFilterCount > 0
+              ? 'Tidak ada bahan cocok dengan filter.'
+              : isOwner
+                ? 'Klik "Tambah Bahan" untuk membuat master baru.'
+                : 'Belum ada master raw material yang terdaftar.'
           }
           mobileCard={(rm) => (
             <div className={cn('space-y-1.5', !rm.isActive && 'opacity-60')}>
@@ -354,6 +427,10 @@ export default function RawMaterialsTab() {
                   </div>
                   <p className="text-caption text-neutral-500">
                     {RAW_MATERIAL_CATEGORY_LABEL[rm.category]}
+                  </p>
+                  <p className="text-caption text-neutral-400">
+                    {rm.lastStockedAt ? relativeTime(rm.lastStockedAt) : 'belum pernah di-stok'}
+                    {isSameLocalDate(rm.lastStockedAt) && ' · dicek hari ini'}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -379,6 +456,14 @@ export default function RawMaterialsTab() {
                   <Badge tone="success" size="sm">OK</Badge>
                 )}
                 <div className="inline-flex items-center gap-1">
+                  <IconButton
+                    label="Riwayat"
+                    icon={<History />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setHistoryId(rm.id)}
+                    className="text-neutral-600"
+                  />
                   {rm.isActive ? (
                     <>
                       <IconButton
@@ -448,6 +533,20 @@ export default function RawMaterialsTab() {
           }}
         />
       )}
+
+      <StockHistorySheet
+        open={historyId != null}
+        onOpenChange={(o) => !o && setHistoryId(null)}
+        title={historyDetail?.name ?? 'Riwayat stok'}
+        subtitle={
+          historyDetail
+            ? `Stok ${historyDetail.stockQty} ${historyDetail.unit.label}`
+            : undefined
+        }
+        isLoading={historyLoading}
+        movements={historyMovements}
+        unitSuffix={historyDetail?.unit.label ?? ''}
+      />
     </div>
   )
 }

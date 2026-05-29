@@ -7,10 +7,11 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Truck } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
 import { portionService } from '@/services/portionService'
-import type { PortionStockView } from '@/types'
-import { cn } from '@/lib/utils'
+import { PORTION_REASON_LABEL, type PortionStockView } from '@/types'
+import { cn, formatDateTime } from '@/lib/utils'
+import { relativeTime, isSameLocalDate } from '@/lib/relativeTime'
 import {
   Button,
   IconButton,
@@ -18,29 +19,32 @@ import {
   Skeleton,
   Dialog,
   Input,
-  Checkbox,
   DataTable,
   type DataTableColumn,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
+import { useStockListControls } from './useStockListControls'
+import { StockFilterToolbar } from './StockFilterToolbar'
+import { SortableHeader } from './SortableHeader'
+import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
 
 export default function PortionStockTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
-  const [filterLow, setFilterLow] = useState(false)
   const [showRestockMorning, setShowRestockMorning] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
   const [emergencyTarget, setEmergencyTarget] = useState<PortionStockView | null>(null)
+  const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
 
   const { data: stocks = [], isLoading } = useQuery({
-    queryKey: ['portionStocks', filterLow],
-    queryFn: () => portionService.list(filterLow ? { lowStock: true } : {}),
-    // FIX: stok porsi berkurang saat penjualan POS (createMutation) & balik saat void,
-    // tapi mutation-mutation itu TIDAK invalidate ['portionStocks']. Tanpa 'always',
-    // jual di POS → buka tab Stok dalam 5 menit menyajikan stok basi (pra-penjualan).
-    // 'always' memaksa refetch tiap tab dibuka sehingga stok selalu current.
+    queryKey: ['portionStocks'],
+    queryFn: () => portionService.list(),
+    // FIX (REV 2.8: filter pindah client-side, key tak lagi pakai filterLow):
+    // stok porsi berkurang saat penjualan POS & balik saat void, tapi mutation itu
+    // TIDAK invalidate ['portionStocks']. 'always' memaksa refetch tiap tab dibuka
+    // supaya stok selalu current.
     refetchOnMount: 'always',
   })
 
@@ -70,10 +74,45 @@ export default function PortionStockTab() {
 
   const lowCount = useMemo(() => stocks.filter((s) => s.isLow).length, [stocks])
 
+  const controls = useStockListControls<PortionStockView>({
+    rows: stocks,
+    getName: (s) => s.menuName,
+    getCategoryValue: (s) => s.category,
+    getCategoryLabel: (s) => s.category,
+    getQty: (s) => s.currentQty,
+    getLastStockedAt: (s) => s.lastStockedAt,
+    getStatus: (s) => (s.currentQty <= 0 ? 'habis' : s.isLow ? 'rendah' : 'aman'),
+  })
+
+  // Riwayat per item (drawer) — pakai endpoint detail yang membawa recentMovements.
+  const { data: historyDetail, isLoading: historyLoading } = useQuery({
+    queryKey: ['portionStock', historyMenuId],
+    queryFn: () => portionService.detail(historyMenuId!),
+    enabled: historyMenuId != null,
+  })
+  const historyMovements: HistoryMovement[] = (historyDetail?.recentMovements ?? []).map((m) => ({
+    id: m.id,
+    reasonLabel: PORTION_REASON_LABEL[m.reason],
+    delta: m.delta,
+    qtyBefore: m.qtyBefore,
+    qtyAfter: m.qtyAfter,
+    note: m.note,
+    userName: m.userName,
+    createdAt: m.createdAt,
+    sourceLabel: m.transactionId != null ? `Transaksi #${m.transactionId}` : null,
+  }))
+
   const columns: DataTableColumn<PortionStockView>[] = [
     {
       key: 'menu',
-      header: 'Menu',
+      header: (
+        <SortableHeader
+          label="Menu"
+          active={controls.sortKey === 'name'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('name')}
+        />
+      ),
       cell: (s) => (
         <div>
           <div className="font-medium text-neutral-900">{s.menuName}</div>
@@ -83,7 +122,15 @@ export default function PortionStockTab() {
     },
     {
       key: 'qty',
-      header: 'Qty',
+      header: (
+        <SortableHeader
+          label="Qty"
+          align="right"
+          active={controls.sortKey === 'qty'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('qty')}
+        />
+      ),
       align: 'right',
       cell: (s) => (
         <span
@@ -103,6 +150,29 @@ export default function PortionStockTab() {
       cell: (s) => <span className="text-neutral-500 tabular-nums">{s.minStock}</span>,
     },
     {
+      key: 'lastStocked',
+      header: (
+        <SortableHeader
+          label="Terakhir di-stok"
+          align="right"
+          active={controls.sortKey === 'lastStocked'}
+          dir={controls.sortDir}
+          onSort={() => controls.setSort('lastStocked')}
+        />
+      ),
+      align: 'right',
+      hideMobile: true,
+      cell: (s) =>
+        s.lastStockedAt ? (
+          <div>
+            <div className="text-neutral-700">{relativeTime(s.lastStockedAt)}</div>
+            <div className="text-caption text-neutral-400">{formatDateTime(s.lastStockedAt)}</div>
+          </div>
+        ) : (
+          <span className="text-neutral-400">belum pernah</span>
+        ),
+    },
+    {
       key: 'suggested',
       header: 'Saran',
       align: 'right',
@@ -120,6 +190,14 @@ export default function PortionStockTab() {
       align: 'right',
       cell: (s) => (
         <div className="inline-flex items-center gap-1">
+          <IconButton
+            label={`Riwayat ${s.menuName}`}
+            icon={<History />}
+            variant="ghost"
+            size="sm"
+            onClick={() => setHistoryMenuId(s.menuId)}
+            className="text-neutral-600 hover:bg-neutral-100"
+          />
           <IconButton
             label={`Barang masuk ${s.menuName}`}
             icon={<Truck />}
@@ -144,8 +222,17 @@ export default function PortionStockTab() {
 
   return (
     <div className="p-3 sm:p-4 space-y-3">
-      {/* Action toolbar */}
-      <div className="bg-white rounded-xl p-3 border border-neutral-200/60 flex flex-wrap gap-2 items-center">
+      <StockFilterToolbar
+        controls={controls}
+        searchPlaceholder="Cari menu…"
+        rightBadge={
+          lowCount > 0 ? (
+            <Badge tone="warning" size="sm">
+              {lowCount} rendah
+            </Badge>
+          ) : undefined
+        }
+      >
         <Button
           variant="primary"
           size="md"
@@ -162,15 +249,7 @@ export default function PortionStockTab() {
         >
           Opname
         </Button>
-        <div className="ml-auto flex items-center gap-2">
-          <Checkbox
-            label="Yang rendah saja"
-            checked={filterLow}
-            onCheckedChange={setFilterLow}
-          />
-          {lowCount > 0 && <Badge tone="warning" size="sm">{lowCount}</Badge>}
-        </div>
-      </div>
+      </StockFilterToolbar>
 
       {/* List */}
       {isLoading ? (
@@ -178,16 +257,24 @@ export default function PortionStockTab() {
       ) : (
         <DataTable
           columns={columns}
-          data={stocks}
+          data={controls.view}
           rowKey={(s) => s.menuId}
           emptyTitle="Tidak ada item"
-          emptyDescription={filterLow ? 'Tidak ada stok yang rendah. Bagus!' : 'Stok porsi belum ada.'}
+          emptyDescription={
+            controls.activeFilterCount > 0
+              ? 'Tidak ada item cocok dengan filter.'
+              : 'Stok porsi belum ada.'
+          }
           mobileCard={(s) => (
             <div className="space-y-1.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-neutral-900">{s.menuName}</p>
                   <p className="text-caption text-neutral-500">{s.category}</p>
+                  <p className="text-caption text-neutral-400">
+                    {s.lastStockedAt ? relativeTime(s.lastStockedAt) : 'belum pernah di-stok'}
+                    {isSameLocalDate(s.lastStockedAt) && ' · dicek hari ini'}
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p
@@ -212,6 +299,14 @@ export default function PortionStockTab() {
                   <Badge tone="success" size="sm">Aman</Badge>
                 )}
                 <div className="inline-flex items-center gap-1">
+                  <IconButton
+                    label={`Riwayat ${s.menuName}`}
+                    icon={<History />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setHistoryMenuId(s.menuId)}
+                    className="text-neutral-600"
+                  />
                   <IconButton
                     label={`Barang masuk ${s.menuName}`}
                     icon={<Truck />}
@@ -267,6 +362,20 @@ export default function PortionStockTab() {
           }}
         />
       )}
+
+      <StockHistorySheet
+        open={historyMenuId != null}
+        onOpenChange={(o) => !o && setHistoryMenuId(null)}
+        title={historyDetail?.menuName ?? 'Riwayat stok'}
+        subtitle={
+          historyDetail
+            ? `Stok ${historyDetail.currentQty} · min ${historyDetail.minStock}`
+            : undefined
+        }
+        isLoading={historyLoading}
+        movements={historyMovements}
+        unitSuffix="porsi"
+      />
     </div>
   )
 }
