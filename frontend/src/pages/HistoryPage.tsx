@@ -14,7 +14,7 @@
 //       * Tx source (mergedIntoId set) → "🔗 Tergabung ke → #X" (clickable scroll)
 //     Click badge → setExpandedId(target) + scrollIntoView.
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
@@ -74,8 +74,18 @@ export default function HistoryPage() {
   const [filterDate, setFilterDate] = useState(today)
   const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all')
   const [filterOrderType, setFilterOrderType] = useState<OrderType | 'all'>('all')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  // Multi-expand: user bisa buka beberapa Tx sekaligus (mis. target merge + source-nya
+  // berdampingan untuk cross-check). Sebelumnya single accordion (expandedId number|null).
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set())
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+
+  const toggleExpanded = (id: number) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', filterDate, filterStatus, filterOrderType],
@@ -85,6 +95,11 @@ export default function HistoryPage() {
         status: filterStatus === 'all' ? undefined : filterStatus,
         orderType: filterOrderType === 'all' ? undefined : filterOrderType,
       }),
+    // FIX: key composite ['transactions',date,status,type] TIDAK kena prefix-invalidate
+    // dari pembayaran (addPayMutation invalidate ['transactions','open-today'] dll, bukan
+    // bare ['transactions']). Tanpa 'always', bayar di POS → balik ke History dalam 5 menit
+    // masih menampilkan Tx itu sebagai 'open'. 'always' memaksa refetch tiap halaman dibuka.
+    refetchOnMount: 'always',
   })
 
   // REV 2.6: lookup label dari master payment_methods (sumber: tabel
@@ -104,14 +119,17 @@ export default function HistoryPage() {
   const labelForMethod = (code: string): string =>
     methodLabelMap.get(code) ?? code.toUpperCase()
 
-  // REV 2.5: derive mergedFromMap dari list - untuk setiap Tx yang jadi target,
-  // kumpulkan id-id source. Hanya tampil di dataset hasil filter (visibility).
+  // REV 2.5: derive mergedFromMap dari list - untuk setiap Tx target, kumpulkan OBJEK
+  // source-nya (bukan cuma id) supaya detail target bisa menampilkan item dari tiap
+  // pesanan yang digabung + breakdown rekonsiliasi ke total aggregate. Hanya source
+  // yang ikut ter-filter (visible) yang tersedia — target & source selalu satu status
+  // + tanggal sama, jadi keduanya muncul/hilang bareng di view ter-filter.
   const mergedFromMap = useMemo(() => {
-    const map = new Map<number, number[]>()
+    const map = new Map<number, Transaction[]>()
     for (const tx of transactions) {
       if (tx.mergedIntoId !== null) {
         const arr = map.get(tx.mergedIntoId) ?? []
-        arr.push(tx.id)
+        arr.push(tx)
         map.set(tx.mergedIntoId, arr)
       }
     }
@@ -146,7 +164,12 @@ export default function HistoryPage() {
   // REV 2.5: scroll-to-Tx helper untuk audit badges. Cari node via data-tx-row
   // attribute (DOM query lebih simple daripada ref Map untuk variable-length list).
   const handleScrollToTx = (id: number) => {
-    setExpandedId(id)
+    // Multi-expand: tambahkan ke set (jangan ganti) supaya Tx asal tetap terbuka.
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
     requestAnimationFrame(() => {
       const node = document.querySelector(`[data-tx-row="${id}"]`)
       if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -232,9 +255,9 @@ export default function HistoryPage() {
               <TransactionRow
                 key={tx.id}
                 tx={tx}
-                mergedFromIds={mergedFromMap.get(tx.id) ?? []}
-                expanded={expandedId === tx.id}
-                onToggle={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
+                mergedSources={mergedFromMap.get(tx.id) ?? []}
+                expanded={expandedIds.has(tx.id)}
+                onToggle={() => toggleExpanded(tx.id)}
                 onVoid={() => handleVoid(tx)}
                 onScrollToTx={handleScrollToTx}
                 labelForMethod={labelForMethod}
@@ -282,7 +305,7 @@ export default function HistoryPage() {
 
 function TransactionRow({
   tx,
-  mergedFromIds,
+  mergedSources,
   expanded,
   onToggle,
   onVoid,
@@ -290,7 +313,8 @@ function TransactionRow({
   labelForMethod,
 }: {
   tx: Transaction
-  mergedFromIds: number[]
+  /** Objek Tx source yang di-merge ke Tx ini (merge target). Kosong = bukan target. */
+  mergedSources: Transaction[]
   expanded: boolean
   onToggle: () => void
   onVoid: () => void
@@ -300,8 +324,17 @@ function TransactionRow({
 }) {
   const canVoid = tx.status !== 'void'
   const isMergedSource = tx.mergedIntoId !== null
-  const isMergedTarget = mergedFromIds.length > 0
+  const isMergedTarget = mergedSources.length > 0
   const hasMergeRelation = isMergedSource || isMergedTarget
+  const mergedFromIds = mergedSources.map((s) => s.id)
+
+  // Merge target: subtotal + jumlah item ditampilkan agregat (own + semua source)
+  // supaya breakdown item rekonsiliasi ke tx.total (yang sudah aggregate-based saat
+  // pembayaran). Non-target: pakai nilai sendiri seperti biasa.
+  const sourcesSubtotal = mergedSources.reduce((s, src) => s + src.subtotal, 0)
+  const sourcesItemCount = mergedSources.reduce((s, src) => s + src.items.length, 0)
+  const displaySubtotal = isMergedTarget ? tx.subtotal + sourcesSubtotal : tx.subtotal
+  const displayItemCount = tx.items.length + (isMergedTarget ? sourcesItemCount : 0)
 
   const menuItems: DropdownItem[] = []
   if (canVoid) {
@@ -378,7 +411,7 @@ function TransactionRow({
                 {formatCurrency(tx.total || tx.subtotal)}
               </p>
             )}
-            <p className="text-caption text-neutral-500">{tx.items.length} item</p>
+            <p className="text-caption text-neutral-500">{displayItemCount} item</p>
           </div>
         </button>
         {menuItems.length > 0 && (
@@ -440,34 +473,36 @@ function TransactionRow({
           <div className="rounded-lg border border-neutral-200/60 bg-white p-3">
             <ul className="text-body-sm space-y-1.5 mb-3">
               {tx.items.map((it) => (
-                <li key={it.id} className="flex justify-between text-neutral-800 gap-2">
-                  <span className="min-w-0">
-                    {it.menuName}{' '}
-                    <span className="text-neutral-500 tabular-nums">× {it.qty}</span>
-                    {it.subOptionsSelected && (
-                      <span className="ml-1.5 text-caption text-primary-700">
-                        ({Object.values(it.subOptionsSelected).join(', ')})
-                      </span>
-                    )}
-                    {it.notes && (
-                      <span className="ml-1.5 text-caption text-neutral-500 italic">
-                        📝 {it.notes}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-neutral-900 tabular-nums shrink-0">
-                    {formatCurrency(it.subtotal)}
-                  </span>
-                </li>
+                <ItemLine key={it.id} item={it} />
               ))}
-              {tx.items.length === 0 && (
+              {/* Merge target: tampilkan item dari tiap pesanan yang digabung ke Tx ini,
+                  dipisah divider "dari #N" supaya kasir lihat asal tiap item +
+                  jumlah item rekonsiliasi ke subtotal aggregate di bawah. */}
+              {mergedSources.map((src) => (
+                <Fragment key={`src-${src.id}`}>
+                  <li
+                    className="flex items-center gap-2 pt-1.5 select-none"
+                    aria-label={`Item dari transaksi #${src.id}`}
+                  >
+                    <span className="h-px flex-1 bg-primary-200/70" />
+                    <span className="text-caption font-medium text-primary-700 shrink-0">
+                      dari #{src.id}
+                    </span>
+                    <span className="h-px flex-1 bg-primary-200/70" />
+                  </li>
+                  {src.items.map((it) => (
+                    <ItemLine key={it.id} item={it} />
+                  ))}
+                </Fragment>
+              ))}
+              {tx.items.length === 0 && mergedSources.length === 0 && (
                 <li className="text-caption text-neutral-500 italic">
                   Tidak ada item (sudah di-merge ke parent).
                 </li>
               )}
             </ul>
             <div className="text-body-sm text-neutral-700 space-y-0.5 pt-3 border-t border-neutral-100 tabular-nums">
-              <Row label="Subtotal" value={formatCurrency(tx.subtotal)} />
+              <Row label="Subtotal" value={formatCurrency(displaySubtotal)} />
               {tx.discountAmount > 0 && (
                 <Row
                   label="Diskon"
@@ -515,6 +550,30 @@ function TransactionRow({
         </div>
       )}
     </div>
+  )
+}
+
+/** Satu baris item di expanded detail. Dipakai untuk item milik Tx sendiri maupun
+ *  item dari Tx source yang digabung (merge target). */
+function ItemLine({ item }: { item: Transaction['items'][number] }) {
+  return (
+    <li className="flex justify-between text-neutral-800 gap-2">
+      <span className="min-w-0">
+        {item.menuName}{' '}
+        <span className="text-neutral-500 tabular-nums">× {item.qty}</span>
+        {item.subOptionsSelected && (
+          <span className="ml-1.5 text-caption text-primary-700">
+            ({Object.values(item.subOptionsSelected).join(', ')})
+          </span>
+        )}
+        {item.notes && (
+          <span className="ml-1.5 text-caption text-neutral-500 italic">📝 {item.notes}</span>
+        )}
+      </span>
+      <span className="text-neutral-900 tabular-nums shrink-0">
+        {formatCurrency(item.subtotal)}
+      </span>
+    </li>
   )
 }
 

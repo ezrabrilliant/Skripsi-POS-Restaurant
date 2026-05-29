@@ -22,6 +22,7 @@ import billRoutes from './modules/bills/bills.routes';
 import banksRoutes from './modules/banks/banks.routes';
 import paymentMethodsRoutes from './modules/payment-methods/payment-methods.routes';
 import unitsRoutes from './modules/units/units.routes';
+import settingsRoutes from './modules/settings/settings.routes';
 // REV 2.2: modul `tables` dihapus (table number jadi field di Transaction, 9 meja fixed)
 // REV 2.2: modul `expenses` dihapus (split jadi `purchases` di Phase 7 + `bills` di Phase 8)
 
@@ -52,6 +53,7 @@ export function createApp() {
   app.use('/api/banks', banksRoutes);
   app.use('/api/payment-methods', paymentMethodsRoutes);
   app.use('/api/units', unitsRoutes);
+  app.use('/api/settings', settingsRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 
   // Penangan error harus paling akhir
