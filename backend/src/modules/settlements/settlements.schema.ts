@@ -6,22 +6,18 @@
 import { z } from 'zod';
 import { SettlementStatus } from '@prisma/client';
 
-const idField = z.number().int().positive();
-
+// Phase 3 (shift-redesign): settlement = whole business day, keyed by `date`
+// (YYYY-MM-DD), bukan satu shiftId. Preview & create sama-sama pakai date.
 export const previewQuerySchema = z.object({
-  shiftId: z.coerce.number().int().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYYY-MM-DD'),
 });
 
-// REV 2.6: counts dinamis per method code, bukan 6 field hardcoded.
-// Keys harus match format payment_methods.code (snake_case lowercase).
-// Empty record diijinkan (settle shift tanpa transaksi atau semua method 0).
+// counts dinamis per method code. Keys harus match format payment_methods.code
+// (snake_case lowercase). Empty record diijinkan (settle hari tanpa transaksi
+// atau semua method 0).
 export const createSettlementSchema = z.object({
-  shiftId: idField,
-  counts: z.record(
-    z.string().regex(/^[a-z][a-z0-9_]*$/, 'Method code harus format snake_case lowercase'),
-    z.number().int().min(0, 'Counted amount tidak boleh negatif'),
-  ),
-  note: z.string().trim().max(500).nullable().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYYY-MM-DD'),
+  counts: z.record(z.string(), z.number().nonnegative()),
 });
 
 export const listSettlementsQuerySchema = z.object({

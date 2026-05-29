@@ -73,12 +73,13 @@ export interface SettlementView {
 }
 
 export interface SettlementPreview {
-  shiftId: number;
-  shiftType: ShiftType;
+  shiftId: number; // ID shift penutup (closer) hari itu, audit ref
+  shiftType: ShiftType; // tipe shift penutup
   date: string;
-  cashierId: number;
-  cashierName: string;
-  closedAt: string | null;
+  cashierId: number; // cashier penutup
+  cashierName: string; // nama cashier penutup
+  closedAt: string | null; // closedAt shift penutup
+  openingCashTotal: number; // float baseline = sum(openingCash) semua shift hari itu
   system: SettlementSystemEntry[];
   totalSystem: number;
   bankBreakdown: BankBreakdownEntry[];
@@ -102,15 +103,15 @@ interface SystemTotalRow {
   total: number;
 }
 
-async function computeSystemTotals(shiftId: number): Promise<SystemTotalRow[]> {
+async function computeSystemTotals(businessDate: Date): Promise<SystemTotalRow[]> {
   // Aggregate dari TransactionPayment.amount (multi-slice per Tx),
-  // filter via relation Tx.shiftId + Tx.status=paid + Tx.mergedIntoId IS NULL
-  // (exclude source yang di-merge supaya tidak double-count).
+  // filter via relation Tx.shift.date (whole business day) + Tx.status=paid +
+  // Tx.mergedIntoId IS NULL (exclude source yang di-merge supaya tidak double-count).
   const grouped = await prisma.transactionPayment.groupBy({
     by: ['method'],
     where: {
       transaction: {
-        shiftId,
+        shift: { date: businessDate },
         status: TransactionStatus.paid,
         mergedIntoId: null,
       },
@@ -124,14 +125,15 @@ async function computeSystemTotals(shiftId: number): Promise<SystemTotalRow[]> {
   }));
 }
 
-async function computeBankBreakdown(shiftId: number): Promise<BankBreakdownEntry[]> {
+async function computeBankBreakdown(businessDate: Date): Promise<BankBreakdownEntry[]> {
   // Bank breakdown via TransactionPayment.bank groupBy. Hanya rows dengan bank != null
   // (method requiresBank=true seperti edc/transfer + future methods).
+  // Filter via relation Tx.shift.date (whole business day).
   const rows = await prisma.transactionPayment.groupBy({
     by: ['method', 'bank'],
     where: {
       transaction: {
-        shiftId,
+        shift: { date: businessDate },
         status: TransactionStatus.paid,
         mergedIntoId: null,
       },
@@ -228,17 +230,23 @@ async function toSettlementView(
 // Operations
 // ============================================================
 
-export async function previewSettlement(shiftId: number): Promise<SettlementPreview> {
-  const shift = await prisma.shift.findUnique({
-    where: { id: shiftId },
+export async function previewSettlement(businessDate: Date): Promise<SettlementPreview> {
+  // REV (shift-redesign Phase 3): settlement = rekap WHOLE business day.
+  // Resolve semua shift hari itu; "closer" = shift dengan closedAt terbaru
+  // (fallback createdAt terbaru) untuk display metadata.
+  const shiftsThatDay = await prisma.shift.findMany({
+    where: { date: businessDate },
     include: { cashier: { select: { name: true } } },
+    orderBy: [{ closedAt: 'desc' }, { createdAt: 'desc' }],
   });
-  if (!shift) throw notFound('Shift');
+  if (shiftsThatDay.length === 0) throw notFound('Shift untuk tanggal ini');
+
+  const closer = shiftsThatDay[0]!;
 
   const [systemRows, bankBreakdown, existing] = await Promise.all([
-    computeSystemTotals(shiftId),
-    computeBankBreakdown(shiftId),
-    prisma.settlement.findUnique({ where: { shiftId }, select: { id: true } }),
+    computeSystemTotals(businessDate),
+    computeBankBreakdown(businessDate),
+    prisma.settlement.findFirst({ where: { date: businessDate }, select: { id: true } }),
   ]);
 
   const metaMap = await lookupMethodsMeta(systemRows.map((r) => r.methodCode));
@@ -257,13 +265,20 @@ export async function previewSettlement(shiftId: number): Promise<SettlementPrev
 
   const totalSystem = system.reduce((s, e) => s + e.total, 0);
 
+  // Float baseline = sum openingCash semua shift hari itu (3.3).
+  const openingCashTotal = shiftsThatDay.reduce(
+    (sum, s) => sum + s.openingCash.toNumber(),
+    0,
+  );
+
   return {
-    shiftId: shift.id,
-    shiftType: shift.type,
-    date: shift.date.toISOString().substring(0, 10),
-    cashierId: shift.cashierId,
-    cashierName: shift.cashier.name,
-    closedAt: shift.closedAt ? shift.closedAt.toISOString() : null,
+    shiftId: closer.id,
+    shiftType: closer.type,
+    date: businessDate.toISOString().substring(0, 10),
+    cashierId: closer.cashierId,
+    cashierName: closer.cashier.name,
+    closedAt: closer.closedAt ? closer.closedAt.toISOString() : null,
+    openingCashTotal,
     system,
     totalSystem,
     bankBreakdown,
@@ -276,30 +291,45 @@ export async function createSettlement(
   userRole: UserRole,
   input: CreateSettlementInput,
 ): Promise<SettlementView> {
-  // Validasi shift
-  const shift = await prisma.shift.findUnique({ where: { id: input.shiftId } });
-  if (!shift) throw notFound('Shift');
-  if (!shift.closedAt) {
-    throw new AppError('Shift belum ditutup, settlement tidak bisa dibuat', 400);
-  }
+  // REV (shift-redesign Phase 3): settlement keyed by business date (whole day),
+  // bukan satu shift. Parse business date UTC-midnight match shift.date storage.
+  const businessDate = new Date(input.date + 'T00:00:00.000Z');
 
-  // Permission inline (matrix REV 2.3):
-  //   - Owner boleh settle shift siapapun.
-  //   - Kasir hanya boleh settle shift MALAM miliknya sendiri.
+  // Resolve semua shift hari itu, ordered closer-first (closedAt desc, createdAt desc).
+  const shiftsThatDay = await prisma.shift.findMany({
+    where: { date: businessDate },
+    orderBy: [{ closedAt: 'desc' }, { createdAt: 'desc' }],
+  });
+  if (shiftsThatDay.length === 0) throw notFound('Shift untuk tanggal ini');
+
+  // Closer = shift dengan closedAt terbaru; fallback ke shift pertama (createdAt terbaru)
+  // bila belum ada yang ditutup.
+  const closer = shiftsThatDay.find((s) => s.closedAt) ?? shiftsThatDay[0]!;
+
+  // Permission inline (shift-redesign Phase 3 — old shift.type === malam check GONE):
+  //   - Owner boleh settle hari apapun.
+  //   - Kasir hanya boleh settle kalau dia kasir penutup shift terakhir hari itu.
   if (userRole === UserRole.cashier) {
-    if (shift.cashierId !== userId) {
-      throw forbidden('Kasir hanya bisa settle shift miliknya sendiri');
-    }
-    if (shift.type !== ShiftType.malam) {
-      throw forbidden('Kasir hanya bisa settle shift malam (per matrix REV 2.3)');
+    if (!closer || closer.cashierId !== userId) {
+      throw forbidden(
+        'Hanya kasir penutup shift terakhir hari itu (atau owner) yang boleh settle',
+      );
     }
   }
 
-  // Cek tidak ada settlement sebelumnya untuk shift ini (UNIQUE constraint juga
-  // proteksi di DB level, tapi kita berikan pesan ramah di app layer).
-  const existing = await prisma.settlement.findUnique({ where: { shiftId: input.shiftId } });
+  // Closer harus sudah ditutup; kalau semua shift hari itu masih open, tolak.
+  if (!closer.closedAt) {
+    throw new AppError('Shift hari ini belum ditutup, settlement tidak bisa dibuat', 400);
+  }
+
+  // Dedupe per business date (UNIQUE @@unique([date]) juga proteksi di DB level,
+  // tapi kita berikan pesan ramah di app layer).
+  const existing = await prisma.settlement.findFirst({ where: { date: businessDate } });
   if (existing) {
-    throw new AppError(`Settlement untuk shift id=${input.shiftId} sudah ada (id=${existing.id})`, 409);
+    throw new AppError(
+      `Settlement untuk tanggal ${input.date} sudah ada (id=${existing.id})`,
+      409,
+    );
   }
 
   // Validate counts: semua method codes harus exist di master payment_methods
@@ -320,8 +350,8 @@ export async function createSettlement(
     }
   }
 
-  // Compute system per method dari transactions
-  const systemRows = await computeSystemTotals(input.shiftId);
+  // Compute system per method dari transactions (whole business day)
+  const systemRows = await computeSystemTotals(businessDate);
   const systemMap = new Map(systemRows.map((r) => [r.methodCode, r.total]));
 
   // Build child rows: union dari counts keys + system keys.
@@ -355,9 +385,9 @@ export async function createSettlement(
 
   const created = await prisma.settlement.create({
     data: {
-      shiftId: input.shiftId,
-      date: shift.date,
-      cashierId: shift.cashierId,
+      shiftId: closer.id, // audit ref ke shift penutup
+      date: businessDate,
+      cashierId: closer.cashierId, // owner-of-record = kasir penutup hari itu
       status: SettlementStatus.submitted,
       methodCounts: {
         create: childRows,
@@ -370,7 +400,7 @@ export async function createSettlement(
     },
   });
 
-  const bankBreakdown = await computeBankBreakdown(input.shiftId);
+  const bankBreakdown = await computeBankBreakdown(businessDate);
   return toSettlementView(created, bankBreakdown);
 }
 
@@ -384,7 +414,7 @@ export async function getSettlementById(id: number): Promise<SettlementView> {
     },
   });
   if (!s) throw notFound('Settlement');
-  const bankBreakdown = await computeBankBreakdown(s.shiftId);
+  const bankBreakdown = await computeBankBreakdown(s.date);
   return toSettlementView(s, bankBreakdown);
 }
 
@@ -411,10 +441,10 @@ export async function listSettlements(query: ListSettlementsQuery): Promise<Sett
     orderBy: [{ date: 'desc' }, { submittedAt: 'desc' }],
   });
 
-  // Bank breakdown per-settlement (paralel)
+  // Bank breakdown per-settlement (paralel), keyed by business date
   const withBreakdowns = await Promise.all(
     settlements.map(async (s) => {
-      const bb = await computeBankBreakdown(s.shiftId);
+      const bb = await computeBankBreakdown(s.date);
       return toSettlementView(s, bb);
     }),
   );
@@ -441,6 +471,6 @@ export async function reviewSettlement(id: number, reviewerId: number): Promise<
       methodCounts: true,
     },
   });
-  const bankBreakdown = await computeBankBreakdown(updated.shiftId);
+  const bankBreakdown = await computeBankBreakdown(updated.date);
   return toSettlementView(updated, bankBreakdown);
 }

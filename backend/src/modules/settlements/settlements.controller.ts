@@ -13,8 +13,11 @@ import {
 import * as settlementsService from './settlements.service';
 
 export const handlePreview = asyncHandler(async (req: Request, res: Response) => {
-  const { shiftId } = previewQuerySchema.parse(req.query);
-  const preview = await settlementsService.previewSettlement(shiftId);
+  const { date } = previewQuerySchema.parse(req.query);
+  // UTC-midnight match shift.date storage (whole business day).
+  const preview = await settlementsService.previewSettlement(
+    new Date(date + 'T00:00:00.000Z'),
+  );
   sendSuccess(res, { preview }, 'Preview settlement');
 });
 
