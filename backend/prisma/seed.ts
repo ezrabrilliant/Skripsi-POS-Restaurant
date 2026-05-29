@@ -18,6 +18,7 @@
 import { PrismaClient, UserRole, StockType, RawMaterialCategory, OpnameMode } from '@prisma/client';
 import { MENU_CATALOG } from './menu-catalog';
 import { seedPaymentMethods } from '../scripts/seed-payment-methods';
+import { applyVariantCatalog } from '../scripts/backfill-menu-variants';
 
 const prisma = new PrismaClient();
 
@@ -216,6 +217,10 @@ async function seedAppSetting() {
 async function main() {
   await seedUsers();
   await seedMenus();
+  // REV 2.10: terapkan katalog varian (sama persis dengan backfill DB lama) supaya
+  // fresh DB punya struktur variant/paket/hidden-SKU identik. Idempotent.
+  console.log('Menerapkan katalog varian REV 2.10...');
+  await applyVariantCatalog(prisma);
   const unitByLabel = await seedUnits();
   await seedRawMaterials(unitByLabel);
   await seedVendors();
