@@ -37,6 +37,11 @@ export default function PortionStockTab() {
   const { data: stocks = [], isLoading } = useQuery({
     queryKey: ['portionStocks', filterLow],
     queryFn: () => portionService.list(filterLow ? { lowStock: true } : {}),
+    // FIX: stok porsi berkurang saat penjualan POS (createMutation) & balik saat void,
+    // tapi mutation-mutation itu TIDAK invalidate ['portionStocks']. Tanpa 'always',
+    // jual di POS → buka tab Stok dalam 5 menit menyajikan stok basi (pra-penjualan).
+    // 'always' memaksa refetch tiap tab dibuka sehingga stok selalu current.
+    refetchOnMount: 'always',
   })
 
   const markHabisMutation = useMutation({

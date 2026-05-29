@@ -104,6 +104,11 @@ function SettlementFlow({ shiftId }: { shiftId: number }) {
   const { data: preview, isLoading } = useQuery({
     queryKey: ['settlements', 'preview', shiftId],
     queryFn: () => settlementService.preview(shiftId),
+    // FIX: preview dihitung server-side dari transaksi paid di shift ini, tapi key
+    // ['settlements','preview',*] TIDAK pernah di-invalidate oleh pembayaran/void.
+    // Tanpa 'always', buka Settlement → ke POS bayar → balik dalam 5 menit menyajikan
+    // preview basi (total + variance salah). 'always' memaksa refetch tiap buka halaman.
+    refetchOnMount: 'always',
   })
 
   const { data: existingSettlement } = useQuery({
