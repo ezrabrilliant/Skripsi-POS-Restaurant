@@ -274,13 +274,14 @@ export async function upsertMenu(
   id: number | null,
   input: MenuUpsertInput,
 ): Promise<MenuDetail> {
-  // Pre-validasi referensi stock target (varian) + paket target di luar transaksi.
-  await validateMenuReferences(id, input);
-
   const stockType = STOCK_TYPE_MAP[input.stockType];
   const kind = MENU_KIND_MAP[input.kind];
 
   const menuId = await prisma.$transaction(async (tx) => {
+    // Validasi referensi stock target (varian) + paket target DI DALAM transaksi
+    // supaya garansi AppError(400) atomic (tidak ada race antara validate & write).
+    await validateMenuReferences(tx, input);
+
     // 1. Base menu (create atau update)
     let baseId: number;
     if (id === null) {
@@ -436,9 +437,10 @@ export async function upsertMenu(
 /**
  * Validasi keberadaan semua referensi target (menu + variant) sebelum write.
  * Throw AppError 400 dengan pesan jelas kalau ada yang tidak ditemukan.
+ * Dipanggil DI DALAM transaksi (pakai tx client) supaya garansi 400 atomic.
  */
 async function validateMenuReferences(
-  id: number | null,
+  tx: Prisma.TransactionClient,
   input: MenuUpsertInput,
 ): Promise<void> {
   const menuIds = new Set<number>();
@@ -457,7 +459,7 @@ async function validateMenuReferences(
   }
 
   if (menuIds.size > 0) {
-    const found = await prisma.menu.findMany({
+    const found = await tx.menu.findMany({
       where: { id: { in: [...menuIds] } },
       select: { id: true },
     });
@@ -469,7 +471,7 @@ async function validateMenuReferences(
   }
 
   if (variantIds.size > 0) {
-    const found = await prisma.menuVariant.findMany({
+    const found = await tx.menuVariant.findMany({
       where: { id: { in: [...variantIds] } },
       select: { id: true },
     });
