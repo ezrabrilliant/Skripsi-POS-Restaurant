@@ -5,7 +5,7 @@
 
 import { type ReactNode, useState } from 'react'
 import { Filter, Search } from 'lucide-react'
-import { Button, Combobox, Input, Select, Sheet } from '@/design-system/primitives'
+import { Button, Combobox, Input, Sheet } from '@/design-system/primitives'
 import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
 import type {
   OpnameStatusFilter,
@@ -87,19 +87,19 @@ export function StockFilterToolbar({
         placeholder="Semua kategori"
         containerClassName="min-w-[10rem]"
       />
-      <Select
+      <Combobox
         label="Status stok"
         hideLabel
         value={c.statusFilter}
-        onChange={(e) => c.setStatusFilter(e.target.value as StockStatusFilter)}
+        onValueChange={(v) => c.setStatusFilter(v as StockStatusFilter)}
         options={STATUS_OPTIONS}
         containerClassName="min-w-[9rem]"
       />
-      <Select
+      <Combobox
         label="Status opname"
         hideLabel
         value={c.opnameStatus}
-        onChange={(e) => c.setOpnameStatus(e.target.value as OpnameStatusFilter)}
+        onValueChange={(v) => c.setOpnameStatus(v as OpnameStatusFilter)}
         options={OPNAME_OPTIONS}
         containerClassName="min-w-[11rem]"
       />
@@ -141,11 +141,11 @@ export function StockFilterToolbar({
           containerClassName="flex-1"
         />
         {isMobile && (
-          <Select
+          <Combobox
             label="Urutkan"
             hideLabel
             value={c.sortKey}
-            onChange={(e) => c.setSort(e.target.value as StockSortKey)}
+            onValueChange={(v) => c.setSort(v as StockSortKey)}
             options={SORT_OPTIONS}
             containerClassName="w-[12rem] shrink-0"
           />
