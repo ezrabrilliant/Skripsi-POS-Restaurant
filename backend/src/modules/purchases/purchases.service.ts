@@ -303,7 +303,8 @@ export async function createPurchase(
       }
 
       const { rm, qty, unitPrice, subtotal, note, expiredDate } = processed;
-      await tx.purchaseItem.create({
+      // REV 2.8: tangkap id item agar movement bisa menautkan purchase_item_id.
+      const pItem = await tx.purchaseItem.create({
         data: {
           purchaseId: header.id,
           rawMaterialId: rm.id,
@@ -321,7 +322,7 @@ export async function createPurchase(
       if (processed.kind === 'typed-exact' && qty) {
         rmUpdateData.stockQty = { increment: qty };
       }
-      await tx.rawMaterial.update({
+      const updatedRm = await tx.rawMaterial.update({
         where: { id: rm.id },
         data: rmUpdateData,
       });
@@ -330,19 +331,22 @@ export async function createPurchase(
         processed.kind === 'typed-scale' ? new Prisma.Decimal(0) : qty!;
       let movementNote: string;
       if (processed.kind === 'typed-scale') {
-        movementNote = `Purchase id=${header.id}: total Rp${subtotal.toString()}${
+        movementNote = `Skala mode: total Rp${subtotal.toString()}${
           note ? ` (${note})` : ''
-        } (skala mode, stok manual via opname)`;
+        } (stok manual via opname)`;
       } else {
-        movementNote = `Purchase id=${header.id}: +${qty!.toString()} ${
-          rm.unit.label
-        } @ Rp${unitPrice!.toString()}`;
+        movementNote = `+${qty!.toString()} ${rm.unit.label} @ Rp${unitPrice!.toString()}`;
       }
+      // REV 2.8: tautan via FK; qtyAfter dari hasil update, before = after − delta.
       await tx.rawMaterialMovement.create({
         data: {
           rawMaterialId: rm.id,
           delta: movementDelta,
           reason: RawMaterialMovementReason.purchase,
+          purchaseId: header.id,
+          purchaseItemId: pItem.id,
+          qtyBefore: updatedRm.stockQty.sub(movementDelta),
+          qtyAfter: updatedRm.stockQty,
           note: movementNote,
           userId,
         },

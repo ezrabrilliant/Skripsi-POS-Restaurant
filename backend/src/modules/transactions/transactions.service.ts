@@ -335,7 +335,8 @@ async function persistItemsAndDecrement(
   resolved: ResolvedItem[],
 ): Promise<void> {
   for (const r of resolved) {
-    await tx.transactionItem.create({
+    // REV 2.8: tangkap id item agar movement bisa menautkan transaction_item_id.
+    const item = await tx.transactionItem.create({
       data: {
         transactionId,
         menuId: r.menu.id,
@@ -351,16 +352,22 @@ async function persistItemsAndDecrement(
     });
 
     for (const targetMenuId of r.stockTargetMenuIds) {
-      await tx.portionStock.update({
+      const delta = -r.input.qty;
+      const updated = await tx.portionStock.update({
         where: { menuId: targetMenuId },
         data: { currentQty: { decrement: r.input.qty } },
       });
       await tx.portionMovement.create({
         data: {
           menuId: targetMenuId,
-          delta: -r.input.qty,
+          delta,
           reason: PortionMovementReason.order,
-          note: `transactionId=${transactionId} via "${r.menu.name}"`,
+          // REV 2.8: tautan via FK (bukan lagi teks note); note = konteks manusiawi.
+          transactionId,
+          transactionItemId: item.id,
+          qtyBefore: updated.currentQty - delta,
+          qtyAfter: updated.currentQty,
+          note: `via "${r.menu.name}"`,
           userId,
         },
       });
@@ -749,18 +756,26 @@ export async function voidTransaction(
   const resolved = await resolveItems(itemsInput);
 
   await prisma.$transaction(async (tx) => {
-    for (const r of resolved) {
+    // resolved[i] sejajar dengan existing.items[i] (resolveItems jaga urutan input).
+    for (let i = 0; i < resolved.length; i++) {
+      const r = resolved[i]!;
+      const sourceItemId = existing.items[i]?.id ?? null;
       for (const targetMenuId of r.stockTargetMenuIds) {
-        await tx.portionStock.update({
+        const delta = r.input.qty;
+        const updated = await tx.portionStock.update({
           where: { menuId: targetMenuId },
           data: { currentQty: { increment: r.input.qty } },
         });
         await tx.portionMovement.create({
           data: {
             menuId: targetMenuId,
-            delta: r.input.qty,
+            delta,
             reason: PortionMovementReason.refundVoid,
-            note: `void transactionId=${transactionId} reverse "${r.menu.name}"`,
+            transactionId,
+            transactionItemId: sourceItemId,
+            qtyBefore: updated.currentQty - delta,
+            qtyAfter: updated.currentQty,
+            note: `void reverse "${r.menu.name}"`,
             userId,
           },
         });
@@ -850,23 +865,28 @@ export async function updateTransactionItem(
       for (const targetMenuId of stockTargetMenuIds) {
         if (qtyDelta > 0) {
           // qty naik → decrement stok lebih banyak (audit reason=order)
-          await tx.portionStock.update({
+          const delta = -qtyDelta;
+          const updated = await tx.portionStock.update({
             where: { menuId: targetMenuId },
             data: { currentQty: { decrement: qtyDelta } },
           });
           await tx.portionMovement.create({
             data: {
               menuId: targetMenuId,
-              delta: -qtyDelta,
+              delta,
               reason: PortionMovementReason.order,
-              note: `Edit Tx ${transactionId} item ${itemId} qty +${qtyDelta} (${resolvedMenuName})`,
+              transactionId,
+              transactionItemId: itemId,
+              qtyBefore: updated.currentQty - delta,
+              qtyAfter: updated.currentQty,
+              note: `Edit item qty +${qtyDelta} (${resolvedMenuName})`,
               userId,
             },
           });
         } else {
           // qty turun → reverse stok (audit reason=refundVoid)
           const reverseAmt = Math.abs(qtyDelta);
-          await tx.portionStock.update({
+          const updated = await tx.portionStock.update({
             where: { menuId: targetMenuId },
             data: { currentQty: { increment: reverseAmt } },
           });
@@ -875,7 +895,11 @@ export async function updateTransactionItem(
               menuId: targetMenuId,
               delta: reverseAmt,
               reason: PortionMovementReason.refundVoid,
-              note: `Edit Tx ${transactionId} item ${itemId} qty ${qtyDelta} (${resolvedMenuName})`,
+              transactionId,
+              transactionItemId: itemId,
+              qtyBefore: updated.currentQty - reverseAmt,
+              qtyAfter: updated.currentQty,
+              note: `Edit item qty ${qtyDelta} (${resolvedMenuName})`,
               userId,
             },
           });
@@ -929,16 +953,21 @@ export async function deleteTransactionItem(
   await prisma.$transaction(async (tx) => {
     await tx.transactionItem.delete({ where: { id: itemId } });
     for (const targetMenuId of r.stockTargetMenuIds) {
-      await tx.portionStock.update({
+      const delta = item.qty;
+      const updated = await tx.portionStock.update({
         where: { menuId: targetMenuId },
         data: { currentQty: { increment: item.qty } },
       });
+      // REV 2.8: item sudah dihapus → transactionItemId null (hanya tautkan transaksi).
       await tx.portionMovement.create({
         data: {
           menuId: targetMenuId,
-          delta: item.qty,
+          delta,
           reason: PortionMovementReason.refundVoid,
-          note: `Edit Tx ${transactionId}: hapus item "${r.menu.name}" qty=${item.qty}`,
+          transactionId,
+          qtyBefore: updated.currentQty - delta,
+          qtyAfter: updated.currentQty,
+          note: `hapus item "${r.menu.name}" qty=${item.qty}`,
           userId,
         },
       });
