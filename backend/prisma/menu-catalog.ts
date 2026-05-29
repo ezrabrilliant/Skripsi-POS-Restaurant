@@ -313,6 +313,9 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   { name: 'Nasi Goreng', category: 'Side Dish', price: 15000, stockType: 'nonStock', imageUrl: NASI_IMG },
   { name: 'Sambal Terasi', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
   { name: 'Sambal Tomat', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
+  // REV 2.6: 2 varian kerupuk dari data buku historis (Krupuk B 7k + Krupuk C/Udang 15k).
+  { name: 'Kerupuk', category: 'Side Dish', price: 7000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
+  { name: 'Kerupuk Udang', category: 'Side Dish', price: 15000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
 
   // ============================================================
   // KATEGORI: Minuman (14 item - sesuai catalog versi user edit)

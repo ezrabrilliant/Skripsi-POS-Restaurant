@@ -201,6 +201,18 @@ async function seedVendors() {
   }
 }
 
+// REV 2.6: singleton app settings (id=1). Default PB1 OFF — resto tidak charge
+// PB1 ke customer (harga menu = final). Owner bisa nyalakan via tab Pajak.
+async function seedAppSetting() {
+  console.log('Menanam AppSetting (PB1 default OFF, rate 10%)...');
+  await prisma.appSetting.upsert({
+    where: { id: 1 },
+    update: {}, // jangan timpa kalau owner sudah ubah
+    create: { id: 1, taxEnabled: false, taxRate: 10 },
+  });
+  console.log('  ✓ AppSetting singleton siap');
+}
+
 async function main() {
   await seedUsers();
   await seedMenus();
@@ -209,6 +221,7 @@ async function main() {
   await seedVendors();
   // REV 2.6: master payment_methods + banks + default junctions.
   await seedPaymentMethods(prisma);
+  await seedAppSetting();
   console.log('\nSeed selesai (REV 2.6). Login default:');
   console.log('  Owner    → nama "Owner", PIN 123456');
   console.log('  Kasir    → nama Jason/Bryant/Chen Hong, PIN 111111');

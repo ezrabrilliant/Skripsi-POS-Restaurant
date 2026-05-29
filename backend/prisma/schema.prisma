@@ -169,6 +169,8 @@ model User {
   rawMaterialMovements RawMaterialMovement[]
   /// REV 2.5: payment slices yang user ini record (audit per slice di split tender).
   recordedPayments     TransactionPayment[]
+  /// REV 2.6: app settings (mis. PB1 toggle) yang user ini ubah terakhir.
+  appSettingsUpdated   AppSetting[]
 
   @@map("users")
 }
@@ -626,4 +628,20 @@ model SettlementMethodCount {
   @@id([settlementId, paymentMethodCode])
   @@index([paymentMethodCode])
   @@map("settlement_method_counts")
+}
+
+/// 19. REV 2.6: Pengaturan aplikasi global (singleton row id=1).
+/// Saat ini hanya kontrol PB1: resto Ayam Bakar Banjar Monosuko TIDAK charge PB1
+/// ke customer (harga menu = final), jadi taxEnabled default false. Owner bisa
+/// nyalakan + atur taxRate (persen) lewat tab Pajak di halaman Pembayaran.
+/// Dibaca saat addPayment (first slice) untuk hitung taxAmount.
+model AppSetting {
+  id          Int      @id @default(1)
+  taxEnabled  Boolean  @default(false) @map("tax_enabled")
+  taxRate     Decimal  @default(10.00) @map("tax_rate") @db.Decimal(5, 2)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById Int?     @map("updated_by_id")
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
 }
