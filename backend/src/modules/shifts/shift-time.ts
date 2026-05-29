@@ -32,7 +32,7 @@ export function restoNow(timezone: string, now: Date = new Date()): RestoClock {
   };
 }
 
-function isCrossMidnight(s: ShiftWindowSettings): boolean {
+export function isCrossMidnight(s: ShiftWindowSettings): boolean {
   return s.malamEnd <= s.changeover;
 }
 
@@ -46,4 +46,3 @@ export function businessDateFor(s: ShiftWindowSettings, now: Date = new Date()):
   return dateOnly;
 }
 
-export { isCrossMidnight };

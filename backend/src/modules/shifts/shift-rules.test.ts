@@ -39,4 +39,20 @@ describe('canOpenShift', () => {
     const cross = { ...S, malamEnd: 90 };
     expect(canOpenShift({ ...base, settings: cross, type: 'malam', nowMinutes: 1410 }).ok).toBe(true);
   });
+  it('after-midnight cross-midnight malam, pagi opened → ok', () => {
+    const cross = { ...S, malamEnd: 90 };
+    expect(canOpenShift({ settings: cross, type: 'malam', nowMinutes: 30, hasOpenShift: false, pagiOpenedToday: true }).ok).toBe(true);
+  });
+  it('after-midnight cross-midnight malam, pagi NOT opened → tolak out_of_window (intentional policy)', () => {
+    const cross = { ...S, malamEnd: 90 };
+    const r = canOpenShift({ settings: cross, type: 'malam', nowMinutes: 30, hasOpenShift: false, pagiOpenedToday: false });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('out_of_window');
+  });
+  it('boundary: pagi di tepat changeover → tolak (1080 < 1080 is false)', () => {
+    expect(canOpenShift({ ...base, type: 'pagi', nowMinutes: 1080 }).ok).toBe(false);
+  });
+  it('boundary: malam di tepat changeover, pagi tidak dibuka → ok (now >= changeover)', () => {
+    expect(canOpenShift({ ...base, type: 'malam', nowMinutes: 1080 }).ok).toBe(true);
+  });
 });

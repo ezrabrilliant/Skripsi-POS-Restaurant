@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseHHMM, restoNow, businessDateFor } from './shift-time';
+import { parseHHMM, restoNow, businessDateFor, isCrossMidnight } from './shift-time';
 
 describe('parseHHMM', () => {
   it('konversi HH:MM ke menit', () => {
@@ -33,5 +33,14 @@ describe('businessDateFor', () => {
     const cross = { ...s, malamEnd: 90 }; // 01:30 (<= changeover => cross-midnight)
     const d = businessDateFor(cross, new Date('2026-05-29T17:30:00Z')); // 00:30 WIB tgl 30
     expect(d.toISOString().substring(0, 10)).toBe('2026-05-29');
+  });
+});
+
+describe('isCrossMidnight', () => {
+  it('malamEnd <= changeover → true (cross-midnight config)', () => {
+    expect(isCrossMidnight({ timezone: 'Asia/Jakarta', pagiStart: 420, changeover: 1080, malamEnd: 90 })).toBe(true);
+  });
+  it('malamEnd > changeover → false (same-day config)', () => {
+    expect(isCrossMidnight({ timezone: 'Asia/Jakarta', pagiStart: 420, changeover: 1080, malamEnd: 1380 })).toBe(false);
   });
 });

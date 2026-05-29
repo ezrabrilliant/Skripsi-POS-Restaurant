@@ -27,6 +27,11 @@ export function canOpenShift(input: OpenCheckInput): OpenCheckResult {
     return now < s.changeover ? { ok: true } : { ok: false, reason: 'out_of_window' };
   }
   const inWindow = malamWithinWindow(now, s);
+  // Cross-midnight after-midnight arm (nowMinutes < malamEnd) only passes when pagiOpenedToday is true.
+  // This is intentional and matches spec §6 — the caller computes pagiOpenedToday against the BUSINESS DAY
+  // (businessDateFor maps after-midnight times to the prior business day), so in real operation pagi was
+  // opened that business day and this resolves true.
+  // Do NOT broaden this formula.
   const allowed = inWindow && (pagiOpenedToday || now >= s.changeover);
   return allowed ? { ok: true } : { ok: false, reason: 'out_of_window' };
 }
