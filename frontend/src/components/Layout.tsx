@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useState } from 'react'
+import ShiftChangeReminder from '@/components/ShiftChangeReminder'
 import {
   LayoutGrid,
   Grid3X3,
@@ -226,6 +227,9 @@ export default function Layout() {
           )}
         </div>
       </nav>
+
+      {/* Global shift-change reminder banner (fixed overlay, dismissible per shift) */}
+      <ShiftChangeReminder />
 
       {/* Sheet "Lainnya" mobile */}
       <Sheet

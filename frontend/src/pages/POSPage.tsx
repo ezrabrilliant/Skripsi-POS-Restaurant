@@ -96,6 +96,8 @@ export default function POSPage() {
   const { data: activeShifts = [], isLoading: shiftLoading } = useQuery({
     queryKey: ['shifts', 'active'],
     queryFn: () => shiftService.getActiveShifts(),
+    refetchInterval: 25_000,
+    refetchOnMount: 'always',
   })
   // REV 2.3 shift-decoupling: pakai single active shift untuk header info + create payload.
   const singleActiveShift = activeShifts.length === 1 ? activeShifts[0]! : null
@@ -141,7 +143,12 @@ export default function POSPage() {
       setInputMode(false)
       setShowMobileCart(false)
     },
-    onError: (err: Error) => toast.error(err.message || 'Gagal membuat transaksi'),
+    onError: (err: Error) => {
+      toast.error(err.message || 'Gagal membuat transaksi')
+      if (/buka shift|shift kasir aktif/i.test(err.message)) {
+        qc.invalidateQueries({ queryKey: ['shifts', 'active'] })
+      }
+    },
   })
 
   const deleteItemMutation = useMutation({

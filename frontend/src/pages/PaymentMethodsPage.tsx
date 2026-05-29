@@ -5,15 +5,16 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CreditCard, Building2, Receipt } from 'lucide-react'
+import { CreditCard, Building2, Receipt, Clock } from 'lucide-react'
 import { paymentMethodService } from '@/services/paymentMethodService'
 import { bankService } from '@/services/bankService'
 import PaymentMethodsTab from '@/components/payment-methods/PaymentMethodsTab'
 import BanksTab from '@/components/payment-methods/BanksTab'
 import TaxSettingsTab from '@/components/payment-methods/TaxSettingsTab'
+import ShiftWindowTab from '@/components/payment-methods/ShiftWindowTab'
 import { Tabs } from '@/design-system/primitives'
 
-type Tab = 'methods' | 'banks' | 'tax'
+type Tab = 'methods' | 'banks' | 'tax' | 'shift'
 
 export default function PaymentMethodsPage() {
   const [tab, setTab] = useState<Tab>('methods')
@@ -56,6 +57,11 @@ export default function PaymentMethodsPage() {
                 label: 'Pajak',
                 icon: <Receipt className="w-4 h-4" />,
               },
+              {
+                value: 'shift',
+                label: 'Jam Shift',
+                icon: <Clock className="w-4 h-4" />,
+              },
             ]}
             variant="segmented"
           />
@@ -74,6 +80,7 @@ export default function PaymentMethodsPage() {
           <BanksTab banks={banksQuery.data ?? []} loading={banksQuery.isLoading} />
         )}
         {tab === 'tax' && <TaxSettingsTab />}
+        {tab === 'shift' && <ShiftWindowTab />}
       </div>
     </div>
   )
