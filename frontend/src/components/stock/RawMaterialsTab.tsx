@@ -62,7 +62,8 @@ export default function RawMaterialsTab() {
   const toast = useToast()
   const confirm = useConfirm()
   const { user } = useAuthStore()
-  const isOwner = user?.role === 'owner'
+  // REV 2.8.1: kelola master bahan baku dibuka ke owner + kasir (kasir yang belanja).
+  const canManage = user?.role === 'owner' || user?.role === 'cashier'
   // REV 2.5.2: owner toggle untuk lihat item yang sudah di-soft-delete.
   const [includeInactive, setIncludeInactive] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
@@ -318,7 +319,7 @@ export default function RawMaterialsTab() {
                 onClick={() => handleMarkHabis(rm)}
                 className="text-warning-700 hover:bg-warning-50"
               />
-              {isOwner && (
+              {canManage && (
                 <>
                   <IconButton
                     label={`Edit ${rm.name}`}
@@ -340,7 +341,7 @@ export default function RawMaterialsTab() {
             </>
           ) : (
             // REV 2.5.2: item nonaktif — tombol satu-satunya = "Aktifkan kembali" (owner only).
-            isOwner && (
+            canManage && (
               <IconButton
                 label={`Aktifkan kembali ${rm.name}`}
                 icon={<RotateCcw />}
@@ -369,7 +370,7 @@ export default function RawMaterialsTab() {
           ) : undefined
         }
         ownerSlot={
-          isOwner ? (
+          canManage ? (
             <Checkbox
               label="Tampilkan nonaktif"
               checked={includeInactive}
@@ -387,7 +388,7 @@ export default function RawMaterialsTab() {
         >
           Opname
         </Button>
-        {isOwner && (
+        {canManage && (
           <Button
             variant="outline"
             size="md"
@@ -411,7 +412,7 @@ export default function RawMaterialsTab() {
           emptyDescription={
             controls.activeFilterCount > 0
               ? 'Tidak ada bahan cocok dengan filter.'
-              : isOwner
+              : canManage
                 ? 'Klik "Tambah Bahan" untuk membuat master baru.'
                 : 'Belum ada master raw material yang terdaftar.'
           }
@@ -474,7 +475,7 @@ export default function RawMaterialsTab() {
                         onClick={() => handleMarkHabis(rm)}
                         className="text-warning-700"
                       />
-                      {isOwner && (
+                      {canManage && (
                         <>
                           <IconButton label="Edit" icon={<Edit2 />} variant="ghost" size="sm" onClick={() => setEditingRm(rm)} />
                           <IconButton
@@ -489,7 +490,7 @@ export default function RawMaterialsTab() {
                       )}
                     </>
                   ) : (
-                    isOwner && (
+                    canManage && (
                       <IconButton
                         label="Aktifkan kembali"
                         icon={<RotateCcw />}
