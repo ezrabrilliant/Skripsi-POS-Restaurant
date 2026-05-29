@@ -14,11 +14,33 @@ import { OrderType, TransactionStatus } from '@prisma/client';
 export const orderItemSchema = z.object({
   menuId: z.number().int().positive(),
   qty: z.number().int().positive('Qty minimal 1'),
-  /// Untuk paket dengan subOptions. Key = options[].key, value = pilihan customer (harus ada di options[].options).
+  /// LEGACY (pre-REV 2.10): paket berbasis NAMA. Key = options[].key, value = pilihan
+  /// customer. Dipertahankan optional untuk backward-compat data/historis.
   subOptionsSelected: z.record(z.string(), z.string()).optional(),
   /// REV 2.4: catatan per item (komunikasi customer → dapur).
   /// Mis. "kurang manis", "pedas level 2", "Panas" / "Dingin" untuk teh/jeruk.
   notes: z.string().trim().max(255).optional(),
+  /// REV 2.10: varian terpilih (untuk menu kind=variant). null/undefined untuk
+  /// simple + paket. Stok di-decrement ke variant.stockTargetMenuId.
+  variantId: z.number().int().positive().nullable().optional(),
+  /// REV 2.10: pilihan per slot paket kind=choice. Key = slot label (PaketComponent.label).
+  /// targetMenuId = menu yang dipilih untuk slot itu; variantId = varian-nya kalau target
+  /// adalah menu varian (POS bercabang). chosenLabel = label opsi yang dipilih (audit display).
+  paketChoices: z
+    .record(
+      z.string(),
+      z.object({
+        targetMenuId: z.number().int().positive(),
+        variantId: z.number().int().positive().nullable().optional(),
+        chosenLabel: z.string().trim().min(1),
+      }),
+    )
+    .optional(),
+  /// REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu dingin/panas).
+  /// Dicatat sebagai TransactionItemSelection isPreference=true — tidak pengaruh stok/harga.
+  preferences: z
+    .array(z.object({ groupLabel: z.string().trim().min(1), chosenLabel: z.string().trim().min(1) }))
+    .optional(),
 });
 
 /// REV 2.3 shift-decoupling: shiftId TIDAK lagi di-input frontend.
