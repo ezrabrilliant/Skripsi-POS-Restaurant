@@ -1,7 +1,10 @@
 // Zod schema modul settings. REV 2.6: singleton app settings (PB1 toggle + rate).
+// REV 2.7: tambah shift window fields (timezone + 3 HH:MM) + validasi format + urutan.
 // Hanya owner yang boleh update (gate di routes). taxRate persen 0-100.
 
 import { z } from 'zod';
+
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Format jam harus HH:MM');
 
 export const updateSettingsSchema = z
   .object({
@@ -11,9 +14,23 @@ export const updateSettingsSchema = z
       .min(0, 'Tarif pajak minimal 0%')
       .max(100, 'Tarif pajak maksimal 100%')
       .optional(),
+    timezone: z.string().min(1).optional(),
+    shiftPagiStart: hhmm.optional(),
+    shiftChangeover: hhmm.optional(),
+    shiftMalamEnd: hhmm.optional(),
   })
-  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: 'Minimal satu field harus diisi untuk update',
-  });
+  })
+  .refine(
+    (d) => {
+      if (d.shiftPagiStart && d.shiftChangeover) {
+        const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3));
+        return toMin(d.shiftPagiStart) < toMin(d.shiftChangeover);
+      }
+      return true;
+    },
+    { message: 'Jam mulai pagi harus sebelum jam pergantian' },
+  );
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
