@@ -18,7 +18,9 @@ import type {
  * yang tidak disebut di counts otomatis di-treat sebagai counted=0 (tapi
  * row tetap muncul kalau punya system total > 0). */
 export interface CreateSettlementPayload {
-  shiftId: number
+  /** Business date YYYY-MM-DD. Backend re-key settlement ke tanggal bisnis
+   * (bukan shiftId) supaya aggregate seluruh shift di hari itu. */
+  date: string
   counts: Record<string, number>
   /** Reserved untuk future migration; backend Phase 6 accept tapi discard
    * sampai kolom note ditambahkan ke tabel settlements. */
@@ -33,10 +35,10 @@ export interface ListSettlementsQuery {
 }
 
 export const settlementService = {
-  preview: async (shiftId: number): Promise<SettlementPreview> => {
+  preview: async (date: string): Promise<SettlementPreview> => {
     const res = await api.get<ApiResponse<{ preview: SettlementPreview }>>(
       '/settlements/preview',
-      { params: { shiftId } },
+      { params: { date } },
     )
     return res.data.data.preview
   },

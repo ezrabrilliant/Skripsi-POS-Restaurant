@@ -8,6 +8,10 @@ import type { ApiResponse } from '@/types'
 export interface AppSettings {
   taxEnabled: boolean
   taxRate: number // persen
+  timezone: string
+  shiftPagiStart: string
+  shiftChangeover: string
+  shiftMalamEnd: string
   updatedAt: string
   updatedById: number | null
 }
@@ -15,6 +19,10 @@ export interface AppSettings {
 export interface UpdateSettingsInput {
   taxEnabled?: boolean
   taxRate?: number
+  timezone?: string
+  shiftPagiStart?: string
+  shiftChangeover?: string
+  shiftMalamEnd?: string
 }
 
 export const settingsService = {

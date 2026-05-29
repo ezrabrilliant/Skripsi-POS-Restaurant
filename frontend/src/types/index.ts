@@ -334,6 +334,8 @@ export interface SettlementPreview {
   /** REV 2.6: dinamis array per payment method code. */
   system: SettlementSystemEntry[]
   totalSystem: number
+  /** Shift-redesign: total modal awal (float baseline) seluruh shift di tanggal bisnis ini. */
+  openingCashTotal: number
   bankBreakdown: BankBreakdownEntry[]
   existingSettlementId: number | null
 }

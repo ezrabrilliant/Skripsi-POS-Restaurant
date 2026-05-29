@@ -26,9 +26,11 @@ export const shiftService = {
     return res.data.data.shifts
   },
 
-  /** Tutup shift. Owner boleh tutup siapapun; kasir hanya bisa tutup shiftnya sendiri. */
-  closeShift: async (shiftId: number): Promise<Shift> => {
-    const res = await api.post<ApiResponse<{ shift: Shift }>>(`/shifts/${shiftId}/close`)
+  /** Tutup shift. Owner boleh tutup siapapun; kasir hanya bisa tutup shiftnya sendiri.
+   * mode='final' (default): tutup penuh, blok 409 kalau masih ada open order.
+   * mode='handover': pergantian shift, tidak memicu blok open order. */
+  closeShift: async (shiftId: number, mode: 'final' | 'handover' = 'final'): Promise<Shift> => {
+    const res = await api.post<ApiResponse<{ shift: Shift }>>(`/shifts/${shiftId}/close`, { mode })
     return res.data.data.shift
   },
 

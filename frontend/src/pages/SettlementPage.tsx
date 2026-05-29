@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import type { AxiosError } from 'axios'
 import { Calculator, CheckCircle, AlertCircle, Wallet } from 'lucide-react'
 import { shiftService } from '@/services/shiftService'
 import { settlementService, type CreateSettlementPayload } from '@/services/settlementService'
@@ -17,6 +18,9 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { Button, Badge, Skeleton, Checkbox } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
+import CloseShiftBlockedModal, {
+  type OpenOrdersGroup,
+} from '@/components/shifts/CloseShiftBlockedModal'
 
 export default function SettlementPage() {
   const { user } = useAuthStore()
@@ -33,13 +37,19 @@ export default function SettlementPage() {
 
   const targetShift = shifts.length > 0 ? shifts[0] : null
 
+  const [blockedGroups, setBlockedGroups] = useState<OpenOrdersGroup[] | null>(null)
+
   const closeShiftMutation = useMutation({
-    mutationFn: (id: number) => shiftService.closeShift(id),
+    mutationFn: (id: number) => shiftService.closeShift(id, 'final'),
     onSuccess: () => {
       toast.success('Shift ditutup')
       qc.invalidateQueries({ queryKey: ['shifts'] })
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: AxiosError<{ data?: { openOrders?: OpenOrdersGroup[] } }>) => {
+      const groups = err.response?.data?.data?.openOrders
+      if (err.response?.status === 409 && groups?.length) setBlockedGroups(groups)
+      else toast.error((err as Error).message)
+    },
   })
 
   const handleCloseShift = async () => {
@@ -89,21 +99,28 @@ export default function SettlementPage() {
         )}
 
         {!shiftsLoading && targetShift && targetShift.closedAt && (
-          <SettlementFlow shiftId={targetShift.id} />
+          <SettlementFlow businessDate={targetShift.date} />
         )}
       </div>
+
+      {blockedGroups && (
+        <CloseShiftBlockedModal
+          groups={blockedGroups}
+          onClose={() => setBlockedGroups(null)}
+        />
+      )}
     </div>
   )
 }
 
-function SettlementFlow({ shiftId }: { shiftId: number }) {
+function SettlementFlow({ businessDate }: { businessDate: string }) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const toast = useToast()
 
   const { data: preview, isLoading } = useQuery({
-    queryKey: ['settlements', 'preview', shiftId],
-    queryFn: () => settlementService.preview(shiftId),
+    queryKey: ['settlements', 'preview', businessDate],
+    queryFn: () => settlementService.preview(businessDate),
     // FIX: preview dihitung server-side dari transaksi paid di shift ini, tapi key
     // ['settlements','preview',*] TIDAK pernah di-invalidate oleh pembayaran/void.
     // Tanpa 'always', buka Settlement → ke POS bayar → balik dalam 5 menit menyajikan
@@ -183,7 +200,7 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
 
   const handleSubmit = () => {
     submit.mutate({
-      shiftId: preview.shiftId,
+      date: preview.date,
       counts,
     })
   }
@@ -209,6 +226,9 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
             </h2>
             <p className="text-caption text-neutral-500">
               {preview.date} · {preview.cashierName}
+            </p>
+            <p className="text-caption text-neutral-500">
+              Modal awal hari ini: {formatCurrency(preview.openingCashTotal)}
             </p>
           </div>
         </div>
