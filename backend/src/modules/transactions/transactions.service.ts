@@ -732,7 +732,10 @@ export async function voidTransaction(
 ): Promise<TransactionView> {
   const existing = await prisma.transaction.findUnique({
     where: { id: transactionId },
-    include: { items: { include: { menu: true } }, shift: { select: { date: true } } },
+    include: {
+      items: { include: { menu: true }, orderBy: { id: 'asc' } },
+      shift: { select: { date: true } },
+    },
   });
   if (!existing) throw notFound('Transaction');
   if (existing.status === TransactionStatus.void) {
@@ -756,7 +759,10 @@ export async function voidTransaction(
   const resolved = await resolveItems(itemsInput);
 
   await prisma.$transaction(async (tx) => {
-    // resolved[i] sejajar dengan existing.items[i] (resolveItems jaga urutan input).
+    // resolved[i] sejajar dengan existing.items[i]: keduanya dari array in-memory
+    // yang sama (itemsInput = existing.items.map; resolveItems menjaga urutan input),
+    // jadi alignment dijamin independen dari urutan SQL. orderBy id:asc di-include
+    // sekadar determinisme tampilan.
     for (let i = 0; i < resolved.length; i++) {
       const r = resolved[i]!;
       const sourceItemId = existing.items[i]?.id ?? null;

@@ -209,8 +209,10 @@ export async function getRawMaterialDetail(
       id: m.id,
       delta: m.delta.toNumber(),
       reason: m.reason,
-      qtyBefore: m.qtyBefore ? m.qtyBefore.toNumber() : null,
-      qtyAfter: m.qtyAfter ? m.qtyAfter.toNumber() : null,
+      // Null-check eksplisit: Decimal(0) itu object (truthy), tapi kolom genuinely
+      // null (baris pra-backfill) harus tetap null. Jangan andalkan truthiness.
+      qtyBefore: m.qtyBefore !== null ? m.qtyBefore.toNumber() : null,
+      qtyAfter: m.qtyAfter !== null ? m.qtyAfter.toNumber() : null,
       note: m.note,
       userId: m.userId,
       userName: m.user.name,

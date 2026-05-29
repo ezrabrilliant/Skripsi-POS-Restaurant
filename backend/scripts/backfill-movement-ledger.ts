@@ -12,7 +12,10 @@
  *                  → log warning (kemungkinan stok awal di-set tanpa movement); nilai tetap
  *                  ditulis (rantai internal konsisten, hanya qtyBefore baris paling awal ≠ 0).
  *
- * Idempotent: aman di-run berulang (parse + walk deterministik dari state sekarang).
+ * Idempotent untuk resolusi FK (parse note deterministik). Untuk qty snapshot:
+ * re-run SETELAH ada perubahan stok akan menghasilkan nilai berbeda (tapi tetap
+ * konsisten internal), karena walk mundur dari current_qty saat itu. Didesain
+ * dijalankan SEKALI saat deploy, sebelum kode REV 2.8 menulis movement baru.
  * Menarget DATABASE_URL yang aktif. Untuk PROD: backup dulu, lalu jalankan dengan env prod.
  *
  *   npx tsx --env-file=.env scripts/backfill-movement-ledger.ts
