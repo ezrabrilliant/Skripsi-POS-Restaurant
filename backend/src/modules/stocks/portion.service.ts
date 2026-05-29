@@ -39,14 +39,23 @@ export interface PortionStockView {
   suggestedRestockMorning: number; // 0 kalau >= min; else ceil((min-current)/5)*5
   isLow: boolean; // currentQty <= minStock
   updatedAt: string;
+  // REV 2.8: timestamp aktivitas MANUAL terbaru (restock/opname/markHabis),
+  // exclude order/refundVoid. null = belum pernah di-stok manual.
+  lastStockedAt: string | null;
 }
 
 export interface PortionMovementView {
   id: number;
   delta: number;
   reason: PortionMovementReason;
+  qtyBefore: number | null;
+  qtyAfter: number | null;
   note: string | null;
   userId: number;
+  userName: string;
+  // REV 2.8: tautan FK ke dokumen sumber (null untuk movement non-transaksi).
+  transactionId: number | null;
+  transactionItemId: number | null;
   createdAt: string;
 }
 
@@ -57,7 +66,10 @@ function suggestedRestock(currentQty: number, minStock: number): number {
   return Math.ceil((minStock - currentQty) / 5) * 5;
 }
 
-function toPortionStockView(stock: PortionStockWithMenu): PortionStockView {
+function toPortionStockView(
+  stock: PortionStockWithMenu,
+  lastStockedAt: Date | null = null,
+): PortionStockView {
   return {
     menuId: stock.menuId,
     menuName: stock.menu.name,
@@ -69,8 +81,16 @@ function toPortionStockView(stock: PortionStockWithMenu): PortionStockView {
     suggestedRestockMorning: suggestedRestock(stock.currentQty, stock.minStock),
     isLow: stock.currentQty <= stock.minStock,
     updatedAt: stock.updatedAt.toISOString(),
+    lastStockedAt: lastStockedAt ? lastStockedAt.toISOString() : null,
   };
 }
+
+// REV 2.8: reason yang dihitung sebagai "aktivitas stok manual" (exclude order/refundVoid).
+const MANUAL_PORTION_REASONS = [
+  PortionMovementReason.restockMorning,
+  PortionMovementReason.restockEmergency,
+  PortionMovementReason.manualAdjust,
+];
 
 // ============================================================
 // Helpers
@@ -109,7 +129,18 @@ export async function listPortionStocks(query: ListPortionQuery): Promise<Portio
     orderBy: [{ menu: { category: 'asc' } }, { menu: { name: 'asc' } }],
   });
 
-  let views = stocks.map(toPortionStockView);
+  // REV 2.8: satu groupBy untuk "terakhir di-stok" = movement manual terbaru per menu.
+  const lastManual = await prisma.portionMovement.groupBy({
+    by: ['menuId'],
+    where: { reason: { in: MANUAL_PORTION_REASONS } },
+    _max: { createdAt: true },
+  });
+  const lastMap = new Map<number, Date>();
+  for (const g of lastManual) {
+    if (g._max.createdAt) lastMap.set(g.menuId, g._max.createdAt);
+  }
+
+  let views = stocks.map((s) => toPortionStockView(s, lastMap.get(s.menuId) ?? null));
   if (query.lowStock) {
     views = views.filter((v) => v.isLow);
   }
@@ -136,16 +167,28 @@ export async function getPortionStockDetail(
     where: { menuId },
     orderBy: { createdAt: 'desc' },
     take: movementsLimit,
+    include: { user: { select: { name: true } } },
+  });
+
+  // REV 2.8: lastStockedAt eksak dari aggregate (independen dari window movementsLimit).
+  const agg = await prisma.portionMovement.aggregate({
+    where: { menuId, reason: { in: MANUAL_PORTION_REASONS } },
+    _max: { createdAt: true },
   });
 
   return {
-    ...toPortionStockView(stock),
+    ...toPortionStockView(stock, agg._max.createdAt ?? null),
     recentMovements: movements.map((m) => ({
       id: m.id,
       delta: m.delta,
       reason: m.reason,
+      qtyBefore: m.qtyBefore,
+      qtyAfter: m.qtyAfter,
       note: m.note,
       userId: m.userId,
+      userName: m.user.name,
+      transactionId: m.transactionId,
+      transactionItemId: m.transactionItemId,
       createdAt: m.createdAt.toISOString(),
     })),
   };

@@ -67,14 +67,22 @@ export interface RawMaterialView {
   suggestedAction: string | null;
   createdAt: string;
   updatedAt: string;
+  // REV 2.8: timestamp movement terbaru (semua reason — raw tak punya auto-decrement penjualan).
+  lastStockedAt: string | null;
 }
 
 export interface RawMaterialMovementView {
   id: number;
   delta: number;
   reason: RawMaterialMovementReason;
+  qtyBefore: number | null;
+  qtyAfter: number | null;
   note: string | null;
   userId: number;
+  userName: string;
+  // REV 2.8: tautan FK ke pembelian sumber (null untuk opname/manualAdjust).
+  purchaseId: number | null;
+  purchaseItemId: number | null;
   createdAt: string;
 }
 
@@ -85,7 +93,7 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
-function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
+function toRawMaterialView(rm: RawMaterialRow, lastStockedAt: Date | null = null): RawMaterialView {
   const stockQty = rm.stockQty.toNumber();
   const minStock = rm.minStock;
   const lastBuyDate = rm.lastBuyDate;
@@ -131,6 +139,7 @@ function toRawMaterialView(rm: RawMaterialRow): RawMaterialView {
     suggestedAction,
     createdAt: rm.createdAt.toISOString(),
     updatedAt: rm.updatedAt.toISOString(),
+    lastStockedAt: lastStockedAt ? lastStockedAt.toISOString() : null,
   };
 }
 
@@ -151,7 +160,17 @@ export async function listRawMaterials(query: ListRawMaterialsQuery): Promise<Ra
     orderBy: [{ category: 'asc' }, { name: 'asc' }],
   });
 
-  let views = rms.map(toRawMaterialView);
+  // REV 2.8: "terakhir di-stok" = movement terbaru per material (semua reason).
+  const lastMovs = await prisma.rawMaterialMovement.groupBy({
+    by: ['rawMaterialId'],
+    _max: { createdAt: true },
+  });
+  const lastMap = new Map<number, Date>();
+  for (const g of lastMovs) {
+    if (g._max.createdAt) lastMap.set(g.rawMaterialId, g._max.createdAt);
+  }
+
+  let views = rms.map((rm) => toRawMaterialView(rm, lastMap.get(rm.id) ?? null));
   if (query.needsRestock) {
     views = views.filter((v) => v.isLowStock || v.isNearExpiry);
   }
@@ -176,16 +195,27 @@ export async function getRawMaterialDetail(
     where: { rawMaterialId: id },
     orderBy: { createdAt: 'desc' },
     take: movementsLimit,
+    include: { user: { select: { name: true } } },
+  });
+
+  const agg = await prisma.rawMaterialMovement.aggregate({
+    where: { rawMaterialId: id },
+    _max: { createdAt: true },
   });
 
   return {
-    ...toRawMaterialView(rm),
+    ...toRawMaterialView(rm, agg._max.createdAt ?? null),
     recentMovements: movements.map((m) => ({
       id: m.id,
       delta: m.delta.toNumber(),
       reason: m.reason,
+      qtyBefore: m.qtyBefore ? m.qtyBefore.toNumber() : null,
+      qtyAfter: m.qtyAfter ? m.qtyAfter.toNumber() : null,
       note: m.note,
       userId: m.userId,
+      userName: m.user.name,
+      purchaseId: m.purchaseId,
+      purchaseItemId: m.purchaseItemId,
       createdAt: m.createdAt.toISOString(),
     })),
   };

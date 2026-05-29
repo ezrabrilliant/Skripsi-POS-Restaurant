@@ -13,7 +13,12 @@ import {
   createTransaction,
   voidTransaction,
 } from '../src/modules/transactions/transactions.service';
-import { restockMorning, opname } from '../src/modules/stocks/portion.service';
+import {
+  restockMorning,
+  opname,
+  listPortionStocks,
+  getPortionStockDetail,
+} from '../src/modules/stocks/portion.service';
 import { createPurchase } from '../src/modules/purchases/purchases.service';
 
 if (!/_test/.test(process.env.DATABASE_URL ?? '')) {
@@ -120,6 +125,27 @@ async function main() {
     ok(Number(pMov?.qtyBefore) === rawBefore, `raw qty_before = ${rawBefore} (got ${pMov?.qtyBefore})`);
     ok(Number(pMov?.qtyAfter) === rawBefore + 5, `raw qty_after = before+5 (got ${pMov?.qtyAfter})`);
   }
+
+  // ── 6. ENDPOINT SHAPE: list lastStockedAt + detail userName/qty/FK ──────
+  console.log('\n[6] view shapes: list lastStockedAt + detail userName/qty/FK:');
+  const list = await listPortionStocks({} as Parameters<typeof listPortionStocks>[0]);
+  const listed = list.find((s) => s.menuId === menu.id);
+  ok(listed != null, 'menu ada di list');
+  ok('lastStockedAt' in (listed ?? {}), 'field lastStockedAt ada di view');
+  ok(listed?.lastStockedAt != null, `lastStockedAt terisi (baru saja opname/restock) → ${listed?.lastStockedAt}`);
+
+  const detail = await getPortionStockDetail(menu.id, 30);
+  const ordInHistory = detail.recentMovements.find((m) => m.reason === PortionMovementReason.order);
+  ok(detail.recentMovements.length > 0, `detail recentMovements ada (${detail.recentMovements.length})`);
+  ok(
+    detail.recentMovements.every((m) => typeof m.userName === 'string' && m.userName.length > 0),
+    'semua movement punya userName',
+  );
+  ok(
+    detail.recentMovements.some((m) => m.qtyBefore != null && m.qtyAfter != null),
+    'movement punya qtyBefore/qtyAfter',
+  );
+  ok(ordInHistory?.transactionId != null, `movement order di history ber-transactionId (${ordInHistory?.transactionId})`);
 
   console.log(`\n[smoke-ledger] HASIL: ${pass} pass, ${fail} fail`);
   await prisma.$disconnect();
