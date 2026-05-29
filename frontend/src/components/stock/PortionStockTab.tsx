@@ -7,9 +7,9 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Truck, History, Check } from 'lucide-react'
 import { portionService } from '@/services/portionService'
-import { PORTION_REASON_LABEL, type PortionStockView } from '@/types'
+import { PORTION_REASON_LABEL, type PortionStockView, type StockType } from '@/types'
 import { cn, formatDateTime } from '@/lib/utils'
 import { relativeTime, isSameLocalDate } from '@/lib/relativeTime'
 import {
@@ -37,6 +37,8 @@ export default function PortionStockTab() {
   const [showOpname, setShowOpname] = useState(false)
   const [emergencyTarget, setEmergencyTarget] = useState<PortionStockView | null>(null)
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  // REV 2.8.1: filter tipe stok (multi-select). Default tampilkan yang tracked (portion).
+  const [types, setTypes] = useState<Set<StockType>>(() => new Set<StockType>(['portion']))
 
   const { data: stocks = [], isLoading } = useQuery({
     queryKey: ['portionStocks'],
@@ -74,14 +76,40 @@ export default function PortionStockTab() {
 
   const lowCount = useMemo(() => stocks.filter((s) => s.isLow).length, [stocks])
 
+  const typeCounts = useMemo(() => {
+    const c: Record<StockType, number> = { portion: 0, linked: 0, nonStock: 0 }
+    for (const s of stocks) c[s.stockType]++
+    return c
+  }, [stocks])
+
+  const typeFiltered = useMemo(() => stocks.filter((s) => types.has(s.stockType)), [stocks, types])
+
+  const toggleType = (t: StockType) =>
+    setTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(t)) next.delete(t)
+      else next.add(t)
+      return next
+    })
+
+  // Modal restock/opname hanya untuk menu tracked (punya PortionStock).
+  const portionStocks = useMemo(() => stocks.filter((s) => s.stockType === 'portion'), [stocks])
+
   const controls = useStockListControls<PortionStockView>({
-    rows: stocks,
+    rows: typeFiltered,
     getName: (s) => s.menuName,
     getCategoryValue: (s) => s.category,
     getCategoryLabel: (s) => s.category,
-    getQty: (s) => s.currentQty,
+    getQty: (s) => s.currentQty ?? 0,
     getLastStockedAt: (s) => s.lastStockedAt,
-    getStatus: (s) => (s.currentQty <= 0 ? 'habis' : s.isLow ? 'rendah' : 'aman'),
+    getStatus: (s) =>
+      s.currentQty == null
+        ? 'aman'
+        : s.currentQty <= 0
+          ? 'habis'
+          : s.isLow
+            ? 'rendah'
+            : 'aman',
   })
 
   // Riwayat per item (drawer) — pakai endpoint detail yang membawa recentMovements.
@@ -116,7 +144,14 @@ export default function PortionStockTab() {
       cell: (s) => (
         <div>
           <div className="font-medium text-neutral-900">{s.menuName}</div>
-          <div className="text-caption text-neutral-500">{s.category}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-caption text-neutral-500">{s.category}</span>
+            {s.stockType !== 'portion' && (
+              <Badge tone="neutral" size="sm">
+                {s.stockType === 'linked' ? 'Ikut menu lain' : 'Tidak di-track'}
+              </Badge>
+            )}
+          </div>
         </div>
       ),
     },
@@ -132,22 +167,31 @@ export default function PortionStockTab() {
         />
       ),
       align: 'right',
-      cell: (s) => (
-        <span
-          className={cn(
-            'font-semibold tabular-nums',
-            s.currentQty <= 0 ? 'text-danger-700' : s.isLow ? 'text-warning-700' : 'text-neutral-900'
-          )}
-        >
-          {s.currentQty}
-        </span>
-      ),
+      cell: (s) =>
+        s.currentQty == null ? (
+          <span className="text-neutral-300">—</span>
+        ) : (
+          <span
+            className={cn(
+              'font-semibold tabular-nums',
+              s.currentQty <= 0
+                ? 'text-danger-700'
+                : s.isLow
+                  ? 'text-warning-700'
+                  : 'text-neutral-900'
+            )}
+          >
+            {s.currentQty}
+          </span>
+        ),
     },
     {
       key: 'min',
       header: 'Min',
       align: 'right',
-      cell: (s) => <span className="text-neutral-500 tabular-nums">{s.minStock}</span>,
+      cell: (s) => (
+        <span className="text-neutral-500 tabular-nums">{s.minStock ?? '—'}</span>
+      ),
     },
     {
       key: 'lastStocked',
@@ -163,7 +207,9 @@ export default function PortionStockTab() {
       align: 'right',
       hideMobile: true,
       cell: (s) =>
-        s.lastStockedAt ? (
+        s.stockType !== 'portion' ? (
+          <span className="text-neutral-300">—</span>
+        ) : s.lastStockedAt ? (
           <div>
             <div className="text-neutral-700">{relativeTime(s.lastStockedAt)}</div>
             <div className="text-caption text-neutral-400">{formatDateTime(s.lastStockedAt)}</div>
@@ -188,35 +234,37 @@ export default function PortionStockTab() {
       key: 'actions',
       header: '',
       align: 'right',
-      cell: (s) => (
-        <div className="inline-flex items-center gap-1">
-          <IconButton
-            label={`Riwayat ${s.menuName}`}
-            icon={<History />}
-            variant="ghost"
-            size="sm"
-            onClick={() => setHistoryMenuId(s.menuId)}
-            className="text-neutral-600 hover:bg-neutral-100"
-          />
-          <IconButton
-            label={`Barang masuk ${s.menuName}`}
-            icon={<Truck />}
-            variant="ghost"
-            size="sm"
-            onClick={() => setEmergencyTarget(s)}
-            className="text-success-700 hover:bg-success-50"
-          />
-          <IconButton
-            label={`Tandai ${s.menuName} habis`}
-            icon={<XCircle />}
-            variant="ghost"
-            size="sm"
-            onClick={() => handleMarkHabis(s)}
-            disabled={markHabisMutation.isPending}
-            className="text-warning-700 hover:bg-warning-50"
-          />
-        </div>
-      ),
+      // Aksi stok hanya untuk menu tracked (portion). Non-portion tak punya stok/movement.
+      cell: (s) =>
+        s.stockType !== 'portion' ? null : (
+          <div className="inline-flex items-center gap-1">
+            <IconButton
+              label={`Riwayat ${s.menuName}`}
+              icon={<History />}
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryMenuId(s.menuId)}
+              className="text-neutral-600 hover:bg-neutral-100"
+            />
+            <IconButton
+              label={`Barang masuk ${s.menuName}`}
+              icon={<Truck />}
+              variant="ghost"
+              size="sm"
+              onClick={() => setEmergencyTarget(s)}
+              className="text-success-700 hover:bg-success-50"
+            />
+            <IconButton
+              label={`Tandai ${s.menuName} habis`}
+              icon={<XCircle />}
+              variant="ghost"
+              size="sm"
+              onClick={() => handleMarkHabis(s)}
+              disabled={markHabisMutation.isPending}
+              className="text-warning-700 hover:bg-warning-50"
+            />
+          </div>
+        ),
     },
   ]
 
@@ -225,6 +273,7 @@ export default function PortionStockTab() {
       <StockFilterToolbar
         controls={controls}
         searchPlaceholder="Cari menu…"
+        extraFilters={<MenuTypeFilter selected={types} counts={typeCounts} onToggle={toggleType} />}
         rightBadge={
           lowCount > 0 ? (
             <Badge tone="warning" size="sm">
@@ -265,74 +314,94 @@ export default function PortionStockTab() {
               ? 'Tidak ada item cocok dengan filter.'
               : 'Stok porsi belum ada.'
           }
-          mobileCard={(s) => (
-            <div className="space-y-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-neutral-900">{s.menuName}</p>
-                  <p className="text-caption text-neutral-500">{s.category}</p>
-                  <p className="text-caption text-neutral-400">
-                    {s.lastStockedAt ? relativeTime(s.lastStockedAt) : 'belum pernah di-stok'}
-                    {isSameLocalDate(s.lastStockedAt) && ' · dicek hari ini'}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p
-                    className={cn(
-                      'text-title font-semibold tabular-nums',
-                      s.currentQty <= 0
-                        ? 'text-danger-700'
-                        : s.isLow
-                          ? 'text-warning-700'
-                          : 'text-neutral-900'
+          mobileCard={(s) => {
+            const tracked = s.stockType === 'portion'
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-neutral-900">{s.menuName}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-caption text-neutral-500">{s.category}</span>
+                      {!tracked && (
+                        <Badge tone="neutral" size="sm">
+                          {s.stockType === 'linked' ? 'Ikut menu lain' : 'Tidak di-track'}
+                        </Badge>
+                      )}
+                    </div>
+                    {tracked && (
+                      <p className="text-caption text-neutral-400">
+                        {s.lastStockedAt ? relativeTime(s.lastStockedAt) : 'belum pernah di-stok'}
+                        {isSameLocalDate(s.lastStockedAt) && ' · dicek hari ini'}
+                      </p>
                     )}
-                  >
-                    {s.currentQty}
-                  </p>
-                  <p className="text-caption text-neutral-500">min {s.minStock}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {tracked ? (
+                      <>
+                        <p
+                          className={cn(
+                            'text-title font-semibold tabular-nums',
+                            s.currentQty != null && s.currentQty <= 0
+                              ? 'text-danger-700'
+                              : s.isLow
+                                ? 'text-warning-700'
+                                : 'text-neutral-900'
+                          )}
+                        >
+                          {s.currentQty}
+                        </p>
+                        <p className="text-caption text-neutral-500">min {s.minStock}</p>
+                      </>
+                    ) : (
+                      <p className="text-title font-semibold text-neutral-300">—</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100">
-                {s.suggestedRestockMorning > 0 ? (
-                  <Badge tone="warning" size="sm">Saran +{s.suggestedRestockMorning}</Badge>
-                ) : (
-                  <Badge tone="success" size="sm">Aman</Badge>
+                {tracked && (
+                  <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100">
+                    {s.suggestedRestockMorning > 0 ? (
+                      <Badge tone="warning" size="sm">Saran +{s.suggestedRestockMorning}</Badge>
+                    ) : (
+                      <Badge tone="success" size="sm">Aman</Badge>
+                    )}
+                    <div className="inline-flex items-center gap-1">
+                      <IconButton
+                        label={`Riwayat ${s.menuName}`}
+                        icon={<History />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setHistoryMenuId(s.menuId)}
+                        className="text-neutral-600"
+                      />
+                      <IconButton
+                        label={`Barang masuk ${s.menuName}`}
+                        icon={<Truck />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEmergencyTarget(s)}
+                        className="text-success-700"
+                      />
+                      <IconButton
+                        label={`Tandai ${s.menuName} habis`}
+                        icon={<XCircle />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleMarkHabis(s)}
+                        className="text-warning-700"
+                      />
+                    </div>
+                  </div>
                 )}
-                <div className="inline-flex items-center gap-1">
-                  <IconButton
-                    label={`Riwayat ${s.menuName}`}
-                    icon={<History />}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setHistoryMenuId(s.menuId)}
-                    className="text-neutral-600"
-                  />
-                  <IconButton
-                    label={`Barang masuk ${s.menuName}`}
-                    icon={<Truck />}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEmergencyTarget(s)}
-                    className="text-success-700"
-                  />
-                  <IconButton
-                    label={`Tandai ${s.menuName} habis`}
-                    icon={<XCircle />}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMarkHabis(s)}
-                    className="text-warning-700"
-                  />
-                </div>
               </div>
-            </div>
-          )}
+            )
+          }}
         />
       )}
 
       {showRestockMorning && (
         <RestockMorningModal
-          stocks={stocks}
+          stocks={portionStocks}
           onClose={() => setShowRestockMorning(false)}
           onSuccess={() => {
             setShowRestockMorning(false)
@@ -343,7 +412,7 @@ export default function PortionStockTab() {
 
       {showOpname && (
         <OpnameModal
-          stocks={stocks}
+          stocks={portionStocks}
           onClose={() => setShowOpname(false)}
           onSuccess={() => {
             setShowOpname(false)
@@ -369,13 +438,69 @@ export default function PortionStockTab() {
         title={historyDetail?.menuName ?? 'Riwayat stok'}
         subtitle={
           historyDetail
-            ? `Stok ${historyDetail.currentQty} · min ${historyDetail.minStock}`
+            ? `Stok ${historyDetail.currentQty ?? '-'} · min ${historyDetail.minStock ?? '-'}`
             : undefined
         }
         isLoading={historyLoading}
         movements={historyMovements}
         unitSuffix="porsi"
       />
+    </div>
+  )
+}
+
+// ============================================================
+// Filter tipe stok (REV 2.8.1) — checkbox-chip multi-select, default: tracked.
+// ============================================================
+
+const TYPE_META: { value: StockType; label: string }[] = [
+  { value: 'portion', label: 'Stok porsi' },
+  { value: 'linked', label: 'Ikut menu lain' },
+  { value: 'nonStock', label: 'Tidak di-track' },
+]
+
+function MenuTypeFilter({
+  selected,
+  counts,
+  onToggle,
+}: {
+  selected: Set<StockType>
+  counts: Record<StockType, number>
+  onToggle: (t: StockType) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-label text-neutral-500 mr-0.5">Tipe:</span>
+      {TYPE_META.map((t) => {
+        const active = selected.has(t.value)
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="checkbox"
+            aria-checked={active}
+            onClick={() => onToggle(t.value)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border h-8 pl-1.5 pr-3 text-body-sm transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30',
+              active
+                ? 'border-primary-500 bg-primary-50 text-primary-800'
+                : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-4 w-4 items-center justify-center rounded border',
+                active ? 'border-primary-600 bg-primary-600 text-white' : 'border-neutral-300'
+              )}
+            >
+              {active && <Check className="h-3 w-3" strokeWidth={3} />}
+            </span>
+            {t.label}
+            <span className="text-caption text-neutral-400 tabular-nums">{counts[t.value]}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

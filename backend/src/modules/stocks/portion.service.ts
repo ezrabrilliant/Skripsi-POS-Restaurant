@@ -13,7 +13,7 @@
 // Permission per REV 2.3 matrix: view + opname pagi + mark habis + barang masuk +
 // restock pagi semua TERBUKA untuk owner+kasir+waiter (gate hanya `authenticate`).
 
-import { Prisma, PortionMovementReason } from '@prisma/client';
+import { Prisma, PortionMovementReason, StockType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError, notFound } from '../../utils/errors';
 import type {
@@ -32,15 +32,19 @@ export interface PortionStockView {
   menuId: number;
   menuName: string;
   category: string;
-  currentQty: number;
-  minStock: number;
-  openingQtyToday: number;
-  openingQtyDate: string; // YYYY-MM-DD
-  suggestedRestockMorning: number; // 0 kalau >= min; else ceil((min-current)/5)*5
-  isLow: boolean; // currentQty <= minStock
+  // REV 2.8.1: daftar kini menampilkan SEMUA menu, jadi tipe-nya disertakan untuk
+  // filter (portion = tracked stok porsi; linked = ikut stok menu lain; nonStock = tak di-track).
+  stockType: StockType;
+  // null untuk menu non-portion (linked/nonStock) yang tak punya baris PortionStock.
+  currentQty: number | null;
+  minStock: number | null;
+  openingQtyToday: number | null;
+  openingQtyDate: string | null; // YYYY-MM-DD
+  suggestedRestockMorning: number; // 0 kalau >= min / non-portion
+  isLow: boolean; // currentQty <= minStock (false untuk non-portion)
   updatedAt: string;
   // REV 2.8: timestamp aktivitas MANUAL terbaru (restock/opname/markHabis),
-  // exclude order/refundVoid. null = belum pernah di-stok manual.
+  // exclude order/refundVoid. null = belum pernah di-stok manual / non-portion.
   lastStockedAt: string | null;
 }
 
@@ -66,6 +70,7 @@ function suggestedRestock(currentQty: number, minStock: number): number {
   return Math.ceil((minStock - currentQty) / 5) * 5;
 }
 
+// Mapper untuk write-op (selalu menu stockType=portion yang punya baris stok).
 function toPortionStockView(
   stock: PortionStockWithMenu,
   lastStockedAt: Date | null = null,
@@ -74,6 +79,7 @@ function toPortionStockView(
     menuId: stock.menuId,
     menuName: stock.menu.name,
     category: stock.menu.category,
+    stockType: stock.menu.stockType,
     currentQty: stock.currentQty,
     minStock: stock.minStock,
     openingQtyToday: stock.openingQtyToday,
@@ -82,6 +88,31 @@ function toPortionStockView(
     isLow: stock.currentQty <= stock.minStock,
     updatedAt: stock.updatedAt.toISOString(),
     lastStockedAt: lastStockedAt ? lastStockedAt.toISOString() : null,
+  };
+}
+
+type MenuWithStock = Prisma.MenuGetPayload<{ include: { portionStock: true } }>;
+
+// REV 2.8.1: mapper untuk LIST yang menampilkan SEMUA menu. Menu non-portion
+// (linked/nonStock) tak punya PortionStock → field stok null.
+function toMenuStockView(menu: MenuWithStock, lastStockedAt: Date | null): PortionStockView {
+  // "Tracked" ditentukan stockType, BUKAN ada/tidaknya baris PortionStock. Baris stok
+  // nyasar di menu non-portion (data lama) diabaikan supaya tampilan konsisten dgn tipe.
+  const tracked = menu.stockType === StockType.portion;
+  const ps = tracked ? menu.portionStock : null;
+  return {
+    menuId: menu.id,
+    menuName: menu.name,
+    category: menu.category,
+    stockType: menu.stockType,
+    currentQty: ps ? ps.currentQty : null,
+    minStock: ps ? ps.minStock : null,
+    openingQtyToday: ps ? ps.openingQtyToday : null,
+    openingQtyDate: ps ? ps.openingQtyDate.toISOString().substring(0, 10) : null,
+    suggestedRestockMorning: ps ? suggestedRestock(ps.currentQty, ps.minStock) : 0,
+    isLow: ps ? ps.currentQty <= ps.minStock : false,
+    updatedAt: (ps ? ps.updatedAt : menu.updatedAt).toISOString(),
+    lastStockedAt: tracked && lastStockedAt ? lastStockedAt.toISOString() : null,
   };
 }
 
@@ -121,12 +152,12 @@ async function ensureOpeningSnapshot(): Promise<void> {
 export async function listPortionStocks(query: ListPortionQuery): Promise<PortionStockView[]> {
   await ensureOpeningSnapshot();
 
-  const stocks = await prisma.portionStock.findMany({
-    where: {
-      menu: { isActive: true, category: query.category },
-    },
-    include: { menu: true },
-    orderBy: [{ menu: { category: 'asc' } }, { menu: { name: 'asc' } }],
+  // REV 2.8.1: tampilkan SEMUA menu aktif (bukan cuma yang punya baris stok), supaya
+  // frontend bisa filter per tipe (tracked/linked/non-stok). Menu non-portion → stok null.
+  const menus = await prisma.menu.findMany({
+    where: { isActive: true, category: query.category },
+    include: { portionStock: true },
+    orderBy: [{ category: 'asc' }, { name: 'asc' }],
   });
 
   // REV 2.8: satu groupBy untuk "terakhir di-stok" = movement manual terbaru per menu.
@@ -140,7 +171,7 @@ export async function listPortionStocks(query: ListPortionQuery): Promise<Portio
     if (g._max.createdAt) lastMap.set(g.menuId, g._max.createdAt);
   }
 
-  let views = stocks.map((s) => toPortionStockView(s, lastMap.get(s.menuId) ?? null));
+  let views = menus.map((m) => toMenuStockView(m, lastMap.get(m.id) ?? null));
   if (query.lowStock) {
     views = views.filter((v) => v.isLow);
   }

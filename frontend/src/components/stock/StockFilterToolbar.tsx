@@ -39,6 +39,8 @@ interface StockFilterToolbarProps {
   rightBadge?: ReactNode
   /** Slot owner-only (mis. checkbox "Tampilkan nonaktif" raw material). */
   ownerSlot?: ReactNode
+  /** Slot filter tambahan spesifik tab (mis. filter Tipe menu di tab Porsi). */
+  extraFilters?: ReactNode
   searchPlaceholder?: string
 }
 
@@ -68,6 +70,7 @@ export function StockFilterToolbar({
   children,
   rightBadge,
   ownerSlot,
+  extraFilters,
   searchPlaceholder = 'Cari nama…',
 }: StockFilterToolbarProps) {
   const isMobile = useIsMobile()
@@ -153,7 +156,12 @@ export function StockFilterToolbar({
       </div>
 
       {/* Filter desktop inline */}
-      {!isMobile && <div className="flex flex-wrap items-end gap-2">{filterFields}</div>}
+      {!isMobile && (
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-end gap-2">{filterFields}</div>
+          {extraFilters}
+        </div>
+      )}
 
       {/* Filter Sheet mobile */}
       {isMobile && (
@@ -165,6 +173,7 @@ export function StockFilterToolbar({
         >
           <div className="px-4 py-3 space-y-3">
             {filterFields}
+            {extraFilters}
             <div className="flex gap-2 pt-2">
               <Button variant="outline" size="md" fullWidth onClick={c.resetFilters}>
                 Reset

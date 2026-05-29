@@ -348,14 +348,17 @@ export interface PortionStockView {
   menuId: number
   menuName: string
   category: string
-  currentQty: number
-  minStock: number
-  openingQtyToday: number
-  openingQtyDate: string
+  /** REV 2.8.1: tipe stok menu (portion=tracked, linked=ikut menu lain, nonStock=tak di-track). */
+  stockType: StockType
+  /** null untuk menu non-portion (linked/nonStock). */
+  currentQty: number | null
+  minStock: number | null
+  openingQtyToday: number | null
+  openingQtyDate: string | null
   suggestedRestockMorning: number
   isLow: boolean
   updatedAt: string
-  /** REV 2.8: timestamp aktivitas manual terbaru (restock/opname). null = belum pernah. */
+  /** REV 2.8: timestamp aktivitas manual terbaru (restock/opname). null = belum pernah / non-portion. */
   lastStockedAt: string | null
 }
 
