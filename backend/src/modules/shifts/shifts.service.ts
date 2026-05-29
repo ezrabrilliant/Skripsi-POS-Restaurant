@@ -11,9 +11,12 @@
 // Auto-snapshot opening_qty_today pada portion_stocks DEFERRED ke Phase 5 (stocks
 // portion module). Untuk Phase 4 cukup berfungsi tanpa snapshot.
 
-import { Prisma, ShiftType, UserRole } from '@prisma/client';
+import { Prisma, ShiftType, TransactionStatus, UserRole } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError, notFound, forbidden } from '../../utils/errors';
+import { canOpenShift } from './shift-rules';
+import { restoNow, businessDateFor } from './shift-time';
+import { getShiftWindow } from '../settings/settings.service';
 import type { OpenShiftInput, ListShiftsQuery } from './shifts.schema';
 
 // ============================================================
@@ -47,86 +50,138 @@ function toShiftView(shift: ShiftWithCashier): ShiftView {
 }
 
 // ============================================================
-// Helpers
-// ============================================================
-
-// Untuk kolom @db.Date, kita ingin tanggal yang konsisten dengan local-day user.
-// Pakai komponen LOCAL (getFullYear/Month/Date) lalu bungkus sebagai UTC midnight
-// supaya Prisma & MySQL serialize ke string 'YYYY-MM-DD' yang sama untuk
-// create dan findUnique - tidak terpengaruh offset timezone.
-function todayDateOnly(): Date {
-  const d = new Date();
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-}
-
-// ============================================================
 // Operations
 // ============================================================
 
+// REV 2.7 shift redesign: buka shift divalidasi terhadap window operasional
+// (getShiftWindow) + single-OPEN marker via kolom activeMarker (UNIQUE).
+// canOpenShift menggabungkan dua aturan: tidak boleh ada shift open lain
+// (single_active) dan harus dalam jam operasional (out_of_window).
 export async function openShift(cashierId: number, input: OpenShiftInput): Promise<ShiftView> {
-  const today = todayDateOnly();
+  const window = await getShiftWindow();
+  const now = new Date();
+  const { minutesOfDay } = restoNow(window.timezone, now);
+  const businessDate = businessDateFor(window, now);
 
-  // REV 2.5 multi-cashier sharing: shift adalah CONTAINER per (tanggal, tipe).
-  // Hanya boleh 1 shift pagi + 1 shift malam per hari, regardless of cashier.
-  // Kasir kedua yang login saat tipe relevan sudah aktif TIDAK perlu buka shift
-  // baru - langsung input order via /pos (Transaction.createdById track audit
-  // "siapa input"; pemilik shift = orang yang pegang cash drawer / modal awal).
-  const existing = await prisma.shift.findFirst({
-    where: { date: today, type: input.type, closedAt: null },
-    include: { cashier: { select: { name: true } } },
+  const [openCount, pagiToday] = await Promise.all([
+    prisma.shift.count({ where: { activeMarker: 1 } }),
+    prisma.shift.count({ where: { date: businessDate, type: ShiftType.pagi } }),
+  ]);
+
+  const check = canOpenShift({
+    type: input.type as 'pagi' | 'malam',
+    nowMinutes: minutesOfDay,
+    settings: window,
+    hasOpenShift: openCount > 0,
+    pagiOpenedToday: pagiToday > 0,
   });
-  if (existing) {
-    throw new AppError(
-      `Shift ${input.type} hari ini sudah dibuka oleh ${existing.cashier.name}. ` +
-      `Tidak perlu buka shift baru - input pesanan langsung ke shift itu.`,
-      409,
-    );
+  if (!check.ok) {
+    if (check.reason === 'single_active') {
+      const open = await prisma.shift.findFirst({
+        where: { activeMarker: 1 },
+        include: { cashier: { select: { name: true } } },
+      });
+      throw new AppError(
+        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`,
+        409,
+      );
+    }
+    throw new AppError('Di luar jam operasional untuk membuka shift ini', 400);
   }
 
-  const created = await prisma.shift.create({
-    data: {
-      date: today,
-      cashierId,
-      type: input.type,
-      openingCash: new Prisma.Decimal(input.openingCash),
-    },
-    include: { cashier: true },
-  });
-  return toShiftView(created);
+  try {
+    const created = await prisma.shift.create({
+      data: {
+        date: businessDate,
+        cashierId,
+        type: input.type,
+        openingCash: new Prisma.Decimal(input.openingCash),
+        activeMarker: 1,
+      },
+      include: { cashier: true },
+    });
+    return toShiftView(created);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      const open = await prisma.shift.findFirst({
+        where: { activeMarker: 1 },
+        include: { cashier: { select: { name: true } } },
+      });
+      throw new AppError(
+        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`,
+        409,
+      );
+    }
+    throw e;
+  }
 }
+
+// REV 2.7: dua mode tutup shift.
+//   - final    : tutup definitif. Wajib owner ATAU kasir pemilik shift. Diblokir
+//                kalau masih ada transaksi open (belum dibayar).
+//   - handover : pergantian kasir tanpa settlement final. Boleh dilakukan kasir
+//                masuk berikutnya (tidak perlu pemilik shift), tidak cek open tx.
+export type CloseMode = 'final' | 'handover';
 
 export async function closeShift(
   shiftId: number,
   byUserId: number,
   byRole: UserRole,
+  mode: CloseMode = 'final',
 ): Promise<ShiftView> {
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw notFound('Shift');
-  if (shift.closedAt) {
-    throw new AppError('Shift sudah ditutup sebelumnya', 400);
-  }
-  // Authz: owner boleh tutup shift siapapun; kasir hanya bisa tutup shiftnya sendiri.
-  if (byRole !== UserRole.owner && shift.cashierId !== byUserId) {
+  if (shift.closedAt) throw new AppError('Shift sudah ditutup sebelumnya', 400);
+  // final close requires owner or the shift's own cashier; handover may be done by the incoming cashier.
+  if (mode === 'final' && byRole !== UserRole.owner && shift.cashierId !== byUserId) {
     throw forbidden('Hanya kasir pemilik shift yang boleh menutup');
   }
-
+  if (mode === 'final') {
+    const openCount = await prisma.transaction.count({
+      where: { status: TransactionStatus.open, mergedIntoId: null },
+    });
+    if (openCount > 0) {
+      const err = new AppError('Ada pesanan belum dibayar — selesaikan dulu sebelum tutup', 409);
+      (err as AppError & { openOrders?: unknown }).openOrders = await getOpenOrdersForClose();
+      throw err;
+    }
+  }
   const updated = await prisma.shift.update({
     where: { id: shiftId },
-    data: { closedAt: new Date() },
+    data: { closedAt: new Date(), activeMarker: null },
     include: { cashier: true },
   });
   return toShiftView(updated);
 }
 
-/// REV 2.3 shift-decoupling: active shift adalah konsep SYSTEM-WIDE, bukan per-user.
-/// Return semua shift dengan closedAt=null.
-/// - 0 row : belum ada kasir buka shift
-/// - 1 row : happy path
-/// - 2+ row: pergantian shift overlap - input order akan ditolak sampai
-///           salah satu ditutup (validasi di transactions.service)
+export interface OpenOrdersGroup {
+  groupKey: string;
+  label: string;
+  tableNumber: number | null;
+  txIds: number[];
+}
+
+export async function getOpenOrdersForClose(): Promise<OpenOrdersGroup[]> {
+  const rows = await prisma.transaction.findMany({
+    where: { status: TransactionStatus.open, mergedIntoId: null },
+    select: { id: true, tableNumber: true, orderType: true },
+    orderBy: [{ tableNumber: 'asc' }, { id: 'asc' }],
+  });
+  const map = new Map<string, OpenOrdersGroup>();
+  for (const r of rows) {
+    const key = r.tableNumber != null ? `meja-${r.tableNumber}` : 'takeaway';
+    const label = r.tableNumber != null ? `Meja ${r.tableNumber}` : 'Takeaway';
+    if (!map.has(key)) map.set(key, { groupKey: key, label, tableNumber: r.tableNumber, txIds: [] });
+    map.get(key)!.txIds.push(r.id);
+  }
+  return [...map.values()];
+}
+
+/// REV 2.7: active shift = baris dengan activeMarker=1. UNIQUE([activeMarker])
+/// menjamin maksimum satu shift open pada satu waktu, jadi praktis return 0/1 row.
 export async function getActiveShifts(): Promise<ShiftView[]> {
   const shifts = await prisma.shift.findMany({
-    where: { closedAt: null },
+    where: { activeMarker: 1 },
     orderBy: { createdAt: 'desc' },
     include: { cashier: true },
   });

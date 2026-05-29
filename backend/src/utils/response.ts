@@ -20,8 +20,17 @@ export function sendSuccess<T>(
   res.status(statusCode).json(body);
 }
 
-/** Kirim respons gagal. data selalu null. */
-export function sendError(res: Response, message: string, statusCode = 400): void {
-  const body: ApiBody<null> = { success: false, message, data: null };
+/**
+ * Kirim respons gagal. `data` default null, tapi beberapa error bisnis
+ * (mis. tutup shift dengan transaksi open) ingin menyertakan payload tambahan
+ * supaya client bisa menampilkannya — lewatkan via parameter `data`.
+ */
+export function sendError(
+  res: Response,
+  message: string,
+  statusCode = 400,
+  data: unknown = null,
+): void {
+  const body: ApiBody<unknown> = { success: false, message, data };
   res.status(statusCode).json(body);
 }

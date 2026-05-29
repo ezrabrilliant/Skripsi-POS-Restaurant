@@ -5,7 +5,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { parseId } from '../../utils/parseId';
 import { unauthorized } from '../../utils/errors';
-import { openShiftSchema, listShiftsQuerySchema } from './shifts.schema';
+import { openShiftSchema, closeShiftSchema, listShiftsQuerySchema } from './shifts.schema';
 import * as shiftsService from './shifts.service';
 
 export const handleOpen = asyncHandler(async (req: Request, res: Response) => {
@@ -18,7 +18,8 @@ export const handleOpen = asyncHandler(async (req: Request, res: Response) => {
 export const handleClose = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw unauthorized();
   const id = parseId(req.params.id);
-  const shift = await shiftsService.closeShift(id, req.user.id, req.user.role);
+  const { mode } = closeShiftSchema.parse(req.body ?? {});
+  const shift = await shiftsService.closeShift(id, req.user.id, req.user.role, mode);
   sendSuccess(res, { shift }, 'Shift berhasil ditutup');
 });
 

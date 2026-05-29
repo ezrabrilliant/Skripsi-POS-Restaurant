@@ -11,6 +11,12 @@ export const openShiftSchema = z.object({
   openingCash: z.number().nonnegative('Modal awal tidak boleh negatif'),
 });
 
+// REV 2.7: tutup shift dua mode. Default 'final' (settlement, diblokir kalau ada
+// transaksi open). 'handover' = pergantian kasir, boleh oleh kasir masuk berikutnya.
+export const closeShiftSchema = z.object({
+  mode: z.enum(['final', 'handover']).default('final'),
+});
+
 export const listShiftsQuerySchema = z.object({
   date: z
     .string()
@@ -21,4 +27,5 @@ export const listShiftsQuerySchema = z.object({
 });
 
 export type OpenShiftInput = z.infer<typeof openShiftSchema>;
+export type CloseShiftInput = z.infer<typeof closeShiftSchema>;
 export type ListShiftsQuery = z.infer<typeof listShiftsQuerySchema>;

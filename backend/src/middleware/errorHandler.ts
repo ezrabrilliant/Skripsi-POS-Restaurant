@@ -17,7 +17,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   // Error bisnis yang sengaja dilempar
   if (err instanceof AppError) {
-    sendError(res, err.message, err.statusCode);
+    // Beberapa AppError membawa payload tambahan (mis. closeShift menyertakan
+    // openOrders) supaya client bisa menampilkan daftar transaksi yang menghalangi.
+    const openOrders = (err as AppError & { openOrders?: unknown }).openOrders;
+    const data = openOrders !== undefined ? { openOrders } : null;
+    sendError(res, err.message, err.statusCode, data);
     return;
   }
 
