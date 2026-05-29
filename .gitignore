@@ -87,6 +87,7 @@ frontend/vite.config.d.ts
 /mobile-fixed.png
 /pos-empty-fixed.png
 /pos-page-no-shift.png
+/rev28-*.png
 
 # StarUML backup/untitled (working files, bukan source of truth)
 Skripsi.mdj.bak-*

@@ -234,20 +234,20 @@ export default function PortionStockTab() {
         s.stockType !== 'portion' ? null : (
           <div className="inline-flex items-center gap-1">
             <IconButton
-              label={`Riwayat ${s.menuName}`}
-              icon={<History />}
-              variant="ghost"
-              size="sm"
-              onClick={() => setHistoryMenuId(s.menuId)}
-              className="text-neutral-600 hover:bg-neutral-100"
-            />
-            <IconButton
               label={`Barang masuk ${s.menuName}`}
               icon={<Truck />}
               variant="ghost"
               size="sm"
               onClick={() => setEmergencyTarget(s)}
               className="text-success-700 hover:bg-success-50"
+            />
+            <IconButton
+              label={`Riwayat ${s.menuName}`}
+              icon={<History />}
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryMenuId(s.menuId)}
+              className="text-neutral-600 hover:bg-neutral-100"
             />
             <IconButton
               label={`Tandai ${s.menuName} habis`}
