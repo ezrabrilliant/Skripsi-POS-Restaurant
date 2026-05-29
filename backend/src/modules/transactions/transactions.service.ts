@@ -32,7 +32,6 @@ import {
   OrderType,
   Prisma,
   PortionMovementReason,
-  ShiftType,
   StockType,
   TransactionStatus,
   UserRole,
@@ -390,47 +389,24 @@ async function recomputeSubtotal(
 // Operations
 // ============================================================
 
-/// Resolve single active shift system-wide untuk attach order baru atau migrate
-/// target merge ke shift kasir yang sedang pegang kas.
+/// Resolve single active shift system-wide untuk attach order baru atau re-stamp
+/// attribution saat payment.
 ///
-/// REV 2.3 shift-decoupling + REV 2.5 multi-cashier sharing:
-///   - 0 active           -> 409 (kasir harus buka shift dulu).
-///   - 1 active           -> return it.
-///   - 2 active beda tipe -> pagi+malam transition (valid). Resolve via jam
-///                           server: pagi < 18:00, malam >= 18:00.
-///   - 2+ active tipe sama-> Anomaly. Shouldn't happen post-REV 2.5 openShift
-///                           constraint. Defensive 409.
+/// REV 2.6 shift-redesign: resolusi via partial-unique `activeMarker` (=1 saat
+/// open, NULL saat closed). DB constraint menjamin maksimal 1 shift open.
+///   - 0 active -> 409 (kasir harus buka shift dulu).
+///   - 1 active -> return it.
+///   - 2+ active -> anomali (constraint dilanggar). Defensive 409.
 ///
 /// Param `context` muncul di error message buat klarifikasi kapan helper ini
-/// gagal (mis. "saat order baru" vs "saat merge bill").
+/// gagal (mis. "saat order baru" vs "saat pembayaran").
 export async function resolveActiveShift(context: string = 'order baru'): Promise<Shift> {
-  const activeShifts = await prisma.shift.findMany({
-    where: { closedAt: null },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (activeShifts.length === 0) {
-    throw new AppError(
-      `Belum ada shift kasir aktif. Kasir harus buka shift dulu sebelum ${context} bisa diproses.`,
-      409,
-    );
+  const active = await prisma.shift.findMany({ where: { activeMarker: 1 } });
+  if (active.length === 0) {
+    throw new AppError(`Belum ada shift kasir aktif. Buka shift dulu sebelum ${context} bisa diproses.`, 409);
   }
-  if (activeShifts.length === 1) {
-    return activeShifts[0]!;
-  }
-  const types = new Set(activeShifts.map((s) => s.type));
-  if (types.size === activeShifts.length) {
-    // 2+ beda tipe (mis. pagi + malam transition). Pick via jam server.
-    const hour = new Date().getHours();
-    const targetType = hour >= 18 ? ShiftType.malam : ShiftType.pagi;
-    return activeShifts.find((s) => s.type === targetType) ?? activeShifts[0]!;
-  }
-  // Anomaly: tipe duplikat.
-  const list = activeShifts.map((s) => `#${s.id} (${s.type})`).join(', ');
-  throw new AppError(
-    `Anomaly: ada ${activeShifts.length} shift aktif dengan tipe duplikat (${list}). ` +
-      `Hubungi owner untuk audit data.`,
-    409,
-  );
+  if (active.length === 1) return active[0]!;
+  throw new AppError(`Anomali: ${active.length} shift open bersamaan. Hubungi owner.`, 409);
 }
 
 export async function createTransaction(
@@ -650,71 +626,52 @@ export async function addPayment(
     effectiveTotal = existing.total;
   }
 
-  // Compute remaining
-  const sumExistingPayments = existing.payments.reduce(
-    (sum, p) => sum.add(p.amount),
-    new Prisma.Decimal(0),
-  );
-  const remaining = effectiveTotal.sub(sumExistingPayments);
-  const amount = new Prisma.Decimal(input.amount);
-
-  if (amount.lessThanOrEqualTo(0)) {
-    throw new AppError('Nominal pembayaran harus lebih dari 0', 400);
-  }
-  if (amount.greaterThan(remaining)) {
-    throw new AppError(
-      `Nominal melebihi sisa tagihan. Sisa: Rp ${remaining.toFixed(0)}, dimasukkan: Rp ${amount.toFixed(0)}`,
-      400,
-    );
-  }
-
+  // Atomic finalize: lock parent row, re-read committed payments, validate, insert
+  // slice, dan (kalau lunas) flip status + re-stamp shiftId — semua di dalam SATU
+  // $transaction. Race fix: payments-sum read + remaining-check yang dulu di luar
+  // transaction bisa di-bypass dua slice near-simultan; sekarang ter-serialize via
+  // FOR UPDATE row lock pada parent.
   await prisma.$transaction(async (tx) => {
-    // Update tax/total/discount kalau first slice
+    // Lock parent row to serialize concurrent payments on this Tx.
+    await tx.$queryRaw`SELECT id FROM transactions WHERE id = ${transactionId} FOR UPDATE`;
+
+    // Re-read committed payments INSIDE the lock (authoritative).
+    const slices = await tx.transactionPayment.findMany({ where: { transactionId } });
+    const sumExisting = slices.reduce((acc, p) => acc.add(p.amount), new Prisma.Decimal(0));
+
+    // First-slice writes discount/tax/total (computed above).
     if (isFirstSlice) {
       await tx.transaction.update({
         where: { id: transactionId },
-        data: {
-          discountAmount: effectiveDiscount,
-          taxAmount: effectiveTax,
-          total: effectiveTotal,
-        },
+        data: { discountAmount: effectiveDiscount, taxAmount: effectiveTax, total: effectiveTotal },
       });
     }
 
-    // Insert payment slice
+    const remaining = effectiveTotal.sub(sumExisting);
+    const amt = new Prisma.Decimal(input.amount);
+    if (amt.lessThanOrEqualTo(0)) throw new AppError('Nominal pembayaran harus lebih dari 0', 400);
+    if (amt.greaterThan(remaining)) {
+      throw new AppError(`Nominal melebihi sisa tagihan. Sisa: Rp ${remaining.toFixed(0)}, dimasukkan: Rp ${amt.toFixed(0)}`, 400);
+    }
+
     await tx.transactionPayment.create({
-      data: {
-        transactionId,
-        method: input.method,
-        bank: input.bank ?? null,
-        amount,
-        recordedById: userId,
-      },
+      data: { transactionId, method: input.method, bank: input.bank ?? null, amount: amt, recordedById: userId },
     });
 
-    // Cek apakah sudah lunas
-    const newSum = sumExistingPayments.add(amount);
+    const newSum = sumExisting.add(amt);
     if (newSum.greaterThanOrEqualTo(effectiveTotal)) {
+      // Re-stamp attribution to the shift open at PAYMENT time (throws 409 if 0 open).
+      const shift = await resolveActiveShift('pembayaran');
       const paidAt = new Date();
-      await tx.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: TransactionStatus.paid,
-          paidAt,
-        },
+      // Idempotent finalize: only flips if still open.
+      const flipped = await tx.transaction.updateMany({
+        where: { id: transactionId, status: TransactionStatus.open },
+        data: { status: TransactionStatus.paid, paidAt, shiftId: shift.id },
       });
-      // Cascade ke mergedFrom open Tx: status=paid, total=0, discount=0, tax=0
-      const openSources = mergedFrom.filter((m) => m.status === TransactionStatus.open);
-      if (openSources.length > 0) {
+      if (flipped.count === 1) {
         await tx.transaction.updateMany({
           where: { mergedIntoId: transactionId, status: TransactionStatus.open },
-          data: {
-            status: TransactionStatus.paid,
-            discountAmount: new Prisma.Decimal(0),
-            taxAmount: new Prisma.Decimal(0),
-            total: new Prisma.Decimal(0),
-            paidAt,
-          },
+          data: { status: TransactionStatus.paid, discountAmount: new Prisma.Decimal(0), taxAmount: new Prisma.Decimal(0), total: new Prisma.Decimal(0), paidAt },
         });
       }
     }
@@ -768,11 +725,15 @@ export async function voidTransaction(
 ): Promise<TransactionView> {
   const existing = await prisma.transaction.findUnique({
     where: { id: transactionId },
-    include: { items: { include: { menu: true } } },
+    include: { items: { include: { menu: true } }, shift: { select: { date: true } } },
   });
   if (!existing) throw notFound('Transaction');
   if (existing.status === TransactionStatus.void) {
     throw new AppError('Transaksi sudah void sebelumnya', 400);
+  }
+  const settled = await prisma.settlement.findFirst({ where: { date: existing.shift.date } });
+  if (settled) {
+    throw new AppError('Business day transaksi ini sudah di-settle — tidak bisa diubah (refund di luar lingkup sistem)', 409);
   }
 
   // Untuk reverse: kita perlu resolve ulang stock target tiap item (karena
@@ -1072,12 +1033,10 @@ export { UserRole };
 ///   1. Add Round (intra-table, sudah ada REV 2.4) - merge multi-Tx sebelum bayar
 ///   2. Combine Tables (inter-table, baru REV 2.5) - merge dari TablesPage atau PaymentModal
 ///
-/// REV 2.6 cross-shift fix: cek "sama shift" dihapus. Kalau target/source span
-/// shift berbeda (mis. shift A close di tengah hari, Tx open carried over ke
-/// shift B), target.shiftId di-migrate ke shift aktif saat ini supaya revenue
-/// jatuh ke shift kasir yang sedang pegang kas (yang akan terima payment),
-/// bukan ke shift lama. Source tetap di shift lama-nya - tidak masalah karena
-/// revenue queries sudah exclude mergedIntoId IS NOT NULL.
+/// REV 2.6 shift-redesign: merge tidak lagi memigrasi shiftId. Attribution
+/// ditentukan saat payment (addPayment re-stamp parent.shiftId ke shift yang open
+/// saat itu). Source tetap di shift lama-nya - tidak masalah karena revenue
+/// queries sudah exclude mergedIntoId IS NOT NULL.
 export async function mergeBills(input: MergeInput): Promise<TransactionView> {
   const target = await prisma.transaction.findUnique({ where: { id: input.targetId } });
   if (!target) throw notFound('Target transaction');
@@ -1104,32 +1063,12 @@ export async function mergeBills(input: MergeInput): Promise<TransactionView> {
     }
   }
 
-  // Kalau ada cross-shift Tx (source/target beda shift), resolve current active
-  // shift dan migrate target.shiftId ke sana. Cuma panggil resolveActiveShift
-  // kalau memang perlu migrate - intra-shift merge tetap jalan tanpa requirement
-  // active shift (defensive untuk edge case shift transition window).
-  const hasCrossShift = sources.some((s) => s.shiftId !== target.shiftId);
-  let migrateTargetTo: number | null = null;
-  if (hasCrossShift) {
-    const currentShift = await resolveActiveShift('merge bill cross-shift');
-    if (target.shiftId !== currentShift.id) {
-      migrateTargetTo = currentShift.id;
-    }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    if (migrateTargetTo !== null) {
-      await tx.transaction.update({
-        where: { id: target.id },
-        data: { shiftId: migrateTargetTo },
-      });
-    }
-    await tx.transaction.updateMany({
-      where: { id: { in: input.sourceIds } },
-      data: { mergedIntoId: target.id },
-    });
+  // Attribution = parent.shiftId only (set at payment via re-stamp); sources
+  // excluded from revenue via mergedIntoId. Merge cuma set pointer di sources.
+  await prisma.transaction.updateMany({
+    where: { id: { in: input.sourceIds } },
+    data: { mergedIntoId: target.id },
   });
-
   return getTransactionById(target.id);
 }
 
