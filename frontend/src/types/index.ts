@@ -355,6 +355,8 @@ export interface PortionStockView {
   suggestedRestockMorning: number
   isLow: boolean
   updatedAt: string
+  /** REV 2.8: timestamp aktivitas manual terbaru (restock/opname). null = belum pernah. */
+  lastStockedAt: string | null
 }
 
 export type PortionMovementReason =
@@ -364,12 +366,26 @@ export type PortionMovementReason =
   | 'manualAdjust'
   | 'refundVoid'
 
+export const PORTION_REASON_LABEL: Record<PortionMovementReason, string> = {
+  order: 'Penjualan',
+  restockMorning: 'Restock Pagi',
+  restockEmergency: 'Barang Masuk',
+  manualAdjust: 'Opname / Penyesuaian',
+  refundVoid: 'Refund / Void',
+}
+
 export interface PortionMovementView {
   id: number
   delta: number
   reason: PortionMovementReason
+  qtyBefore: number | null
+  qtyAfter: number | null
   note: string | null
   userId: number
+  userName: string
+  /** REV 2.8: tautan FK ke dokumen sumber (null untuk movement non-transaksi). */
+  transactionId: number | null
+  transactionItemId: number | null
   createdAt: string
 }
 
@@ -438,16 +454,30 @@ export interface RawMaterialView {
   suggestedAction: string | null
   createdAt: string
   updatedAt: string
+  /** REV 2.8: timestamp movement terbaru. null = belum pernah. */
+  lastStockedAt: string | null
 }
 
 export type RawMaterialMovementReason = 'purchase' | 'opname' | 'manualAdjust'
+
+export const RAW_REASON_LABEL: Record<RawMaterialMovementReason, string> = {
+  purchase: 'Pembelian',
+  opname: 'Opname',
+  manualAdjust: 'Penyesuaian',
+}
 
 export interface RawMaterialMovementView {
   id: number
   delta: number
   reason: RawMaterialMovementReason
+  qtyBefore: number | null
+  qtyAfter: number | null
   note: string | null
   userId: number
+  userName: string
+  /** REV 2.8: tautan FK ke pembelian sumber (null untuk opname/manualAdjust). */
+  purchaseId: number | null
+  purchaseItemId: number | null
   createdAt: string
 }
 
