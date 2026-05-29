@@ -18,6 +18,8 @@
 import { Prisma, ShiftType, TransactionStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import type { OwnerReportQuery } from './dashboard.schema';
+import { getShiftWindow } from '../settings/settings.service';
+import { businessDateFor } from '../shifts/shift-time';
 
 // ============================================================
 // View shape (REV 2.6: dinamis array)
@@ -100,19 +102,8 @@ export interface WaiterDashboardView {
 }
 
 // ============================================================
-// Date helpers (sama strategi dengan shifts/transactions: UTC midnight dari local)
+// Date helpers
 // ============================================================
-
-function todayDateOnly(): Date {
-  const d = new Date();
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-}
-
-function tomorrowDateOnly(): Date {
-  const d = todayDateOnly();
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d;
-}
 
 function parseDateUtcMidnight(yyyymmdd: string): Date {
   const [y, m, d] = yyyymmdd.split('-').map(Number);
@@ -123,11 +114,6 @@ function isoDate(d: Date): string {
   return d.toISOString().substring(0, 10);
 }
 
-function todayMonthString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 interface PeriodRange {
   fromDate: Date;
   toDateExclusive: Date; // half-open [from, to)
@@ -136,9 +122,9 @@ interface PeriodRange {
   type: 'today' | 'month' | 'year' | 'custom';
 }
 
-function resolvePeriod(query: OwnerReportQuery): PeriodRange {
+function resolvePeriod(query: OwnerReportQuery, restoToday: Date, restoMonth: string): PeriodRange {
   if (query.period === 'today') {
-    const anchor = query.date ? parseDateUtcMidnight(query.date) : todayDateOnly();
+    const anchor = query.date ? parseDateUtcMidnight(query.date) : restoToday;
     const next = new Date(anchor);
     next.setUTCDate(next.getUTCDate() + 1);
     return {
@@ -149,7 +135,7 @@ function resolvePeriod(query: OwnerReportQuery): PeriodRange {
     };
   }
   if (query.period === 'month') {
-    const monthStr = query.month ?? todayMonthString();
+    const monthStr = query.month ?? restoMonth;
     const [y, m] = monthStr.split('-').map(Number);
     const from = new Date(Date.UTC(y!, m! - 1, 1));
     const to = new Date(Date.UTC(y!, m!, 1));
@@ -162,7 +148,7 @@ function resolvePeriod(query: OwnerReportQuery): PeriodRange {
     };
   }
   if (query.period === 'year') {
-    const yearStr = query.year ?? String(new Date().getFullYear());
+    const yearStr = query.year ?? String(restoToday.getUTCFullYear());
     const y = Number(yearStr);
     return {
       fromDate: new Date(Date.UTC(y, 0, 1)),
@@ -295,11 +281,15 @@ async function reminderCounts(): Promise<ReminderCounts> {
 // ============================================================
 
 export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerReportView> {
-  const period = resolvePeriod(query);
+  const window = await getShiftWindow();
+  const restoToday = businessDateFor(window, new Date());
+  const restoMonth = `${restoToday.getUTCFullYear()}-${String(restoToday.getUTCMonth() + 1).padStart(2, '0')}`;
+  const period = resolvePeriod(query, restoToday, restoMonth);
 
+  // Revenue attributed by shift.date (business day), not paidAt wall-clock.
   const txWhere: Prisma.TransactionWhereInput = {
     status: TransactionStatus.paid,
-    paidAt: { gte: period.fromDate, lt: period.toDateExclusive },
+    shift: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
   };
 
   const [{ total: revenue, count: txCount, byMethod }, banks, purchasesAgg, billsAgg, reminders] =
@@ -323,7 +313,7 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
           : prisma.bill.aggregate({
               // 'today' & 'custom' - pakai bills bulan saat ini sebagai approx
               // (bills bersifat bulanan, jadi untuk laporan harian tampilkan bills bulan saat ini)
-              where: { month: todayMonthString() },
+              where: { month: restoMonth },
               _sum: { amount: true },
             }),
       reminderCounts(),
@@ -362,8 +352,10 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
 // ============================================================
 
 export async function getCashierDashboard(cashierId: number): Promise<CashierDashboardView> {
-  const today = todayDateOnly();
-  const tomorrow = tomorrowDateOnly();
+  const window = await getShiftWindow();
+  const today = businessDateFor(window, new Date());
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
   const [activeShiftRow, todayPaid, openTxCount, reminders] = await Promise.all([
     prisma.shift.findFirst({
@@ -372,12 +364,13 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
     }),
     revenueByMethod({
       status: TransactionStatus.paid,
-      paidAt: { gte: today, lt: tomorrow },
+      shift: { date: { gte: today, lt: tomorrow } },
     }),
     prisma.transaction.count({
       where: {
         status: TransactionStatus.open,
-        createdAt: { gte: today, lt: tomorrow },
+        mergedIntoId: null,
+        shift: { date: { gte: today, lt: tomorrow } },
       },
     }),
     reminderCounts(),
@@ -407,8 +400,10 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
 // ============================================================
 
 export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
-  const today = todayDateOnly();
-  const tomorrow = tomorrowDateOnly();
+  const window = await getShiftWindow();
+  const today = businessDateFor(window, new Date());
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
   const [portionTotal, portionLowRows, rmReminders, activeShifts] = await Promise.all([
     prisma.portionStock.count({ where: { menu: { isActive: true } } }),
@@ -423,7 +418,7 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
     prisma.shift.findMany({
       where: {
         closedAt: null,
-        createdAt: { gte: today, lt: tomorrow },
+        date: { gte: today, lt: tomorrow },
       },
       include: { cashier: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
