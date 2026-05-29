@@ -346,13 +346,15 @@ model Shift {
   type        ShiftType
   cashierId   Int       @map("cashier_id")
   openingCash Decimal   @map("opening_cash") @db.Decimal(12, 2)
-  closedAt    DateTime? @map("closed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  closedAt     DateTime? @map("closed_at")
+  activeMarker Int?      @map("active_marker")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   cashier      User          @relation(fields: [cashierId], references: [id])
   transactions Transaction[]
   settlement   Settlement?
 
+  @@unique([activeMarker])
   @@index([date, type, closedAt])
   @@map("shifts")
 }
@@ -481,6 +483,7 @@ model Settlement {
   reviewer     User?                   @relation("SettlementReviewer", fields: [reviewerId], references: [id])
   methodCounts SettlementMethodCount[]
 
+  @@unique([date])
   @@map("settlements")
 }
 
@@ -637,9 +640,13 @@ model SettlementMethodCount {
 /// Dibaca saat addPayment (first slice) untuk hitung taxAmount.
 model AppSetting {
   id          Int      @id @default(1)
-  taxEnabled  Boolean  @default(false) @map("tax_enabled")
-  taxRate     Decimal  @default(10.00) @map("tax_rate") @db.Decimal(5, 2)
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  taxEnabled      Boolean  @default(false) @map("tax_enabled")
+  taxRate         Decimal  @default(10.00) @map("tax_rate") @db.Decimal(5, 2)
+  timezone        String   @default("Asia/Jakarta") @map("timezone") @db.VarChar(64)
+  shiftPagiStart  String   @default("07:00") @map("shift_pagi_start") @db.VarChar(5)
+  shiftChangeover String   @default("18:00") @map("shift_changeover") @db.VarChar(5)
+  shiftMalamEnd   String   @default("23:00") @map("shift_malam_end") @db.VarChar(5)
+  updatedAt       DateTime @updatedAt @map("updated_at")
   updatedById Int?     @map("updated_by_id")
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
