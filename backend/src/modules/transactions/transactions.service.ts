@@ -661,19 +661,25 @@ export async function addPayment(
       throw new AppError(`Nominal melebihi sisa tagihan. Sisa: Rp ${remaining.toFixed(0)}, dimasukkan: Rp ${amt.toFixed(0)}`, 400);
     }
 
+    // REV 2.8 (review fail-fast): kalau slice ini melunasi, resolve shift SEBELUM
+    // insert payment. resolveActiveShift bisa throw 409 (0 atau 2+ shift aktif) —
+    // resolve dulu supaya tidak insert-lalu-rollback sia-sia. Read via outer prisma
+    // (tabel shift beda dari row transactions yang di-lock → tak konflik).
+    const newSum = sumExisting.add(amt);
+    const willFinalize = newSum.greaterThanOrEqualTo(effectiveTotal);
+    // Re-stamp attribution ke shift yang aktif saat PEMBAYARAN (bukan saat order dibuat).
+    const finalizeShift = willFinalize ? await resolveActiveShift('pembayaran') : null;
+
     await tx.transactionPayment.create({
       data: { transactionId, method: input.method, bank: input.bank ?? null, amount: amt, recordedById: userId },
     });
 
-    const newSum = sumExisting.add(amt);
-    if (newSum.greaterThanOrEqualTo(effectiveTotal)) {
-      // Re-stamp attribution to the shift open at PAYMENT time (throws 409 if 0 open).
-      const shift = await resolveActiveShift('pembayaran');
+    if (finalizeShift) {
       const paidAt = new Date();
       // Idempotent finalize: only flips if still open.
       const flipped = await tx.transaction.updateMany({
         where: { id: transactionId, status: TransactionStatus.open },
-        data: { status: TransactionStatus.paid, paidAt, shiftId: shift.id },
+        data: { status: TransactionStatus.paid, paidAt, shiftId: finalizeShift.id },
       });
       if (flipped.count === 1) {
         await tx.transaction.updateMany({
