@@ -102,3 +102,5 @@ docs/~$*.docx
 # yarn.lock
 # pnpm-lock.yaml
 backend/backups/
+
+.superpowers/
