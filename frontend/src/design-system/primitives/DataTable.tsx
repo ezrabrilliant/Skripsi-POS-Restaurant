@@ -5,9 +5,14 @@
  * Tidak include sorting/pagination/virtualization built-in supaya tetap
  * ringan. Untuk dataset besar bisa di-wrap dengan TanStack Table di
  * future kalau perlu.
+ *
+ * Opsional expandable-row (parent → children inline) + rowClassName +
+ * rowId (untuk focus/scrollIntoView). Semua prop baru opsional →
+ * pemanggil lama tidak terpengaruh.
  */
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { EmptyState } from './EmptyState'
@@ -43,6 +48,12 @@ interface DataTableProps<T> {
   /** Key extractor unique per row. */
   rowKey: (row: T, index: number) => string | number
   className?: string
+  /** Expandable row (parent → children inline). Opsional; default tak ada expand. */
+  expandable?: { canExpand: (row: T) => boolean; renderExpanded: (row: T) => ReactNode }
+  /** Class tambahan per baris (mis. ring sorot focus). */
+  rowClassName?: (row: T, index: number) => string | undefined
+  /** id attribute per baris (untuk scrollIntoView). */
+  rowId?: (row: T, index: number) => string | undefined
 }
 
 function getCell<T>(row: T, col: DataTableColumn<T>, index: number): ReactNode {
@@ -69,8 +80,21 @@ export function DataTable<T>({
   onRowClick,
   rowKey,
   className,
+  expandable,
+  rowClassName,
+  rowId,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile()
+  const [expanded, setExpanded] = useState<Set<string | number>>(new Set())
+
+  const toggle = (key: string | number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   if (isLoading) {
     return (
@@ -99,24 +123,56 @@ export function DataTable<T>({
       <div className={cn('space-y-2', className)}>
         {data.map((row, idx) => {
           const key = rowKey(row, idx)
+          const canExpand = expandable ? expandable.canExpand(row) : false
+          const isOpen = expanded.has(key)
+          const wrapperClass = cn(
+            'rounded-lg bg-white border border-neutral-200 p-3',
+            rowClassName?.(row, idx)
+          )
+          const body = (
+            <>
+              <div className="flex items-start gap-2">
+                {canExpand && (
+                  <button
+                    type="button"
+                    aria-label={isOpen ? 'Tutup' : 'Buka'}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggle(key)
+                    }}
+                    className="shrink-0 -ml-1 mt-0.5 text-neutral-400 hover:text-neutral-600"
+                  >
+                    {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">{mobileCard(row, idx)}</div>
+              </div>
+              {canExpand && isOpen && (
+                <div className="mt-2 pt-2 border-t border-neutral-100">
+                  {expandable!.renderExpanded(row)}
+                </div>
+              )}
+            </>
+          )
           if (onRowClick) {
             return (
               <button
                 key={key}
+                id={rowId?.(row, idx)}
                 type="button"
                 onClick={() => onRowClick(row)}
-                className="w-full text-left rounded-lg bg-white border border-neutral-200 hover:border-neutral-300 active:bg-neutral-50 transition-colors p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                className={cn(
+                  'w-full text-left rounded-lg bg-white border border-neutral-200 hover:border-neutral-300 active:bg-neutral-50 transition-colors p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+                  rowClassName?.(row, idx)
+                )}
               >
-                {mobileCard(row, idx)}
+                {body}
               </button>
             )
           }
           return (
-            <div
-              key={key}
-              className="rounded-lg bg-white border border-neutral-200 p-3"
-            >
-              {mobileCard(row, idx)}
+            <div key={key} id={rowId?.(row, idx)} className={wrapperClass}>
+              {body}
             </div>
           )
         })}
@@ -126,6 +182,7 @@ export function DataTable<T>({
 
   // Desktop table view
   const visibleCols = isMobile ? columns.filter((c) => !c.hideMobile) : columns
+  const totalCols = visibleCols.length + (expandable ? 1 : 0)
 
   return (
     <div className={cn('rounded-lg border border-neutral-200 bg-white overflow-hidden', className)}>
@@ -133,6 +190,7 @@ export function DataTable<T>({
         <table className="w-full text-body-sm">
           <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
+              {expandable && <th className="w-8" aria-hidden />}
               {visibleCols.map((col) => (
                 <th
                   key={col.key}
@@ -148,28 +206,66 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {data.map((row, idx) => (
-              <tr
-                key={rowKey(row, idx)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn(
-                  onRowClick && 'cursor-pointer hover:bg-neutral-50 transition-colors'
-                )}
-              >
-                {visibleCols.map((col) => (
-                  <td
-                    key={col.key}
-                    className={cn(
-                      'px-3 py-2.5 text-neutral-800',
-                      ALIGN[col.align ?? 'left'],
-                      col.className
-                    )}
-                  >
-                    {getCell(row, col, idx)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {data.map((row, idx) => {
+              const key = rowKey(row, idx)
+              const canExpand = expandable ? expandable.canExpand(row) : false
+              const isOpen = expanded.has(key)
+              return (
+                <tr
+                  key={key}
+                  id={rowId?.(row, idx)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={cn(
+                    onRowClick && 'cursor-pointer hover:bg-neutral-50 transition-colors',
+                    rowClassName?.(row, idx)
+                  )}
+                >
+                  {expandable && (
+                    <td className="w-8 px-2 py-2.5 align-top">
+                      {canExpand && (
+                        <button
+                          type="button"
+                          aria-label={isOpen ? 'Tutup' : 'Buka'}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggle(key)
+                          }}
+                          className="text-neutral-400 hover:text-neutral-600"
+                        >
+                          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </td>
+                  )}
+                  {visibleCols.map((col) => (
+                    <td
+                      key={col.key}
+                      className={cn(
+                        'px-3 py-2.5 text-neutral-800',
+                        ALIGN[col.align ?? 'left'],
+                        col.className
+                      )}
+                    >
+                      {getCell(row, col, idx)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            }).reduce<ReactNode[]>((acc, node, idx) => {
+              acc.push(node)
+              const row = data[idx]
+              const key = rowKey(row, idx)
+              if (expandable && expandable.canExpand(row) && expanded.has(key)) {
+                acc.push(
+                  <tr key={key + '-expanded'}>
+                    <td colSpan={totalCols} className="px-3 pb-3 pt-0 bg-neutral-50/40">
+                      {expandable.renderExpanded(row)}
+                    </td>
+                  </tr>
+                )
+              }
+              return acc
+            }, [])}
           </tbody>
         </table>
       </div>
