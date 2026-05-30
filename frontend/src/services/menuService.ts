@@ -3,10 +3,19 @@
 //   - POST/PUT/DELETE/reactivate owner-only
 
 import api from '@/lib/api'
-import type { ApiResponse, Menu, StockType, SubOptions } from '@/types'
+import type {
+  ApiResponse,
+  Menu,
+  MenuUpsertPayload,
+  StockType,
+  SubOptions,
+} from '@/types'
 
 export interface ListMenuQuery {
   activeOnly?: boolean
+  /** REV 2.10: owner/admin mode. true → kembalikan SEMUA menu termasuk
+   * posVisible=false (SKU stok granular). Default (POS/public) hanya posVisible=true. */
+  includeHidden?: boolean
   category?: string
   includeStock?: boolean
   includePopularity?: boolean
@@ -29,6 +38,7 @@ export const menuService = {
   list: async (query: ListMenuQuery = {}): Promise<Menu[]> => {
     const params: Record<string, string> = {}
     if (query.activeOnly !== undefined) params.activeOnly = String(query.activeOnly)
+    if (query.includeHidden) params.includeHidden = 'true'
     if (query.category) params.category = query.category
     if (query.includeStock) params.includeStock = 'true'
     if (query.includePopularity) params.includePopularity = 'true'
@@ -38,6 +48,26 @@ export const menuService = {
 
   byId: async (id: number): Promise<Menu> => {
     const res = await api.get<ApiResponse<{ menu: Menu }>>(`/menus/${id}`)
+    return res.data.data.menu
+  },
+
+  /** REV 2.10: alias byId — GET /menus/:id mengembalikan MenuDetail lengkap
+   * dengan optionGroups + variants + paketComponents (catalog layer). Dipakai
+   * MenuPage form untuk load menu existing saat edit. */
+  detail: async (id: number): Promise<Menu> => {
+    const res = await api.get<ApiResponse<{ menu: Menu }>>(`/menus/${id}`)
+    return res.data.data.menu
+  },
+
+  /** REV 2.10: upsert menu dengan catalog layer (variant/paket). Backend pakai
+   * satu skema (menuUpsertSchema) untuk create + update: POST /menus saat id
+   * undefined, PUT /menus/:id saat id ada (service replace-children). Return
+   * MenuDetail. Dipakai MenuPage form REV 2.10. */
+  upsert: async (payload: MenuUpsertPayload, id?: number): Promise<Menu> => {
+    const res =
+      id === undefined
+        ? await api.post<ApiResponse<{ menu: Menu }>>('/menus', payload)
+        : await api.put<ApiResponse<{ menu: Menu }>>(`/menus/${id}`, payload)
     return res.data.data.menu
   },
 

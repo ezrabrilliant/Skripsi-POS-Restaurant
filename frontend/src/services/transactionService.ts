@@ -20,9 +20,26 @@ import type {
 export interface OrderItemInput {
   menuId: number
   qty: number
+  /** LEGACY (pre-REV 2.10): paket berbasis NAMA. Dipertahankan optional untuk
+   * backward-compat sampai POS di-refactor ke variantId/paketChoices. */
   subOptionsSelected?: Record<string, string>
   /** REV 2.4: catatan per item (komunikasi customer → dapur). */
   notes?: string
+  /** REV 2.10: varian terpilih (menu kind=variant). null/undefined untuk
+   * simple + paket. Stok di-decrement ke variant.stockTargetMenuId. */
+  variantId?: number | null
+  /** REV 2.10: pilihan per slot paket kind=choice. Key = slot label
+   * (PaketComponent.label). targetMenuId = menu yang dipilih untuk slot;
+   * variantId = varian-nya kalau target adalah menu varian; chosenLabel =
+   * label opsi yang dipilih (audit display). Mirror orderItemSchema.paketChoices. */
+  paketChoices?: Record<
+    string,
+    { targetMenuId: number; variantId?: number | null; chosenLabel: string }
+  >
+  /** REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu dingin/panas).
+   * Dicatat sebagai TransactionItemSelection isPreference=true — tidak pengaruh
+   * stok/harga. Mirror orderItemSchema.preferences. */
+  preferences?: { groupLabel: string; chosenLabel: string }[]
 }
 
 /** REV 2.3 shift-decoupling: shiftId TIDAK dikirim. Backend auto-resolve dari single
