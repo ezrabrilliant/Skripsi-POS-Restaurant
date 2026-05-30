@@ -51,6 +51,8 @@ function buildParentMap(menus: Menu[]): Map<number, string[]> {
       }
     } else if (m.kind === 'paket') {
       for (const c of m.paketComponents ?? []) {
+        // fixed → targetMenuId terisi & choiceOptions []; choice → sebaliknya.
+        // Iterasi dua-duanya aman (yang tak relevan kosong/null).
         add(c.targetMenuId, m.name)
         for (const co of c.choiceOptions) add(co.targetMenuId, m.name)
       }
@@ -130,7 +132,11 @@ export default function SkuVarianPage() {
       cell: (m) => {
         const parents = parentMap.get(m.id) ?? []
         if (parents.length === 0)
-          return <span className="text-neutral-300">—</span>
+          return (
+            <Badge tone="neutral" variant="outline" size="sm">
+              tanpa induk
+            </Badge>
+          )
         return (
           <span title={parents.join(', ')}>
             <Badge tone="primary" variant="outline" size="sm">
