@@ -1,0 +1,528 @@
+/**
+ * VariantBuilder REV 2.10 — form visual untuk menu kind=variant.
+ *
+ * Owner mendefinisikan **grup opsi** (mis. "Bagian Ayam", "Cara Masak", "Suhu")
+ * lalu sistem otomatis menghitung **cartesian product** dari grup yang
+ * `affectsVariant=true` jadi grid varian sellable (harga eksak + stock target).
+ *
+ * - Grup `affectsVariant=true` ("ubah harga/stok") membentuk axis varian.
+ * - Grup `affectsVariant=false` ("bebas") = free-preference (mis. Suhu) yang
+ *   TIDAK mengkalikan jumlah varian (tidak masuk grid). Persisten sebagai
+ *   OptionGroup saja supaya POS bisa render pilihan saat order.
+ *
+ * Edit preservation: tiap varian di-key dengan signature optionLabels yang
+ * di-sort (urut group order → option label). Saat grid regenerate karena owner
+ * tambah/hapus opsi, harga/stockTarget/active yang sudah di-edit tetap survive
+ * untuk kombinasi yang masih ada.
+ */
+
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Plus, X } from 'lucide-react'
+import { Input } from '@/design-system/primitives/Input'
+import { Button } from '@/design-system/primitives/Button'
+import { Checkbox } from '@/design-system/primitives/Checkbox'
+import { type ComboboxOption } from '@/design-system/primitives/Combobox'
+import { MenuTargetCombobox } from './MenuTargetCombobox'
+import { menuService } from '@/services/menuService'
+import { formatCurrency } from '@/lib/utils'
+import type {
+  Menu,
+  OptionGroupUpsertPayload,
+  MenuVariantUpsertPayload,
+} from '@/types'
+
+// ============================================================
+// Working state (round-trips ke MenuUpsertPayload)
+// ============================================================
+
+/** Editor state untuk 1 grup opsi (label opsi disimpan flat list of string). */
+export interface VariantGroupState {
+  name: string
+  affectsVariant: boolean
+  optionLabels: string[]
+}
+
+/**
+ * Override per-kombinasi yang di-edit owner. Disimpan keyed by signature
+ * (lihat `signatureOf`) supaya survive regenerate grid.
+ */
+export interface VariantOverride {
+  price: number
+  stockTargetMenuId: number | null
+  isActive: boolean
+}
+
+export interface VariantBuilderValue {
+  groups: VariantGroupState[]
+  /** Override per signature kombinasi (group affectsVariant=true). */
+  overrides: Record<string, VariantOverride>
+}
+
+interface VariantBuilderProps {
+  value: VariantBuilderValue
+  onChange: (next: VariantBuilderValue) => void
+  /** Harga dasar menu — default harga varian baru. */
+  basePrice: number
+  /** Nama menu yang sedang di-edit (di-exclude dari pilihan stock target). */
+  excludeMenuName?: string
+}
+
+// ============================================================
+// Helpers (round-trip + cartesian)
+// ============================================================
+
+export const emptyVariantBuilderValue: VariantBuilderValue = {
+  groups: [],
+  overrides: {},
+}
+
+/** Signature stabil dari pilihan opsi (urut group order, join "||"). */
+function signatureOf(groupNames: string[], combo: string[]): string {
+  return groupNames.map((g, i) => `${g}=${combo[i]}`).join('||')
+}
+
+/** Cartesian product dari array of arrays. */
+function cartesian(lists: string[][]): string[][] {
+  return lists.reduce<string[][]>(
+    (acc, list) => acc.flatMap((prefix) => list.map((item) => [...prefix, item])),
+    [[]],
+  )
+}
+
+/** 1 baris varian terkomputasi untuk render grid. */
+export interface ComputedVariantRow {
+  signature: string
+  /** Map groupName -> chosen option label (hanya grup affectsVariant=true). */
+  optionLabels: Record<string, string>
+  /** Display label: option labels joined " / " dalam group order. */
+  label: string
+  price: number
+  stockTargetMenuId: number | null
+  isActive: boolean
+}
+
+/** Hitung grid varian dari grup affectsVariant=true + overrides. */
+export function computeVariantRows(
+  value: VariantBuilderValue,
+  basePrice: number,
+): ComputedVariantRow[] {
+  const variantGroups = value.groups.filter(
+    (g) => g.affectsVariant && g.name.trim() && g.optionLabels.some((o) => o.trim()),
+  )
+  if (variantGroups.length === 0) return []
+
+  const groupNames = variantGroups.map((g) => g.name.trim())
+  const optionLists = variantGroups.map((g) =>
+    g.optionLabels.map((o) => o.trim()).filter(Boolean),
+  )
+  if (optionLists.some((l) => l.length === 0)) return []
+
+  const combos = cartesian(optionLists)
+  return combos.map((combo) => {
+    const signature = signatureOf(groupNames, combo)
+    const optionLabels: Record<string, string> = {}
+    groupNames.forEach((g, i) => {
+      optionLabels[g] = combo[i]
+    })
+    const override = value.overrides[signature]
+    return {
+      signature,
+      optionLabels,
+      label: combo.join(' / '),
+      price: override?.price ?? basePrice,
+      stockTargetMenuId: override?.stockTargetMenuId ?? null,
+      isActive: override?.isActive ?? true,
+    }
+  })
+}
+
+/** Bangun optionGroups payload (semua grup, affectsVariant + bebas). */
+export function buildOptionGroupsPayload(
+  value: VariantBuilderValue,
+): OptionGroupUpsertPayload[] {
+  return value.groups
+    .filter((g) => g.name.trim() && g.optionLabels.some((o) => o.trim()))
+    .map((g, gi) => ({
+      name: g.name.trim(),
+      affectsVariant: g.affectsVariant,
+      displayOrder: gi,
+      options: g.optionLabels
+        .map((o) => o.trim())
+        .filter(Boolean)
+        .map((label, oi) => ({ label, displayOrder: oi })),
+    }))
+}
+
+/** Bangun variants payload dari grid terkomputasi. */
+export function buildVariantsPayload(
+  value: VariantBuilderValue,
+  basePrice: number,
+): MenuVariantUpsertPayload[] {
+  return computeVariantRows(value, basePrice).map((row, idx) => ({
+    optionLabels: row.optionLabels,
+    label: row.label,
+    price: row.price,
+    stockTargetMenuId: row.stockTargetMenuId,
+    isActive: row.isActive,
+    displayOrder: idx,
+  }))
+}
+
+/** Konversi Menu detail (optionGroups + variants) -> editor state (edit mode). */
+export function menuToVariantBuilderState(menu: Menu): VariantBuilderValue {
+  const groups: VariantGroupState[] = (menu.optionGroups ?? [])
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map((g) => ({
+      name: g.name,
+      affectsVariant: g.affectsVariant,
+      optionLabels: g.options
+        .slice()
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map((o) => o.label),
+    }))
+
+  const variantGroups = (menu.optionGroups ?? [])
+    .filter((g) => g.affectsVariant)
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+  const groupNames = variantGroups.map((g) => g.name.trim())
+
+  // MenuVariant.optionIds = id MenuOption penyusun. Map: optionId -> { groupName, label }
+  // supaya bisa rekonstruksi kombinasi { groupName -> label } per varian.
+  const optionLookup = new Map<number, { groupName: string; label: string }>()
+  for (const g of variantGroups) {
+    for (const o of g.options) {
+      optionLookup.set(o.id, { groupName: g.name.trim(), label: o.label })
+    }
+  }
+
+  const overrides: Record<string, VariantOverride> = {}
+  for (const v of menu.variants ?? []) {
+    // Rekonstruksi map groupName -> label dari optionIds varian ini.
+    const byGroup = new Map<string, string>()
+    for (const oid of v.optionIds) {
+      const entry = optionLookup.get(oid)
+      if (entry) byGroup.set(entry.groupName, entry.label)
+    }
+    const combo = groupNames.map((g) => byGroup.get(g) ?? '')
+    if (combo.some((c) => !c)) continue
+    const signature = signatureOf(groupNames, combo)
+    overrides[signature] = {
+      price: v.price,
+      stockTargetMenuId: v.stockTargetMenuId,
+      isActive: v.isActive,
+    }
+  }
+
+  return { groups, overrides }
+}
+
+// ============================================================
+// Section: Option group editor
+// ============================================================
+
+function OptionGroupEditor({
+  group,
+  onChange,
+  onRemove,
+  index,
+}: {
+  group: VariantGroupState
+  onChange: (next: VariantGroupState) => void
+  onRemove: () => void
+  index: number
+}) {
+  const updateOption = (idx: number, label: string) => {
+    const next = group.optionLabels.map((o, i) => (i === idx ? label : o))
+    onChange({ ...group, optionLabels: next })
+  }
+
+  const addOption = () => {
+    onChange({ ...group, optionLabels: [...group.optionLabels, ''] })
+  }
+
+  const removeOption = (idx: number) => {
+    onChange({
+      ...group,
+      optionLabels: group.optionLabels.filter((_, i) => i !== idx),
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5 rounded-md border border-neutral-200 bg-white p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          label={`Grup ${index + 1}`}
+          hideLabel
+          value={group.name}
+          onChange={(e) => onChange({ ...group, name: e.target.value })}
+          placeholder="Nama grup (mis. Bagian Ayam, Cara Masak)"
+          containerClassName="flex-1"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded-md p-2 text-danger-600 hover:bg-danger-50"
+          aria-label={`Hapus grup ${index + 1}`}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
+      {/* Toggle affectsVariant (radio-style 2 tombol) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => onChange({ ...group, affectsVariant: true })}
+          className={
+            'rounded-md border p-2.5 text-left text-body-sm transition-colors ' +
+            (group.affectsVariant
+              ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500/40 text-primary-900'
+              : 'bg-white border-neutral-300 hover:border-primary-400 text-neutral-700')
+          }
+        >
+          <span className="font-semibold block">Ubah harga / stok</span>
+          <span className="text-caption text-neutral-500">
+            Membentuk varian (harga & stok berbeda)
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange({ ...group, affectsVariant: false })}
+          className={
+            'rounded-md border p-2.5 text-left text-body-sm transition-colors ' +
+            (!group.affectsVariant
+              ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500/40 text-primary-900'
+              : 'bg-white border-neutral-300 hover:border-primary-400 text-neutral-700')
+          }
+        >
+          <span className="font-semibold block">Bebas</span>
+          <span className="text-caption text-neutral-500">
+            Pilihan saja (mis. suhu) — harga sama
+          </span>
+        </button>
+      </div>
+
+      {/* Daftar opsi */}
+      {group.optionLabels.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {group.optionLabels.map((opt, idx) => (
+            <li key={idx} className="flex items-center gap-2">
+              <Input
+                label={`Opsi ${idx + 1}`}
+                hideLabel
+                value={opt}
+                onChange={(e) => updateOption(idx, e.target.value)}
+                placeholder="Tulisan opsi (mis. Paha, Dada)"
+                containerClassName="flex-1 min-w-0"
+              />
+              <button
+                type="button"
+                onClick={() => removeOption(idx)}
+                className="rounded-md p-2 text-danger-600 hover:bg-danger-50 shrink-0"
+                aria-label={`Hapus opsi ${idx + 1}`}
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={addOption}
+        leftIcon={<Plus className="h-4 w-4" aria-hidden />}
+        className="self-start"
+      >
+        Tambah opsi
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================
+// Main component
+// ============================================================
+
+export function VariantBuilder({
+  value,
+  onChange,
+  basePrice,
+  excludeMenuName,
+}: VariantBuilderProps) {
+  // Sumber stock target: SEMUA menu portion termasuk yang tersembunyi (posVisible=false)
+  // supaya owner bisa arahkan varian ke SKU stok granular existing.
+  const { data: portionMenus = [] } = useQuery({
+    queryKey: ['menus', 'variant-stock-targets'],
+    queryFn: () => menuService.list({ activeOnly: false, includeHidden: true }),
+    staleTime: 30_000,
+  })
+
+  const stockTargetOptions = useMemo<ComboboxOption[]>(() => {
+    const opts = portionMenus
+      .filter((m) => m.stockType === 'portion' && m.name !== excludeMenuName)
+      .map((m) => ({
+        value: String(m.id),
+        label: m.name,
+        helper: m.category,
+      }))
+    return [{ value: '', label: '— tidak ada (nonStock) —' }, ...opts]
+  }, [portionMenus, excludeMenuName])
+
+  const rows = useMemo(
+    () => computeVariantRows(value, basePrice),
+    [value, basePrice],
+  )
+
+  const updateGroup = (idx: number, next: VariantGroupState) => {
+    onChange({
+      ...value,
+      groups: value.groups.map((g, i) => (i === idx ? next : g)),
+    })
+  }
+
+  const addGroup = () => {
+    onChange({
+      ...value,
+      groups: [
+        ...value.groups,
+        { name: '', affectsVariant: true, optionLabels: [''] },
+      ],
+    })
+  }
+
+  const removeGroup = (idx: number) => {
+    onChange({
+      ...value,
+      groups: value.groups.filter((_, i) => i !== idx),
+    })
+  }
+
+  const setOverride = (signature: string, patch: Partial<VariantOverride>) => {
+    const current =
+      value.overrides[signature] ??
+      (() => {
+        const row = rows.find((r) => r.signature === signature)
+        return {
+          price: row?.price ?? basePrice,
+          stockTargetMenuId: row?.stockTargetMenuId ?? null,
+          isActive: row?.isActive ?? true,
+        }
+      })()
+    onChange({
+      ...value,
+      overrides: { ...value.overrides, [signature]: { ...current, ...patch } },
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-lg bg-neutral-50 border border-neutral-200 p-4">
+      {/* Grup opsi */}
+      <section className="flex flex-col gap-2.5">
+        <div>
+          <h4 className="text-body-sm font-semibold text-neutral-900">Grup Pilihan</h4>
+          <p className="text-caption text-neutral-500">
+            Grup "ubah harga/stok" membentuk varian otomatis di bawah. Grup
+            "bebas" (mis. suhu) hanya jadi pilihan, tidak menggandakan varian.
+          </p>
+        </div>
+
+        {value.groups.map((g, idx) => (
+          <OptionGroupEditor
+            key={idx}
+            group={g}
+            index={idx}
+            onChange={(next) => updateGroup(idx, next)}
+            onRemove={() => removeGroup(idx)}
+          />
+        ))}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addGroup}
+          leftIcon={<Plus className="h-4 w-4" aria-hidden />}
+          className="self-start"
+        >
+          Tambah grup
+        </Button>
+      </section>
+
+      {/* Grid varian otomatis */}
+      <section className="flex flex-col gap-2.5">
+        <div>
+          <h4 className="text-body-sm font-semibold text-neutral-900">
+            Varian Otomatis
+          </h4>
+          <p className="text-caption text-neutral-500">
+            {rows.length > 0
+              ? `${rows.length} kombinasi dari grup "ubah harga/stok". Atur harga & stok target tiap baris.`
+              : 'Tambah minimal 1 grup "ubah harga/stok" dengan opsi untuk membentuk varian.'}
+          </p>
+        </div>
+
+        {rows.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {rows.map((row) => (
+              <li
+                key={row.signature}
+                className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-body-sm font-semibold text-neutral-900">
+                    {row.label}
+                  </span>
+                  <Checkbox
+                    label="Aktif"
+                    checked={row.isActive}
+                    onCheckedChange={(c) =>
+                      setOverride(row.signature, { isActive: c })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input
+                    label="Harga (Rp)"
+                    type="number"
+                    inputMode="numeric"
+                    value={row.price || ''}
+                    onChange={(e) =>
+                      setOverride(row.signature, {
+                        price: Number(e.target.value) || 0,
+                      })
+                    }
+                    min={0}
+                    step={1000}
+                    placeholder={String(basePrice)}
+                    helper={`Default ${formatCurrency(basePrice)}`}
+                  />
+                  <MenuTargetCombobox
+                    value={
+                      row.stockTargetMenuId !== null
+                        ? String(row.stockTargetMenuId)
+                        : ''
+                    }
+                    onChange={(v) =>
+                      setOverride(row.signature, {
+                        stockTargetMenuId: v ? Number(v) : null,
+                      })
+                    }
+                    options={stockTargetOptions}
+                    label="Kurangi stok dari"
+                    placeholder="— tidak ada (nonStock) —"
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  )
+}
