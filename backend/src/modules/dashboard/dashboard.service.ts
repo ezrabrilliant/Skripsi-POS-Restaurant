@@ -40,8 +40,6 @@ export interface BankBreakdownEntry {
 
 export interface ReminderCounts {
   portionLowCount: number;
-  rawMaterialLowCount: number;
-  rawMaterialNearExpiryCount: number;
 }
 
 export interface OwnerReportView {
@@ -87,11 +85,6 @@ export interface WaiterDashboardView {
     totalCount: number;
     lowCount: number;
     lowSamples: { menuId: number; menuName: string; currentQty: number; minStock: number; suggestedRestock: number }[];
-  };
-  rawMaterials: {
-    lowCount: number;
-    nearExpiryCount: number;
-    lowSamples: { id: number; name: string; stockQty: number; minStock: number | null; unit: string }[];
   };
   activeShiftsToday: {
     id: number;
@@ -259,29 +252,13 @@ async function bankBreakdown(
 
 async function reminderCounts(): Promise<ReminderCounts> {
   // Portion low: currentQty <= minStock (PortionStock)
+  // REV 2.11: reminder raw-materials dihapus (raw_materials out of scope).
   const portionRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
     SELECT COUNT(*) as cnt FROM portion_stocks WHERE current_qty <= min_stock
   `;
   const portionLowCount = Number(portionRaw[0]?.cnt ?? 0);
 
-  // Raw material low: stockQty <= minStock (REV 2.5.1: semua master always tracked)
-  const rmLowRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
-    SELECT COUNT(*) as cnt FROM raw_materials
-    WHERE min_stock IS NOT NULL AND stock_qty <= min_stock
-  `;
-  const rawMaterialLowCount = Number(rmLowRaw[0]?.cnt ?? 0);
-
-  // Raw material near expiry: freshness_days set AND last_buy_date set
-  //   AND DATEDIFF(NOW, last_buy_date) >= freshness_days - 3
-  const rmNearRaw = await prisma.$queryRaw<{ cnt: bigint }[]>`
-    SELECT COUNT(*) as cnt FROM raw_materials
-    WHERE freshness_days IS NOT NULL
-      AND last_buy_date IS NOT NULL
-      AND DATEDIFF(CURDATE(), last_buy_date) >= freshness_days - 3
-  `;
-  const rawMaterialNearExpiryCount = Number(rmNearRaw[0]?.cnt ?? 0);
-
-  return { portionLowCount, rawMaterialLowCount, rawMaterialNearExpiryCount };
+  return { portionLowCount };
 }
 
 // ============================================================
@@ -408,15 +385,13 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
   const tomorrow = new Date(today);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-  const [portionTotal, portionLowRows, rmReminders, activeShifts] = await Promise.all([
+  // REV 2.11: query + loop reminder raw-materials dihapus (raw_materials out of scope).
+  const [portionTotal, portionLowRows, activeShifts] = await Promise.all([
     prisma.portionStock.count({ where: { menu: { isActive: true } } }),
     prisma.portionStock.findMany({
       where: { menu: { isActive: true } },
       include: { menu: { select: { name: true } } },
       orderBy: { currentQty: 'asc' },
-    }),
-    prisma.rawMaterial.findMany({
-      include: { unit: { select: { label: true } } },
     }),
     prisma.shift.findMany({
       where: {
@@ -438,42 +413,11 @@ export async function getWaiterDashboard(): Promise<WaiterDashboardView> {
       p.currentQty >= p.minStock ? 0 : Math.ceil((p.minStock - p.currentQty) / 5) * 5,
   }));
 
-  let rmLowCount = 0;
-  let rmNearExpiryCount = 0;
-  const rmLowSamples: WaiterDashboardView['rawMaterials']['lowSamples'] = [];
-  const now = new Date();
-  for (const rm of rmReminders) {
-    const stockQty = rm.stockQty.toNumber();
-    const isLow = rm.minStock !== null && stockQty <= rm.minStock;
-    let isNear = false;
-    if (rm.freshnessDays !== null && rm.lastBuyDate !== null) {
-      const daysSince = Math.floor((now.getTime() - rm.lastBuyDate.getTime()) / (1000 * 60 * 60 * 24));
-      const daysUntil = rm.freshnessDays - daysSince;
-      if (daysUntil <= 3) isNear = true;
-    }
-    if (isLow) rmLowCount++;
-    if (isNear) rmNearExpiryCount++;
-    if ((isLow || isNear) && rmLowSamples.length < 5) {
-      rmLowSamples.push({
-        id: rm.id,
-        name: rm.name,
-        stockQty,
-        minStock: rm.minStock,
-        unit: rm.unit.label,
-      });
-    }
-  }
-
   return {
     portionStocks: {
       totalCount: portionTotal,
       lowCount: portionLow.length,
       lowSamples: portionLowSamples,
-    },
-    rawMaterials: {
-      lowCount: rmLowCount,
-      nearExpiryCount: rmNearExpiryCount,
-      lowSamples: rmLowSamples,
     },
     activeShiftsToday: activeShifts.map((s) => ({
       id: s.id,
