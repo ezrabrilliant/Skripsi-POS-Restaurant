@@ -1,7 +1,7 @@
-# Activity Diagram - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.3)
+# Activity Diagram - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.11)
 
-> **Status:** REV 2.3 (2026-05-24) - bump dari REV 2.2 setelah brainstorming workflow order intake. Tidak ada penambahan/penghapusan activity diagram (tetap 11), tidak ada perubahan struktur step. Hanya A.2 yang ditambahkan note tentang fallback waiter, dan annotation aktor diperjelas di A.4–A.7 untuk hindari interpretasi co-equal antara waiter dan kasir.
-> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.3 (sumber kebenaran tertinggi)
+> **Status:** REV 2.11 (2026-05-30) - selaras proposal: **drop** A.7 Opname Raw Materials + A.9 Mencatat Pembelian (subsistem belanja/raw-materials dihapus). Total activity diagram 11 → **9**. Tidak ada activity diagram baru untuk Kelola Modal/COGS Menu (CRUD owner sederhana, di-cover narasi). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md). Nuance permission REV 2.3 (waiter fallback) tetap.
+> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.11 (sumber kebenaran tertinggi)
 > **Design spec turunan:** [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md)
 > **Use Case parent:** [`USE-CASE.md`](USE-CASE.md) (REV 2.3)
 > **ERD pasangan:** [`ERD.md`](ERD.md) (REV 2.3)
@@ -16,20 +16,20 @@
 >
 > Action name di SKILL §2 jadi single source of truth. Step-by-step description di MD ini boleh pakai bahasa lebih teknis untuk implementer reference, tapi yang masuk diagram WAJIB pakai bahasa manusia per SKILL §2.
 
-> ⚠️ **Penyempurnaan dari REV 2:** Total **11 activity diagram** REV 2.1 (REV 2: 10).
+> ⚠️ **REV 2.11:** Total **9 activity diagram** (drop A.7 Opname Raw Materials + A.9 Mencatat Pembelian; sisanya di-renumber tetap untuk Bab 3 - lihat §5).
 >
-> Mapping perubahan ringkas:
-> - A.1 Login → **REVISED 2026-05-24** (drop 2-step pilih-nama-from-list + localStorage; jadi form input nama + PIN murni)
-> - A.2 Take Order → **REVISED 2026-05-24** (swimlane jadi 3: **Waiter | Kasir | Sistem**; jalur dine-in via waiter mediated paper, jalur takeaway langsung kasir; pembayaran dipisah ke A.3)
-> - A.3 Pay Flow → **REVISED** (drop filter payment per orderType; tambah bank picker untuk EDC & transfer; PB1 10% tetap auto)
-> - A.4 Restock Stok Porsi Pagi → tetap (kelipatan 5)
-> - A.5 Mencatat Barang Masuk → tetap (restock darurat)
-> - A.6 **NEW** Opname Stok Porsi (kasir+waiter pagi setelah restock)
-> - A.7 **REPLACE** ~~Mencatat Stok Bahan~~ → Opname Raw Materials (waiter+kasir malam, lebih general)
-> - A.8 Tutup Kasir → **REVISED** (tambah breakdown bank untuk EDC/transfer)
-> - A.9 Mencatat Pembelian → **MAJOR REVISED** (vendor opsional + normalized items + add raw material inline + auto-update raw_materials)
-> - A.10 Mencatat Tagihan Bulanan → tetap (owner only)
-> - A.11 Split + Merge Bill → **REVISED** (merge pakai self-ref `merged_into_id`)
+> Mapping diagram REV 2.11 (9 diagram):
+> - A.1 Login (form input nama + PIN murni)
+> - A.2 Take Order (swimlane Waiter | Kasir | Sistem; dine-in via kertas, takeaway langsung kasir; fallback waiter; pembayaran dipisah ke A.3)
+> - A.3 Pay Flow (bank picker EDC/transfer; PB1 10% auto)
+> - A.4 Restock Stok Porsi Pagi (kelipatan 5)
+> - A.5 Mencatat Barang Masuk (restock darurat)
+> - A.6 Opname Stok Porsi (kasir+waiter pagi setelah restock)
+> - A.7 Tutup Kasir (breakdown bank EDC/transfer)
+> - A.8 Mencatat Tagihan Bulanan (owner only)
+> - A.9 Split + Merge Bill (merge pakai self-ref `merged_into_id`)
+>
+> **REV 2.11 DROP:** ~~Opname Raw Materials~~ + ~~Mencatat Pembelian~~ (subsistem belanja/raw-materials dihapus). `Kelola Modal/COGS Menu` (owner) tidak butuh activity diagram terpisah - alurnya CRUD form sederhana yang di-cover narasi.
 
 ---
 
@@ -43,7 +43,7 @@ Activity Diagram adalah diagram UML yang menunjukkan **dynamic behavior sistem**
 
 1. **Visualisasi alur bisnis** untuk validasi dengan stakeholder.
 2. **Input bagi programmer** - alur langkah demi langkah jadi panduan implementasi.
-3. **Dokumentasi decision rule** - semua percabangan (vendor diisi? input bank? mau cetak struk?) terdokumentasi visual.
+3. **Dokumentasi decision rule** - semua percabangan (tipe order dine-in? input bank? mau cetak struk?) terdokumentasi visual.
 4. **Bab 3 skripsi** - setiap UC non-trivial dijelaskan alurnya via activity + narasi.
 
 ## 3. Elemen Activity Diagram
@@ -69,7 +69,7 @@ Bahasa bisnis, verb phrase, **bukan SQL / field names / pseudocode**.
 ### 4.2. Decision Labeling
 Diamond wajib punya nama pertanyaan agar visible di screenshot.
 
-✅ `Stok porsi cukup?`, `Vendor diisi?`, `Pelanggan minta struk?`, `Payment EDC atau transfer?`
+✅ `Tipe order dine-in?`, `Item paket?`, `Pelanggan minta struk?`, `Payment EDC atau transfer?`
 
 ### 4.3. Guard Labels
 Plain text tanpa bracket, Title Case: `Ya` / `Tidak`, `Cash` / `EDC` / `QRIS` / ...
@@ -79,7 +79,7 @@ Plain text tanpa bracket, Title Case: `Ya` / `Tidak`, `Cash` / `EDC` / `QRIS` / 
 
 Percabangan/penggabungan lewat Decision/Merge, bukan dari action langsung.
 
-## 5. Sebelas Activity Diagram REV 2.3
+## 5. Sembilan Activity Diagram REV 2.11
 
 ### 5.1. `activity-diagram-login.png` (A.1)
 
@@ -228,27 +228,7 @@ Pembayaran terpisah di **A.3 Pay Flow** (kasir-only, waiter tidak punya akses pa
    - Log ke `portion_movements` reason=`manual_adjust`, note="Opname pagi: selisih +1 / −2 / dst."
 6. [Sistem] Tampilkan ringkasan selisih per item + total → End
 
-### 5.7. `activity-diagram-opname-raw-materials.png` (A.7 NEW - replace Mencatat Stok Bahan REV 2)
-
-**Source UC:** `Melakukan Opname Raw Materials`
-**Swimlane:** Waiter / Kasir | Sistem
-**Tujuan:** Cek fisik raw materials di malam hari sebelum tutup (untuk tahu yang perlu dibeli besok pagi). Replace UC lama "Mencatat Stok Bahan" yang rigid 5 jenis (REV 2) - sekarang fleksibel sesuai jumlah raw materials tracked.
-
-**Alur:**
-1. [Waiter/Kasir] Buka halaman Raw Materials di akhir shift malam → filter `is_tracked=true`
-2. [Sistem] Tampilkan list raw materials yang ditrack (mis. Beras, Kangkung, Petai, Tahu, Tempe, Telur) dengan stock_qty saat ini, unit, kategori, dan reminder badge bila ada
-3. [Waiter/Kasir] Loop per item yang perlu di-koreksi:
-   - Cek fisik kondisi stok di rak/freezer
-   - Input qty fisik aktual (bisa skip kalau sesuai)
-   - Untuk perishable (mis. Kangkung) - opsional update `last_buy_date` kalau pembelian terakhir tidak ter-record di sistem
-4. [Waiter/Kasir] Submit
-5. [Sistem] Untuk tiap entry yang berubah:
-   - Update `raw_materials.stock_qty = qty_fisik`
-   - Update `raw_materials.last_buy_date` kalau diisi
-   - **REV 2.2**: Insert row ke `raw_material_movements` (reason=`opname`, delta=qty_fisik − stock_qty_lama, user_id=pelaku, note="Opname malam: dari X jadi Y") untuk audit trail
-6. [Sistem] Generate ringkasan kondisi raw materials malam + reminder untuk pagi (mis. "Kangkung 0 ikat → beli besok pagi 2 ikat"; "Beras skala 1 → beli besok 1 karung") → End
-
-### 5.8. `activity-diagram-tutup-kasir.png` (A.8 REVISED - breakdown bank)
+### 5.7. `activity-diagram-tutup-kasir.png` (A.7, breakdown bank)
 
 **Source UC:** `Tutup Kasir`
 **Swimlane:** Kasir Shift Malam | Sistem
@@ -269,45 +249,7 @@ Pembayaran terpisah di **A.3 Pay Flow** (kasir-only, waiter tidak punya akses pa
 9. [Kasir Malam] Konfirmasi submit
 10. [Sistem] Simpan ke `settlements` (status=submitted), set `shifts.closed_at=now` → End
 
-### 5.9. `activity-diagram-mencatat-pembelian.png` (A.9 MAJOR REVISED - normalized + vendor opsional)
-
-**Source UC:** `Mencatat Pembelian`
-**Swimlane:** Kasir / Owner | Sistem
-**Tujuan:** Log belanja kasir di pasar dengan struktur normalized (purchases header + purchase_items detail dengan FK ke raw_materials). Vendor opsional. Sistem auto-update raw_materials.stock_qty saat submit.
-
-**Alur:**
-1. [Kasir] Pulang belanja dari pasar
-2. [Kasir/Owner] Buka halaman Pembelian → klik "Tambah Pembelian"
-3. [Sistem] Tampilkan form: tanggal (default today) + vendor picker (opsional) + list item dinamis (kosong, tombol "Tambah Baris")
-4. Decision **Vendor diisi?**
-   - Ya → [Kasir/Owner] Pilih vendor existing dari autocomplete atau klik "Add New Vendor Inline" → input name + type + phone? + note? → vendor baru ter-create
-   - Tidak → skip (vendor_id = null)
-5. [Kasir/Owner] Loop input baris item:
-   - Klik "Tambah Baris"
-   - Pilih raw material dari dropdown autocomplete (filter by category bila banyak)
-   - Decision **Raw material belum ada di daftar?**
-     - Ya → klik "Add New Raw Material Inline" → mini-form: name + unit + category + is_tracked + min_stock? → raw_material baru ter-create
-     - Tidak → pilih existing
-   - Input qty + unit_price → subtotal auto-hitung (qty × unit_price)
-   - Opsional: input expired_date (untuk perishable)
-6. Decision **Tambah baris lagi?**
-   - Ya → loop ke step 5
-   - Tidak → lanjut
-7. [Sistem] Hitung total_amount = sum semua subtotal items
-8. [Kasir/Owner] Input note opsional + Submit
-9. [Sistem] Validasi: ada minimal 1 item, semua qty > 0
-10. Decision **Input valid?**
-    - Tidak → pesan kesalahan → kembali ke form
-    - Ya → lanjut
-11. [Sistem] Buat record di `purchases` (header) + records di `purchase_items` (detail) dalam 1 transaction Prisma
-12. [Sistem] Untuk tiap `purchase_item` yang raw_material-nya `is_tracked=true`:
-    - Update `raw_materials.stock_qty += item.qty`
-    - Update `raw_materials.last_buy_date = purchase.date`
-    - Update `raw_materials.unit_price = item.unit_price` (overwrite ke harga terbaru)
-    - **REV 2.2**: Insert row ke `raw_material_movements` (reason=`purchase`, delta=+item.qty, user_id=purchase.user_id, note="Purchase id=X" + vendor name kalau ada) untuk audit trail
-13. [Sistem] Tampilkan konfirmasi: total pembelian + list item + ringkasan update raw_materials → End
-
-### 5.10. `activity-diagram-mencatat-tagihan.png` (A.10)
+### 5.8. `activity-diagram-mencatat-tagihan.png` (A.8)
 
 **Source UC:** `Mencatat Tagihan Bulanan`
 **Swimlane:** Owner | Sistem
@@ -326,7 +268,7 @@ Pembayaran terpisah di **A.3 Pay Flow** (kasir-only, waiter tidak punya akses pa
 8. [Sistem] Simpan ke `bills` (user_id = owner)
 9. [Sistem] Tampilkan list tagihan bulan ini + total + konfirmasi → End
 
-### 5.11. `activity-diagram-split-merge-bill.png` (A.11 REVISED - merge pakai self-ref)
+### 5.9. `activity-diagram-split-merge-bill.png` (A.9, merge pakai self-ref)
 
 **Source UC:** `Memecah Tagihan (Split Bill)` + `Menggabungkan Tagihan (Merge Bill)`
 **Swimlane:** Kasir | Sistem
@@ -355,18 +297,20 @@ Pembayaran terpisah di **A.3 Pay Flow** (kasir-only, waiter tidak punya akses pa
 7. [Sistem] Untuk tiap transaksi sumber: set `transactions.merged_into_id = parent.id` (self-ref) untuk audit trail, status sumber → void atau tetap open dengan flag
 8. [Sistem] Buka payment modal untuk transaksi parent → bayar normal (bisa juga split bill) → End
 
-## 6. Narasi Umum untuk Bab 3 Skripsi (paste-ready, REV 2.3)
+## 6. Narasi Umum untuk Bab 3 Skripsi (paste-ready, REV 2.11)
 
+> ⚠️ **Catatan REV 2.11:** narasi ini sudah diselaraskan (drop opname raw materials + mencatat pembelian), tetapi sebaiknya **di-review thesis-level oleh Ezra** untuk kehalusan kalimat naskah final.
+>
 > **3.4.2 Activity Diagram**
 >
-> Activity diagram pada sub-bab ini menggambarkan alur kerja sistem POS Restoran Ayam Bakar Banjar Monosuko untuk proses-proses kritis yang teridentifikasi di Use Case Diagram. Sistem memiliki sebelas activity diagram yang mencakup: (1) alur autentikasi `Login` dengan form dua field input nama pengguna dan PIN enam digit yang diketik manual oleh pegawai setiap login (tidak ada layar pilih nama dari daftar dan tidak ada penyimpanan nama terakhir di perangkat), karena identifikasi pengguna dilakukan via kombinasi nama dan PIN; (2) alur input pesanan ke POS dengan workflow primary berbasis kertas (waiter ambil order verbal di meja → tulis di kertas → kasir input ke POS), dengan dua tipe order (dine-in yang wajib pilih meja dan takeaway tanpa meja) serta sub-options modal untuk paket hemat dengan modifier dinamis. Waiter memiliki akses fallback untuk input order langsung ke POS bila kasir tidak available, namun secara default workflow tetap kertas-mediated; (3) alur pembayaran dengan PB1 sepuluh persen otomatis dan input bank picker khusus untuk metode EDC dan transfer agar owner mendapatkan laporan rekonsiliasi per bank, ditambah opsi cetak struk PDF; (4) alur restock stok porsi pagi dengan formula kelipatan lima oleh waiter atau kasir; (5) alur mencatat barang masuk untuk restock darurat tengah hari saat owner mengirim stok dari rumah; (6) alur opname stok porsi pagi untuk cek fisik dan koreksi nilai sistem yang menyimpang dari realita; (7) alur opname raw materials malam sebelum tutup untuk mengecek bahan baku yang perlu dibeli besok pagi; (8) alur tutup kasir dengan rekap enam total metode pembayaran beserta breakdown per bank untuk EDC dan transfer; (9) alur mencatat pembelian belanja kasir dengan struktur ternormalisasi yang mendukung vendor opsional dan penambahan raw material baru secara inline saat input pembelian; (10) alur mencatat tagihan operasional bulanan oleh owner; serta (11) alur split bill (memecah satu transaksi menjadi beberapa struk per party) dan merge bill (menggabungkan transaksi beberapa meja menjadi satu struk melalui self-reference `merged_into_id`).
+> Activity diagram pada sub-bab ini menggambarkan alur kerja sistem POS Restoran Ayam Bakar Banjar Monosuko untuk proses-proses kritis yang teridentifikasi di Use Case Diagram. Sistem memiliki sembilan activity diagram yang mencakup: (1) alur autentikasi `Login` dengan form dua field input nama pengguna dan PIN enam digit yang diketik manual oleh pegawai setiap login (tidak ada layar pilih nama dari daftar dan tidak ada penyimpanan nama terakhir di perangkat), karena identifikasi pengguna dilakukan via kombinasi nama dan PIN; (2) alur input pesanan ke POS dengan workflow primary berbasis kertas (waiter ambil order verbal di meja → tulis di kertas → kasir input ke POS), dengan dua tipe order (dine-in yang wajib pilih meja dan takeaway tanpa meja) serta sub-options modal untuk paket hemat dengan modifier dinamis. Waiter memiliki akses fallback untuk input order langsung ke POS bila kasir tidak available, namun secara default workflow tetap kertas-mediated; (3) alur pembayaran dengan PB1 sepuluh persen otomatis dan input bank picker khusus untuk metode EDC dan transfer agar owner mendapatkan laporan rekonsiliasi per bank, ditambah opsi cetak struk PDF; (4) alur restock stok porsi pagi dengan formula kelipatan lima oleh waiter atau kasir; (5) alur mencatat barang masuk untuk restock darurat tengah hari saat owner mengirim stok dari rumah; (6) alur opname stok porsi pagi untuk cek fisik dan koreksi nilai sistem yang menyimpang dari realita; (7) alur tutup kasir dengan rekap enam total metode pembayaran beserta breakdown per bank untuk EDC dan transfer; (8) alur mencatat tagihan operasional bulanan oleh owner; serta (9) alur split bill (memecah satu transaksi menjadi beberapa struk per party) dan merge bill (menggabungkan transaksi beberapa meja menjadi satu struk melalui self-reference `merged_into_id`).
 >
-> Setiap activity diagram menggunakan swimlane untuk memisahkan tanggung jawab aktor (Kasir, Waiter, Owner) dari Sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami pegawai non-teknis, dengan detail teknis (query database, format API, kalkulasi) tersembunyi di spesifikasi internal sistem. Setiap decision diberi nama pertanyaan (misalnya "Stok porsi cukup?", "Vendor diisi?", "Payment EDC atau transfer?", "Pelanggan minta struk?") dengan guard `Ya`/`Tidak` pada masing-masing cabang untuk menjaga keterbacaan. Berbeda dari desain awal yang menggunakan force-order modal, desain REV 2.1 mengizinkan stok porsi bernilai negatif secara langsung saat order masuk - restock darurat dicatat di activity terpisah (Mencatat Barang Masuk) untuk menyederhanakan flow utama dan memisahkan concern stok dari concern transaksi. Aktivitas opname dipisah menjadi dua diagram terpisah (stok porsi pagi dan raw materials malam) karena memiliki waktu, data, dan aktor yang berbeda - opname porsi pagi setelah restock untuk verifikasi konsistensi sistem, sementara opname raw materials malam untuk menentukan kebutuhan belanja esok hari.
+> Setiap activity diagram menggunakan swimlane untuk memisahkan tanggung jawab aktor (Kasir, Waiter, Owner) dari Sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami pegawai non-teknis, dengan detail teknis (query database, format API, kalkulasi) tersembunyi di spesifikasi internal sistem. Setiap decision diberi nama pertanyaan (misalnya "Stok porsi cukup?", "Payment EDC atau transfer?", "Pelanggan minta struk?") dengan guard `Ya`/`Tidak` pada masing-masing cabang untuk menjaga keterbacaan. Berbeda dari desain awal yang menggunakan force-order modal, desain sistem mengizinkan stok porsi bernilai negatif secara langsung saat order masuk - restock darurat dicatat di activity terpisah (Mencatat Barang Masuk) untuk menyederhanakan flow utama dan memisahkan concern stok dari concern transaksi. Sesuai ruang lingkup penelitian, inventori dibatasi pada stok porsi siap jual sehingga tidak terdapat alur pengelolaan bahan baku mentah maupun pencatatan pembelian; modal/COGS dinyatakan langsung per menu oleh owner melalui form pengelolaan menu (alur CRUD sederhana yang tidak memerlukan activity diagram terpisah).
 
 ## 7. Bad Practice yang Dihindari
 
 - ❌ Action berisi SQL/code (`Query portion_stocks WHERE menu_id=?`, `Insert bills row`) → verb phrase bahasa bisnis
-- ❌ Decision diamond tanpa label pertanyaan → kasih nama: `Vendor diisi?`, `Input valid?`, `Payment EDC atau transfer?`
+- ❌ Decision diamond tanpa label pertanyaan → kasih nama: `Tipe order dine-in?`, `Input valid?`, `Payment EDC atau transfer?`
 - ❌ Multiple redundant merge (chain Merge → Merge) → konsolidasi
 - ❌ Guard dengan bracket `[ya]` huruf kecil → `Ya` / `Tidak` Title Case tanpa bracket
 - ❌ Fork/Join untuk alur exclusive → pakai Decision + Merge
