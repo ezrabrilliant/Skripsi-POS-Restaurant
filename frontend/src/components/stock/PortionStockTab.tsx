@@ -653,7 +653,7 @@ function OpnameModal({
   onSuccess: () => void
 }) {
   const toast = useToast()
-  const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number>>({})
+  const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number | ''>>({})
 
   const opname = useMutation({
     mutationFn: portionService.opname,
@@ -666,8 +666,8 @@ function OpnameModal({
 
   const handleSubmit = () => {
     const items = Object.entries(qtyFisikByMenu)
-      .filter(([, qty]) => qty !== undefined && qty >= 0)
-      .map(([menuId, qty]) => ({ menuId: Number(menuId), qtyFisik: qty as number }))
+      .filter(([, qty]) => qty !== '' && qty !== undefined && Number(qty) >= 0)
+      .map(([menuId, qty]) => ({ menuId: Number(menuId), qtyFisik: Number(qty) }))
     if (items.length === 0) {
       toast.error('Isi minimal 1 item qty fisik')
       return
@@ -712,7 +712,10 @@ function OpnameModal({
               min={0}
               value={qtyFisikByMenu[s.menuId] ?? ''}
               onChange={(e) =>
-                setQtyFisikByMenu((prev) => ({ ...prev, [s.menuId]: Number(e.target.value) }))
+                setQtyFisikByMenu((prev) => ({
+                  ...prev,
+                  [s.menuId]: e.target.value === '' ? '' : Number(e.target.value),
+                }))
               }
               placeholder="-"
               containerClassName="w-24"
