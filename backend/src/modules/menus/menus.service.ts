@@ -369,14 +369,22 @@ export async function upsertMenu(
         },
       });
       baseId = id;
-      // REV 2.11: log manualEdit kalau modal berubah (Decimal-safe + null-safe).
+      // REV 2.11: log perubahan modal (Decimal-safe + null-safe). initialSet saat
+      // transisi dari null → nilai pertama (kasus utama: owner isi modal pertama kali
+      // di menu yang sudah ada), manualEdit saat ubah nilai yang sudah terisi.
       const newCost = input.cost == null ? null : new Prisma.Decimal(input.cost);
       const changed =
         (existing.cost == null) !== (newCost == null) ||
         (existing.cost != null && newCost != null && !existing.cost.equals(newCost));
       if (changed) {
         await tx.menuCostMovement.create({
-          data: { menuId: baseId, costBefore: existing.cost, costAfter: newCost, reason: 'manualEdit', userId },
+          data: {
+            menuId: baseId,
+            costBefore: existing.cost,
+            costAfter: newCost,
+            reason: existing.cost == null ? 'initialSet' : 'manualEdit',
+            userId,
+          },
         });
       }
       // Replace-children: hapus catalog lama (cascade hilangkan turunannya).
