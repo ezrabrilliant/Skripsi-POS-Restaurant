@@ -3,8 +3,7 @@
 // sekunder masuk Sheet. Search selalu terlihat. Sort desktop via header kolom
 // (SortableHeader); mobile via Combobox di sini (card mobile tak punya header).
 import type { ReactNode } from 'react'
-import { Combobox } from '@/design-system/primitives'
-import { FilterToolbar } from '@/design-system/primitives'
+import { Combobox, FilterToolbar } from '@/design-system/primitives'
 import type {
   StockSortKey,
   StockSortDir,
@@ -67,8 +66,6 @@ export function StockFilterToolbar({
   extraFilters,
   searchPlaceholder,
 }: StockFilterToolbarProps) {
-  const categoryOptions = [{ value: 'all', label: 'Semua kategori' }, ...c.categoryOptions]
-
   const filterFields = (
     <>
       <Combobox
@@ -76,7 +73,7 @@ export function StockFilterToolbar({
         label="Filter kategori"
         value={c.category}
         onValueChange={c.setCategory}
-        options={categoryOptions}
+        options={c.categoryOptions}
         searchPlaceholder="Cari kategori..."
         containerClassName="min-w-[12rem]"
       />
