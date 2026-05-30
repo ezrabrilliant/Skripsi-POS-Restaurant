@@ -6,9 +6,9 @@
 //   - Mark Habis (quick set 0)
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Truck, History, ArrowUpRight } from 'lucide-react'
 import { portionService } from '@/services/portionService'
 import { PORTION_REASON_LABEL, type PortionStockView, type StockType } from '@/types'
 import { MenuTypeFilter, toggleStockType } from './MenuTypeFilter'
@@ -30,11 +30,15 @@ import { useStockListControls } from './useStockListControls'
 import { StockFilterToolbar } from './StockFilterToolbar'
 import { SortableHeader } from './SortableHeader'
 import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function PortionStockTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
   const [searchParams, setSearchParams] = useSearchParams()
   const [showRestockMorning, setShowRestockMorning] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
@@ -284,37 +288,51 @@ export default function PortionStockTab() {
       key: 'actions',
       header: '',
       align: 'right',
-      // Aksi stok hanya untuk menu tracked (portion). Non-portion tak punya stok/movement.
-      cell: (s) =>
-        s.stockType !== 'portion' ? null : (
-          <div className="inline-flex items-center gap-1">
+      cell: (s) => (
+        <div className="inline-flex items-center gap-1">
+          {/* Aksi stok hanya untuk menu tracked (portion). Non-portion tak punya stok/movement. */}
+          {s.stockType === 'portion' && (
+            <>
+              <IconButton
+                label={`Barang masuk ${s.menuName}`}
+                icon={<Truck />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setEmergencyTarget(s)}
+                className="text-success-700 hover:bg-success-50"
+              />
+              <IconButton
+                label={`Riwayat ${s.menuName}`}
+                icon={<History />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryMenuId(s.menuId)}
+                className="text-neutral-600 hover:bg-neutral-100"
+              />
+              <IconButton
+                label={`Tandai ${s.menuName} habis`}
+                icon={<XCircle />}
+                variant="ghost"
+                size="sm"
+                onClick={() => handleMarkHabis(s)}
+                disabled={markHabisMutation.isPending}
+                className="text-warning-700 hover:bg-warning-50"
+              />
+            </>
+          )}
+          {/* REV 2.11: lompat ke Katalog Menu (owner-only; Menu owner-only route). */}
+          {isOwner && (
             <IconButton
-              label={`Barang masuk ${s.menuName}`}
-              icon={<Truck />}
+              label={`Buka ${s.menuName} di Menu`}
+              icon={<ArrowUpRight />}
               variant="ghost"
               size="sm"
-              onClick={() => setEmergencyTarget(s)}
-              className="text-success-700 hover:bg-success-50"
+              onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+              className="text-primary-700 hover:bg-primary-50"
             />
-            <IconButton
-              label={`Riwayat ${s.menuName}`}
-              icon={<History />}
-              variant="ghost"
-              size="sm"
-              onClick={() => setHistoryMenuId(s.menuId)}
-              className="text-neutral-600 hover:bg-neutral-100"
-            />
-            <IconButton
-              label={`Tandai ${s.menuName} habis`}
-              icon={<XCircle />}
-              variant="ghost"
-              size="sm"
-              onClick={() => handleMarkHabis(s)}
-              disabled={markHabisMutation.isPending}
-              className="text-warning-700 hover:bg-warning-50"
-            />
-          </div>
-        ),
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -444,7 +462,29 @@ export default function PortionStockTab() {
                         onClick={() => handleMarkHabis(s)}
                         className="text-warning-700"
                       />
+                      {isOwner && (
+                        <IconButton
+                          label={`Buka ${s.menuName} di Menu`}
+                          icon={<ArrowUpRight />}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+                          className="text-primary-700"
+                        />
+                      )}
                     </div>
+                  </div>
+                )}
+                {!tracked && isOwner && (
+                  <div className="flex items-center justify-end pt-1.5 border-t border-neutral-100">
+                    <IconButton
+                      label={`Buka ${s.menuName} di Menu`}
+                      icon={<ArrowUpRight />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+                      className="text-primary-700"
+                    />
                   </div>
                 )}
               </div>
