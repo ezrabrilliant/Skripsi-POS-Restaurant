@@ -188,6 +188,7 @@ model User {
   purchases            Purchase[]
   bills                Bill[]
   portionMovements     PortionMovement[]
+  menuCostChanges      MenuCostMovement[]
   rawMaterialMovements RawMaterialMovement[]
   /// REV 2.5: payment slices yang user ini record (audit per slice di split tender).
   recordedPayments     TransactionPayment[]
@@ -207,6 +208,9 @@ model Menu {
   name       String    @db.VarChar(100)
   category   String    @db.VarChar(50)
   price      Decimal   @db.Decimal(10, 2)
+  /// REV 2.11: modal/COGS per unit (owner-only; TIDAK dibocorkan ke GET publik).
+  /// null = belum di-set (diperlakukan 0 saat hitung laba).
+  cost       Decimal?  @map("cost") @db.Decimal(10, 2)
   stockType  StockType @default(nonStock) @map("stock_type")
   /// Minimum stok untuk reminder restock. Hanya bermakna jika stockType=portion.
   minStock   Int?      @map("min_stock")
@@ -227,6 +231,7 @@ model Menu {
   portionStock     PortionStock?
   transactionItems TransactionItem[]
   portionMovements PortionMovement[]
+  costMovements    MenuCostMovement[]
 
   // REV 2.10 — catalog layer
   optionGroups        MenuOptionGroup[]
@@ -299,6 +304,30 @@ model PortionMovement {
   @@index([menuId, createdAt])
   @@index([transactionId])
   @@map("portion_movements")
+}
+
+/// REV 2.11: audit log perubahan Menu.cost (modal). Mirip PortionMovement: simpan
+/// nilai sebelum/sesudah + user + waktu. initialSet saat dari null→nilai pertama.
+model MenuCostMovement {
+  id         Int                  @id @default(autoincrement())
+  menuId     Int                  @map("menu_id")
+  costBefore Decimal?             @map("cost_before") @db.Decimal(10, 2)
+  costAfter  Decimal?             @map("cost_after") @db.Decimal(10, 2)
+  reason     MenuCostChangeReason
+  note       String?              @db.VarChar(255)
+  userId     Int                  @map("user_id")
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  menu Menu @relation(fields: [menuId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([menuId, createdAt])
+  @@map("menu_cost_movements")
+}
+
+enum MenuCostChangeReason {
+  initialSet @map("initial_set")
+  manualEdit @map("manual_edit")
 }
 
 /// 5. Master bahan baku (REV 2.5.1: SIMPLIFIED — drop is_tracked).
@@ -490,6 +519,8 @@ model TransactionItem {
   qty                Int
   unitPrice          Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal           Decimal  @db.Decimal(12, 2)
+  /// REV 2.11: snapshot modal/COGS per unit saat order (mirror unitPrice). null = baris historis pra-backfill (dihitung 0).
+  unitCost           Decimal? @map("unit_cost") @db.Decimal(10, 2)
   /// LEGACY (pre-REV 2.10): pilihan paket berbasis label di JSON. Diganti relasi
   /// `selections` + `variantId`; dipertahankan untuk data historis.
   subOptionsSelected Json?    @map("sub_options_selected")
@@ -776,6 +807,8 @@ model MenuVariant {
   label             String              @db.VarChar(120)
   price             Decimal             @db.Decimal(10, 2)
   stockTargetMenuId Int?                @map("stock_target_menu_id")
+  /// REV 2.11: SKU leaf wakil modal varian. Resolusi modal = costSourceMenuId ?? stockTargetMenuId.
+  costSourceMenuId  Int?                @map("cost_source_menu_id")
   isActive          Boolean             @default(true) @map("is_active")
   displayOrder      Int                 @default(0) @map("display_order")
   menu              Menu                @relation("MenuOwnsVariant", fields: [menuId], references: [id], onDelete: Cascade)
