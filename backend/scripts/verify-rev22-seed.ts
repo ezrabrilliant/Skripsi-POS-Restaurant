@@ -1,3 +1,6 @@
+// ⚠️ DEAD / OBSOLETE pasca REV 2.11 — JANGAN DI-RUN. Memverifikasi seed REV 2.2
+// (raw_materials/vendors/purchases) yang tabelnya sudah di-DROP di REV 2.11.
+// Dipertahankan sebagai catatan historis; akan crash kalau dijalankan.
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

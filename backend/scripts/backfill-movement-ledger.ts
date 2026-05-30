@@ -1,4 +1,9 @@
 /**
+ * ⚠️ DEAD / OBSOLETE pasca REV 2.11 — JANGAN DI-RUN. Script ini menyentuh
+ * `raw_material_movements`/`purchase*` yang tabelnya sudah di-DROP di REV 2.11
+ * (belanja/raw-materials dihapus). Dipertahankan hanya sebagai catatan historis
+ * cara backfill ledger REV 2.8; akan crash kalau dijalankan.
+ *
  * REV 2.8 backfill — isi kolom ledger baru di portion_movements & raw_material_movements
  * dari data lama yang hanya menyimpan tautan di teks `note`.
  *
