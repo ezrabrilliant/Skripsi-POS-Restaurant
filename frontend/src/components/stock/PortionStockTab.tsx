@@ -5,7 +5,8 @@
 //   - Opname (batch, input qty fisik)
 //   - Mark Habis (quick set 0)
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
 import { portionService } from '@/services/portionService'
@@ -34,10 +35,16 @@ export default function PortionStockTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showRestockMorning, setShowRestockMorning] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
   const [emergencyTarget, setEmergencyTarget] = useState<PortionStockView | null>(null)
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  // REV 2.11 deep-link: ?focusMenuId=<id> → sorot + scroll baris stok.
+  const [focusMenuId, setFocusMenuId] = useState<number | null>(() => {
+    const raw = searchParams.get('focusMenuId')
+    return raw ? Number(raw) : null
+  })
   // REV 2.8.1: filter tipe stok (multi-select). Default tampilkan yang tracked (portion).
   const [types, setTypes] = useState<Set<StockType>>(() => new Set<StockType>(['portion']))
 
@@ -106,6 +113,54 @@ export default function PortionStockTab() {
             ? 'rendah'
             : 'aman',
   })
+
+  // REV 2.11 deep-link: ?action=opname → buka modal Opname sekali, lalu strip param.
+  useEffect(() => {
+    if (searchParams.get('action') === 'opname') {
+      setShowOpname(true)
+      setSearchParams(
+        (prev) => {
+          const n = new URLSearchParams(prev)
+          n.delete('action')
+          return n
+        },
+        { replace: true }
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // REV 2.11 deep-link: ?focusMenuId → pastikan baris tampil (reset filter kalau perlu).
+  const clearFocusParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.delete('focusMenuId')
+        return n
+      },
+      { replace: true }
+    )
+  }, [setSearchParams])
+
+  useEffect(() => {
+    if (focusMenuId == null) return
+    if (controls.view.some((s) => s.menuId === focusMenuId)) return
+    controls.resetFilters()
+    setTypes(new Set<StockType>(['portion', 'linked', 'nonStock']))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusMenuId])
+
+  useEffect(() => {
+    if (focusMenuId == null) return
+    const el = document.getElementById('stock-row-' + focusMenuId)
+    if (!el) return
+    el.scrollIntoView({ block: 'center' })
+    const t = setTimeout(() => {
+      setFocusMenuId(null)
+      clearFocusParam()
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [focusMenuId, controls.view, clearFocusParam])
 
   // Riwayat per item (drawer) - pakai endpoint detail yang membawa recentMovements.
   const { data: historyDetail, isLoading: historyLoading } = useQuery({
@@ -303,6 +358,10 @@ export default function PortionStockTab() {
           columns={columns}
           data={controls.view}
           rowKey={(s) => s.menuId}
+          rowId={(s) => 'stock-row-' + s.menuId}
+          rowClassName={(s) =>
+            s.menuId === focusMenuId ? 'ring-2 ring-primary-400 ring-inset' : undefined
+          }
           emptyTitle="Tidak ada item"
           emptyDescription={
             controls.activeFilterCount > 0
