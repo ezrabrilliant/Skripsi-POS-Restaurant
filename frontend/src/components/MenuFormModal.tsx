@@ -587,7 +587,11 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
         {existing && (
           <div className="pt-2 border-t border-neutral-200">
             <Checkbox
-              label="Menu aktif (tampil di POS)"
+              label={
+                existing.posVisible
+                  ? 'Menu aktif (tampil di POS)'
+                  : 'SKU aktif (bisa dipakai stok/modal varian)'
+              }
               checked={state.isActive}
               onCheckedChange={(c) => update('isActive', c)}
             />
