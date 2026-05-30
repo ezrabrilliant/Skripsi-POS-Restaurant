@@ -1,5 +1,7 @@
 # Halaman "SKU Varian" — pisahkan SKU tersembunyi dari "Kelola Menu"
 
+> ⚠️ **SUPERSEDED (2026-05-31)** oleh [2026-05-30-katalog-menu-stok-ux-elevation-design.md](2026-05-30-katalog-menu-stok-ux-elevation-design.md). Halaman terpisah `/menu/sku-varian` yang dirancang di sini sudah **diserap menjadi tab "Varian SKU"** di dalam satu halaman **"Katalog Menu"** (`/menu`, segmented tab "Menu Jual" | "Varian SKU"). Route lama `/menu/sku-varian` kini **redirect** ke `/menu?tab=varian`, item nav "SKU Varian" dihapus (jadi tab), dan logikanya pindah ke komponen `VarianSkuTab` dengan badge induk yang kini **link klikable**. Dokumen ini dipertahankan sebagai catatan sejarah desain.
+
 - **Tanggal:** 2026-05-30
 - **Status:** Disetujui (brainstorming) — siap planning
 - **Scope:** **Frontend-only** — nol perubahan backend / schema / migrasi.
