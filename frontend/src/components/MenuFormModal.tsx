@@ -1,10 +1,10 @@
 /**
- * MenuFormModal REV 2.10 — form Tambah/Edit Menu untuk owner dengan
+ * MenuFormModal REV 2.10 - form Tambah/Edit Menu untuk owner dengan
  * **progressive disclosure**: owner tidak memilih "jenis menu" di awal.
  *
  * Alur:
  * 1. Selalu tampil: basics (foto, nama, kategori, harga).
- * 2. Bagian "Menu ini punya pilihan?" — 2 tombol mutually-exclusive:
+ * 2. Bagian "Menu ini punya pilihan?" - 2 tombol mutually-exclusive:
  *      [+ Tambah pilihan varian]  → reveal VariantBuilder, working kind=variant
  *      [+ Jadikan paket]          → reveal PaketBuilder,  working kind=paket
  *    Neither aktif → kind=simple.
@@ -63,7 +63,7 @@ interface FormState {
   cost: number
   imageUrl: string | null
   isActive: boolean
-  /** Posisi tampil di grid POS — dipertahankan dari existing saat edit. */
+  /** Posisi tampil di grid POS - dipertahankan dari existing saat edit. */
   posVisible: boolean
   /** stockType tersimpan (untuk menu simple). Variant/paket → nonStock. */
   stockType: StockType
@@ -172,7 +172,7 @@ function validate(state: FormState): ValidationErrors {
 
 /**
  * Pre-submit validation yang mengembalikan pesan toast (Indonesia, singkat,
- * menyebut slot yang bermasalah) kalau ada yang invalid — atau null kalau lolos.
+ * menyebut slot yang bermasalah) kalau ada yang invalid - atau null kalau lolos.
  * Tujuannya mencegah save yang silent-broken / 422 dari backend.
  *
  * - paket: ≥1 komponen; SETIAP fixed punya targetMenuId; SETIAP choice punya
@@ -441,7 +441,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
           />
         </div>
 
-        {/* REV 2.11: Harga modal / COGS — hanya untuk menu simple (leaf/simple
+        {/* REV 2.11: Harga modal / COGS - hanya untuk menu simple (leaf/simple
             carry cost; variant/paket parent biarkan 0, modal hidup di leaf). */}
         {state.mode === 'simple' && (
           <div>
@@ -476,7 +476,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
         )}
 
         {/* ============================================================
-            Progressive disclosure — "Menu ini punya pilihan?"
+            Progressive disclosure - "Menu ini punya pilihan?"
             ============================================================ */}
         <div className="flex flex-col gap-2 pt-1 border-t border-neutral-200">
           <div className="pt-2">

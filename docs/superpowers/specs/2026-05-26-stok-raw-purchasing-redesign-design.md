@@ -64,7 +64,7 @@ Lokasi & scope:
 
 **Schema migration**: minimal/none.
 
-**Defense ke penguji**: `is_tracked` flag adalah polymorphic switch — master tetap konsisten untuk semua bahan supaya reporting + grouping by category mengikuti schema relational orthodox.
+**Defense ke penguji**: `is_tracked` flag adalah polymorphic switch - master tetap konsisten untuk semua bahan supaya reporting + grouping by category mengikuti schema relational orthodox.
 
 ### 2. Units = master table dengan `opname_mode`
 
@@ -74,7 +74,7 @@ Pre-seeded:
 - `exact`: kg, gram, liter, butir, balok, karung, ikat, batang, pcs
 - `scale_0_5`: "skala 0-5"
 
-**Owner add unit baru** via dropdown "Tambah satuan" di form raw material — modal kecil (label + pilih exact/scale), Odoo-style inline add.
+**Owner add unit baru** via dropdown "Tambah satuan" di form raw material - modal kecil (label + pilih exact/scale), Odoo-style inline add.
 
 **`raw_materials.unit_id`** = FK ke `units` (rename + retype dari `unit` varchar).
 
@@ -88,7 +88,7 @@ Pre-seeded:
 | Purchase form | qty + unit_price required | total_price (subtotal) + note required; qty/unit_price disabled |
 | Opname UI | input angka | segmented control 0-5 |
 
-**Defense ke penguji**: unit dan opname mode secara konseptual terikat (skala inherently scale, kg inherently exact). Gabung di `units` jadi single source of truth — schema ortodoks.
+**Defense ke penguji**: unit dan opname mode secara konseptual terikat (skala inherently scale, kg inherently exact). Gabung di `units` jadi single source of truth - schema ortodoks.
 
 ### 3. Edit unit handling = prompt manual
 
@@ -117,11 +117,11 @@ Owner input nilai baru (mis. 1 karton kalau 1 karton = 30 butir) atau kosongkan 
 
 ### 5. Restock darurat porsi tengah hari (NO CHANGE)
 
-Tetap sistem REV 2.3 — catat saat barang datang via fitur "Barang Masuk" (lebih real-time + audit log akurat). Manual buku ditunda-ke-besok tidak diadopsi.
+Tetap sistem REV 2.3 - catat saat barang datang via fitur "Barang Masuk" (lebih real-time + audit log akurat). Manual buku ditunda-ke-besok tidak diadopsi.
 
 ### 6. Opname malam raw material (NO CHANGE)
 
-Tetap sistem REV 2.3 — waiter punya akses formal opname digital (input qty fisik / skala 0-5). Menghilangkan miss-handover lisan yang user sebut "rada miss" di workflow manual.
+Tetap sistem REV 2.3 - waiter punya akses formal opname digital (input qty fisik / skala 0-5). Menghilangkan miss-handover lisan yang user sebut "rada miss" di workflow manual.
 
 ### 7. Stok porsi (NO CHANGE)
 
@@ -247,23 +247,23 @@ Submit batch → update `stock_qty` + log `raw_material_movements` reason=`opnam
 
 ### Backend
 
-- `backend/prisma/schema.prisma` — add `units`, modify `raw_materials.unit` → `unit_id`, modify `purchase_items`
-- `backend/prisma/seed.ts` — seed pre-defined units
-- `backend/src/modules/units/` (BARU) — routes/service/controller/schema CRUD units
-- `backend/src/modules/stocks/raw-materials.service.ts` — integrate units + edit unit handling + audit log
-- `backend/src/modules/stocks/raw-materials.routes.ts` — endpoint update
-- `backend/src/modules/purchases/purchases.service.ts` — handle nullable qty/unit_price + bifurcate by `unit.opname_mode`
-- `backend/scripts/smoke-phase-X-units.sh` (BARU) — test units integration
+- `backend/prisma/schema.prisma` - add `units`, modify `raw_materials.unit` → `unit_id`, modify `purchase_items`
+- `backend/prisma/seed.ts` - seed pre-defined units
+- `backend/src/modules/units/` (BARU) - routes/service/controller/schema CRUD units
+- `backend/src/modules/stocks/raw-materials.service.ts` - integrate units + edit unit handling + audit log
+- `backend/src/modules/stocks/raw-materials.routes.ts` - endpoint update
+- `backend/src/modules/purchases/purchases.service.ts` - handle nullable qty/unit_price + bifurcate by `unit.opname_mode`
+- `backend/scripts/smoke-phase-X-units.sh` (BARU) - test units integration
 
 ### Frontend
 
-- `frontend/src/types/index.ts` — add `Unit` type, modify `RawMaterial`
+- `frontend/src/types/index.ts` - add `Unit` type, modify `RawMaterial`
 - `frontend/src/services/unitService.ts` (BARU)
-- `frontend/src/services/rawMaterialsService.ts` — update
-- `frontend/src/components/UnitDropdown.tsx` (BARU) — dropdown + "Tambah satuan" modal
+- `frontend/src/services/rawMaterialsService.ts` - update
+- `frontend/src/components/UnitDropdown.tsx` (BARU) - dropdown + "Tambah satuan" modal
 - `frontend/src/components/QuickAddBumbuDasar.tsx` (BARU)
-- `frontend/src/pages/RawMaterialsTab.tsx` — opname UI bifurcation + edit unit modal
-- `frontend/src/pages/PurchasesPage.tsx` — QuickAddBumbuDasar integration + nullable qty handling
+- `frontend/src/pages/RawMaterialsTab.tsx` - opname UI bifurcation + edit unit modal
+- `frontend/src/pages/PurchasesPage.tsx` - QuickAddBumbuDasar integration + nullable qty handling
 
 ---
 
@@ -288,11 +288,11 @@ Submit batch → update `stock_qty` + log `raw_material_movements` reason=`opnam
 - **Frontend**: 1 phase (UnitDropdown component + RawMaterialsTab opname bifurcation + QuickAddBumbuDasar)
 - **Total**: ~2-3 hari kerja inkremental dengan smoke test per phase
 
-**Bumbu dasar pre-seed** (untuk Quick Add): cabai rawit, cabai merah keriting, bawang merah, bawang putih, kemiri, daun jeruk, sereh, lengkuas, kunyit, jahe — tambahan boleh owner via CRUD master raw material.
+**Bumbu dasar pre-seed** (untuk Quick Add): cabai rawit, cabai merah keriting, bawang merah, bawang putih, kemiri, daun jeruk, sereh, lengkuas, kunyit, jahe - tambahan boleh owner via CRUD master raw material.
 
 ---
 
-## Open follow-ups (deferred — bisa di iterasi kemudian)
+## Open follow-ups (deferred - bisa di iterasi kemudian)
 
 - Konversi unit otomatis (kalau owner mau telur biji → karton + tetap track sub-quantity). Sekarang manual via opname.
 - Per-bumbu price trend chart (kalau owner ingin lihat "cabai naik dari 25rb ke 35rb bulan ini"). Sekarang owner cek manual via purchase history.

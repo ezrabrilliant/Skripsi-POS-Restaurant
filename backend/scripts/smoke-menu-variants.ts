@@ -1,4 +1,4 @@
-// Integration smoke REV 2.10 — variant/paket CRUD via upsertMenu + listMenus.
+// Integration smoke REV 2.10 - variant/paket CRUD via upsertMenu + listMenus.
 // WAJIB DB *_test. Jalankan:
 //   npx tsx --env-file=.env.test scripts/smoke-menu-variants.ts
 import 'dotenv/config';

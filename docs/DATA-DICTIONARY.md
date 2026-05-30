@@ -93,7 +93,7 @@ Tabel `portion_movements` (revisi penyesuaian nama dari `stock_movements` pada R
 | transaction_item_id | INT - FK → transaction_items (nullable, SET NULL) | REV 2.8: baris item penyebab decrement (1 item paket bisa men-decrement banyak stok) |
 | qty_before | INT (nullable) | REV 2.8: stok sebelum perubahan ini |
 | qty_after | INT (nullable) | REV 2.8: stok sesudah (`qty_after = qty_before + delta`) |
-| note | VARCHAR(255) (nullable) | Catatan manusiawi opsional (REV 2.8: bukan lagi sumber tautan — pakai FK; mis. "Antar via Gojek 18:30") |
+| note | VARCHAR(255) (nullable) | Catatan manusiawi opsional (REV 2.8: bukan lagi sumber tautan - pakai FK; mis. "Antar via Gojek 18:30") |
 | user_id | INT - FK → users | Pengguna yang men-trigger perubahan |
 | created_at | DATETIME | Waktu perubahan |
 
@@ -264,7 +264,7 @@ enum BillCategory              { kebersihan, listrik, air, parkir, sewa }
 | 16 | transactions | portion_movements | transaction_id (nullable, SET NULL) | 1 : N | REV 2.8: movement order/void ke transaksi sumber |
 | 17 | transaction_items | portion_movements | transaction_item_id (nullable, SET NULL) | 1 : N | REV 2.8: movement ke baris item penyebab decrement |
 
-Total (baseline REV 2.11): **10 entitas, 17 relasi**. (Diff dari REV 2.8: drop 8 relasi belanja/raw-materials, tambah 2 relasi `menu_cost_movements`.) Catatan: entitas REV 2.5–2.7 — `payment_methods`, `banks`, `payment_method_banks`, `settlement_method_counts`, `app_settings`, `transaction_payments` — serta tabel menu variants REV 2.10 (`menu_variants` + kolom `cost_source_menu_id` REV 2.11, `paket_components`) terdokumentasi di spec masing-masing dan `schema.prisma`, belum dilipat ke dictionary ini.
+Total (baseline REV 2.11): **10 entitas, 17 relasi**. (Diff dari REV 2.8: drop 8 relasi belanja/raw-materials, tambah 2 relasi `menu_cost_movements`.) Catatan: entitas REV 2.5–2.7 - `payment_methods`, `banks`, `payment_method_banks`, `settlement_method_counts`, `app_settings`, `transaction_payments` - serta tabel menu variants REV 2.10 (`menu_variants` + kolom `cost_source_menu_id` REV 2.11, `paket_components`) terdokumentasi di spec masing-masing dan `schema.prisma`, belum dilipat ke dictionary ini.
 
 ---
 

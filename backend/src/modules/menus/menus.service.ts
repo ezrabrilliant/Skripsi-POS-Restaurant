@@ -132,7 +132,7 @@ export async function getMenuById(id: number, includeCost = false): Promise<Menu
 }
 
 // ============================================================
-// REV 2.10 — Catalog detail (option groups + variants + paket)
+// REV 2.10 - Catalog detail (option groups + variants + paket)
 // ============================================================
 
 export interface MenuOptionDetail {
@@ -177,7 +177,7 @@ export interface PaketComponentDetail {
 }
 
 export interface MenuDetail extends MenuView {
-  // REV 2.11: modal (COGS) per menu — owner-only. Emit hanya saat includeCost=true.
+  // REV 2.11: modal (COGS) per menu - owner-only. Emit hanya saat includeCost=true.
   cost: number | null;
   optionGroups: MenuOptionGroupDetail[];
   variants: MenuVariantDetail[];
@@ -256,7 +256,7 @@ export async function getMenuDetail(id: number, includeCost = false): Promise<Me
 }
 
 // ============================================================
-// REV 2.11 — Riwayat perubahan modal (MenuCostMovement)
+// REV 2.11 - Riwayat perubahan modal (MenuCostMovement)
 // ============================================================
 
 export interface MenuCostMovementView {
@@ -289,7 +289,7 @@ export async function getCostHistory(menuId: number): Promise<MenuCostMovementVi
 }
 
 // ============================================================
-// REV 2.10 — Upsert builder (create + update, replace-children strategy)
+// REV 2.10 - Upsert builder (create + update, replace-children strategy)
 // ============================================================
 
 const STOCK_TYPE_MAP: Record<MenuUpsertInput['stockType'], StockType> = {

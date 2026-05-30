@@ -2,7 +2,7 @@
 //
 // Field:
 //   - name      (text, required, trim non-empty)
-//   - isActive  (toggle, edit only — soft delete via toggle ini)
+//   - isActive  (toggle, edit only - soft delete via toggle ini)
 //
 // Info read-only saat edit: "Dipakai di N metode" (dari bank.methodCount).
 // Konteks: kalau bank dipakai di method dan di-nonaktifkan, method yang

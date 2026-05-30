@@ -52,7 +52,7 @@ export const menuService = {
     return res.data.data.menu
   },
 
-  /** REV 2.10: alias byId — GET /menus/:id mengembalikan MenuDetail lengkap
+  /** REV 2.10: alias byId - GET /menus/:id mengembalikan MenuDetail lengkap
    * dengan optionGroups + variants + paketComponents (catalog layer). Dipakai
    * MenuPage form untuk load menu existing saat edit. */
   detail: async (id: number): Promise<Menu> => {

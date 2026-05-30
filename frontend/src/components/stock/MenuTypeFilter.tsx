@@ -1,4 +1,4 @@
-// REV 2.8.1: filter tipe stok menu — checkbox-chip multi-select. Dipakai di tab
+// REV 2.8.1: filter tipe stok menu - checkbox-chip multi-select. Dipakai di tab
 // Stok Porsi (PortionStockTab) dan halaman Kelola Menu (MenuPage) agar konsisten.
 
 import { Check } from 'lucide-react'

@@ -91,7 +91,7 @@ async function seedMenus() {
   console.log(`  ✓ ${portionCount} PortionStock dibuat (qty awal 0)`);
 }
 
-// REV 2.6: singleton app settings (id=1). Default PB1 OFF — resto tidak charge
+// REV 2.6: singleton app settings (id=1). Default PB1 OFF - resto tidak charge
 // PB1 ke customer (harga menu = final). Owner bisa nyalakan via tab Pajak.
 async function seedAppSetting() {
   console.log('Menanam AppSetting (PB1 default OFF, rate 10%)...');

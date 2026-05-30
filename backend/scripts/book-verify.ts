@@ -29,10 +29,10 @@ for (const day of BOOK_DATA) {
   const dayTotal = Object.values(computed).reduce((a, b) => a + b, 0)
   if (dayErrors.length > 0) {
     totalErrors += dayErrors.length
-    console.log(`❌ ${day.date} (${day.cashier}) — total ${dayTotal.toLocaleString()}`)
+    console.log(`❌ ${day.date} (${day.cashier}) - total ${dayTotal.toLocaleString()}`)
     dayErrors.forEach((e) => console.log(e))
   } else {
-    console.log(`✓ ${day.date} (${day.cashier}) — ${day.transactions.length} tx, total ${dayTotal.toLocaleString()}`)
+    console.log(`✓ ${day.date} (${day.cashier}) - ${day.transactions.length} tx, total ${dayTotal.toLocaleString()}`)
   }
 }
 
@@ -40,4 +40,4 @@ console.log('\n=== RINGKASAN BULAN ===')
 console.log(`Grand total: Rp ${grandTotal.toLocaleString()}`)
 Object.entries(methodTotals).sort().forEach(([m, t]) => console.log(`  ${m}: Rp ${t.toLocaleString()}`))
 console.log(`\nTotal transaksi: ${BOOK_DATA.reduce((a, d) => a + d.transactions.length, 0)}`)
-console.log(totalErrors === 0 ? '\n✅ SEMUA HARI RECONCILE (transkripsi cocok summary buku)' : `\n❌ ${totalErrors} mismatch — betulkan transkripsi dulu`)
+console.log(totalErrors === 0 ? '\n✅ SEMUA HARI RECONCILE (transkripsi cocok summary buku)' : `\n❌ ${totalErrors} mismatch - betulkan transkripsi dulu`)

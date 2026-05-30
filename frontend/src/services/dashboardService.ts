@@ -7,7 +7,7 @@
 // - getWaiterDashboard(): semua role, portion + raw materials reminder + active shifts today.
 //
 // BankBreakdownEntry.method generic string supaya support method requiresBank
-// custom (mis. shopeepay) — bukan hanya 'edc' | 'transfer' hardcoded.
+// custom (mis. shopeepay) - bukan hanya 'edc' | 'transfer' hardcoded.
 
 import api from '@/lib/api'
 import type {
@@ -43,7 +43,7 @@ export interface OwnerReport {
     transactionCount: number
     /** REV 2.6: dinamis per payment method code (sorted descending by total). */
     byMethod: MethodTotalEntry[]
-    /** REV 2.6: method generic string — semua payment_method.code yang
+    /** REV 2.6: method generic string - semua payment_method.code yang
      * `requiresBank=true` dan punya transaksi di periode. */
     bankBreakdown: BankBreakdownEntry[]
   }

@@ -1,4 +1,4 @@
-// REV 2.6 Phase 2 (HISTORICAL — one-shot, no longer runnable):
+// REV 2.6 Phase 2 (HISTORICAL - one-shot, no longer runnable):
 // Backfill `settlement_method_counts` dari Settlement 12 kolom lama
 // (system{Cash,Edc,Qris,Gojek,Grab,Transfer} + actual{...}).
 //
@@ -11,6 +11,6 @@
 // Phase 9 cleanup, jalankan script, lalu apply Phase 9.
 
 throw new Error(
-  'scripts/migrate-settlement-counts.ts adalah historical one-shot — kolom legacy ' +
+  'scripts/migrate-settlement-counts.ts adalah historical one-shot - kolom legacy ' +
     'sudah di-drop di REV 2.6 Phase 9. Lihat git history untuk konten asli.',
 );

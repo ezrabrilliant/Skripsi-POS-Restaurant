@@ -1,5 +1,5 @@
 /**
- * PaketBuilder REV 2.10 — form visual untuk menu kind=paket dengan komponen
+ * PaketBuilder REV 2.10 - form visual untuk menu kind=paket dengan komponen
  * berbasis FK (targetMenuId), menggantikan shape name-JSON legacy.
  *
  * Emit/consume `PaketComponentUpsertPayload[]`:
@@ -371,7 +371,7 @@ function ChoiceSlotEditor({
 // ============================================================
 
 export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderProps) {
-  // Semua menu (incl. hidden SKU) sebagai pilihan target paket — owner perlu
+  // Semua menu (incl. hidden SKU) sebagai pilihan target paket - owner perlu
   // bisa arahkan ke nonStock (Nasi Putih) maupun SKU stok granular.
   const { data: menus = [] } = useQuery({
     queryKey: ['menus', 'paket-targets'],

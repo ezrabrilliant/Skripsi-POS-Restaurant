@@ -1,5 +1,5 @@
 // REV 2.8: helper waktu relatif untuk kolom "Terakhir di-stok" di halaman Stok.
-// Bucket kasar (konteks POS — presisi detik tidak relevan). Absolut pakai
+// Bucket kasar (konteks POS - presisi detik tidak relevan). Absolut pakai
 // formatDateTime dari utils.ts.
 
 /** "baru saja / N menit/jam/hari/bulan lalu / belum pernah" (Indonesian). */
@@ -22,7 +22,7 @@ export function relativeTime(iso: string | null): string {
  * Apakah `iso` jatuh pada tanggal lokal yang sama dengan `ref` (default sekarang)?
  * Dipakai filter "status opname hari ini". Device kasir berjalan di WIB =
  * AppSetting.timezone Asia/Jakarta, jadi tanggal lokal device = tanggal bisnis.
- * JANGAN banding substring UTC — pecah dekat tengah malam WIB.
+ * JANGAN banding substring UTC - pecah dekat tengah malam WIB.
  */
 export function isSameLocalDate(iso: string | null, ref: Date = new Date()): boolean {
   if (!iso) return false

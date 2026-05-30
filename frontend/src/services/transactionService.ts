@@ -37,7 +37,7 @@ export interface OrderItemInput {
     { targetMenuId: number; variantId?: number | null; chosenLabel: string }
   >
   /** REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu dingin/panas).
-   * Dicatat sebagai TransactionItemSelection isPreference=true — tidak pengaruh
+   * Dicatat sebagai TransactionItemSelection isPreference=true - tidak pengaruh
    * stok/harga. Mirror orderItemSchema.preferences. */
   preferences?: { groupLabel: string; chosenLabel: string }[]
 }
@@ -148,7 +148,7 @@ export const transactionService = {
     return res.data.data.transaction
   },
 
-  /** REV 2.5: POST /transactions/:id/payments — tambah 1 payment slice.
+  /** REV 2.5: POST /transactions/:id/payments - tambah 1 payment slice.
    * Single tender: 1x call dengan amount = total.
    * Split tender:  Nx call sampai sum payments >= total.
    * Backend auto-set status=paid + cascade ke mergedFrom saat sum payments >= total. */
@@ -160,7 +160,7 @@ export const transactionService = {
     return res.data.data.transaction
   },
 
-  /** REV 2.5: DELETE /transactions/:id/payments/:paymentId — hapus 1 slice.
+  /** REV 2.5: DELETE /transactions/:id/payments/:paymentId - hapus 1 slice.
    * Hanya valid kalau Tx masih open. */
   removePayment: async (id: number, paymentId: number): Promise<Transaction> => {
     const res = await api.delete<ApiResponse<{ transaction: Transaction }>>(

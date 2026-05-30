@@ -38,7 +38,7 @@ export const authenticateOptional: RequestHandler = (req, _res, next) => {
       const payload = jwt.verify(header.slice(7), env.JWT_SECRET) as JwtPayload;
       req.user = { id: payload.userId, role: payload.role };
     } catch {
-      /* abaikan token tidak valid — perlakukan sebagai anonim */
+      /* abaikan token tidak valid - perlakukan sebagai anonim */
     }
   }
   next();

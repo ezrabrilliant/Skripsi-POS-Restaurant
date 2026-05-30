@@ -1,10 +1,10 @@
-# Shift Redesign (REV 2.7) — BACKEND Implementation Plan
+# Shift Redesign (REV 2.7) - BACKEND Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Membangun ulang alur shift backend jadi model "business day berbasis shift" dengan window owner-configurable, single-active guard, atribusi revenue saat bayar, dan settlement whole-business-day — sesuai spec [2026-05-29-shift-redesign-design.md](../specs/2026-05-29-shift-redesign-design.md).
+**Goal:** Membangun ulang alur shift backend jadi model "business day berbasis shift" dengan window owner-configurable, single-active guard, atribusi revenue saat bayar, dan settlement whole-business-day - sesuai spec [2026-05-29-shift-redesign-design.md](../specs/2026-05-29-shift-redesign-design.md).
 
-**Architecture:** Logika waktu/aturan diekstrak ke fungsi MURNI (tanpa DB) di `modules/shifts/shift-time.ts` + `shift-rules.ts` → di-TDD via Vitest tanpa risiko data. Service (shifts/transactions/settlements/dashboard) memakai fungsi murni itu + Prisma. Single-active ditegakkan kolom `Shift.activeMarker` + `@@unique([activeMarker])`. Migrasi LOKAL & PROD bersifat aditif (non-destruktif) — `db push` tanpa `--force-reset`.
+**Architecture:** Logika waktu/aturan diekstrak ke fungsi MURNI (tanpa DB) di `modules/shifts/shift-time.ts` + `shift-rules.ts` → di-TDD via Vitest tanpa risiko data. Service (shifts/transactions/settlements/dashboard) memakai fungsi murni itu + Prisma. Single-active ditegakkan kolom `Shift.activeMarker` + `@@unique([activeMarker])`. Migrasi LOKAL & PROD bersifat aditif (non-destruktif) - `db push` tanpa `--force-reset`.
 
 **Tech Stack:** Express 4 + TypeScript + Prisma 6 + MySQL; Vitest (unit, pure fn); `tsx` smoke scripts (integrasi) terhadap DB TEST terpisah; Zod v3.
 
@@ -20,34 +20,34 @@ Dua jalur test:
 1. **Unit (pure fn, NOL DB):** `shift-time.ts` & `shift-rules.ts` diuji Vitest (`*.test.ts`). Aman, cepat, deterministik. `restoNow`/`businessDateFor` menerima `now?: Date` injectable supaya tidak bergantung jam nyata.
 2. **Integrasi (service + DB):** smoke script `tsx` terhadap **DB TEST TERPISAH** (schema `pos_restaurant_test`), TIDAK pernah ke DB asli. Script di-guard: refuse jalan kalau `DATABASE_URL` tidak mengandung `_test`.
 
-Vitest default meng-include `**/*.test.ts` & meng-exclude `node_modules` — tidak perlu config baru.
+Vitest default meng-include `**/*.test.ts` & meng-exclude `node_modules` - tidak perlu config baru.
 
 ---
 
 ## File Structure Map
 
 **Buat baru:**
-- `backend/src/modules/shifts/shift-time.ts` — helper waktu TZ-aware murni (`parseHHMM`, `restoNow`, `businessDateFor`).
-- `backend/src/modules/shifts/shift-time.test.ts` — Vitest unit.
-- `backend/src/modules/shifts/shift-rules.ts` — predikat murni `canOpenShift` + tipe `ShiftWindowSettings`.
-- `backend/src/modules/shifts/shift-rules.test.ts` — Vitest unit.
-- `backend/scripts/smoke-shift.ts` — smoke integrasi shift open/close/reopen/handover (DB test).
-- `backend/scripts/smoke-settlement.ts` — smoke settlement whole-day (DB test).
-- `backend/.env.test` — `DATABASE_URL` ke schema `pos_restaurant_test` (TIDAK di-commit).
+- `backend/src/modules/shifts/shift-time.ts` - helper waktu TZ-aware murni (`parseHHMM`, `restoNow`, `businessDateFor`).
+- `backend/src/modules/shifts/shift-time.test.ts` - Vitest unit.
+- `backend/src/modules/shifts/shift-rules.ts` - predikat murni `canOpenShift` + tipe `ShiftWindowSettings`.
+- `backend/src/modules/shifts/shift-rules.test.ts` - Vitest unit.
+- `backend/scripts/smoke-shift.ts` - smoke integrasi shift open/close/reopen/handover (DB test).
+- `backend/scripts/smoke-settlement.ts` - smoke settlement whole-day (DB test).
+- `backend/.env.test` - `DATABASE_URL` ke schema `pos_restaurant_test` (TIDAK di-commit).
 
 **Modifikasi:**
-- `backend/prisma/schema.prisma` — `AppSetting` +4 field; `Shift` +`activeMarker`+unique; `Settlement` +`@@unique([date])`.
-- `backend/src/modules/settings/settings.schema.ts` + `settings.service.ts` — field window + Zod.
-- `backend/src/modules/shifts/shifts.service.ts` — `openShift` (rules+marker+P2002), `closeShift(mode)`, `getActiveShifts`, `getOpenOrdersForClose`.
-- `backend/src/modules/shifts/shifts.schema.ts` + `shifts.controller.ts` + `shifts.routes.ts` — `mode` param + auth handover.
-- `backend/src/modules/transactions/transactions.service.ts` — `resolveActiveShift` simplify; `addPayment` atomic re-stamp; `mergeBills` simplify; `voidTransaction` settled-guard.
-- `backend/src/modules/settlements/settlements.service.ts` — by-businessDate re-key (5 call sites), permission, float baseline.
-- `backend/src/modules/settlements/settlements.schema.ts` + controller — terima `date` (bukan shiftId).
-- `backend/src/modules/dashboard/dashboard.service.ts` — atribusi `shift.date` + TZ-aware date.
+- `backend/prisma/schema.prisma` - `AppSetting` +4 field; `Shift` +`activeMarker`+unique; `Settlement` +`@@unique([date])`.
+- `backend/src/modules/settings/settings.schema.ts` + `settings.service.ts` - field window + Zod.
+- `backend/src/modules/shifts/shifts.service.ts` - `openShift` (rules+marker+P2002), `closeShift(mode)`, `getActiveShifts`, `getOpenOrdersForClose`.
+- `backend/src/modules/shifts/shifts.schema.ts` + `shifts.controller.ts` + `shifts.routes.ts` - `mode` param + auth handover.
+- `backend/src/modules/transactions/transactions.service.ts` - `resolveActiveShift` simplify; `addPayment` atomic re-stamp; `mergeBills` simplify; `voidTransaction` settled-guard.
+- `backend/src/modules/settlements/settlements.service.ts` - by-businessDate re-key (5 call sites), permission, float baseline.
+- `backend/src/modules/settlements/settlements.schema.ts` + controller - terima `date` (bukan shiftId).
+- `backend/src/modules/dashboard/dashboard.service.ts` - atribusi `shift.date` + TZ-aware date.
 
 ---
 
-## Phase 0 — Test DB + Schema + Pure Helpers (fondasi)
+## Phase 0 - Test DB + Schema + Pure Helpers (fondasi)
 
 ### Task 0.1: Siapkan DB test terpisah
 
@@ -64,7 +64,7 @@ TABLE_COUNT=9
 - [ ] **Step 2: Push schema saat ini ke DB test + seed**
 
 Run: `cd backend && npx prisma db push --schema prisma/schema.prisma` dengan env test:
-`tsx -e "process.env.DATABASE_URL=require('dotenv').config({path:'.env.test'}).parsed.DATABASE_URL"` — atau lebih simpel: `npx dotenv -e .env.test -- npx prisma db push` (kalau dotenv-cli ada) ATAU set sementara di shell:
+`tsx -e "process.env.DATABASE_URL=require('dotenv').config({path:'.env.test'}).parsed.DATABASE_URL"` - atau lebih simpel: `npx dotenv -e .env.test -- npx prisma db push` (kalau dotenv-cli ada) ATAU set sementara di shell:
 `$env:DATABASE_URL="mysql://...pos_restaurant_test"; npx prisma db push; npm run db:seed`
 Expected: schema + seed (6 user, menu, dll) masuk DB test. DB asli TIDAK tersentuh.
 
@@ -80,7 +80,7 @@ git add backend/.gitignore && git commit -m "chore: ignore .env.test for isolate
 
 ---
 
-### Task 0.2: `shift-time.ts` — helper waktu TZ-aware (TDD)
+### Task 0.2: `shift-time.ts` - helper waktu TZ-aware (TDD)
 
 **Files:**
 - Create: `backend/src/modules/shifts/shift-time.ts`
@@ -205,7 +205,7 @@ git commit -m "feat(shifts): TZ-aware time helpers (parseHHMM, restoNow, busines
 
 ---
 
-### Task 0.3: `shift-rules.ts` — predikat `canOpenShift` (TDD)
+### Task 0.3: `shift-rules.ts` - predikat `canOpenShift` (TDD)
 
 **Files:**
 - Create: `backend/src/modules/shifts/shift-rules.ts`
@@ -320,11 +320,11 @@ git commit -m "feat(shifts): pure canOpenShift predicate (window + single-active
 
 ---
 
-### Task 0.4: Schema — AppSetting window, Shift activeMarker, Settlement unique date
+### Task 0.4: Schema - AppSetting window, Shift activeMarker, Settlement unique date
 
 **Files:** Modify `backend/prisma/schema.prisma`
 
-- [ ] **Step 1: Edit `model AppSetting`** — tambah 4 field dengan `@default` (aman untuk row id=1 yang sudah ada):
+- [ ] **Step 1: Edit `model AppSetting`** - tambah 4 field dengan `@default` (aman untuk row id=1 yang sudah ada):
 
 ```prisma
 model AppSetting {
@@ -343,7 +343,7 @@ model AppSetting {
 }
 ```
 
-- [ ] **Step 2: Edit `model Shift`** — tambah `activeMarker` + unique; pertahankan index:
+- [ ] **Step 2: Edit `model Shift`** - tambah `activeMarker` + unique; pertahankan index:
 
 ```prisma
 model Shift {
@@ -366,7 +366,7 @@ model Shift {
 }
 ```
 
-- [ ] **Step 3: Edit `model Settlement`** — pastikan `date` unik (satu settlement per business day). Buka model, ubah `shiftId` dari unik jadi FK biasa bila perlu, dan tambah `@@unique([date])`:
+- [ ] **Step 3: Edit `model Settlement`** - pastikan `date` unik (satu settlement per business day). Buka model, ubah `shiftId` dari unik jadi FK biasa bila perlu, dan tambah `@@unique([date])`:
 
 ```prisma
 // Di model Settlement:
@@ -376,7 +376,7 @@ model Shift {
 // Catatan: shiftId tetap FK ke shift penutup (audit). Relasi Shift.settlement (1:1) tetap valid karena satu shift menutup paling banyak satu settlement.
 ```
 
-> ⚠️ Sebelum apply: jalankan deteksi duplikat di DB test & local (Task 0.5 Step 2) — `SELECT date, COUNT(*) FROM settlements GROUP BY date HAVING COUNT(*)>1`. Resolve manual kalau ada, baru push.
+> ⚠️ Sebelum apply: jalankan deteksi duplikat di DB test & local (Task 0.5 Step 2) - `SELECT date, COUNT(*) FROM settlements GROUP BY date HAVING COUNT(*)>1`. Resolve manual kalau ada, baru push.
 
 - [ ] **Step 4: Generate client**
 
@@ -412,13 +412,13 @@ Expected: settlement duplikat = 0 (kalau >0, audit & merge manual dulu). Shift o
 
 - [ ] **Step 3: Backfill `activeMarker` untuk shift open di LOCAL** (sebelum unique di-enforce penuh)
 
-Script sementara — `backend/scripts/backfill-active-marker.ts`:
+Script sementara - `backend/scripts/backfill-active-marker.ts`:
 ```ts
 import 'dotenv/config';
 import { prisma } from '../src/config/prisma';
 (async () => {
   const open = await prisma.shift.findMany({ where: { closedAt: null } });
-  if (open.length > 1) throw new Error(`Ada ${open.length} shift open — resolve manual dulu`);
+  if (open.length > 1) throw new Error(`Ada ${open.length} shift open - resolve manual dulu`);
   if (open.length === 1) {
     await prisma.shift.update({ where: { id: open[0].id }, data: { activeMarker: 1 } });
     console.log(`activeMarker=1 di shift #${open[0].id}`);
@@ -441,7 +441,7 @@ git commit -m "chore(shifts): backfill activeMarker for existing open shift (non
 
 ---
 
-## Phase 1 — openShift: window + single-active + reopen + P2002
+## Phase 1 - openShift: window + single-active + reopen + P2002
 
 ### Task 1.1: `settings.service.ts` expose window sebagai `ShiftWindowSettings`
 
@@ -450,7 +450,7 @@ git commit -m "chore(shifts): backfill activeMarker for existing open shift (non
 - [ ] **Step 1: Tambah field ke `SettingView` + `toView`**
 
 ```ts
-// settings.service.ts — SettingView tambah:
+// settings.service.ts - SettingView tambah:
 export interface SettingView {
   taxEnabled: boolean;
   taxRate: number;
@@ -553,7 +553,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   if (!check.ok) {
     if (check.reason === 'single_active') {
       const open = await prisma.shift.findFirst({ where: { activeMarker: 1 }, include: { cashier: { select: { name: true } } } });
-      throw new AppError(`Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`, 409);
+      throw new AppError(`Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open - tutup dulu`, 409);
     }
     throw new AppError('Di luar jam operasional untuk membuka shift ini', 400);
   }
@@ -573,7 +573,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       const open = await prisma.shift.findFirst({ where: { activeMarker: 1 }, include: { cashier: { select: { name: true } } } });
-      throw new AppError(`Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`, 409);
+      throw new AppError(`Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open - tutup dulu`, 409);
     }
     throw e;
   }
@@ -587,7 +587,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
 Run: `cd backend && npx tsc --noEmit`
 Expected: 0 error.
 
-- [ ] **Step 4: Smoke (DB test) — buat `scripts/smoke-shift.ts`** (lihat Task 8.1 untuk isi lengkap) lalu jalankan skenario open:
+- [ ] **Step 4: Smoke (DB test) - buat `scripts/smoke-shift.ts`** (lihat Task 8.1 untuk isi lengkap) lalu jalankan skenario open:
   - set window via AppSetting; buka pagi jam dalam window → 201; buka kedua (single-active) → 409; tutup; reopen pagi dalam window → 201; buka pagi jam malam → 400.
 
 Run: `$env:DATABASE_URL="...pos_restaurant_test"; tsx scripts/smoke-shift.ts open`
@@ -631,7 +631,7 @@ export async function closeShift(
       where: { status: TransactionStatus.open, mergedIntoId: null },
     });
     if (openCount > 0) {
-      const err = new AppError('Ada pesanan belum dibayar — selesaikan dulu sebelum tutup', 409);
+      const err = new AppError('Ada pesanan belum dibayar - selesaikan dulu sebelum tutup', 409);
       (err as any).openOrders = await getOpenOrdersForClose();
       throw err;
     }
@@ -684,7 +684,7 @@ const { mode } = closeShiftSchema.parse(req.body ?? {});
 const shift = await shiftsService.closeShift(id, req.user.id, req.user.role, mode);
 ```
 
-- [ ] **Step 4: `errorHandler` ekspos `openOrders`** — di `utils/errors` atau middleware error, kalau `err.openOrders` ada, sertakan di body `data.openOrders`. (Cek `errorHandler` saat ini; tambahkan passthrough field.)
+- [ ] **Step 4: `errorHandler` ekspos `openOrders`** - di `utils/errors` atau middleware error, kalau `err.openOrders` ada, sertakan di body `data.openOrders`. (Cek `errorHandler` saat ini; tambahkan passthrough field.)
 
 - [ ] **Step 5: Tsc + smoke**
 
@@ -717,7 +717,7 @@ export async function getActiveShifts(): Promise<ShiftView[]> {
 }
 ```
 
-- [ ] **Step 2: Tsc check** — Run `npx tsc --noEmit` → 0 error.
+- [ ] **Step 2: Tsc check** - Run `npx tsc --noEmit` → 0 error.
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -727,7 +727,7 @@ git commit -m "refactor(shifts): getActiveShifts via activeMarker"
 
 ---
 
-## Phase 2 — resolveActiveShift + re-stamp atomic + merge + void
+## Phase 2 - resolveActiveShift + re-stamp atomic + merge + void
 
 ### Task 2.1: Simplifikasi `resolveActiveShift`
 
@@ -806,7 +806,7 @@ await prisma.$transaction(async (tx) => {
 
 Run: `npx tsc --noEmit` → 0 error.
 
-- [ ] **Step 3: Smoke (DB test)** — `tsx scripts/smoke-shift.ts restamp`: order dibuat saat shift A open; tutup A (handover) buka B; bayar → Tx.shiftId == B. Plus double-pay guard: dua addPayment cepat → total payments == total (tidak overpay).
+- [ ] **Step 3: Smoke (DB test)** - `tsx scripts/smoke-shift.ts restamp`: order dibuat saat shift A open; tutup A (handover) buka B; bayar → Tx.shiftId == B. Plus double-pay guard: dua addPayment cepat → total payments == total (tidak overpay).
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -843,7 +843,7 @@ git commit -m "refactor(tx): mergeBills no longer migrates shiftId (re-stamp han
 
 ---
 
-### Task 2.4: `voidTransaction` guard — block kalau business day sudah settled
+### Task 2.4: `voidTransaction` guard - block kalau business day sudah settled
 
 **Files:** Modify `transactions.service.ts:765-818`
 
@@ -860,12 +860,12 @@ if (existing.status === TransactionStatus.void) throw new AppError('Transaksi su
 // REV 2.7 (D13): hari yang sudah di-settle = immutable. Tidak ada refund.
 const settled = await prisma.settlement.findFirst({ where: { date: existing.shift.date } });
 if (settled) {
-  throw new AppError('Business day transaksi ini sudah di-settle — tidak bisa diubah (refund di luar lingkup sistem)', 409);
+  throw new AppError('Business day transaksi ini sudah di-settle - tidak bisa diubah (refund di luar lingkup sistem)', 409);
 }
 ```
 
 - [ ] **Step 2: Tsc check** → 0 error.
-- [ ] **Step 3: Smoke (DB test)** — void tx hari belum settle → sukses; settle hari itu; void tx lain hari itu → 409.
+- [ ] **Step 3: Smoke (DB test)** - void tx hari belum settle → sukses; settle hari itu; void tx lain hari itu → 409.
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -877,7 +877,7 @@ git commit -m "feat(tx): block void on already-settled business day (refund out 
 
 ---
 
-## Phase 3 — Settlement whole-business-day
+## Phase 3 - Settlement whole-business-day
 
 ### Task 3.1: `computeSystemTotals` + `computeBankBreakdown` by businessDate
 
@@ -927,7 +927,7 @@ git commit -m "feat(settlement): system totals + bank breakdown scoped to whole 
 
 **Files:** Modify `settlements.service.ts`, `settlements.schema.ts`, controller
 
-- [ ] **Step 1:** `createSettlement` — ganti dedupe + permission:
+- [ ] **Step 1:** `createSettlement` - ganti dedupe + permission:
 
 ```ts
 // Dedupe by business day (bukan shiftId):
@@ -947,9 +947,9 @@ if (userRole === UserRole.cashier) {
 // HAPUS cek lama: shift.type === malam.
 ```
 
-- [ ] **Step 2:** `previewSettlement(businessDate: Date)` — terima tanggal, bukan shiftId. Resolve shift penutup untuk metadata (cashierName/closedAt) via `findFirst({where:{date}, orderBy:[{closedAt:'desc'}]})`. `existingSettlementId` via `findFirst({where:{date}})`.
+- [ ] **Step 2:** `previewSettlement(businessDate: Date)` - terima tanggal, bukan shiftId. Resolve shift penutup untuk metadata (cashierName/closedAt) via `findFirst({where:{date}, orderBy:[{closedAt:'desc'}]})`. `existingSettlementId` via `findFirst({where:{date}})`.
 
-- [ ] **Step 3:** Schema + controller: `previewSettlement` & `createSettlement` terima `date` (YYYY-MM-DD) bukan `shiftId`. (Frontend plan menyesuaikan; sementara controller derive `date` dari `shiftId` lama BILA masih dikirim — atau langsung pakai `date`.) Definisikan input baru:
+- [ ] **Step 3:** Schema + controller: `previewSettlement` & `createSettlement` terima `date` (YYYY-MM-DD) bukan `shiftId`. (Frontend plan menyesuaikan; sementara controller derive `date` dari `shiftId` lama BILA masih dikirim - atau langsung pakai `date`.) Definisikan input baru:
 
 ```ts
 // settlements.schema.ts
@@ -997,13 +997,13 @@ git commit -m "feat(settlement): expose opening-cash baseline (sum of day's floa
 
 ---
 
-## Phase 4 — Dashboard atribusi by shift.date
+## Phase 4 - Dashboard atribusi by shift.date
 
 ### Task 4.1: Ganti filter `paidAt` → `shift.date` + TZ-aware date
 
 **Files:** Modify `dashboard.service.ts`
 
-- [ ] **Step 1:** Owner report `txWhere` (line ~300) — atribusi via relasi shift:
+- [ ] **Step 1:** Owner report `txWhere` (line ~300) - atribusi via relasi shift:
 
 ```ts
 const txWhere: Prisma.TransactionWhereInput = {
@@ -1012,16 +1012,16 @@ const txWhere: Prisma.TransactionWhereInput = {
 };
 ```
 
-- [ ] **Step 2:** Cashier dashboard (line ~373) — revenue today via shift.date; openTx today via shift.date:
+- [ ] **Step 2:** Cashier dashboard (line ~373) - revenue today via shift.date; openTx today via shift.date:
 
 ```ts
 revenueByMethod({ status: TransactionStatus.paid, shift: { date: { gte: today, lt: tomorrow } } }),
 prisma.transaction.count({ where: { status: TransactionStatus.open, mergedIntoId: null, shift: { date: { gte: today, lt: tomorrow } } } }),
 ```
 
-- [ ] **Step 3:** Ganti `todayDateOnly()`/`resolvePeriod` agar pakai `businessDateFor`/`restoNow` (TZ-aware) dari `shift-time.ts` + `getShiftWindow()` — minimal `todayDateOnly()` jadi `businessDateFor(window, now)`. (Konsistensi business-day.)
+- [ ] **Step 3:** Ganti `todayDateOnly()`/`resolvePeriod` agar pakai `businessDateFor`/`restoNow` (TZ-aware) dari `shift-time.ts` + `getShiftWindow()` - minimal `todayDateOnly()` jadi `businessDateFor(window, now)`. (Konsistensi business-day.)
 
-- [ ] **Step 4: Tsc + smoke** — order dibuat & dibayar lewat tengah malam → masuk business day yang benar di owner report (sama dengan settlement).
+- [ ] **Step 4: Tsc + smoke** - order dibuat & dibayar lewat tengah malam → masuk business day yang benar di owner report (sama dengan settlement).
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1033,7 +1033,7 @@ git commit -m "feat(dashboard): attribute revenue by shift.date (business day), 
 
 ---
 
-## Phase 5 — Integrasi & verifikasi penuh (DB test)
+## Phase 5 - Integrasi & verifikasi penuh (DB test)
 
 ### Task 5.1: Smoke script lengkap `smoke-shift.ts` + `smoke-settlement.ts`
 
@@ -1080,14 +1080,14 @@ git commit -m "test(shifts): integration smoke scripts (DB test) for open/close/
 - [ ] **Step 1:** Run unit: `cd backend && npm run test` → semua `*.test.ts` PASS.
 - [ ] **Step 2:** Run `npx tsc --noEmit` → 0 error.
 - [ ] **Step 3:** Run `npm run lint` → 0 error.
-- [ ] **Step 4:** Push schema aditif ke LOCAL (Task 0.5 sudah; pastikan re-run kalau schema berubah lagi) — `npx prisma db push` (env `.env`), NOL data-loss.
+- [ ] **Step 4:** Push schema aditif ke LOCAL (Task 0.5 sudah; pastikan re-run kalau schema berubah lagi) - `npx prisma db push` (env `.env`), NOL data-loss.
 - [ ] **Step 5: Commit** apa pun yang tersisa.
 
 ---
 
-## Phase D — PROD migration runbook (DILAKUKAN TERPISAH, setelah frontend + e2e local OK)
+## Phase D - PROD migration runbook (DILAKUKAN TERPISAH, setelah frontend + e2e local OK)
 
-> Checklist ini BUKAN TDD — dijalankan manual saat deploy. Lihat spec §12.
+> Checklist ini BUKAN TDD - dijalankan manual saat deploy. Lihat spec §12.
 
 - [ ] `mysqldump` backup prod (`shifts`, `settlements`, `app_settings`, `transactions`) via SSH tunnel.
 - [ ] Deteksi prod: `SELECT date,type,COUNT(*) FROM shifts GROUP BY date,type HAVING COUNT(*)>1` (info), `SELECT date,COUNT(*) FROM settlements GROUP BY date HAVING COUNT(*)>1`, `SELECT COUNT(*) FROM shifts WHERE closed_at IS NULL`.
@@ -1103,7 +1103,7 @@ git commit -m "test(shifts): integration smoke scripts (DB test) for open/close/
 
 **Spec coverage:** §4.1 AppSetting→Task 0.4/1.1; §4.2 activeMarker→0.4/1.2; §5 helper→0.2; §6 open rule→0.3/1.2; §7.1→2.1; §7.3 re-stamp atomic→2.2; §7.4 merge→2.3; §7.5 void→2.4; §8.1 close 2-mode + open list→1.3; §8.2 settlement whole-day/keying/permission/bank/float→3.1/3.2/3.3; §10 dashboard→4.1; §12 migrasi→0.5/Phase D. Frontend (§9) = plan terpisah.
 
-**Catatan untuk eksekutor:** Konfirmasi baris exact `model Settlement` (apakah `@unique` inline atau `@@unique`) sebelum Task 0.4 Step 3. `errorHandler` passthrough `openOrders` (Task 1.3 Step 4) — cek bentuk `utils/response.ts` / error middleware aktual.
+**Catatan untuk eksekutor:** Konfirmasi baris exact `model Settlement` (apakah `@unique` inline atau `@@unique`) sebelum Task 0.4 Step 3. `errorHandler` passthrough `openOrders` (Task 1.3 Step 4) - cek bentuk `utils/response.ts` / error middleware aktual.
 
 ---
 

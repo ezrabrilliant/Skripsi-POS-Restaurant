@@ -1,5 +1,5 @@
 // PaymentMethodsPage - REV 2.6 owner-only config metode pembayaran + bank.
-// 2 tab di 1 page (segmented Tabs primitive) — konsisten dengan StockPage pattern.
+// 2 tab di 1 page (segmented Tabs primitive) - konsisten dengan StockPage pattern.
 // Akses: owner only (gate di RoleRoute). Cashier konsumsi PaymentModal /menu-only
 // via paymentMethodService.list() yang tetap public-auth.
 

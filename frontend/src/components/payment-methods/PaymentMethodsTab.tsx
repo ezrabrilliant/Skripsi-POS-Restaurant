@@ -5,7 +5,7 @@
 // Aksi: toggle isActive inline + tombol Edit (open PaymentMethodFormModal) +
 // tombol "+ Tambah Metode" header.
 // Permission: owner-only (page sudah di-gate). Method `code` immutable setelah
-// create (display read-only) — diatur di modal.
+// create (display read-only) - diatur di modal.
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -32,7 +32,7 @@ interface Props {
 }
 
 /** Resolve nama icon lucide ke komponen React. Fallback CreditCard kalau
- * iconName tidak terdaftar (defensive — backend whitelist tapi data lama
+ * iconName tidak terdaftar (defensive - backend whitelist tapi data lama
  * mungkin saja punya nilai berbeda). */
 function resolveIcon(iconName: string) {
   const Icon = (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[iconName]

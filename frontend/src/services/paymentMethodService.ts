@@ -1,7 +1,7 @@
 // Service modul payment-methods. REV 2.6:
 //   - GET (list, byId): semua role authenticated (PaymentModal kasir konsumsi list).
 //   - POST/PATCH/toggle/assign/unassign/reorder: owner-only (enforce backend layer).
-// Soft delete only via toggle isActive — code immutable setelah create.
+// Soft delete only via toggle isActive - code immutable setelah create.
 
 import api from '@/lib/api'
 import type { ApiResponse, PaymentMethodView } from '@/types'

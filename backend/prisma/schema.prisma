@@ -182,7 +182,7 @@ model Menu {
   portionMovements PortionMovement[]
   costMovements    MenuCostMovement[]
 
-  // REV 2.10 — catalog layer
+  // REV 2.10 - catalog layer
   optionGroups        MenuOptionGroup[]
   variants            MenuVariant[]       @relation("MenuOwnsVariant")
   variantStockTargets MenuVariant[]       @relation("VariantStockTarget")
@@ -424,7 +424,7 @@ model TransactionPayment {
 }
 
 /// 11. Rekap akhir hari (kasir shift malam saja). 1:1 dengan Shift (shift malam).
-/// Rekap dinamis per payment method via child table SettlementMethodCount (REV 2.6) —
+/// Rekap dinamis per payment method via child table SettlementMethodCount (REV 2.6) -
 /// system + actual + variance tersimpan per baris. Modal awal kasir di-track di
 /// Shift, ditampilkan di summary tapi tidak ikut variance.
 ///
@@ -512,11 +512,11 @@ model PaymentMethodBank {
   @@map("payment_method_banks")
 }
 
-/// 18. REV 2.6: Settlement child table — dinamis per method, ganti 12 kolom fixed di Settlement.
+/// 18. REV 2.6: Settlement child table - dinamis per method, ganti 12 kolom fixed di Settlement.
 /// paymentMethodCode denormalize dari payment_methods.code (audit-safe kalau method dihapus/rename).
 /// Catatan: relasi `paymentMethod` pakai `onDelete: NoAction` karena paymentMethodCode adalah
 /// bagian dari PK composite (tidak boleh null). Original plan mention `SetNull` tapi Prisma
-/// tidak izinkan SetNull pada required field. NoAction = MySQL default RESTRICT semantic —
+/// tidak izinkan SetNull pada required field. NoAction = MySQL default RESTRICT semantic -
 /// method tidak bisa di-hard-delete kalau masih ada settlement_method_counts refers; owner
 /// HARUS pakai soft-delete via isActive=false (yang memang flow seharusnya per spec).
 /// String code tetap audit-safe karena denormalized as VARCHAR, bukan FK to id.
@@ -556,7 +556,7 @@ model AppSetting {
 }
 
 // ============================================================
-// REV 2.10 — Catalog layer: option groups, variants, paket composition
+// REV 2.10 - Catalog layer: option groups, variants, paket composition
 // ============================================================
 
 /// 20. Grup pilihan per-menu (axis varian atau free-preference).
@@ -590,7 +590,7 @@ model MenuOption {
 }
 
 /// 22. Kombinasi sellable dari sebuah menu varian. price = harga eksak per-kombinasi
-/// (D2 — mereproduksi grid non-aditif). stockTargetMenuId = menu porsi yang
+/// (D2 - mereproduksi grid non-aditif). stockTargetMenuId = menu porsi yang
 /// di-decrement saat varian ini terjual (null = nonStock, mis. minuman).
 model MenuVariant {
   id                Int                 @id @default(autoincrement())

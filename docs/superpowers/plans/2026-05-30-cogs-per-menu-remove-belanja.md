@@ -1,4 +1,4 @@
-# REV 2.11 — COGS per Menu + Hapus Belanja/Vendor/Raw Materials — Implementation Plan
+# REV 2.11 - COGS per Menu + Hapus Belanja/Vendor/Raw Materials - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,27 +17,27 @@
 ## File Structure
 
 **Created:**
-- `backend/scripts/backfill-cogs.ts` — one-time script: seed `costSourceMenuId` for nonStock variant leaves + backfill historical `TransactionItem.unitCost`.
-- `backend/scripts/smoke-cogs.ts` — smoke test: order variant + paket, assert `unitCost` snapshot + dashboard COGS.
+- `backend/scripts/backfill-cogs.ts` - one-time script: seed `costSourceMenuId` for nonStock variant leaves + backfill historical `TransactionItem.unitCost`.
+- `backend/scripts/smoke-cogs.ts` - smoke test: order variant + paket, assert `unitCost` snapshot + dashboard COGS.
 
 **Modified (COGS add):**
-- `backend/prisma/schema.prisma` — `Menu.cost`, `MenuVariant.costSourceMenuId`, `TransactionItem.unitCost`, new `MenuCostMovement` + enum `MenuCostChangeReason`, back-relations.
-- `backend/src/modules/menus/variant-resolver.ts` — `resolveCostComponents` + `costTargetOf`; `MenuNode` gains `cost` + `variants[].costSourceMenuId`.
-- `backend/src/modules/menus/__tests__/variant-resolver.test.ts` — `resolveCostComponents` tests.
-- `backend/src/modules/menus/menus.schema.ts` — `cost` + `costSourceMenuId` on schemas.
-- `backend/src/modules/menus/menus.service.ts` — persist cost/costSource, `MenuView`/`MenuDetail` cost (owner-gated), `upsertMenu(id, input, userId)` + `MenuCostMovement` write, `getCostHistory`, `validateMenuReferences`.
-- `backend/src/modules/menus/menus.controller.ts` — thread `req.user.id`, `handleCostHistory`.
-- `backend/src/modules/menus/menus.routes.ts` — `GET /:id/cost-history` owner-only.
-- `backend/src/modules/transactions/transactions.service.ts` — `buildMenuGraph` cost/costSource, `resolveItems` unitCost, `ResolvedItem.unitCost`, persist.
-- `backend/src/modules/dashboard/dashboard.service.ts` — COGS aggregate, `profit = revenue − cogs`, drop purchase + raw-material reminders.
-- `backend/prisma/variant-catalog.ts` — `costSourceName` per nonStock variant.
-- `frontend/src/types/index.ts` — `Menu.cost`, payload cost, `MenuVariant.costSourceMenuId`, cost-movement view + labels.
-- `frontend/src/services/menuService.ts` — `costHistory(id)`.
-- `frontend/src/services/dashboardService.ts` — `expense` shape.
-- `frontend/src/components/MenuFormModal.tsx` — cost input + margin.
-- `frontend/src/components/menu/VariantBuilder.tsx` — costSource round-trip + per-row picker.
-- `frontend/src/pages/MenuPage.tsx` — cost column + history drawer.
-- `frontend/src/pages/OwnerDashboard.tsx` — relabel COGS card, bills separate.
+- `backend/prisma/schema.prisma` - `Menu.cost`, `MenuVariant.costSourceMenuId`, `TransactionItem.unitCost`, new `MenuCostMovement` + enum `MenuCostChangeReason`, back-relations.
+- `backend/src/modules/menus/variant-resolver.ts` - `resolveCostComponents` + `costTargetOf`; `MenuNode` gains `cost` + `variants[].costSourceMenuId`.
+- `backend/src/modules/menus/__tests__/variant-resolver.test.ts` - `resolveCostComponents` tests.
+- `backend/src/modules/menus/menus.schema.ts` - `cost` + `costSourceMenuId` on schemas.
+- `backend/src/modules/menus/menus.service.ts` - persist cost/costSource, `MenuView`/`MenuDetail` cost (owner-gated), `upsertMenu(id, input, userId)` + `MenuCostMovement` write, `getCostHistory`, `validateMenuReferences`.
+- `backend/src/modules/menus/menus.controller.ts` - thread `req.user.id`, `handleCostHistory`.
+- `backend/src/modules/menus/menus.routes.ts` - `GET /:id/cost-history` owner-only.
+- `backend/src/modules/transactions/transactions.service.ts` - `buildMenuGraph` cost/costSource, `resolveItems` unitCost, `ResolvedItem.unitCost`, persist.
+- `backend/src/modules/dashboard/dashboard.service.ts` - COGS aggregate, `profit = revenue − cogs`, drop purchase + raw-material reminders.
+- `backend/prisma/variant-catalog.ts` - `costSourceName` per nonStock variant.
+- `frontend/src/types/index.ts` - `Menu.cost`, payload cost, `MenuVariant.costSourceMenuId`, cost-movement view + labels.
+- `frontend/src/services/menuService.ts` - `costHistory(id)`.
+- `frontend/src/services/dashboardService.ts` - `expense` shape.
+- `frontend/src/components/MenuFormModal.tsx` - cost input + margin.
+- `frontend/src/components/menu/VariantBuilder.tsx` - costSource round-trip + per-row picker.
+- `frontend/src/pages/MenuPage.tsx` - cost column + history drawer.
+- `frontend/src/pages/OwnerDashboard.tsx` - relabel COGS card, bills separate.
 
 **Modified (removal):**
 - `backend/src/app.ts`, `backend/src/modules/stocks/stocks.routes.ts`, `backend/prisma/seed.ts`, `backend/src/modules/dashboard/dashboard.service.ts` (reminderCounts + waiter).
@@ -49,9 +49,9 @@
 
 ---
 
-# PHASE A — COGS (additive, no destructive change yet)
+# PHASE A - COGS (additive, no destructive change yet)
 
-## Task 1: Schema — additive COGS columns + audit model
+## Task 1: Schema - additive COGS columns + audit model
 
 **Files:**
 - Modify: `backend/prisma/schema.prisma`
@@ -75,7 +75,7 @@ In `model Menu`, after the `price` line add the cost column, and after `portionM
 
 - [ ] **Step 2: Add `costSourceMenuId` to MenuVariant**
 
-In `model MenuVariant`, after `stockTargetMenuId` add a plain scalar (NO Prisma relation — Menu↔MenuVariant already has two named relations; a third forces extra named-relation boilerplate):
+In `model MenuVariant`, after `stockTargetMenuId` add a plain scalar (NO Prisma relation - Menu↔MenuVariant already has two named relations; a third forces extra named-relation boilerplate):
 
 ```prisma
   stockTargetMenuId Int?                @map("stock_target_menu_id")
@@ -131,7 +131,7 @@ In `model User`, after `portionMovements     PortionMovement[]` add:
   rawMaterialMovements RawMaterialMovement[]
   menuCostChanges      MenuCostMovement[]
 ```
-(Leave `rawMaterialMovements` for now — it is removed in Task 9.)
+(Leave `rawMaterialMovements` for now - it is removed in Task 9.)
 
 - [ ] **Step 6: Validate + push to dev DB**
 
@@ -145,12 +145,12 @@ Expected: "Your database is now in sync with your Prisma schema." (additive, zer
 
 ```bash
 git add backend/prisma/schema.prisma
-git commit -m "feat(schema): REV 2.11 P0 — additive COGS (Menu.cost, MenuVariant.costSourceMenuId, TransactionItem.unitCost, MenuCostMovement)"
+git commit -m "feat(schema): REV 2.11 P0 - additive COGS (Menu.cost, MenuVariant.costSourceMenuId, TransactionItem.unitCost, MenuCostMovement)"
 ```
 
 ---
 
-## Task 2: Cost resolver (TDD) — `resolveCostComponents`
+## Task 2: Cost resolver (TDD) - `resolveCostComponents`
 
 **Files:**
 - Modify: `backend/src/modules/menus/variant-resolver.ts`
@@ -209,10 +209,10 @@ describe('resolveCostComponents', () => {
 })
 ```
 
-- [ ] **Step 2: Run — verify FAIL**
+- [ ] **Step 2: Run - verify FAIL**
 
 Run: `cd backend && npx vitest run src/modules/menus/__tests__/variant-resolver.test.ts`
-Expected: FAIL — `resolveCostComponents is not a function`.
+Expected: FAIL - `resolveCostComponents is not a function`.
 
 - [ ] **Step 3: Implement**
 
@@ -284,7 +284,7 @@ export function resolveCostComponents(
 }
 ```
 
-- [ ] **Step 4: Run — verify PASS**
+- [ ] **Step 4: Run - verify PASS**
 
 Run: `cd backend && npx vitest run src/modules/menus/__tests__/variant-resolver.test.ts`
 Expected: PASS (all existing + 5 new).
@@ -293,12 +293,12 @@ Expected: PASS (all existing + 5 new).
 
 ```bash
 git add backend/src/modules/menus/variant-resolver.ts backend/src/modules/menus/__tests__/variant-resolver.test.ts
-git commit -m "feat(menus): REV 2.11 P1 — resolveCostComponents (cost-aware twin of resolveStockTargets) TDD"
+git commit -m "feat(menus): REV 2.11 P1 - resolveCostComponents (cost-aware twin of resolveStockTargets) TDD"
 ```
 
 ---
 
-## Task 3: Transaction — snapshot `unitCost` at order time
+## Task 3: Transaction - snapshot `unitCost` at order time
 
 **Files:**
 - Modify: `backend/src/modules/transactions/transactions.service.ts`
@@ -376,7 +376,7 @@ Expected: zero errors.
 
 ```bash
 git add backend/src/modules/transactions/transactions.service.ts
-git commit -m "feat(tx): REV 2.11 P2 — snapshot unitCost (Σ cost komponen) on order create + addItems"
+git commit -m "feat(tx): REV 2.11 P2 - snapshot unitCost (Σ cost komponen) on order create + addItems"
 ```
 
 ---
@@ -386,7 +386,7 @@ git commit -m "feat(tx): REV 2.11 P2 — snapshot unitCost (Σ cost komponen) on
 **Files:**
 - Modify: `backend/src/modules/menus/menus.schema.ts`, `menus.service.ts`, `menus.controller.ts`, `menus.routes.ts`
 
-- [ ] **Step 1: Zod — add cost + costSourceMenuId**
+- [ ] **Step 1: Zod - add cost + costSourceMenuId**
 
 In `menus.schema.ts`, in `variantSchema` add after `stockTargetMenuId`:
 ```typescript
@@ -399,7 +399,7 @@ In `menuUpsertSchema` `.object({...})` add after `minStock`:
     cost: z.number().nonnegative().nullable().optional(),
 ```
 
-- [ ] **Step 2: Service — owner-gated cost via `includeCost` param**
+- [ ] **Step 2: Service - owner-gated cost via `includeCost` param**
 
 In `menus.service.ts`: add `cost: number | null` to the `MenuDetail` interface; add `costSourceMenuId: number | null` to `MenuVariantDetail`. Do NOT add cost to `MenuView`/`toMenuView` (the public base shape). Add an `includeCost` param to the detail mapper + readers so cost is emitted ONLY for owner reads:
 
@@ -435,7 +435,7 @@ export const authenticateOptional: RequestHandler = (req, _res, next) => {
       const payload = verifyToken(header.slice(7)); // same verify used by `authenticate`
       req.user = { id: payload.userId, role: payload.role };
     } catch {
-      /* ignore invalid token — treat as anonymous */
+      /* ignore invalid token - treat as anonymous */
     }
   }
   next();
@@ -443,7 +443,7 @@ export const authenticateOptional: RequestHandler = (req, _res, next) => {
 ```
 (Reuse whatever `authenticate` uses to verify + the same `req.user` shape; do not throw.)
 
-- [ ] **Step 3: Service — persist cost/costSource + MenuCostMovement (thread userId)**
+- [ ] **Step 3: Service - persist cost/costSource + MenuCostMovement (thread userId)**
 
 Change signature to `export async function upsertMenu(id: number | null, input: MenuUpsertInput, userId: number): Promise<MenuDetail>`. In the create branch `tx.menu.create` data and update branch `tx.menu.update` data, add after `imageUrl`:
 ```typescript
@@ -452,7 +452,7 @@ Change signature to `export async function upsertMenu(id: number | null, input: 
 ```
 In the variant create loop add `costSourceMenuId: variant.costSourceMenuId ?? null,` to `tx.menuVariant.create` data (after `stockTargetMenuId`).
 
-In the UPDATE branch, `existing` is already fetched — after the `tx.menu.update`, log the change:
+In the UPDATE branch, `existing` is already fetched - after the `tx.menu.update`, log the change:
 ```typescript
       const newCost = input.cost == null ? null : new Prisma.Decimal(input.cost);
       const changed =
@@ -476,7 +476,7 @@ Change the final return to `return getMenuDetail(menuId, true);`.
 
 In `validateMenuReferences`, add `input.costSourceMenuId` for each variant into the validated `menuIds` set (so an invalid cost-source FK throws AppError(400) atomically), mirroring `variant.stockTargetMenuId`.
 
-- [ ] **Step 4: Service — getCostHistory**
+- [ ] **Step 4: Service - getCostHistory**
 
 Add:
 ```typescript
@@ -510,7 +510,7 @@ export async function getCostHistory(menuId: number): Promise<MenuCostMovementVi
 }
 ```
 
-- [ ] **Step 5: Controller — owner cost gating + thread userId + handleCostHistory**
+- [ ] **Step 5: Controller - owner cost gating + thread userId + handleCostHistory**
 
 In `menus.controller.ts` import `unauthorized` from `'../../utils/errors'` and `UserRole` from `'@prisma/client'`. Update `handleList`/`handleDetail` to pass owner-gated `includeCost`, and add the create/update userId + cost-history handlers:
 ```typescript
@@ -550,7 +550,7 @@ export const handleCostHistory = asyncHandler(async (req, res) => {
 });
 ```
 
-- [ ] **Step 6: Route — soft-auth GETs + owner-only cost-history**
+- [ ] **Step 6: Route - soft-auth GETs + owner-only cost-history**
 
 In `menus.routes.ts` import `authenticateOptional` (from `'../../middleware/auth'`) + `handleCostHistory`. Change the public reads to soft-auth so owner reads carry cost, and add the owner-only cost-history route:
 ```typescript
@@ -566,23 +566,23 @@ router.get('/:id/cost-history', authenticate, requireRole(UserRole.owner), handl
 - [ ] **Step 7: Verify type-check**
 
 Run: `cd backend && npx tsc --noEmit`
-Expected: zero errors. (If a non-route caller of `upsertMenu` exists, pass a userId or update it — grep `upsertMenu(` first.)
+Expected: zero errors. (If a non-route caller of `upsertMenu` exists, pass a userId or update it - grep `upsertMenu(` first.)
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add backend/src/modules/menus
-git commit -m "feat(menus): REV 2.11 P3 — owner cost CRUD + MenuCostMovement log + GET /:id/cost-history (cost owner-only)"
+git commit -m "feat(menus): REV 2.11 P3 - owner cost CRUD + MenuCostMovement log + GET /:id/cost-history (cost owner-only)"
 ```
 
 ---
 
-## Task 5: Dashboard — Laba = Pendapatan − COGS
+## Task 5: Dashboard - Laba = Pendapatan − COGS
 
 **Files:**
 - Modify: `backend/src/modules/dashboard/dashboard.service.ts`, `frontend/src/services/dashboardService.ts`, `frontend/src/pages/OwnerDashboard.tsx`
 
-- [ ] **Step 1: Backend — COGS helper + replace purchase aggregate**
+- [ ] **Step 1: Backend - COGS helper + replace purchase aggregate**
 
 In `dashboard.service.ts` add a helper:
 ```typescript
@@ -608,15 +608,15 @@ and the returned `expense` object:
     },
 ```
 
-- [ ] **Step 2: Backend — OwnerReportView type**
+- [ ] **Step 2: Backend - OwnerReportView type**
 
 Change `OwnerReportView.expense` to `{ cogsTotal: number; billTotal: number; total: number }` and update the `profit` comment to `revenue.total − cogsTotal`.
 
-- [ ] **Step 3: Frontend — OwnerReport type**
+- [ ] **Step 3: Frontend - OwnerReport type**
 
 In `dashboardService.ts` change `OwnerReport.expense` to `{ cogsTotal: number; billTotal: number; total: number }`.
 
-- [ ] **Step 4: Frontend — OwnerDashboard cards**
+- [ ] **Step 4: Frontend - OwnerDashboard cards**
 
 In `OwnerDashboard.tsx` change the middle Stat: `label="Beban Pokok (COGS)"`, `value={report.expense.cogsTotal}`, hint `={`Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`}`. Change the "Laba Kotor" card hint to `"Pendapatan − COGS"`.
 
@@ -629,12 +629,12 @@ Run: `cd backend && npx tsc --noEmit` → zero errors.
 
 ```bash
 git add backend/src/modules/dashboard frontend/src/services/dashboardService.ts frontend/src/pages/OwnerDashboard.tsx
-git commit -m "feat(dashboard): REV 2.11 P4 — Laba = Pendapatan − COGS (Σ unitCost×qty), tagihan terpisah"
+git commit -m "feat(dashboard): REV 2.11 P4 - Laba = Pendapatan − COGS (Σ unitCost×qty), tagihan terpisah"
 ```
 
 ---
 
-## Task 6: Frontend — cost input, types, service, history drawer
+## Task 6: Frontend - cost input, types, service, history drawer
 
 **Files:**
 - Modify: `frontend/src/types/index.ts`, `frontend/src/services/menuService.ts`, `frontend/src/components/MenuFormModal.tsx`, `frontend/src/components/menu/VariantBuilder.tsx`, `frontend/src/pages/MenuPage.tsx`
@@ -670,9 +670,9 @@ In `menuService.ts` add (import `MenuCostMovementView` from `'@/types'`):
   },
 ```
 
-- [ ] **Step 3: MenuFormModal — cost field + margin**
+- [ ] **Step 3: MenuFormModal - cost field + margin**
 
-Add `import { formatCurrency } from '@/lib/utils'`. Add `cost: number` to `FormState`; `cost: 0` (new) / `cost: existing.cost ?? 0` (edit) in `initFromExisting`; `cost: state.cost` in `buildPayload`. After the Kategori+Harga grid add a cost Input (mirror price) shown only for `state.mode === 'simple'` (leaf/simple carry cost; variant/paket parents leave it 0 — cost lives on leaves):
+Add `import { formatCurrency } from '@/lib/utils'`. Add `cost: number` to `FormState`; `cost: 0` (new) / `cost: existing.cost ?? 0` (edit) in `initFromExisting`; `cost: state.cost` in `buildPayload`. After the Kategori+Harga grid add a cost Input (mirror price) shown only for `state.mode === 'simple'` (leaf/simple carry cost; variant/paket parents leave it 0 - cost lives on leaves):
 ```tsx
         {state.mode === 'simple' && (
           <div>
@@ -694,9 +694,9 @@ Add `import { formatCurrency } from '@/lib/utils'`. Add `cost: number` to `FormS
         )}
 ```
 
-- [ ] **Step 4: VariantBuilder — costSource round-trip + per-row picker**
+- [ ] **Step 4: VariantBuilder - costSource round-trip + per-row picker**
 
-Add `costSourceMenuId: number | null` to `VariantOverride` and `ComputedVariantRow`; emit `costSourceMenuId: override?.costSourceMenuId ?? null` in `computeVariantRows`; add `costSourceMenuId: row.costSourceMenuId` in `buildVariantsPayload`; seed `costSourceMenuId: v.costSourceMenuId ?? null` in `menuToVariantBuilderState`. Add a third combobox in the per-row JSX (after the stock-target combobox), shown only when `row.stockTargetMenuId === null` (nonStock variant — modal source needed):
+Add `costSourceMenuId: number | null` to `VariantOverride` and `ComputedVariantRow`; emit `costSourceMenuId: override?.costSourceMenuId ?? null` in `computeVariantRows`; add `costSourceMenuId: row.costSourceMenuId` in `buildVariantsPayload`; seed `costSourceMenuId: v.costSourceMenuId ?? null` in `menuToVariantBuilderState`. Add a third combobox in the per-row JSX (after the stock-target combobox), shown only when `row.stockTargetMenuId === null` (nonStock variant - modal source needed):
 ```tsx
                   {row.stockTargetMenuId === null && (
                     <MenuTargetCombobox
@@ -704,14 +704,14 @@ Add `costSourceMenuId: number | null` to `VariantOverride` and `ComputedVariantR
                       onChange={(v) => setOverride(row.signature, { costSourceMenuId: v ? Number(v) : null })}
                       options={stockTargetOptions}
                       label="Modal ikut menu (SKU tersembunyi)"
-                      placeholder="— pakai modal menu ini —"
+                      placeholder="- pakai modal menu ini -"
                     />
                   )}
 ```
 
-- [ ] **Step 5: MenuPage — cost column + history drawer**
+- [ ] **Step 5: MenuPage - cost column + history drawer**
 
-Add `import { History } from 'lucide-react'` (extend existing import) and `import { StockHistorySheet, type HistoryMovement } from '@/components/stock/StockHistorySheet'`, `import { COST_REASON_LABEL } from '@/types'`. Add state `const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)`. Change the list query to pass `includeHidden: true` so leaf SKUs are editable. Add a "Modal" column after the price column rendering `m.cost != null ? formatCurrency(m.cost) : '—'`. Add a History `IconButton` (first action) `onClick={() => setHistoryMenuId(m.id)}` in both desktop + mobileCard action blocks. Add the drawer + query as a sibling of `<MenuFormModal>`:
+Add `import { History } from 'lucide-react'` (extend existing import) and `import { StockHistorySheet, type HistoryMovement } from '@/components/stock/StockHistorySheet'`, `import { COST_REASON_LABEL } from '@/types'`. Add state `const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)`. Change the list query to pass `includeHidden: true` so leaf SKUs are editable. Add a "Modal" column after the price column rendering `m.cost != null ? formatCurrency(m.cost) : '-'`. Add a History `IconButton` (first action) `onClick={() => setHistoryMenuId(m.id)}` in both desktop + mobileCard action blocks. Add the drawer + query as a sibling of `<MenuFormModal>`:
 ```tsx
         {historyMenuId != null && <CostHistoryDrawer menuId={historyMenuId} onClose={() => setHistoryMenuId(null)} />}
 ```
@@ -746,7 +746,7 @@ function CostHistoryDrawer({ menuId, onClose }: { menuId: number; onClose: () =>
 
 ```bash
 git add frontend/src/types/index.ts frontend/src/services/menuService.ts frontend/src/components/MenuFormModal.tsx frontend/src/components/menu/VariantBuilder.tsx frontend/src/pages/MenuPage.tsx
-git commit -m "feat(fe): REV 2.11 P5 — cost input + margin + cost column + riwayat modal drawer + variant costSource"
+git commit -m "feat(fe): REV 2.11 P5 - cost input + margin + cost column + riwayat modal drawer + variant costSource"
 ```
 
 ---
@@ -757,7 +757,7 @@ git commit -m "feat(fe): REV 2.11 P5 — cost input + margin + cost column + riw
 - Modify: `backend/prisma/variant-catalog.ts`
 - Create: `backend/scripts/backfill-cogs.ts`
 
-- [ ] **Step 1: variant-catalog — costSourceName for nonStock variants**
+- [ ] **Step 1: variant-catalog - costSourceName for nonStock variants**
 
 Add optional `costSourceName?: string` to `VariantSpec`. For the nonStock variant menus where modal differs (Es Teh, Es Jeruk, Tahu Tempe), set `costSourceName` to the matching hidden leaf (e.g. Es Teh `{ Rasa:'Tawar', Ukuran:'Biasa' }` → `costSourceName: 'Teh Tawar Biasa'`; Es Jeruk `Murni` → `'Jeruk Murni'`; Tahu Tempe `Penyet` → `'Tahu Tempe Penyet'`). In `applyVariantCatalog` (backfill), resolve `costSourceName` → menu id and set it on the created variant (alongside `stockTargetMenuId`). Telur/Sambal (uniform modal) may omit it.
 
@@ -774,7 +774,7 @@ Expected: logs "costSource set: N", "unitCost backfilled: M items", "0 errors". 
 
 ```bash
 git add backend/prisma/variant-catalog.ts backend/scripts/backfill-cogs.ts
-git commit -m "feat(scripts): REV 2.11 P6 — seed costSource for nonStock variants + backfill historical unitCost"
+git commit -m "feat(scripts): REV 2.11 P6 - seed costSource for nonStock variants + backfill historical unitCost"
 ```
 
 ---
@@ -797,16 +797,16 @@ Expected: all assertions PASS, exit 0.
 
 ```bash
 git add backend/scripts/smoke-cogs.ts
-git commit -m "test(cogs): REV 2.11 P7 — smoke COGS (cost log + unitCost snapshot + dashboard profit + no public leak)"
+git commit -m "test(cogs): REV 2.11 P7 - smoke COGS (cost log + unitCost snapshot + dashboard profit + no public leak)"
 ```
 
 ---
 
-# PHASE B — Remove belanja / vendor / raw materials (DESTRUCTIVE)
+# PHASE B - Remove belanja / vendor / raw materials (DESTRUCTIVE)
 
 > Run only after Phase A is verified. The schema drop is destructive (loses imported belanja data); PROD is HARD-GATED.
 
-## Task 9: Backend removal — modules, routes, reminders, seed
+## Task 9: Backend removal - modules, routes, reminders, seed
 
 **Files:**
 - Modify: `backend/src/app.ts`, `backend/src/modules/stocks/stocks.routes.ts`, `backend/src/modules/dashboard/dashboard.service.ts`, `backend/prisma/seed.ts`
@@ -838,7 +838,7 @@ Expected: errors ONLY at prisma client call sites for dropped models (resolved i
 
 ```bash
 git add backend/src
-git commit -m "refactor(be): REV 2.11 P8 — remove purchases/vendors/raw-materials modules + routes + reminders + seed"
+git commit -m "refactor(be): REV 2.11 P8 - remove purchases/vendors/raw-materials modules + routes + reminders + seed"
 ```
 
 ---
@@ -870,7 +870,7 @@ Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-cogs.ts` (after `
 
 ```bash
 git add backend/prisma/schema.prisma
-git commit -m "feat(schema)!: REV 2.11 P9 — drop Vendor/Purchase/PurchaseItem/RawMaterial/RawMaterialMovement (+Unit if dead)"
+git commit -m "feat(schema)!: REV 2.11 P9 - drop Vendor/Purchase/PurchaseItem/RawMaterial/RawMaterialMovement (+Unit if dead)"
 ```
 
 ---
@@ -906,12 +906,12 @@ Expected: zero errors (fix any TS6133 unused-import / TS2307 missing-module).
 
 ```bash
 git add frontend/src
-git commit -m "refactor(fe): REV 2.11 P10 — remove Belanja page/services/nav + RawMaterials tab + dashboard rows"
+git commit -m "refactor(fe): REV 2.11 P10 - remove Belanja page/services/nav + RawMaterials tab + dashboard rows"
 ```
 
 ---
 
-# PHASE C — Docs + final verification
+# PHASE C - Docs + final verification
 
 ## Task 12: Docs realign to proposal
 
@@ -935,7 +935,7 @@ Update `project_resto_operational_truths.md` (HPP→COGS, drop belanja/raw-mater
 
 ```bash
 git add docs CLAUDE.md
-git commit -m "docs: REV 2.11 P11 — realign ground-truth + knowledge docs to COGS model (remove belanja/raw-materials)"
+git commit -m "docs: REV 2.11 P11 - realign ground-truth + knowledge docs to COGS model (remove belanja/raw-materials)"
 ```
 
 ---
@@ -973,7 +973,7 @@ Append to the spec / a runbook: prod migrate order = (1) deploy REV 2.10 additiv
 
 ```bash
 git add docs
-git commit -m "docs: REV 2.11 — prod migration runbook (hard-gated, sequenced after REV 2.10)"
+git commit -m "docs: REV 2.11 - prod migration runbook (hard-gated, sequenced after REV 2.10)"
 ```
 
 ---
@@ -981,8 +981,8 @@ git commit -m "docs: REV 2.11 — prod migration runbook (hard-gated, sequenced 
 ## Notes for the implementer
 
 - **Decimal everywhere** for money (`.mul`/`.add`/`.equals`), never JS `+`/`*` on Decimals. `?.toNumber() ?? 0` to serialize.
-- **unitCost is per-unit** (like unitPrice) — never multiply by `qty` when snapshotting; line cost derives as `unitCost × qty`.
-- **Cost never leaks to public** `GET /menus` — only owner-gated detail/upsert/cost-history responses carry it.
-- **Variant rebuild**: `costSourceMenuId` survives edits via the `variantSignature`-keyed override round-trip (Task 6 Step 4) — verify by editing a seeded nonStock variant menu and re-checking its costSource.
-- **`db push` only** — never `migrate reset`/`--force-reset`/`db:fresh` (real data in dev + prod).
+- **unitCost is per-unit** (like unitPrice) - never multiply by `qty` when snapshotting; line cost derives as `unitCost × qty`.
+- **Cost never leaks to public** `GET /menus` - only owner-gated detail/upsert/cost-history responses carry it.
+- **Variant rebuild**: `costSourceMenuId` survives edits via the `variantSignature`-keyed override round-trip (Task 6 Step 4) - verify by editing a seeded nonStock variant menu and re-checking its costSource.
+- **`db push` only** - never `migrate reset`/`--force-reset`/`db:fresh` (real data in dev + prod).
 - Smoke scripts run ONLY against `.env.test` (`pos_restaurant_test`).

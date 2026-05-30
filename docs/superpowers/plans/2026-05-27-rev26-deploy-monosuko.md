@@ -1,8 +1,8 @@
-# REV 2.6 Production Deploy Plan — monosuko.my.id
+# REV 2.6 Production Deploy Plan - monosuko.my.id
 
 **Target server**: Tencent Lighthouse `43.163.89.187` (Ubuntu 24.04.4)
 **Database**: MySQL `pos_restaurant` di server (loopback 127.0.0.1:3306)
-**Strategy**: 2-phase deploy — backfill data DULU sebelum drop kolom legacy. Zero data loss.
+**Strategy**: 2-phase deploy - backfill data DULU sebelum drop kolom legacy. Zero data loss.
 **Estimasi downtime**: ~5-10 menit (backend stop saat migrasi, frontend tetap serve static)
 
 ⚠️ **JANGAN execute autonomous.** User WAJIB review tiap step + run manual via SSH.
@@ -13,7 +13,7 @@
 
 - [ ] Code REV 2.6 sudah di-merge ke `feat/backend-express` (commit `9eff8ea`) ✅ DONE
 - [ ] tsc backend + frontend clean ✅ DONE
-- [ ] Local browser e2e PASS (11 scenario) — **pending user verify**
+- [ ] Local browser e2e PASS (11 scenario) - **pending user verify**
 - [ ] Frontend production build OK: `cd frontend && npm run build`
 - [ ] Backend production build OK: `cd backend && npm run build`
 - [ ] Backup plan tested di local: `npx tsx --env-file=.env scripts/migrate-banks-from-history.ts` + `migrate-settlement-counts.ts` jalan tanpa error
@@ -54,7 +54,7 @@ scp -i C:/Users/ezrak/Downloads/ezralaptop.pem ubuntu@43.163.89.187:/home/ubuntu
 sudo systemctl stop pos-backend
 sudo systemctl status pos-backend | head -5  # verify "inactive (dead)"
 
-# Frontend nginx TETAP jalan — user yang lagi buka site akan dapat HTML tapi API call gagal
+# Frontend nginx TETAP jalan - user yang lagi buka site akan dapat HTML tapi API call gagal
 # (acceptable untuk ~5 menit window migrasi)
 ```
 
@@ -69,12 +69,12 @@ git pull origin feat/backend-express
 git log --oneline -3
 # Verify commit terakhir: 9eff8ea Merge branch 'feat/payment-methods-redesign'
 
-# Install dependencies (jaga-jaga ada package baru — REV 2.6 tidak ada deps baru sih)
+# Install dependencies (jaga-jaga ada package baru - REV 2.6 tidak ada deps baru sih)
 cd backend && npm ci
 cd ../frontend && npm ci
 ```
 
-### Step A.4: Apply schema INTERMEDIATE (manual SQL — bukan `prisma db push`)
+### Step A.4: Apply schema INTERMEDIATE (manual SQL - bukan `prisma db push`)
 
 **Kenapa manual SQL?** Karena schema final di-code sudah drop 12 kolom + drop enum. Kalau langsung `prisma db push`, settlement history hilang sebelum sempat di-migrate.
 
@@ -158,7 +158,7 @@ DESCRIBE transaction_payments;
 -- verify method = varchar(20) NOT NULL (bukan enum)
 
 SELECT COUNT(*) FROM transaction_payments WHERE method NOT IN ('cash','edc','qris','gojek','grab','transfer');
--- expected 0 — semua method value tetap valid
+-- expected 0 - semua method value tetap valid
 ```
 
 ### Step A.5: Generate Prisma client di server
@@ -279,7 +279,7 @@ curl -s https://monosuko.my.id/api/banks \
   | head -c 500
 
 # Test 3: Kasir submit payment EDC with bank BCA (existing flow harus tetap jalan)
-# (skip kalau tidak ada shift aktif — biar production user yang test)
+# (skip kalau tidak ada shift aktif - biar production user yang test)
 ```
 
 **STOP point**: kalau backend tidak start atau endpoint REV 2.6 error, ROLLBACK (lihat bawah).
@@ -308,7 +308,7 @@ ls -la
 # Verify ada index.html, assets/, etc.
 ```
 
-Frontend nginx serve static langsung — tidak perlu restart. Test browser:
+Frontend nginx serve static langsung - tidak perlu restart. Test browser:
 ```
 https://monosuko.my.id → login → nav "Pembayaran" muncul → buka /payment-methods
 ```
@@ -352,7 +352,7 @@ ALTER TABLE settlements
   DROP COLUMN system_transfer;
 ```
 
-**Catatan**: kolom name di prod mungkin `actual_cash` (bukan `counted_cash`) — cek `DESCRIBE settlements` dulu, adapt sesuai actual.
+**Catatan**: kolom name di prod mungkin `actual_cash` (bukan `counted_cash`) - cek `DESCRIBE settlements` dulu, adapt sesuai actual.
 
 Verify:
 ```sql
@@ -365,8 +365,8 @@ DESCRIBE settlements;
 ```bash
 cd /home/ubuntu/pos-restaurant/backend
 npx prisma db push --accept-data-loss
-# Expected: "Your database is now in sync with your Prisma schema" — no changes
-# (kalau ada changes, berarti ada drift — investigate)
+# Expected: "Your database is now in sync with your Prisma schema" - no changes
+# (kalau ada changes, berarti ada drift - investigate)
 ```
 
 ### Step B.4: Restart backend (jaga-jaga client cache)

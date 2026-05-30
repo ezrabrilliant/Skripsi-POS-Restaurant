@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refactor payment system jadi owner-configurable — drop `PaymentMethod` enum, jadi master table `payment_methods` extensible. Tambah master `banks` reusable + junction `payment_method_banks`. Settlement schema full dynamic via child table `settlement_method_counts`. Owner punya page `/payment-methods` untuk full CRUD. Spec: [`docs/superpowers/specs/2026-05-27-payment-methods-banks-redesign-design.md`](../specs/2026-05-27-payment-methods-banks-redesign-design.md).
+**Goal:** Refactor payment system jadi owner-configurable - drop `PaymentMethod` enum, jadi master table `payment_methods` extensible. Tambah master `banks` reusable + junction `payment_method_banks`. Settlement schema full dynamic via child table `settlement_method_counts`. Owner punya page `/payment-methods` untuk full CRUD. Spec: [`docs/superpowers/specs/2026-05-27-payment-methods-banks-redesign-design.md`](../specs/2026-05-27-payment-methods-banks-redesign-design.md).
 
 **Architecture:** 4 model Prisma baru (`Bank`, `PaymentMethod`, `PaymentMethodBank`, `SettlementMethodCount`). `TransactionPayment.method` jadi VARCHAR (denormalize code, audit-safe). Settlement 12 kolom fixed dihapus, diganti child table dinamis. Backend 2 module baru (`payment-methods`, `banks`) + 3 module di-adapt (`transactions`, `settlements`, `dashboard`). Frontend 1 page baru + 2 modal + 2 service baru + 4 file existing di-adapt. Migration 3-step script: seed → backfill banks dari history → backfill settlement_method_counts dari Settlement existing.
 
@@ -17,7 +17,7 @@
 - Snake_case di DB via `@map`, camelCase di TS
 - Permission: middleware `requireRole(UserRole.owner)` di route layer
 - Frontend service: axios instance via `services/api.ts`, return `data` (unwrap envelope `{success, message, data}`)
-- Design primitives di `frontend/src/components/ui/` — wajib pakai existing Dialog, Combobox, Button, Badge, Card
+- Design primitives di `frontend/src/components/ui/` - wajib pakai existing Dialog, Combobox, Button, Badge, Card
 - Smoke test: file `backend/scripts/smoke-phase-XX.sh` pattern dengan `jq_field` helper
 - Frontend consistency mandate (CLAUDE.md): audit 2-3 referensi sebelum tulis komponen baru
 
@@ -30,47 +30,47 @@
 ### Backend (18 files)
 
 **Create:**
-- `backend/src/modules/banks/banks.schema.ts` — Zod validators
-- `backend/src/modules/banks/banks.service.ts` — CRUD + dedup case-insensitive
-- `backend/src/modules/banks/banks.controller.ts` — Express handlers
-- `backend/src/modules/banks/banks.routes.ts` — Router + owner-only guard
-- `backend/src/modules/payment-methods/payment-methods.schema.ts` — Zod validators
-- `backend/src/modules/payment-methods/payment-methods.service.ts` — CRUD + toggle + assign-bank + reorder
-- `backend/src/modules/payment-methods/payment-methods.controller.ts` — Express handlers
-- `backend/src/modules/payment-methods/payment-methods.routes.ts` — Router + permission mix
-- `backend/scripts/seed-payment-methods.ts` — One-time seed master data (6 methods + 4 banks + junctions)
-- `backend/scripts/migrate-banks-from-history.ts` — Backfill banks dari TransactionPayment lama
-- `backend/scripts/migrate-settlement-counts.ts` — Backfill settlement_method_counts dari Settlement lama
-- `backend/scripts/smoke-payment-methods-banks.sh` — Smoke test 30+ scenario
+- `backend/src/modules/banks/banks.schema.ts` - Zod validators
+- `backend/src/modules/banks/banks.service.ts` - CRUD + dedup case-insensitive
+- `backend/src/modules/banks/banks.controller.ts` - Express handlers
+- `backend/src/modules/banks/banks.routes.ts` - Router + owner-only guard
+- `backend/src/modules/payment-methods/payment-methods.schema.ts` - Zod validators
+- `backend/src/modules/payment-methods/payment-methods.service.ts` - CRUD + toggle + assign-bank + reorder
+- `backend/src/modules/payment-methods/payment-methods.controller.ts` - Express handlers
+- `backend/src/modules/payment-methods/payment-methods.routes.ts` - Router + permission mix
+- `backend/scripts/seed-payment-methods.ts` - One-time seed master data (6 methods + 4 banks + junctions)
+- `backend/scripts/migrate-banks-from-history.ts` - Backfill banks dari TransactionPayment lama
+- `backend/scripts/migrate-settlement-counts.ts` - Backfill settlement_method_counts dari Settlement lama
+- `backend/scripts/smoke-payment-methods-banks.sh` - Smoke test 30+ scenario
 
 **Modify:**
-- `backend/prisma/schema.prisma` — add 4 model + drop enum PaymentMethod (di Phase 9) + drop 12 kolom Settlement (di Phase 9)
-- `backend/prisma/seed.ts` — call seed-payment-methods script
-- `backend/src/app.ts` — register `banksRouter` + `paymentMethodsRouter`
-- `backend/src/modules/transactions/transactions.schema.ts` — adapt addPaymentSchema (drop hardcoded needsBank)
-- `backend/src/modules/transactions/transactions.service.ts` — adapt addPayment (runtime lookup)
-- `backend/src/modules/settlements/settlements.schema.ts` — counts as Record<string, number>
-- `backend/src/modules/settlements/settlements.service.ts` — preview/create/getById dinamis pakai child table
-- `backend/src/modules/dashboard/dashboard.service.ts` — byMethod dinamis
+- `backend/prisma/schema.prisma` - add 4 model + drop enum PaymentMethod (di Phase 9) + drop 12 kolom Settlement (di Phase 9)
+- `backend/prisma/seed.ts` - call seed-payment-methods script
+- `backend/src/app.ts` - register `banksRouter` + `paymentMethodsRouter`
+- `backend/src/modules/transactions/transactions.schema.ts` - adapt addPaymentSchema (drop hardcoded needsBank)
+- `backend/src/modules/transactions/transactions.service.ts` - adapt addPayment (runtime lookup)
+- `backend/src/modules/settlements/settlements.schema.ts` - counts as Record<string, number>
+- `backend/src/modules/settlements/settlements.service.ts` - preview/create/getById dinamis pakai child table
+- `backend/src/modules/dashboard/dashboard.service.ts` - byMethod dinamis
 
 ### Frontend (12 files)
 
 **Create:**
-- `frontend/src/pages/PaymentMethodsPage.tsx` — Owner page 2 tab
-- `frontend/src/components/PaymentMethodFormModal.tsx` — Create/Edit method modal
-- `frontend/src/components/BankFormModal.tsx` — Create/Edit bank modal
-- `frontend/src/services/paymentMethodService.ts` — API client
-- `frontend/src/services/bankService.ts` — API client
+- `frontend/src/pages/PaymentMethodsPage.tsx` - Owner page 2 tab
+- `frontend/src/components/PaymentMethodFormModal.tsx` - Create/Edit method modal
+- `frontend/src/components/BankFormModal.tsx` - Create/Edit bank modal
+- `frontend/src/services/paymentMethodService.ts` - API client
+- `frontend/src/services/bankService.ts` - API client
 
 **Modify:**
-- `frontend/src/types/index.ts` — drop `PAYMENT_METHODS` const, add new types
-- `frontend/src/components/PaymentModal.tsx` — dynamic method list, replace ComboboxFree → Combobox
-- `frontend/src/pages/SettlementPage.tsx` — dynamic system totals + blind count form
-- `frontend/src/pages/OwnerDashboard.tsx` — dynamic chart bars + colors
-- `frontend/src/App.tsx` — route `/payment-methods` owner-only
-- `frontend/src/components/Layout.tsx` — nav owner tambah "Pembayaran"
-- `frontend/src/services/settlementService.ts` — adapt response shape
-- `frontend/src/services/dashboardService.ts` — adapt response shape
+- `frontend/src/types/index.ts` - drop `PAYMENT_METHODS` const, add new types
+- `frontend/src/components/PaymentModal.tsx` - dynamic method list, replace ComboboxFree → Combobox
+- `frontend/src/pages/SettlementPage.tsx` - dynamic system totals + blind count form
+- `frontend/src/pages/OwnerDashboard.tsx` - dynamic chart bars + colors
+- `frontend/src/App.tsx` - route `/payment-methods` owner-only
+- `frontend/src/components/Layout.tsx` - nav owner tambah "Pembayaran"
+- `frontend/src/services/settlementService.ts` - adapt response shape
+- `frontend/src/services/dashboardService.ts` - adapt response shape
 
 ---
 
@@ -180,7 +180,7 @@ model PaymentMethodBank {
   @@map("payment_method_banks")
 }
 
-/// REV 2.6: Settlement child table — dinamis per method, ganti 12 kolom fixed di Settlement.
+/// REV 2.6: Settlement child table - dinamis per method, ganti 12 kolom fixed di Settlement.
 /// paymentMethodCode denormalize dari payment_methods.code (audit-safe kalau method dihapus/rename).
 model SettlementMethodCount {
   settlementId      Int        @map("settlement_id")
@@ -196,7 +196,7 @@ model SettlementMethodCount {
 }
 ```
 
-**Catatan**: `PaymentMethod` ↔ `SettlementMethodCount` pakai relasi via `code` (bukan `id`) supaya audit-safe — settlement_method_counts.payment_method_code adalah denormalize string, tidak hilang kalau method dihapus.
+**Catatan**: `PaymentMethod` ↔ `SettlementMethodCount` pakai relasi via `code` (bukan `id`) supaya audit-safe - settlement_method_counts.payment_method_code adalah denormalize string, tidak hilang kalau method dihapus.
 
 - [ ] **Step 2: Tambah back-relation `methodCounts` ke model `Settlement` existing**
 
@@ -206,7 +206,7 @@ Cari model `Settlement` di schema.prisma. Tambah field di akhir model (sebelum `
   methodCounts SettlementMethodCount[]
 ```
 
-Jangan drop kolom `countedXxx`/`systemXxx` dulu — itu Phase 9.
+Jangan drop kolom `countedXxx`/`systemXxx` dulu - itu Phase 9.
 
 - [ ] **Step 3: Run `prisma format` untuk auto-format**
 
@@ -301,23 +301,23 @@ npx prisma db execute --schema prisma/schema.prisma --stdin <<< "SELECT id, meth
 
 Expected: method tetap string `'cash'`, `'edc'`, dll.
 
-- [ ] **Step 5: `tsc --noEmit` — expect errors di transactions module**
+- [ ] **Step 5: `tsc --noEmit` - expect errors di transactions module**
 
 Run dari `backend/`:
 ```bash
 npx tsc --noEmit
 ```
 
-Expected: error di `transactions.schema.ts` / `transactions.service.ts` karena kode masih refer ke enum `PaymentMethod`. **Jangan fix dulu** — itu Phase 5. Untuk sekarang, kita biarkan dengan workaround:
+Expected: error di `transactions.schema.ts` / `transactions.service.ts` karena kode masih refer ke enum `PaymentMethod`. **Jangan fix dulu** - itu Phase 5. Untuk sekarang, kita biarkan dengan workaround:
 
 Buka `backend/src/modules/transactions/transactions.schema.ts`, find import:
 ```typescript
 import { PaymentMethod } from '@prisma/client';
 ```
 
-Biarkan import — enum masih ada di schema sebagai legacy. `PaymentMethod` enum tetap accessible dari `@prisma/client` sampai Phase 9.
+Biarkan import - enum masih ada di schema sebagai legacy. `PaymentMethod` enum tetap accessible dari `@prisma/client` sampai Phase 9.
 
-`tsc --noEmit` harusnya tetap lulus karena enum belum di-drop, dan `TransactionPayment.method` field secara TypeScript adalah string (Prisma generate `string` untuk VARCHAR), tapi enum value masih valid sebagai string. Code lama `data.method === PaymentMethod.edc` jadi `data.method === 'edc'` comparison string — masih kompatibel.
+`tsc --noEmit` harusnya tetap lulus karena enum belum di-drop, dan `TransactionPayment.method` field secara TypeScript adalah string (Prisma generate `string` untuk VARCHAR), tapi enum value masih valid sebagai string. Code lama `data.method === PaymentMethod.edc` jadi `data.method === 'edc'` comparison string - masih kompatibel.
 
 Kalau ada error TS lain di transactions module, **stop dan investigate** sebelum lanjut.
 
@@ -516,7 +516,7 @@ async function main() {
     // Lookup method (must exist from seed)
     const methodRecord = await prisma.paymentMethod.findUnique({ where: { code: method } });
     if (!methodRecord) {
-      console.warn(`  ⚠ method '${method}' tidak ada di payment_methods — skip`);
+      console.warn(`  ⚠ method '${method}' tidak ada di payment_methods - skip`);
       continue;
     }
 
@@ -582,7 +582,7 @@ Expected: `Missing banks in master: 0 []`.
 
 ```bash
 git add backend/scripts/migrate-banks-from-history.ts
-git commit -m "feat(payment): add migration script — backfill master banks dari TransactionPayment history
+git commit -m "feat(payment): add migration script - backfill master banks dari TransactionPayment history
 
 Scan distinct (method, bank) di transaction_payments. Auto-create bank
 + junction kalau belum ada di master. Idempotent."
@@ -679,7 +679,7 @@ Output script wajib menunjukkan `Expected child rows == Actual child rows`. Kala
 
 ```bash
 git add backend/scripts/migrate-settlement-counts.ts
-git commit -m "feat(payment): add migration script — backfill settlement_method_counts dari Settlement 12 kolom legacy
+git commit -m "feat(payment): add migration script - backfill settlement_method_counts dari Settlement 12 kolom legacy
 
 Tiap Settlement existing → 6 child rows (cash/edc/qris/gojek/grab/transfer).
 Idempotent via skipDuplicates. Sanity check: actual >= expected."
@@ -899,7 +899,7 @@ Expected: 0 errors.
 
 ```bash
 git add backend/src/modules/banks/banks.service.ts
-git commit -m "feat(banks): add service layer — CRUD + dedup 409 + soft delete via isActive"
+git commit -m "feat(banks): add service layer - CRUD + dedup 409 + soft delete via isActive"
 ```
 
 ### Task 3.3: Banks controller
@@ -1077,7 +1077,7 @@ curl -s "http://localhost:8000/api/banks?includeInactive=true" -H "Authorization
 
 ```bash
 git add backend/src/modules/banks/banks.routes.ts backend/src/app.ts
-git commit -m "feat(banks): add routes + register di app.ts — owner-only CRUD"
+git commit -m "feat(banks): add routes + register di app.ts - owner-only CRUD"
 ```
 
 ---
@@ -1183,7 +1183,7 @@ Run: `npx tsc --noEmit`. Expected 0 errors.
 
 ```bash
 git add backend/src/modules/payment-methods/payment-methods.schema.ts
-git commit -m "feat(payment-methods): add Zod schema — code immutable + color hex + icon enum"
+git commit -m "feat(payment-methods): add Zod schema - code immutable + color hex + icon enum"
 ```
 
 ### Task 4.2: Payment-methods service
@@ -1372,7 +1372,7 @@ export async function unassignBank(methodId: number, bankId: number): Promise<Pa
 
   // Block: kalau requiresBank=true dan ini bank terakhir
   if (method.requiresBank && method._count.banks <= 1) {
-    throw new AppError('Method ini wajib punya minimal 1 bank — tidak bisa unassign yang terakhir', 400);
+    throw new AppError('Method ini wajib punya minimal 1 bank - tidak bisa unassign yang terakhir', 400);
   }
 
   await prisma.paymentMethodBank.delete({
@@ -1409,7 +1409,7 @@ Run: `npx tsc --noEmit`. Expected 0 errors.
 
 ```bash
 git add backend/src/modules/payment-methods/payment-methods.service.ts
-git commit -m "feat(payment-methods): add service layer — CRUD + toggle + bank assign + reorder atomic"
+git commit -m "feat(payment-methods): add service layer - CRUD + toggle + bank assign + reorder atomic"
 ```
 
 ### Task 4.3: Payment-methods controller
@@ -1548,9 +1548,9 @@ git commit -m "feat(payment-methods): add Express controller layer"
 
 ```typescript
 // Routes modul payment-methods. REV 2.6 permission:
-//   - GET /payment-methods (active only) — semua role authenticated (untuk PaymentModal kasir)
-//   - GET /payment-methods?includeInactive=true — owner only (block di middleware lain)
-//   - POST/PATCH/DELETE — owner only
+//   - GET /payment-methods (active only) - semua role authenticated (untuk PaymentModal kasir)
+//   - GET /payment-methods?includeInactive=true - owner only (block di middleware lain)
+//   - POST/PATCH/DELETE - owner only
 
 import { Router } from 'express';
 import { UserRole } from '@prisma/client';
@@ -1586,7 +1586,7 @@ router.post('/reorder', handleReorder);
 export default router;
 ```
 
-**Catatan**: `includeInactive=true` di GET tidak strict owner-only di middleware — kalau perlu enforce, tambah check di controller. Untuk REV 2.6 minimal, accept bahwa semua role bisa lihat method inactive (low-risk, no leakage).
+**Catatan**: `includeInactive=true` di GET tidak strict owner-only di middleware - kalau perlu enforce, tambah check di controller. Untuk REV 2.6 minimal, accept bahwa semua role bisa lihat method inactive (low-risk, no leakage).
 
 - [ ] **Step 2: Register di `backend/src/app.ts`**
 
@@ -1625,7 +1625,7 @@ Kill server.
 
 ```bash
 git add backend/src/modules/payment-methods/payment-methods.routes.ts backend/src/app.ts
-git commit -m "feat(payment-methods): add routes + register di app.ts — permission mix GET-all/mutations-owner"
+git commit -m "feat(payment-methods): add routes + register di app.ts - permission mix GET-all/mutations-owner"
 ```
 
 ### Task 4.5: Smoke test comprehensive untuk payment-methods + banks
@@ -1637,7 +1637,7 @@ git commit -m "feat(payment-methods): add routes + register di app.ts — permis
 
 Pattern ikut `backend/scripts/smoke-phase-8.sh`. Skenario yang harus dicover:
 
-1. Login Owner + Jason (kasir) + Amel (waiter) — dapat token
+1. Login Owner + Jason (kasir) + Amel (waiter) - dapat token
 2. Owner POST bank "Permata" → 201
 3. Owner POST bank duplicate "permata" → 409
 4. Jason POST bank → 403
@@ -1661,11 +1661,11 @@ Pattern ikut `backend/scripts/smoke-phase-8.sh`. Skenario yang harus dicover:
 22. Jason POST /payment-methods → 403
 23. Jason POST /banks → 403
 
-Skeleton script (kompres untuk brevity — engineer wajib expand semua 23 scenario):
+Skeleton script (kompres untuk brevity - engineer wajib expand semua 23 scenario):
 
 ```bash
 #!/usr/bin/env bash
-# Smoke test REV 2.6 — payment-methods + banks
+# Smoke test REV 2.6 - payment-methods + banks
 set -u
 BASE=http://localhost:8000/api
 
@@ -1750,7 +1750,7 @@ Re-seed jalan otomatis. Verify 6 methods + 4 banks + 8 junctions.
 
 ```bash
 git add backend/scripts/smoke-payment-methods-banks.sh
-git commit -m "test(payment): add smoke test 23 scenarios — banks + payment-methods + permission + validation"
+git commit -m "test(payment): add smoke test 23 scenarios - banks + payment-methods + permission + validation"
 ```
 
 ---
@@ -1791,7 +1791,7 @@ Drop import `PaymentMethod` dari `@prisma/client` di file ini kalau tidak dipaka
 
 - [ ] **Step 3: tsc check**
 
-Run: `npx tsc --noEmit`. Expected 0 errors. Kalau ada error di service yang refer `PaymentMethod.edc` etc., **biarkan dulu** — akan di-fix di Task 5.2.
+Run: `npx tsc --noEmit`. Expected 0 errors. Kalau ada error di service yang refer `PaymentMethod.edc` etc., **biarkan dulu** - akan di-fix di Task 5.2.
 
 - [ ] **Step 4: Commit**
 
@@ -1813,7 +1813,7 @@ Cari function yang handle payment submission. Identifikasi line yang validasi ba
 
 - [ ] **Step 2: Replace dengan runtime lookup**
 
-Pattern baru — di awal addPayment:
+Pattern baru - di awal addPayment:
 
 ```typescript
 // REV 2.6: lookup payment_methods + verify bank ∈ junction
@@ -1865,7 +1865,7 @@ Run: `npx tsc --noEmit`. Expected 0 errors. Kalau ada error, periksa file lain y
 grep -rn "PaymentMethod\." backend/src/
 ```
 
-Ganti tiap occurrence dengan literal string (kecuali file `payment-methods/*` yang refer model `PaymentMethod` Prisma, itu beda — model class vs enum value).
+Ganti tiap occurrence dengan literal string (kecuali file `payment-methods/*` yang refer model `PaymentMethod` Prisma, itu beda - model class vs enum value).
 
 - [ ] **Step 5: Smoke test addPayment scenario**
 
@@ -2169,7 +2169,7 @@ Run: `npx tsc --noEmit`. Expected 0 errors. Kalau ada error di controller (meman
 
 - [ ] **Step 7: Smoke test settlement flow**
 
-Run `bash backend/scripts/smoke-phase-8.sh 2>&1 | tee /tmp/smoke-phase-8.log`. Expected: skenario existing tetap pass (atau adjusted untuk response shape baru — `data.settlement.methodCounts` array, bukan 12 field).
+Run `bash backend/scripts/smoke-phase-8.sh 2>&1 | tee /tmp/smoke-phase-8.log`. Expected: skenario existing tetap pass (atau adjusted untuk response shape baru - `data.settlement.methodCounts` array, bukan 12 field).
 
 - [ ] **Step 8: Commit**
 
@@ -2256,7 +2256,7 @@ Expected: response punya `byMethod: MethodTotalEntry[]` (array), bukan object 6 
 
 ```bash
 git add backend/src/modules/dashboard/dashboard.service.ts
-git commit -m "refactor(dashboard): byMethod dinamis — groupBy + lookup payment_methods metadata
+git commit -m "refactor(dashboard): byMethod dinamis - groupBy + lookup payment_methods metadata
 
 Response shape: MethodTotalEntry[] (array), bukan MethodTotals (object 6 fixed key).
 Mendukung method custom (mis. ShopeePay) muncul di chart owner."
@@ -2319,7 +2319,7 @@ git commit -m "test: update legacy smoke scripts untuk REV 2.6 response shape ba
 
 ---
 
-## Phase 9: Schema cleanup — drop enum + 12 columns
+## Phase 9: Schema cleanup - drop enum + 12 columns
 
 ### Task 9.1: Sanity check sebelum drop
 
@@ -2388,7 +2388,7 @@ Hapus 12 baris:
   systemTransfer  Int @default(0) @map("system_transfer")
 ```
 
-(Field names mungkin sedikit berbeda — cari yang relevan di schema actual.)
+(Field names mungkin sedikit berbeda - cari yang relevan di schema actual.)
 
 - [ ] **Step 3: Apply via db push**
 
@@ -2529,7 +2529,7 @@ Ganti `byMethod: MethodTotals` jadi `byMethod: MethodTotalEntry[]`.
 cd frontend && npx tsc --noEmit
 ```
 
-Expected: banyak error — yang reference PAYMENT_METHODS, MethodTotals, dll. **Catat semua file yang error**, akan di-fix di task berikutnya.
+Expected: banyak error - yang reference PAYMENT_METHODS, MethodTotals, dll. **Catat semua file yang error**, akan di-fix di task berikutnya.
 
 - [ ] **Step 6: Commit**
 
@@ -2621,13 +2621,13 @@ export const paymentMethodService = {
 
 - [ ] **Step 2: tsc check**
 
-Run: `cd frontend && npx tsc --noEmit`. Errors di file ini = 0 (errors lain dari Task 10.1 masih ada — itu OK).
+Run: `cd frontend && npx tsc --noEmit`. Errors di file ini = 0 (errors lain dari Task 10.1 masih ada - itu OK).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add frontend/src/services/paymentMethodService.ts
-git commit -m "feat(payment): add paymentMethodService.ts — full CRUD + toggle + assign + reorder"
+git commit -m "feat(payment): add paymentMethodService.ts - full CRUD + toggle + assign + reorder"
 ```
 
 ### Task 10.3: Create bankService
@@ -2679,7 +2679,7 @@ export const bankService = {
 ```bash
 cd frontend && npx tsc --noEmit
 git add frontend/src/services/bankService.ts
-git commit -m "feat(banks): add bankService.ts — list + CRUD + soft delete via isActive"
+git commit -m "feat(banks): add bankService.ts - list + CRUD + soft delete via isActive"
 ```
 
 ### Task 10.4: Adapt settlementService + dashboardService response shape
@@ -2727,9 +2727,9 @@ git commit -m "refactor(services): adapt settlement + dashboard ke shape array d
 - [ ] **Step 1: Audit 3 referensi**
 
 Buka 3 file untuk pattern audit:
-- `frontend/src/pages/MenuPage.tsx` — CRUD owner-only dengan tab + modal create/edit
-- `frontend/src/pages/BillsPage.tsx` — list dengan filter + create modal
-- `frontend/src/pages/StockPage.tsx` (RawMaterialsTab) — CRUD master dengan dialog primitive
+- `frontend/src/pages/MenuPage.tsx` - CRUD owner-only dengan tab + modal create/edit
+- `frontend/src/pages/BillsPage.tsx` - list dengan filter + create modal
+- `frontend/src/pages/StockPage.tsx` (RawMaterialsTab) - CRUD master dengan dialog primitive
 
 Catat:
 - Pattern fetch via React Query (`useQuery`, `useMutation`)
@@ -2747,7 +2747,7 @@ Buka cepat:
 
 Note: API + prop shape, untuk dipakai konsisten.
 
-(Tidak ada commit untuk task ini — audit phase.)
+(Tidak ada commit untuk task ini - audit phase.)
 
 ### Task 11.2: PaymentMethodsPage scaffolding (tab switching)
 
@@ -2827,7 +2827,7 @@ export function PaymentMethodsPage() {
 }
 ```
 
-- [ ] **Step 2: tsc check (akan ada error — tab components belum ada)**
+- [ ] **Step 2: tsc check (akan ada error - tab components belum ada)**
 
 ```bash
 cd frontend && npx tsc --noEmit
@@ -2935,7 +2935,7 @@ export function PaymentMethodsTab({ methods, banks, loading, refetch }: Props) {
 
 - [ ] **Step 2: Buat BanksTab**
 
-Pattern sama, lebih simpel — list row per bank:
+Pattern sama, lebih simpel - list row per bank:
 
 ```typescript
 import { useState } from 'react';
@@ -2992,15 +2992,15 @@ export function BanksTab({ banks, loading, refetch }: Props) {
 }
 ```
 
-- [ ] **Step 3: tsc check (akan ada error — modal belum ada)**
+- [ ] **Step 3: tsc check (akan ada error - modal belum ada)**
 
-Run: `cd frontend && npx tsc --noEmit`. Error import modal komponen — wajar.
+Run: `cd frontend && npx tsc --noEmit`. Error import modal komponen - wajar.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add frontend/src/components/payment-methods/
-git commit -m "feat(payment-methods): add PaymentMethodsTab + BanksTab — list + toggle active + edit trigger"
+git commit -m "feat(payment-methods): add PaymentMethodsTab + BanksTab - list + toggle active + edit trigger"
 ```
 
 ### Task 11.4: PaymentMethodFormModal
@@ -3021,7 +3021,7 @@ Form fields:
 
 Validasi inline: kalau `requiresBank=true` dan `bankIds.length === 0` → disable submit + hint.
 
-Pakai Dialog primitive existing. React Hook Form atau plain useState (pilih sesuai pattern existing — cek MenuPage modal).
+Pakai Dialog primitive existing. React Hook Form atau plain useState (pilih sesuai pattern existing - cek MenuPage modal).
 
 Engineer wajib write full implementation berdasarkan reference. Skeleton:
 
@@ -3221,7 +3221,7 @@ Run: `cd frontend && npx tsc --noEmit`. Errors yang related ke modal ini = 0.
 
 ```bash
 git add frontend/src/components/PaymentMethodFormModal.tsx
-git commit -m "feat(payment-methods): add PaymentMethodFormModal — create/edit dengan color+icon picker + bank multi-select"
+git commit -m "feat(payment-methods): add PaymentMethodFormModal - create/edit dengan color+icon picker + bank multi-select"
 ```
 
 ### Task 11.5: BankFormModal
@@ -3314,7 +3314,7 @@ export function BankFormModal({ bank, onClose, onSuccess }: Props) {
 ```bash
 cd frontend && npx tsc --noEmit
 git add frontend/src/components/BankFormModal.tsx
-git commit -m "feat(banks): add BankFormModal — create/edit + soft delete via isActive toggle"
+git commit -m "feat(banks): add BankFormModal - create/edit + soft delete via isActive toggle"
 ```
 
 ### Task 11.6: Route + nav link
@@ -3554,7 +3554,7 @@ Cari form dengan 6 input hardcoded (countedCash, countedEdc, dll). Ganti:
 const [counts, setCounts] = useState<Record<string, number>>({});
 const [countsInitialized, setCountsInitialized] = useState(false);
 
-// Initialize counts dari methods yang ada — sekali saat preview pertama datang
+// Initialize counts dari methods yang ada - sekali saat preview pertama datang
 useEffect(() => {
   if (preview && !countsInitialized) {
     const initial: Record<string, number> = {};
@@ -3783,7 +3783,7 @@ head -100 CLAUDE.md
 
 ```bash
 git add CLAUDE.md
-git commit -m "docs(claude-md): update status table REV 2.6 — payment methods + banks DONE"
+git commit -m "docs(claude-md): update status table REV 2.6 - payment methods + banks DONE"
 ```
 
 ### Task 15.4: Final push + branch finishing

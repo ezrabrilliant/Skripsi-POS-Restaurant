@@ -1,4 +1,4 @@
-# Design Spec — Stock Ledger Integrity + Stok Opname UX (REV 2.8)
+# Design Spec - Stock Ledger Integrity + Stok Opname UX (REV 2.8)
 
 **Tanggal:** 2026-05-29
 **Status:** Approved (brainstorming → plan disetujui user)
@@ -23,10 +23,10 @@ Tabel audit `portion_movements` dan `raw_material_movements` menautkan dokumen s
 
 Konsekuensi:
 
-1. **Tidak bisa di-JOIN dengan andal.** Untuk menelusuri movement → transaksi/pembelian harus regex `note`, yang sudah punya ≥3 varian kalimat berbeda (order, void, edit, delete) — rapuh terhadap perubahan wording.
+1. **Tidak bisa di-JOIN dengan andal.** Untuk menelusuri movement → transaksi/pembelian harus regex `note`, yang sudah punya ≥3 varian kalimat berbeda (order, void, edit, delete) - rapuh terhadap perubahan wording.
 2. **Tidak ada integritas referensial.** `note` bisa menunjuk dokumen yang tak ada; DB tidak menjaga konsistensi.
 3. **ERD & Data Dictionary skripsi kurang benar.** Relasi yang secara logis ada (movement "disebabkan oleh" sebuah transaksi/pembelian/item) tidak terwakili sebagai relasi.
-4. **Hanya `delta` yang disimpan.** Level stok pada satu titik waktu harus direkonstruksi dengan menjumlahkan seluruh histori — log tidak *self-contained*.
+4. **Hanya `delta` yang disimpan.** Level stok pada satu titik waktu harus direkonstruksi dengan menjumlahkan seluruh histori - log tidak *self-contained*.
 
 ### 1.2 Tampilan stok opname kurang
 
@@ -43,7 +43,7 @@ Halaman Stok (`StockPage.tsx`, tab `PortionStockTab` + `RawMaterialsTab`):
 
 | # | Keputusan | Alasan |
 |---|---|---|
-| D1 | **Ledger penuh** — tambah FK sumber + FK item-level + `qty_before`/`qty_after` di kedua tabel movement. | User memilih opsi paling benar; memperbaiki cacat normalisasi sekaligus memperkaya audit & drawer riwayat. |
+| D1 | **Ledger penuh** - tambah FK sumber + FK item-level + `qty_before`/`qty_after` di kedua tabel movement. | User memilih opsi paling benar; memperbaiki cacat normalisasi sekaligus memperkaya audit & drawer riwayat. |
 | D2 | Migrasi **aditif** (kolom nullable + FK + index), zero data-loss. | Aman untuk DB dev & prod; FK baru tak memutus apa pun. |
 | D3 | FK baru `onDelete: SetNull`. | `deleteTransactionItem` (REV 2.4) menghapus fisik baris item; Cascade akan ikut menghapus audit (salah). SetNull menjaga histori utuh (delta/before/after tetap), ref jadi null. |
 | D4 | `qty_before`/`qty_after` **nullable**; baris baru selalu diisi kode, baris lama di-backfill best-effort. | Jujur soal data historis yang mungkin tak bisa direkonstruksi sempurna; tetap *self-contained* untuk seluruh data go-forward. |
@@ -137,7 +137,7 @@ Script idempotent `backend/scripts/backfill-movement-ledger.ts`:
 
 ## 8. Edge Cases
 
-- `lastStockedAt = null` → "belum pernah"; opname-status "belum"; sort lama→baru naik ke atas (intentional — item terabaikan paling perlu perhatian).
+- `lastStockedAt = null` → "belum pernah"; opname-status "belum"; sort lama→baru naik ke atas (intentional - item terabaikan paling perlu perhatian).
 - Backfill mismatch → warning, tidak menggagalkan migrasi.
 - delete item → order-movement lama `transactionItemId` null (SetNull), histori utuh.
 - Timezone "hari ini" → device kasir WIB = `AppSetting.timezone`; dokumentasikan asumsi single-TZ; jangan banding substring UTC.

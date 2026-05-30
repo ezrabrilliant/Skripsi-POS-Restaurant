@@ -1,5 +1,5 @@
 // REV 2.10: pure helpers for menu variants + order-time stock resolution.
-// No Prisma/DB dependency — operates on plain in-memory objects so it is unit-testable.
+// No Prisma/DB dependency - operates on plain in-memory objects so it is unit-testable.
 // The transaction service builds a MenuNode graph from the DB and calls resolveStockTargets.
 
 export function buildVariantLabel(parts: { groupOrder: number; label: string }[]): string {

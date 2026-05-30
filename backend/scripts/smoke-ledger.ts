@@ -1,4 +1,4 @@
-// REV 2.8 integration smoke — stock movement LEDGER (FK sumber + qty_before/after).
+// REV 2.8 integration smoke - stock movement LEDGER (FK sumber + qty_before/after).
 // WAJIB DB *_test. Jalankan: npx tsx --env-file=.env.test scripts/smoke-ledger.ts
 //
 // REV 2.11 (2026-05-30): test purchase (raw material movement) DIHAPUS setelah model

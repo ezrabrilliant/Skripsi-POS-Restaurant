@@ -14,7 +14,7 @@ Sistem REV 2.5 punya 6 payment method hardcoded di Prisma enum (`cash`, `edc`, `
 **Masalah:**
 - Owner tidak bisa enable/disable payment method (mis. matiin GoFood saat tidak pakai)
 - Bank list tidak bisa diubah owner (terpaku 4 default)
-- Tidak ada konsep "bank per method" — kasir bisa input "BCA" untuk EDC padahal owner mau "BCA hanya untuk Transfer + QRIS"
+- Tidak ada konsep "bank per method" - kasir bisa input "BCA" untuk EDC padahal owner mau "BCA hanya untuk Transfer + QRIS"
 - Method baru (mis. ShopeePay) tidak bisa di-add tanpa migrasi schema enum
 - Free-form bank string → risiko typo `BCA` vs `Bca` → aggregate bank breakdown salah
 
@@ -22,7 +22,7 @@ Sistem REV 2.5 punya 6 payment method hardcoded di Prisma enum (`cash`, `edc`, `
 - Owner punya page `/payment-methods` untuk full config (CRUD method + bank + assignment)
 - Drop enum `PaymentMethod` jadi master table extensible
 - Bank jadi master table reusable lintas method
-- Settlement schema full dynamic (drop 12 kolom fixed) — method custom muncul konsisten di form Tutup Kasir
+- Settlement schema full dynamic (drop 12 kolom fixed) - method custom muncul konsisten di form Tutup Kasir
 - Backward compat: data prod monosuko.my.id zero loss via migration script
 
 ---
@@ -34,15 +34,15 @@ Sistem REV 2.5 punya 6 payment method hardcoded di Prisma enum (`cash`, `edc`, `
 | 1 | Toggle off method | `is_active=false` cuma hide dari PaymentModal. Historical + settlement tetap utuh. |
 | 2 | Data model bank | Master `banks` table + junction `payment_method_banks` (many-to-many). |
 | 3 | `requires_bank` per method | Owner-toggleable per method. Validasi: kalau true tapi 0 bank → block save. |
-| 4 | Custom bank input saat checkout | TOLAK — kasir wajib pilih dari list owner. PaymentModal pakai `<Combobox>` (bukan `ComboboxFree`). |
-| 5 | Method extensibility | YA — owner bisa add method baru (mis. "ShopeePay"). Drop enum, jadi VARCHAR. |
+| 4 | Custom bank input saat checkout | TOLAK - kasir wajib pilih dari list owner. PaymentModal pakai `<Combobox>` (bukan `ComboboxFree`). |
+| 5 | Method extensibility | YA - owner bisa add method baru (mis. "ShopeePay"). Drop enum, jadi VARCHAR. |
 | 6 | Filter per orderType | 2 toggle per method: `allow_dine_in` + `allow_takeaway`. Owner-configurable. |
 | 7 | Lokasi UI Settings | Page top-level `/payment-methods` (konsisten dengan BillsPage/MenuPage). |
 | 8 | Color + icon picker | Owner pilih saat create/edit. Preset 8 warna + 6 icon lucide. DB simpan `color_hex` + `icon_name`. |
 | 9 | Delete behavior | Soft delete only (toggle `is_active`). Tidak ada hard delete. |
-| 10 | Migrasi data prod | Proper migrate — extract distinct (method, bank) dari TransactionPayment lama → seed banks + junction. No data loss. |
-| 11 | Toggle off saat shift jalan | Permissive — hilang dari PaymentModal next refresh. In-progress submit tetap allowed (server tidak strict). |
-| 12 | Settlement schema | FULL DYNAMIC — drop 12 kolom fixed, add child table `settlement_method_counts`. Form Tutup Kasir dinamis sesuai active method. |
+| 10 | Migrasi data prod | Proper migrate - extract distinct (method, bank) dari TransactionPayment lama → seed banks + junction. No data loss. |
+| 11 | Toggle off saat shift jalan | Permissive - hilang dari PaymentModal next refresh. In-progress submit tetap allowed (server tidak strict). |
+| 12 | Settlement schema | FULL DYNAMIC - drop 12 kolom fixed, add child table `settlement_method_counts`. Form Tutup Kasir dinamis sesuai active method. |
 
 ---
 
@@ -115,7 +115,7 @@ model TransactionPayment {
 }
 ```
 
-**Settlement** — drop 12 kolom `countedXxx` + `systemXxx` (cash, edc, qris, gojek, grab, transfer). Pakai child table `settlement_method_counts` semua.
+**Settlement** - drop 12 kolom `countedXxx` + `systemXxx` (cash, edc, qris, gojek, grab, transfer). Pakai child table `settlement_method_counts` semua.
 
 **Drop enum `PaymentMethod`** dari Prisma. Enum lain (`PaymentTender`, `OrderType`, `BillCategory`, `ShiftType`, dll) TETAP.
 
@@ -180,9 +180,9 @@ model TransactionPayment {
 ### ⚠️ Konvensi konsistensi (MANDATE)
 
 Sebelum tulis komponen baru, **WAJIB** audit 3 referensi:
-- [MenuPage.tsx](../../../frontend/src/pages/MenuPage.tsx) — CRUD owner-only dengan modal create/edit + tab
-- [BillsPage.tsx](../../../frontend/src/pages/BillsPage.tsx) — list+filter+create owner
-- [RawMaterialsTab](../../../frontend/src/pages/StockPage.tsx) — CRUD master dengan dialog primitive
+- [MenuPage.tsx](../../../frontend/src/pages/MenuPage.tsx) - CRUD owner-only dengan modal create/edit + tab
+- [BillsPage.tsx](../../../frontend/src/pages/BillsPage.tsx) - list+filter+create owner
+- [RawMaterialsTab](../../../frontend/src/pages/StockPage.tsx) - CRUD master dengan dialog primitive
 
 Match:
 - Dialog primitive: pakai `<Dialog>` existing dari `frontend/src/components/ui/dialog.tsx`
@@ -239,11 +239,11 @@ React Query keys: `['paymentMethods']`, `['banks']`. Invalidate on mutation.
 ### Perubahan ke komponen existing
 
 **PaymentModal.tsx**:
-- Drop const `PAYMENT_METHODS` di [types/index.ts:100-109](../../../frontend/src/types/index.ts#L100-L109) — sumber data dari `usePaymentMethodsQuery()` (active only)
+- Drop const `PAYMENT_METHODS` di [types/index.ts:100-109](../../../frontend/src/types/index.ts#L100-L109) - sumber data dari `usePaymentMethodsQuery()` (active only)
 - MethodGrid filter: `m.isActive && (orderType === 'dineIn' ? m.allowDineIn : m.allowTakeaway)`, sort by `displayOrder`
 - Icon resolve dinamis: `LucideIcons[m.iconName] ?? CreditCard`
 - Color: pakai `m.colorHex` untuk selected state
-- **Bank picker: replace `<ComboboxFree>` jadi `<Combobox>`** — options dari `selectedMethod.banks.filter(b => b.isActive)`
+- **Bank picker: replace `<ComboboxFree>` jadi `<Combobox>`** - options dari `selectedMethod.banks.filter(b => b.isActive)`
 - Drop `loadRecentBanks` + localStorage `pos.recent-banks` (tidak relevan)
 - Show bank picker hanya kalau `selectedMethod.requiresBank === true`
 
@@ -260,17 +260,17 @@ React Query keys: `['paymentMethods']`, `['banks']`. Invalidate on mutation.
 
 ## Migration Script (urutan eksekusi prod)
 
-### Step 1 — Schema baru (Prisma migrate pertama)
+### Step 1 - Schema baru (Prisma migrate pertama)
 ```
 1. CREATE TABLE banks
 2. CREATE TABLE payment_methods
 3. CREATE TABLE payment_method_banks (composite PK)
 4. CREATE TABLE settlement_method_counts (composite PK)
 5. ALTER TABLE transaction_payments MODIFY method VARCHAR(20)  -- drop enum
-6. (TIDAK DROP 12 kolom Settlement dulu — drop di Step 5 setelah data migrate aman)
+6. (TIDAK DROP 12 kolom Settlement dulu - drop di Step 5 setelah data migrate aman)
 ```
 
-### Step 2 — Seed master data
+### Step 2 - Seed master data
 ```typescript
 // scripts/seed-payment-methods.ts
 const methods = [
@@ -285,15 +285,15 @@ const banks = ['BCA', 'Mandiri', 'BNI', 'BRI'];
 // Junction: EDC + Transfer → semua 4 bank
 ```
 
-### Step 3 — Backfill bank dari TransactionPayment lama
+### Step 3 - Backfill bank dari TransactionPayment lama
 ```typescript
 // scripts/migrate-banks-from-history.ts
 // 1. SELECT DISTINCT method, bank FROM transaction_payments WHERE bank IS NOT NULL
 // 2. Upsert bank by name (case-insensitive via collation)
-// 3. Upsert junction (method, bank) — idempotent
+// 3. Upsert junction (method, bank) - idempotent
 ```
 
-### Step 4 — Backfill `settlement_method_counts` dari Settlement lama
+### Step 4 - Backfill `settlement_method_counts` dari Settlement lama
 ```typescript
 // scripts/migrate-settlement-counts.ts
 // Untuk setiap Settlement existing, INSERT 6 child rows (cash/edc/qris/gojek/grab/transfer)
@@ -301,7 +301,7 @@ const banks = ['BCA', 'Mandiri', 'BNI', 'BRI'];
 // Pakai createMany skipDuplicates untuk idempotent
 ```
 
-### Step 5 — Verify + drop kolom lama (Prisma migrate kedua)
+### Step 5 - Verify + drop kolom lama (Prisma migrate kedua)
 ```
 1. Sanity check: COUNT(settlement_method_counts) === COUNT(settlements) * 6
 2. Sanity check: distinct (method, bank) di TransactionPayment ⊆ payment_method_banks
@@ -336,7 +336,7 @@ Backup dump SQL sebelum Step 1. Kalau ada masalah → restore + investigate. Tia
 ## Edge Cases
 
 1. **Display order swap**: tombol [▲][▼] per row → PATCH 2 row sekaligus (swap displayOrder) atomic via Prisma `$transaction`.
-2. **Empty state**: kalau semua method off → PaymentModal show "Belum ada metode pembayaran aktif. Hubungi owner." (kasir tidak bisa checkout — by design).
+2. **Empty state**: kalau semua method off → PaymentModal show "Belum ada metode pembayaran aktif. Hubungi owner." (kasir tidak bisa checkout - by design).
 3. **Method label diubah**: SettlementPage + dashboard fetch label live dari `payment_methods`. History label = label terbaru (accepted consequence, tidak freeze).
 4. **Color contrast**: kalau owner pilih warna gelap, frontend auto-handle text contrast (`text-white` vs `text-black` based on hex brightness via helper util).
 5. **Migrasi gagal di tengah**: tiap step idempotent. Re-run aman.
@@ -380,17 +380,17 @@ Backup dump SQL sebelum Step 1. Kalau ada masalah → restore + investigate. Tia
 ## File yang akan dibuat/diubah (preview, detail di plan)
 
 ### Backend
-- ✏️ `backend/prisma/schema.prisma` — drop enum PaymentMethod, add 4 model baru, ubah TransactionPayment.method + Settlement
+- ✏️ `backend/prisma/schema.prisma` - drop enum PaymentMethod, add 4 model baru, ubah TransactionPayment.method + Settlement
 - ➕ `backend/src/modules/payment-methods/{schema,service,controller,routes}.ts`
 - ➕ `backend/src/modules/banks/{schema,service,controller,routes}.ts`
 - ✏️ `backend/src/modules/transactions/transactions.{schema,service}.ts`
 - ✏️ `backend/src/modules/settlements/settlements.{schema,service}.ts`
 - ✏️ `backend/src/modules/dashboard/dashboard.service.ts`
-- ✏️ `backend/src/app.ts` — register routes baru
+- ✏️ `backend/src/app.ts` - register routes baru
 - ➕ `backend/scripts/seed-payment-methods.ts`
 - ➕ `backend/scripts/migrate-banks-from-history.ts`
 - ➕ `backend/scripts/migrate-settlement-counts.ts`
-- ✏️ `backend/prisma/seed.ts` — call seed-payment-methods
+- ✏️ `backend/prisma/seed.ts` - call seed-payment-methods
 
 ### Frontend
 - ➕ `frontend/src/pages/PaymentMethodsPage.tsx`
@@ -398,14 +398,14 @@ Backup dump SQL sebelum Step 1. Kalau ada masalah → restore + investigate. Tia
 - ➕ `frontend/src/components/BankFormModal.tsx`
 - ➕ `frontend/src/services/paymentMethodService.ts`
 - ➕ `frontend/src/services/bankService.ts`
-- ✏️ `frontend/src/types/index.ts` — drop `PAYMENT_METHODS` const, add types `PaymentMethodView`, `BankView`, `SettlementSystemEntry`, `MethodTotalEntry`
+- ✏️ `frontend/src/types/index.ts` - drop `PAYMENT_METHODS` const, add types `PaymentMethodView`, `BankView`, `SettlementSystemEntry`, `MethodTotalEntry`
 - ✏️ `frontend/src/components/PaymentModal.tsx`
 - ✏️ `frontend/src/pages/SettlementPage.tsx`
 - ✏️ `frontend/src/pages/OwnerDashboard.tsx`
-- ✏️ `frontend/src/App.tsx` — route `/payment-methods` owner-only
-- ✏️ `frontend/src/components/Layout.tsx` — nav owner tambah link "Pembayaran"
-- ✏️ `frontend/src/services/settlementService.ts` — adapt response shape
-- ✏️ `frontend/src/services/dashboardService.ts` — adapt response shape
+- ✏️ `frontend/src/App.tsx` - route `/payment-methods` owner-only
+- ✏️ `frontend/src/components/Layout.tsx` - nav owner tambah link "Pembayaran"
+- ✏️ `frontend/src/services/settlementService.ts` - adapt response shape
+- ✏️ `frontend/src/services/dashboardService.ts` - adapt response shape
 
 ---
 

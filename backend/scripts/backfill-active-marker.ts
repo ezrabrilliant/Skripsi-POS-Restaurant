@@ -15,7 +15,7 @@ async function main() {
   const open = await prisma.shift.findMany({ where: { closedAt: null } });
   if (open.length > 1) {
     throw new Error(
-      `Ada ${open.length} shift open (ids: ${open.map((s) => s.id).join(', ')}) — resolve manual dulu sebelum backfill.`,
+      `Ada ${open.length} shift open (ids: ${open.map((s) => s.id).join(', ')}) - resolve manual dulu sebelum backfill.`,
     );
   }
   if (open.length === 1) {
@@ -23,7 +23,7 @@ async function main() {
     await prisma.shift.update({ where: { id: s.id }, data: { activeMarker: 1 } });
     console.log(`[backfill] ✓ active_marker=1 di shift #${s.id} (${s.type}).`);
   } else {
-    console.log('[backfill] ✓ Tidak ada shift open — tidak ada yang di-backfill.');
+    console.log('[backfill] ✓ Tidak ada shift open - tidak ada yang di-backfill.');
   }
 
   await prisma.$disconnect();

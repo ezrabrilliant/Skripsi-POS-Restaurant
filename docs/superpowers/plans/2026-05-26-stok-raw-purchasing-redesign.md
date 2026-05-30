@@ -17,7 +17,7 @@
 - Snake_case di DB via `@map`, camelCase di TS
 - Smoke test pattern: `backend/scripts/smoke-phase-X.sh` dengan curl + jq + `assert_status_code` helper
 - Frontend service: axios instance via `services/api.ts`, return `data` (unwrap envelope `{success, message, data}`)
-- Design primitives di `frontend/src/design-system/primitives/` — wajib pakai existing Dialog, FormField, Select, dll
+- Design primitives di `frontend/src/design-system/primitives/` - wajib pakai existing Dialog, FormField, Select, dll
 - Permission: middleware `requireRole('owner')` di route layer
 
 **Migration strategy:** Dev mode pakai `prisma db push --accept-data-loss` lalu re-seed. Tidak pakai folder migrations (per CLAUDE.md baseline). Data raw_materials existing akan re-seed dengan FK units.
@@ -29,38 +29,38 @@
 ### Backend (10 files)
 
 **Create:**
-- `backend/src/modules/units/units.schema.ts` — Zod validators
-- `backend/src/modules/units/units.service.ts` — CRUD logic + pre-seed check
-- `backend/src/modules/units/units.controller.ts` — handler
-- `backend/src/modules/units/units.routes.ts` — router + permission
-- `backend/scripts/smoke-units-rawmat-purchases.sh` — smoke test 1 file untuk 3 phase
+- `backend/src/modules/units/units.schema.ts` - Zod validators
+- `backend/src/modules/units/units.service.ts` - CRUD logic + pre-seed check
+- `backend/src/modules/units/units.controller.ts` - handler
+- `backend/src/modules/units/units.routes.ts` - router + permission
+- `backend/scripts/smoke-units-rawmat-purchases.sh` - smoke test 1 file untuk 3 phase
 
 **Modify:**
-- `backend/prisma/schema.prisma` — add `Unit` model + modify `RawMaterial` (unit_id FK) + modify `PurchaseItem` (nullable qty/unit_price + note)
-- `backend/prisma/seed.ts` — seed pre-defined units + reseed raw materials dengan unit_id
-- `backend/src/app.ts` — register `unitsRouter`
-- `backend/src/modules/stocks/raw-materials.service.ts` — integrate units + edit unit handling
-- `backend/src/modules/stocks/raw-materials.schema.ts` — replace `unit` validator dengan `unitId` + validate min_stock range untuk scale items
-- `backend/src/modules/purchases/purchases.service.ts` — bifurcate by `unit.opname_mode`
-- `backend/src/modules/purchases/purchases.schema.ts` — qty/unitPrice nullable + note
+- `backend/prisma/schema.prisma` - add `Unit` model + modify `RawMaterial` (unit_id FK) + modify `PurchaseItem` (nullable qty/unit_price + note)
+- `backend/prisma/seed.ts` - seed pre-defined units + reseed raw materials dengan unit_id
+- `backend/src/app.ts` - register `unitsRouter`
+- `backend/src/modules/stocks/raw-materials.service.ts` - integrate units + edit unit handling
+- `backend/src/modules/stocks/raw-materials.schema.ts` - replace `unit` validator dengan `unitId` + validate min_stock range untuk scale items
+- `backend/src/modules/purchases/purchases.service.ts` - bifurcate by `unit.opname_mode`
+- `backend/src/modules/purchases/purchases.schema.ts` - qty/unitPrice nullable + note
 
 ### Frontend (8 files)
 
 **Create:**
-- `frontend/src/services/unitService.ts` — CRUD units API client
-- `frontend/src/components/UnitDropdown.tsx` — dropdown + "Tambah satuan baru" modal
-- `frontend/src/components/QuickAddBumbuDasar.tsx` — spawn preset rows di form purchase
+- `frontend/src/services/unitService.ts` - CRUD units API client
+- `frontend/src/components/UnitDropdown.tsx` - dropdown + "Tambah satuan baru" modal
+- `frontend/src/components/QuickAddBumbuDasar.tsx` - spawn preset rows di form purchase
 
 **Modify:**
-- `frontend/src/types/index.ts` — add `Unit` + `OpnameMode` types, modify `RawMaterial` (replace unit string dengan populated unit object)
-- `frontend/src/services/rawMaterialsService.ts` — adapt untuk unit_id
-- `frontend/src/services/purchaseService.ts` — adapt nullable qty/unitPrice + note
-- `frontend/src/components/stock/RawMaterialsTab.tsx` — UnitDropdown integration + edit unit prompt modal + opname UI bifurcation exact vs scale
-- `frontend/src/pages/PurchasesPage.tsx` — QuickAddBumbuDasar integration + nullable qty form
+- `frontend/src/types/index.ts` - add `Unit` + `OpnameMode` types, modify `RawMaterial` (replace unit string dengan populated unit object)
+- `frontend/src/services/rawMaterialsService.ts` - adapt untuk unit_id
+- `frontend/src/services/purchaseService.ts` - adapt nullable qty/unitPrice + note
+- `frontend/src/components/stock/RawMaterialsTab.tsx` - UnitDropdown integration + edit unit prompt modal + opname UI bifurcation exact vs scale
+- `frontend/src/pages/PurchasesPage.tsx` - QuickAddBumbuDasar integration + nullable qty form
 
 ---
 
-## Task 1: Schema migration — add Unit model + modify RawMaterial + PurchaseItem
+## Task 1: Schema migration - add Unit model + modify RawMaterial + PurchaseItem
 
 **Files:**
 - Modify: `backend/prisma/schema.prisma`
@@ -99,7 +99,7 @@ model Unit {
 }
 ```
 
-- [ ] **Step 2: Modify `RawMaterial` model — replace `unit` varchar dengan `unitId` FK**
+- [ ] **Step 2: Modify `RawMaterial` model - replace `unit` varchar dengan `unitId` FK**
 
 Cari model `RawMaterial`, ganti field `unit`:
 
@@ -114,7 +114,7 @@ unit          Unit                @relation(fields: [unitId], references: [id])
 
 Pastikan field-field lain (stockQty, minStock, dll) tetap.
 
-- [ ] **Step 3: Modify `PurchaseItem` model — qty + unit_price nullable + add note**
+- [ ] **Step 3: Modify `PurchaseItem` model - qty + unit_price nullable + add note**
 
 Cari model `PurchaseItem`, ubah field:
 
@@ -289,7 +289,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 3: Units module — Zod schema + service
+## Task 3: Units module - Zod schema + service
 
 **Files:**
 - Create: `backend/src/modules/units/units.schema.ts`
@@ -410,7 +410,7 @@ export async function deleteUnit(id: number): Promise<{ id: number; label: strin
 cd backend && npx tsc --noEmit
 ```
 
-Expected: no errors. Kalau ada error di file lain (raw-materials.service.ts) karena unit→unitId change, itu OK — akan di-fix di Task 5.
+Expected: no errors. Kalau ada error di file lain (raw-materials.service.ts) karena unit→unitId change, itu OK - akan di-fix di Task 5.
 
 Untuk skip non-task files saat dev, bisa skip tsc check sekarang dan lanjut.
 
@@ -425,7 +425,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 4: Units module — controller + routes + register
+## Task 4: Units module - controller + routes + register
 
 **Files:**
 - Create: `backend/src/modules/units/units.controller.ts`
@@ -531,7 +531,7 @@ app.use('/api/units', unitsRouter);
 cd backend && npx tsc --noEmit | grep -v "src/modules/stocks\|src/modules/purchases" || true
 ```
 
-(Ignore errors di stocks/purchases — itu task 5+).
+(Ignore errors di stocks/purchases - itu task 5+).
 
 Start dev server:
 ```bash
@@ -565,7 +565,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `backend/src/modules/stocks/raw-materials.service.ts`
 
-- [ ] **Step 1: Update `RawMaterialView` interface — replace `unit: string` dengan populated object**
+- [ ] **Step 1: Update `RawMaterialView` interface - replace `unit: string` dengan populated object**
 
 ```typescript
 export interface RawMaterialView {
@@ -695,7 +695,7 @@ const u = await tx.rawMaterial.update({
 // ... lalu return toRawMaterialView(u)
 ```
 
-- [ ] **Step 4: Refactor `createRawMaterial` — pakai unitId**
+- [ ] **Step 4: Refactor `createRawMaterial` - pakai unitId**
 
 ```typescript
 export async function createRawMaterial(input: CreateRawMaterialInput): Promise<RawMaterialView> {
@@ -759,7 +759,7 @@ export async function updateRawMaterial(
     }
     if (input.freshnessDays !== undefined) data.freshnessDays = input.freshnessDays;
 
-    // Unit change handling — kalau unitId berubah dan stock_qty > 0,
+    // Unit change handling - kalau unitId berubah dan stock_qty > 0,
     // owner WAJIB pass newStockQty (atau null untuk reset 0).
     if (input.unitId !== undefined && input.unitId !== existing.unitId) {
       const newUnit = await tx.unit.findUnique({ where: { id: input.unitId } });
@@ -826,7 +826,7 @@ Sudah dicakup di Step 3 (markHabis return harus include unit). Pastikan toRawMat
 cd backend && npx tsc --noEmit
 ```
 
-Expected: errors hanya di `purchases.service.ts` (yang akan di-fix Task 7). Errors di `raw-materials.service.ts` harus zero. Error di controller mungkin karena signature `updateRawMaterial(id, input)` jadi `(id, userId, input)` — fix call site di controller (Step 8 berikutnya, atau lakukan sekarang).
+Expected: errors hanya di `purchases.service.ts` (yang akan di-fix Task 7). Errors di `raw-materials.service.ts` harus zero. Error di controller mungkin karena signature `updateRawMaterial(id, input)` jadi `(id, userId, input)` - fix call site di controller (Step 8 berikutnya, atau lakukan sekarang).
 
 - [ ] **Step 8: Update `raw-materials.controller.ts` untuk pass userId ke updateRawMaterial**
 
@@ -862,7 +862,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Refactor raw-materials.schema (Zod) — unitId + newStockQty + min_stock validation
+## Task 6: Refactor raw-materials.schema (Zod) - unitId + newStockQty + min_stock validation
 
 **Files:**
 - Modify: `backend/src/modules/stocks/raw-materials.schema.ts`
@@ -935,7 +935,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `backend/src/modules/purchases/purchases.service.ts`
 
-- [ ] **Step 1: Update view shape — qty + unitPrice nullable + note**
+- [ ] **Step 1: Update view shape - qty + unitPrice nullable + note**
 
 ```typescript
 export interface PurchaseItemView {
@@ -1026,7 +1026,7 @@ function toPurchaseView(p: PurchaseWithRelations): PurchaseView {
 }
 ```
 
-- [ ] **Step 3: Refactor `createPurchase` — bifurcate by opname_mode**
+- [ ] **Step 3: Refactor `createPurchase` - bifurcate by opname_mode**
 
 ```typescript
 export async function createPurchase(
@@ -1052,7 +1052,7 @@ export async function createPurchase(
 
   const purchaseDate = parseDateUtcMidnight(input.date);
 
-  // Bifurcate per item — kalau opname_mode=scale_0_5 wajib subtotal+note, qty+unitPrice opsional.
+  // Bifurcate per item - kalau opname_mode=scale_0_5 wajib subtotal+note, qty+unitPrice opsional.
   // Kalau exact wajib qty+unitPrice, subtotal hitung server.
   const itemsProcessed = input.items.map((item) => {
     const rm = rmMap.get(item.rawMaterialId)!;
@@ -1188,7 +1188,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 8: Refactor purchases.schema (Zod) — nullable qty/unitPrice + subtotal + note
+## Task 8: Refactor purchases.schema (Zod) - nullable qty/unitPrice + subtotal + note
 
 **Files:**
 - Modify: `backend/src/modules/purchases/purchases.schema.ts`
@@ -1199,7 +1199,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 # Baca backend/src/modules/purchases/purchases.schema.ts
 ```
 
-- [ ] **Step 2: Modify item shape — qty/unitPrice optional, subtotal optional (auto kalau exact), note**
+- [ ] **Step 2: Modify item shape - qty/unitPrice optional, subtotal optional (auto kalau exact), note**
 
 ```typescript
 const purchaseItemInputSchema = z.object({
@@ -1244,7 +1244,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 9: Smoke test backend — units + raw materials + purchases integration
+## Task 9: Smoke test backend - units + raw materials + purchases integration
 
 **Files:**
 - Create: `backend/scripts/smoke-units-rawmat-purchases.sh`
@@ -1347,7 +1347,7 @@ assert_status "$CODE" "201" "create Beras Test unit=skala 0-5"
 BERAS_ID=$(echo "$BODY" | jq -r '.data.rawMaterial.id')
 
 echo
-echo "=== Test 5: Min_stock validation — scale + min_stock=10 → 422 ==="
+echo "=== Test 5: Min_stock validation - scale + min_stock=10 → 422 ==="
 RESP=$(curl -s -w "\n%{http_code}" -X POST "$API/raw-materials" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" \
   -d "{\"name\":\"Beras Invalid\",\"unitId\":$SKALA_ID,\"category\":\"bahanPokok\",\"isTracked\":true,\"stockQty\":0,\"minStock\":10}")
@@ -1374,7 +1374,7 @@ NEW_STOCK=$(echo "$BODY" | jq '.data.rawMaterial.stockQty')
 assert_status "$NEW_STOCK" "60" "stock_qty Telur Test = 60"
 
 echo
-echo "=== Test 8: Purchase exact (Telur Test) — qty=30 unit_price=2500 ==="
+echo "=== Test 8: Purchase exact (Telur Test) - qty=30 unit_price=2500 ==="
 RESP=$(curl -s -w "\n%{http_code}" -X POST "$API/purchases" \
   -H "Authorization: Bearer $KASIR_TOKEN" -H "Content-Type: application/json" \
   -d "{\"date\":\"$(date +%Y-%m-%d)\",\"items\":[{\"rawMaterialId\":$TELUR_ID,\"qty\":30,\"unitPrice\":2500}]}")
@@ -1385,7 +1385,7 @@ NEW_STOCK=$(curl -s "$API/raw-materials/$TELUR_ID" -H "Authorization: Bearer $OW
 assert_status "$NEW_STOCK" "90" "stock_qty Telur Test = 60+30 = 90"
 
 echo
-echo "=== Test 9: Purchase scale (Beras Test) — subtotal=300000 note=1 karung 50kg ==="
+echo "=== Test 9: Purchase scale (Beras Test) - subtotal=300000 note=1 karung 50kg ==="
 RESP=$(curl -s -w "\n%{http_code}" -X POST "$API/purchases" \
   -H "Authorization: Bearer $KASIR_TOKEN" -H "Content-Type: application/json" \
   -d "{\"date\":\"$(date +%Y-%m-%d)\",\"items\":[{\"rawMaterialId\":$BERAS_ID,\"subtotal\":300000,\"note\":\"1 karung 50kg\"}]}")
@@ -1435,7 +1435,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 10: Frontend types — Unit + OpnameMode + RawMaterial update
+## Task 10: Frontend types - Unit + OpnameMode + RawMaterial update
 
 **Files:**
 - Modify: `frontend/src/types/index.ts`
@@ -1600,7 +1600,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 12: Frontend rawMaterialsService + purchaseService — adapt unit_id + nullable qty
+## Task 12: Frontend rawMaterialsService + purchaseService - adapt unit_id + nullable qty
 
 **Files:**
 - Modify: `frontend/src/services/rawMaterialsService.ts`
@@ -1634,7 +1634,7 @@ interface UpdateRawMaterialPayload {
 }
 ```
 
-- [ ] **Step 2: Update purchaseService — qty/unitPrice/subtotal/note**
+- [ ] **Step 2: Update purchaseService - qty/unitPrice/subtotal/note**
 
 Cari payload interface untuk create purchase:
 
@@ -1691,7 +1691,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 2: Write UnitDropdown.tsx**
 
 ```tsx
-// UnitDropdown — dropdown satuan dengan tombol "Tambah satuan baru" inline.
+// UnitDropdown - dropdown satuan dengan tombol "Tambah satuan baru" inline.
 // Saat tombol diklik, modal kecil terbuka untuk input label + opnameMode.
 // Setelah save, unit baru auto-selected.
 //
@@ -1872,7 +1872,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 14: Refactor RawMaterialsTab — integrate UnitDropdown + edit unit prompt
+## Task 14: Refactor RawMaterialsTab - integrate UnitDropdown + edit unit prompt
 
 **Files:**
 - Modify: `frontend/src/components/stock/RawMaterialsTab.tsx`
@@ -1988,7 +1988,7 @@ Tambah modal prompt (sub-dialog):
 </Dialog>
 ```
 
-- [ ] **Step 4: Update list table — tampilkan `rm.unit.label` bukan `rm.unit`**
+- [ ] **Step 4: Update list table - tampilkan `rm.unit.label` bukan `rm.unit`**
 
 ```tsx
 // SEBELUM:
@@ -2098,7 +2098,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Write component**
 
 ```tsx
-// QuickAddBumbuDasar — tombol yang spawn multiple rows preset dari raw_materials
+// QuickAddBumbuDasar - tombol yang spawn multiple rows preset dari raw_materials
 // kategori bumbu_dasar sekaligus di form purchase. Kasir tinggal isi qty + harga.
 // Bisa hapus row yang ngga jadi dibeli.
 
@@ -2157,7 +2157,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 17: PurchasesPage — QuickAddBumbuDasar integration + bifurcate form per item
+## Task 17: PurchasesPage - QuickAddBumbuDasar integration + bifurcate form per item
 
 **Files:**
 - Modify: `frontend/src/pages/PurchasesPage.tsx`
@@ -2170,7 +2170,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 Catat state shape untuk items dalam create form (kemungkinan `useState<PurchaseItemForm[]>`).
 
-- [ ] **Step 2: Update item state shape — qty/unitPrice nullable + opnameMode aware**
+- [ ] **Step 2: Update item state shape - qty/unitPrice nullable + opnameMode aware**
 
 ```tsx
 interface PurchaseItemFormRow {
@@ -2234,8 +2234,8 @@ Tambah tombol di samping "Tambah Item":
     </td>
     {row.opnameMode === 'scale_0_5' ? (
       <>
-        <td className="text-gray-400 italic text-sm">—</td>
-        <td className="text-gray-400 italic text-sm">—</td>
+        <td className="text-gray-400 italic text-sm">-</td>
+        <td className="text-gray-400 italic text-sm">-</td>
         <td>
           <input
             type="number"
@@ -2287,7 +2287,7 @@ Tambah tombol di samping "Tambah Item":
             className="w-32"
           />
         </td>
-        <td className="text-right">{typeof row.subtotal === 'number' ? row.subtotal.toLocaleString('id-ID') : '—'}</td>
+        <td className="text-right">{typeof row.subtotal === 'number' ? row.subtotal.toLocaleString('id-ID') : '-'}</td>
         <td>
           <input
             type="text"
@@ -2306,7 +2306,7 @@ Tambah tombol di samping "Tambah Item":
 ))}
 ```
 
-- [ ] **Step 5: Submit handler — adapt payload per opnameMode**
+- [ ] **Step 5: Submit handler - adapt payload per opnameMode**
 
 ```tsx
 const handleSubmit = () => {
@@ -2337,7 +2337,7 @@ const handleSubmit = () => {
 };
 ```
 
-- [ ] **Step 6: Update purchase list display — handle nullable qty + show note**
+- [ ] **Step 6: Update purchase list display - handle nullable qty + show note**
 
 ```tsx
 {purchase.items.map((it) => (
@@ -2437,7 +2437,7 @@ Verify stock Telur Test = 1 + 10 = 11.
 
 - [ ] **Step 8: Verify purchase scale**
 
-Di form yang sama, tambah item Beras Test → form auto-hide qty + unitPrice (atau show "—") → input subtotal=300000 note="1 karung 50kg" → submit.
+Di form yang sama, tambah item Beras Test → form auto-hide qty + unitPrice (atau show "-") → input subtotal=300000 note="1 karung 50kg" → submit.
 
 Verify stock Beras Test TIDAK berubah (masih 3).
 
@@ -2471,7 +2471,7 @@ Hapus "Telur Test", "Beras Test", custom unit "karton" via owner UI.
 
 Kalau ada bug found + di-fix, commit per-fix. Kalau semua lulus, tidak ada commit di task ini.
 
-Update plan file dengan checkbox completion (Optional — pure tracking):
+Update plan file dengan checkbox completion (Optional - pure tracking):
 
 ```bash
 git add docs/superpowers/plans/2026-05-26-stok-raw-purchasing-redesign.md
@@ -2484,7 +2484,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ## Post-implementation followups
 
-- Update `CLAUDE.md` Status REV 2.5 row: tambah "Raw materials redesign DONE — units master + opname mode bifurcation + Quick Add Bumbu Dasar"
+- Update `CLAUDE.md` Status REV 2.5 row: tambah "Raw materials redesign DONE - units master + opname mode bifurcation + Quick Add Bumbu Dasar"
 - Update `docs/knowledge/ERD.md` dengan entity Unit baru + FK ke RawMaterial
 - Update `docs/DATA-DICTIONARY.md` dengan tabel `units` + ubah `raw_materials.unit` jadi `unit_id` + ubah `purchase_items` (nullable qty/unit_price + note)
 - Update `docs/operasional-resto.md` REV 2.4 → REV 2.5 dengan section units & opname bifurcation

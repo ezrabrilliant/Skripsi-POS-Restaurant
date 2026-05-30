@@ -1,7 +1,7 @@
 # Analisis Import Data Buku → Database (27 file, 1-27 Mei 2026)
 
 Dokumen kerja untuk checkpoint sebelum insert. Disusun setelah baca semua 27 file.
-**Belum ada yang di-insert** — nunggu keputusan Ezra atas item ambigu (sesuai protokol).
+**Belum ada yang di-insert** - nunggu keputusan Ezra atas item ambigu (sesuai protokol).
 
 ## Ringkasan volume
 - 27 hari, ~95 transaksi total.
@@ -21,13 +21,13 @@ Dokumen kerja untuk checkpoint sebelum insert. Disusun setelah baca semua 27 fil
 | Gojek | gojek | - |
 | Grab | grab | - |
 
-⚠️ **Bank MK & BM** — perlu konfirmasi nama asli (inisial bank/orang?). qris biasanya tidak butuh bank di sistem; "BCA/BM" di qris = provider QR, bisa diabaikan. Yang WAJIB punya bank: edc (BCA) + transfer (MK).
+⚠️ **Bank MK & BM** - perlu konfirmasi nama asli (inisial bank/orang?). qris biasanya tidak butuh bank di sistem; "BCA/BM" di qris = provider QR, bisa diabaikan. Yang WAJIB punya bank: edc (BCA) + transfer (MK).
 
-Seed sekarang punya 4 bank — perlu cek apakah MK & BM sudah ada / perlu ditambah.
+Seed sekarang punya 4 bank - perlu cek apakah MK & BM sudah ada / perlu ditambah.
 
 ---
 
-## 2. Online delivery — DISCREPANCY dengan instruksi
+## 2. Online delivery - DISCREPANCY dengan instruksi
 
 Anda bilang: **gojek 1× + grab 1×** sebulan. Tapi buku ADA:
 - **Gojek 1×**: 10 Mei #7 (1 Ekor B, 144k)
@@ -52,22 +52,22 @@ Per chain data: `Σ(harga item) = subtotal = total = payment` (PB1 off). Baris i
 | 13 Mei | #1 "2 EKOR G + Gojek 20.000 (Mami)" | 220.000 | 2 Ekor=240k ≠ 220k. (240−20 ongkir?) ambigu |
 | 12 Mei | #3 "1 Paket B (Dada B) **Mentah**" | 48.000 | Paket B=40k. "Mentah" (mentah/raw) +8k? |
 
-**Keputusan #B**: Untuk baris yang item-nya tidak menjumlah ke nominal buku — pilih kebijakan:
+**Keputusan #B**: Untuk baris yang item-nya tidak menjumlah ke nominal buku - pilih kebijakan:
 - (a) **Nominal buku = otoritas**. Items best-effort, selisih ditaruh item "Penyesuaian" supaya subtotal=total=nominal buku. Reconcile summary tetap match.
 - (b) Saya tunjukkan tiap baris bermasalah satu-satu, Anda kasih breakdown benar.
-- (c) Trust nominal buku sebagai subtotal, items diisi sebagian (subtotal bisa ≠ Σitem — tapi ini langgar integritas data, tidak disarankan).
+- (c) Trust nominal buku sebagai subtotal, items diisi sebagian (subtotal bisa ≠ Σitem - tapi ini langgar integritas data, tidak disarankan).
 
 ---
 
-## 4. Baris dibatalkan & item aneh (AMBIGU — perlu keputusan)
+## 4. Baris dibatalkan & item aneh (AMBIGU - perlu keputusan)
 
 | Tgl | Baris | Catatan |
 |---|---|---|
 | 17 Mei | #6 "9 DADA B (**Dibatalkan/Dicoret**)" 270k | Dicoret TAPI **masuk** summary BCA Qris (1.095k include 270k). Void (status=void, summary tak match) atau keep paid (match summary)? |
 | 21 Mei | #3 "**Inhaler**" 35k Cash | "Inhaler" bukan menu. Muncul juga 10 Mei (0 amount). Produk apa? Skip / map / tambah menu? |
 | 10 Mei | #6 "1 Rempelo, 1 Ati, 2 Jeruk P, 1 Krupuk, **Inhaler**" 0 | Nominal 0 (gratis/staff meal?). Insert total=0 atau skip? |
-| 14 Mei | #6 "Paha C" 30k | "Paha C" — Paha (Bakar?) 30k (harga cocok Paha). C=? |
-| Stok | "PAHA C", "DADA C" (2,17,20 Mei) | Varian C di stok — OCR utk G? atau varian lain? |
+| 14 Mei | #6 "Paha C" 30k | "Paha C" - Paha (Bakar?) 30k (harga cocok Paha). C=? |
+| Stok | "PAHA C", "DADA C" (2,17,20 Mei) | Varian C di stok - OCR utk G? atau varian lain? |
 
 ---
 
@@ -79,7 +79,7 @@ Per chain data: `Σ(harga item) = subtotal = total = payment` (PB1 off). Baris i
 | Susu Kedelai | 15.000 (14 Mei "Susu K") | ✅ SUDAH ADA (id 50). "Susuk"/"Susu K"/"Susuk K" → map ke sini. |
 | **Semur Ayam** ("Semur A") | - (cuma di stok, tak pernah dijual) | Catalog cuma Semur Daging. Perlu nan utk stok import. |
 
-**Keputusan #C**: Kerupuk — berapa varian + nama + harga? (mis. "Kerupuk" 7k + "Kerupuk Udang" 15k?)
+**Keputusan #C**: Kerupuk - berapa varian + nama + harga? (mis. "Kerupuk" 7k + "Kerupuk Udang" 15k?)
 
 ---
 
@@ -93,13 +93,13 @@ Per chain data: `Σ(harga item) = subtotal = total = payment` (PB1 off). Baris i
 
 ---
 
-## 7. Stok harian (halaman kiri) — MASALAH SCHEMA
+## 7. Stok harian (halaman kiri) - MASALAH SCHEMA
 
 Anda minta import stok kiri. Tapi `PortionStock` cuma simpan **1 snapshot** (currentQty + openingQtyToday), bukan time-series per hari. Tidak ada tabel histori stok harian.
 
 **Keputusan #D**: 
 - (a) Tambah tabel baru `daily_stock_snapshot (date, menuId, qty)` khusus histori buku.
-- (b) Skip stok harian — fokus transaksi+payment+reconciliation saja (yang utama Anda minta). Stok kiri cuma jadi konteks.
+- (b) Skip stok harian - fokus transaksi+payment+reconciliation saja (yang utama Anda minta). Stok kiri cuma jadi konteks.
 - (c) Set stok hari TERAKHIR (27 Mei) saja ke PortionStock.currentQty (live), 26 hari lain diabaikan.
 
 Catatan: stok kiri juga punya item tak match catalog (Krupuk B/C, Susuk, Semur A, Ikan, PAHA C) + ground truth bilang "tidak ada opname pagi tercatat" → import stok harian agak konflik dengan desain.

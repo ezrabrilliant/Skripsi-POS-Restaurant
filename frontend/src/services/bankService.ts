@@ -1,5 +1,5 @@
 // Service modul banks. REV 2.6: owner-only CRUD master bank.
-//   - list, byId, create, update — semua owner-only di backend.
+//   - list, byId, create, update - semua owner-only di backend.
 //   - Soft delete via PATCH isActive=false (tidak ada DELETE hard-delete per
 //     Decision #9 spec; bank yang sudah dipakai di payment_method assignment
 //     atau historical transactions tetap accessible untuk audit).

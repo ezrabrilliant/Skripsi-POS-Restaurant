@@ -1,9 +1,9 @@
-# REV 2.11 — COGS per Menu + Hapus Belanja/Vendor/Raw Materials
+# REV 2.11 - COGS per Menu + Hapus Belanja/Vendor/Raw Materials
 
 - **Tanggal**: 2026-05-30
 - **Status**: Design (disetujui untuk lanjut ke plan)
 - **Branch**: `feat/cogs-per-menu-rev211` (dari `main` `db8062c`, sesudah REV 2.10 ter-merge)
-- **Dasar di atas**: REV 2.10 (Menu Variants + Stock Linkage) — resolusi modal memakai layer varian
+- **Dasar di atas**: REV 2.10 (Menu Variants + Stock Linkage) - resolusi modal memakai layer varian
 - **Spec terkait**: [permission-matrix](2026-05-24-permission-matrix-design.md), [menu-variants](2026-05-30-menu-variants-stock-linkage-design.md), [stock-ledger](../../operasional-resto.md)
 
 ---
@@ -19,9 +19,9 @@ Sebaliknya, lingkup inventori proposal hanya **finished goods porsi**:
 
 > *"Stok yang dicatat adalah barang siap jual (satuan porsi), **bukan bahan baku mentah (gramasi)**."*
 
-Maka **belanja, vendor, dan raw materials tidak pernah ada di ruang lingkup proposal** — mereka ditambahkan saat build (REV 2.x) dan membuat implementasi divergen. Dokumen internal `operasional-resto.md` yang menulis *"HPP out of scope, laba = penjualan − (belanja+tagihan)"* itulah yang menyimpang dan akan diselaraskan balik.
+Maka **belanja, vendor, dan raw materials tidak pernah ada di ruang lingkup proposal** - mereka ditambahkan saat build (REV 2.x) dan membuat implementasi divergen. Dokumen internal `operasional-resto.md` yang menulis *"HPP out of scope, laba = penjualan − (belanja+tagihan)"* itulah yang menyimpang dan akan diselaraskan balik.
 
-**Filosofi COGS**: owner menyebut modal per menu ("modal Paha Ayam Bakar = sekian"), Ezra input langsung. Tidak ada resep / penimbangan bahan / Bill of Materials — angka modal adalah angka yang dinyatakan owner (coarse, manual, owner-authoritative).
+**Filosofi COGS**: owner menyebut modal per menu ("modal Paha Ayam Bakar = sekian"), Ezra input langsung. Tidak ada resep / penimbangan bahan / Bill of Materials - angka modal adalah angka yang dinyatakan owner (coarse, manual, owner-authoritative).
 
 REV 2.11 = dua pekerjaan yang saling melengkapi: **(A) hapus** belanja+vendor+raw materials; **(B) tambah** COGS per menu + snapshot per transaksi + log riwayat modal + laba = pendapatan − COGS.
 
@@ -52,8 +52,8 @@ REV 2.11 = dua pekerjaan yang saling melengkapi: **(A) hapus** belanja+vendor+ra
 - Penyelarasan dokumen ground-truth + knowledge docs.
 
 **Di luar scope (YAGNI):**
-- Storage modal per-varian (`MenuVariant.cost`) — cukup via leaf SKU.
-- Riwayat **harga jual** — cukup dari `transaction_items`.
+- Storage modal per-varian (`MenuVariant.cost`) - cukup via leaf SKU.
+- Riwayat **harga jual** - cukup dari `transaction_items`.
 - P&L dua tingkat (tagihan di-net ke laba bersih).
 - HPP otomatis dari timbang bahan / Bill of Materials / resep.
 - Reminder/restock berbasis bahan baku (ikut terhapus bersama raw materials).
@@ -63,9 +63,9 @@ REV 2.11 = dua pekerjaan yang saling melengkapi: **(A) hapus** belanja+vendor+ra
 ## 4. Perubahan Data Model (Prisma)
 
 ### 4.1 Tambah
-- **`Menu.cost Decimal? @db.Decimal(10,2)`** — modal per menu. Nullable (aditif, zero-loss; baris lama `null` = belum di-set, diperlakukan `0` saat hitung). Diisi di SKU leaf (Paha Ayam Bakar, dll) + menu simple. **TIDAK** dibocorkan ke `GET /menus` publik (POS) — hanya di list/detail admin (owner).
-- **`MenuVariant.costSourceMenuId Int?`** (FK→`Menu`, `onDelete: SetNull`) — SKU leaf wakil modal sebuah varian. Resolusi pakai fallback `costSourceMenuId ?? stockTargetMenuId`. Untuk varian nonStock yang modalnya beda nyata (Es Teh per-ukuran, Es Jeruk, Tahu Tempe) → menunjuk leaf tersembunyi; untuk varian berstok = sama dengan `stockTargetMenuId`.
-- **`TransactionItem.unitCost Decimal? @db.Decimal(10,2)`** — **snapshot modal** per 1 unit baris saat order. Untuk paket = jumlah modal komponen. Mirror `unitPrice` yang sudah ada.
+- **`Menu.cost Decimal? @db.Decimal(10,2)`** - modal per menu. Nullable (aditif, zero-loss; baris lama `null` = belum di-set, diperlakukan `0` saat hitung). Diisi di SKU leaf (Paha Ayam Bakar, dll) + menu simple. **TIDAK** dibocorkan ke `GET /menus` publik (POS) - hanya di list/detail admin (owner).
+- **`MenuVariant.costSourceMenuId Int?`** (FK→`Menu`, `onDelete: SetNull`) - SKU leaf wakil modal sebuah varian. Resolusi pakai fallback `costSourceMenuId ?? stockTargetMenuId`. Untuk varian nonStock yang modalnya beda nyata (Es Teh per-ukuran, Es Jeruk, Tahu Tempe) → menunjuk leaf tersembunyi; untuk varian berstok = sama dengan `stockTargetMenuId`.
+- **`TransactionItem.unitCost Decimal? @db.Decimal(10,2)`** - **snapshot modal** per 1 unit baris saat order. Untuk paket = jumlah modal komponen. Mirror `unitPrice` yang sudah ada.
 - **Model baru `MenuCostMovement`** (meniru `PortionMovement`):
   ```
   id          Int      @id @default(autoincrement())
@@ -89,8 +89,8 @@ REV 2.11 = dua pekerjaan yang saling melengkapi: **(A) hapus** belanja+vendor+ra
 - Back-relations yang menyebut model di atas: `User.purchases`, `User.rawMaterialMovements`, `RawMaterial.purchaseItems`, `Vendor.purchases`, `Purchase.rawMaterialMovements`, dll.
 
 ### 4.3 Tetap utuh
-- `PortionStock`, `PortionMovement` (finished-goods inventory + ledger) — **tidak berubah**.
-- `MenuVariant.stockTargetMenuId`, `PaketComponent`, resolver stok — tetap.
+- `PortionStock`, `PortionMovement` (finished-goods inventory + ledger) - **tidak berubah**.
+- `MenuVariant.stockTargetMenuId`, `PaketComponent`, resolver stok - tetap.
 
 ---
 
@@ -130,7 +130,7 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 
 - [`dashboard.service.ts`](../../../backend/src/modules/dashboard/dashboard.service.ts) `getOwnerReport`:
   - **Buang** `purchaseTotal` (sumber belanja hilang).
-  - **Tambah** `cogsTotal = Σ (unitCost × qty)` atas `TransactionItem` dari transaksi `status=paid`, `mergedIntoId IS NULL`, `shift.date` dalam range — **filter identik dengan revenue** agar konsisten (tidak double-count merged bill, atribusi by business-day).
+  - **Tambah** `cogsTotal = Σ (unitCost × qty)` atas `TransactionItem` dari transaksi `status=paid`, `mergedIntoId IS NULL`, `shift.date` dalam range - **filter identik dengan revenue** agar konsisten (tidak double-count merged bill, atribusi by business-day).
   - `profit = revenueTotal − cogsTotal`.
   - `billTotal` tetap dihitung & dikembalikan **terpisah** (info), TIDAK masuk `profit`.
 - Frontend [OwnerDashboard](../../../frontend/src/pages/OwnerDashboard.tsx): kartu **Pendapatan**, **COGS (Beban Pokok Penjualan)**, **Laba Kotor = Pendapatan − COGS**; **Tagihan** sebagai kartu/baris info terpisah. Hapus tampilan & QuickLink "Belanja".
@@ -161,7 +161,7 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 2. **Populate `costSourceMenuId`** untuk varian nonStock yang modalnya beda (Es Teh per-ukuran→leaf, Es Jeruk→leaf, Tahu Tempe→leaf) via script idempotent + di `variant-catalog.ts`.
 3. **Owner input modal** semua SKU leaf + menu simple via MenuPage (angka dari owner).
 4. **Backfill `unitCost`**: script stamp semua `TransactionItem` (transaksi `paid`) historis pakai `resolveCostComponents` + cost terkini → laba Mei jadi bermakna. (Idempotent; pola `backfill-menu-variants.ts`.)
-5. **Setelah COGS terverifikasi**: drop tabel belanja + raw materials (DESTRUKTIF — kehilangan data belanja/raw historis disengaja). **PROD HARD-GATED** (mysqldump dulu).
+5. **Setelah COGS terverifikasi**: drop tabel belanja + raw materials (DESTRUKTIF - kehilangan data belanja/raw historis disengaja). **PROD HARD-GATED** (mysqldump dulu).
 
 > ⚠️ Sequencing prod: REV 2.10 belum di-migrate ke prod. REV 2.11 migrasi prod dilakukan **setelah** (atau bersama) migrasi 2.10, dalam satu runbook.
 
@@ -171,7 +171,7 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 
 - Edit `cost` + baca cost-history = **owner-only** (ikut menu CRUD yang sudah owner-only, sesuai matrix REV 2.3).
 - Laba report = owner-only (dashboard sudah owner-only).
-- `cost` **tidak** ada di `GET /menus` publik (POS) — cegah bocor COGS ke klien tak-terautentikasi. Hanya di list/detail admin.
+- `cost` **tidak** ada di `GET /menus` publik (POS) - cegah bocor COGS ke klien tak-terautentikasi. Hanya di list/detail admin.
 
 ---
 
@@ -180,7 +180,7 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 - [operasional-resto.md](../../operasional-resto.md): hapus seksi Belanja/Vendor/Raw-Materials + "HPP out of scope"; tulis konsep COGS per menu + Laporan Laba Rugi Harian (Pendapatan − COGS); klarifikasi raw materials & belanja keluar scope.
 - Memory: `project_resto_operational_truths.md`, `project_session_handoff.md`.
 - Knowledge docs: ERD (kurangi entitas Vendor/Purchase/PurchaseItem/RawMaterial/RawMaterialMovement, +`MenuCostMovement` + kolom `cost`/`unitCost`), USE-CASE (hapus UC Pembelian + raw material), ACTIVITY, DATA-DICTIONARY, BAB-3-DRAFT (kebutuhan fungsional), permission-matrix spec.
-- StarUML `Skripsi.mdj` (ERD) — opsional/ditunda.
+- StarUML `Skripsi.mdj` (ERD) - opsional/ditunda.
 
 ---
 
@@ -203,13 +203,13 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 
 ---
 
-## 14. Runbook Migrasi PROD (HARD-GATED — jangan jalankan tanpa go-ahead eksplisit)
+## 14. Runbook Migrasi PROD (HARD-GATED - jangan jalankan tanpa go-ahead eksplisit)
 
 PROD `monosuko.my.id` saat ini di skema **REV 2.8**; REV 2.10 (varian) **dan** 2.11 (COGS) belum di prod. Migrasi harus berurutan dalam satu jendela maintenance. Semua langkah butuh persetujuan eksplisit owner; **backup dulu**.
 
 1. **Backup**: `mysqldump` DB prod (snapshot penuh) sebelum apa pun.
-2. **REV 2.10 dulu** (prasyarat — additif): deploy kode REV 2.10 → `cd backend && npx prisma db push` (additif varian, zero-loss) → `npx tsx --env-file=.env scripts/backfill-menu-variants.ts` → verifikasi history utuh (count tx/items) + 0 unresolved. (Owner opname stok "1 Ekor Ayam Bakar Kecap" yang qty awal 0.)
-3. **REV 2.11 additif**: deploy kode REV 2.11 → `npx prisma db push` (tambah `menus.cost`, `menu_variants.cost_source_menu_id`, `transaction_items.unit_cost`, tabel `menu_cost_movements` — semua nullable/aditif, zero-loss) → `npx prisma generate`.
+2. **REV 2.10 dulu** (prasyarat - additif): deploy kode REV 2.10 → `cd backend && npx prisma db push` (additif varian, zero-loss) → `npx tsx --env-file=.env scripts/backfill-menu-variants.ts` → verifikasi history utuh (count tx/items) + 0 unresolved. (Owner opname stok "1 Ekor Ayam Bakar Kecap" yang qty awal 0.)
+3. **REV 2.11 additif**: deploy kode REV 2.11 → `npx prisma db push` (tambah `menus.cost`, `menu_variants.cost_source_menu_id`, `transaction_items.unit_cost`, tabel `menu_cost_movements` - semua nullable/aditif, zero-loss) → `npx prisma generate`.
 4. **Owner input modal**: owner isi `cost` tiap SKU leaf + menu simple via halaman Menu (angka modal dari owner).
 5. **Backfill COGS**: `npx tsx --env-file=.env scripts/backfill-cogs.ts` (stamp `unitCost` semua transaksi paid historis pakai modal terkini → laba periode lampau bermakna). Idempoten.
 6. **Verifikasi**: cek OwnerDashboard (Laba = Pendapatan − COGS, tagihan terpisah) + cost-history drawer + `GET /menus` publik tak ada `cost`.

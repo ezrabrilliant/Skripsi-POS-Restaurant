@@ -1,10 +1,10 @@
-// REV 2.8 — sinkron klasifikasi menu untuk import data buku (dev + prod).
+// REV 2.8 - sinkron klasifikasi menu untuk import data buku (dev + prod).
 // Idempotent: aman dijalankan berulang & di kedua environment.
 //
 // ENSURE_PORTION: item yang DICATAT di stok harian buku → harus stockType=portion
 //   + punya baris portion_stocks (currentQty 0, nanti di-set oleh opname import).
 //   Kerupuk/Kerupuk Udang dibuat kalau belum ada (prod belum punya). Semur Ayam
-//   menu baru (stok-only, tak pernah dijual — qty harga sama Semur Daging).
+//   menu baru (stok-only, tak pernah dijual - qty harga sama Semur Daging).
 // ENSURE_NONSTOCK: item yang TIDAK ditrack di buku tapi dev lama keburu portion
 //   (Air Mineral/Es Degan/Es Cincau) → balikin ke nonStock biar cocok catalog+prod.
 //   portion_stocks lama dibiarkan (histori; tak akan auto-decrement saat nonStock).

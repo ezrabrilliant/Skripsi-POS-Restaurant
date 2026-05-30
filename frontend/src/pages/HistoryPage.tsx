@@ -122,7 +122,7 @@ export default function HistoryPage() {
   // REV 2.5: derive mergedFromMap dari list - untuk setiap Tx target, kumpulkan OBJEK
   // source-nya (bukan cuma id) supaya detail target bisa menampilkan item dari tiap
   // pesanan yang digabung + breakdown rekonsiliasi ke total aggregate. Hanya source
-  // yang ikut ter-filter (visible) yang tersedia — target & source selalu satu status
+  // yang ikut ter-filter (visible) yang tersedia - target & source selalu satu status
   // + tanggal sama, jadi keduanya muncul/hilang bareng di view ter-filter.
   const mergedFromMap = useMemo(() => {
     const map = new Map<number, Transaction[]>()

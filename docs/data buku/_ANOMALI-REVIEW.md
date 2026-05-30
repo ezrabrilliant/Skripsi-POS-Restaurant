@@ -20,7 +20,7 @@ Tiap transaksi dibuat **konsisten** (Σ item ± diskon = total = nominal buku):
 - **Σ item < nominal** → tambah 1 baris **"Penyesuaian"** (atau "Ongkir"/"Online") = selisih, supaya Σ item = nominal.
 
 Ini menjaga total tetap benar + data rapi, tanpa menebak itemisasi "benar". Pola umum:
-- **Borongan ayam ekor**: kadang Rp100rb/ekor (diskon dari 120rb) — mis. 8/11/14 Mei. → diskon.
+- **Borongan ayam ekor**: kadang Rp100rb/ekor (diskon dari 120rb) - mis. 8/11/14 Mei. → diskon.
 - **Online (gojek/grab)**: markup ~Rp24rb dari harga normal (10 & 20 Mei, 1 Ekor 120→144). → Penyesuaian "Online".
 - **Ongkir nempel** di transfer (13/26/27 Mei): "Gojek/ongkir Rp16–20rb" masuk total. → baris "Ongkir".
 - **Kerupuk +Rp8rb** (banyak hari): "Krupuk" kemungkinan Kerupuk Udang(15k) bukan Kerupuk(7k). → diskon/penyesuaian kecil.
@@ -76,7 +76,7 @@ Ini menjaga total tetap benar + data rapi, tanpa menebak itemisasi "benar". Pola
 | 1 | 4 Mei | 1 | 455.000 | 635.000 | −180.000 | **4 Ekor (BM/B), 14 Nasi, Susuk K** | "14 Nasi" salah baca? 4 ekor borongan 100rb=400 + brp nasi? |
 | 2 | 9 Mei | 1 | 180.000 | 116.000 | +64.000 | 2 Paket A (1 Paha B, 2 Dada G), 2 es teh | Item kurang? Σ cuma 116 tapi tagih 180 |
 | 3 | 9 Mei | 2 | 88.000 | 114.000 | −26.000 | 2 Krupuk, 1 Paket A, 1 Paket B, 1 Teh m | diskon 26k atau item salah? |
-| 4 | 10 Mei | 5 | 165.000 | 80.000 | +85.000 | 2 Paket B (1 Paha B, Dada G) | Σ cuma 80 tapi tagih 165 — item kurang banyak |
+| 4 | 10 Mei | 5 | 165.000 | 80.000 | +85.000 | 2 Paket B (1 Paha B, Dada G) | Σ cuma 80 tapi tagih 165 - item kurang banyak |
 | 5 | 15 Mei | 2 | 240.000 | 270.000 | −30.000 | 1 Ekor, 1 Semur, 1 Gasem, 1 Gule, 1 Rawon, 1 Paha B | diskon 30k? |
 | 6 | 19 Mei | 2 | 167.000 | 207.000 | −40.000 | 1 Gurame, Sayur Asem, Nasi, 2 AM, Pete, Tahu Tempe, Paket D | diskon 40k? |
 | 7 | 19 Mei | 3 | 121.000 | 83.000 | +38.000 | 1 Paket B (Dada G), 1 Empal P, 1 Teh M, 1 Teh T | item kurang? +38k |

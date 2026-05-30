@@ -1,6 +1,6 @@
 // Routes modul payment-methods. REV 2.6 permission mix:
-//   - GET /payment-methods + GET /:id — semua role authenticated (untuk PaymentModal kasir)
-//   - POST/PATCH/DELETE/reorder — owner-only
+//   - GET /payment-methods + GET /:id - semua role authenticated (untuk PaymentModal kasir)
+//   - POST/PATCH/DELETE/reorder - owner-only
 
 import { Router } from 'express';
 import { UserRole } from '@prisma/client';

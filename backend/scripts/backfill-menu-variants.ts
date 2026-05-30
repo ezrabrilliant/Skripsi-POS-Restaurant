@@ -1,4 +1,4 @@
-// REV 2.10 P4 — idempotent backfill of the menu-variant redesign onto a REAL DB.
+// REV 2.10 P4 - idempotent backfill of the menu-variant redesign onto a REAL DB.
 //
 // Consumes the collapse spec in `prisma/variant-catalog.ts` and applies it to the
 // existing catalog (dev/prod) WITHOUT deleting any data:
@@ -12,7 +12,7 @@
 // menus/transactions, and leaves history (transactions / transaction_items) untouched.
 //
 // Reuses menus.service `upsertMenu` (handles nested create + replace-children +
-// reference validation) and variant-resolver `buildVariantLabel` — single source of truth.
+// reference validation) and variant-resolver `buildVariantLabel` - single source of truth.
 //
 // NEVER prisma migrate reset / db push --force-reset. Run with:
 //   npx tsx --env-file=.env scripts/backfill-menu-variants.ts
@@ -62,7 +62,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
     prisma.menu.findFirst({ where: { name } })
 
   // REV 2.11: upsertMenu butuh userId untuk MenuCostMovement (initialSet/manualEdit).
-  // Backfill tidak men-set cost, jadi tidak ada movement yang ditulis — tapi signature
+  // Backfill tidak men-set cost, jadi tidak ada movement yang ditulis - tapi signature
   // tetap butuh user valid. Pakai owner pertama yang ter-seed.
   const owner = await prisma.user.findFirst({ where: { role: 'owner' } })
   if (!owner) {
@@ -71,7 +71,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   const ownerUserId = owner.id
 
   // Helper: resolve a stock-target NAME to a menu id, EXCLUDING display variant
-  // menus. This is critical for the Kerupuk clash — a display menu named "Kerupuk"
+  // menus. This is critical for the Kerupuk clash - a display menu named "Kerupuk"
   // (kind=variant) must never resolve as its own stock target; the real holder is
   // the hidden simple SKU also named "Kerupuk".
   const resolveStockTarget = async (
@@ -89,14 +89,14 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   }
 
   // =========================================================================
-  // STEP 2 — NEW_PORTION_SKUS (Kecap own stock)
+  // STEP 2 - NEW_PORTION_SKUS (Kecap own stock)
   // =========================================================================
   console.log('=== STEP 2: NEW_PORTION_SKUS ===')
   for (const sku of NEW_PORTION_SKUS) {
     const menu = await findMenuByName(sku.name)
     if (!menu) {
       report.unresolved.push(sku.name)
-      console.log(`  ! "${sku.name}" tidak ditemukan — tidak bisa jadi portion SKU`)
+      console.log(`  ! "${sku.name}" tidak ditemukan - tidak bisa jadi portion SKU`)
       continue
     }
     if (menu.stockType !== 'portion') {
@@ -122,12 +122,12 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
       report.newPortionSkus++
       console.log(`  + PortionStock dibuat untuk "${sku.name}" (qty ${sku.initialQty}, min ${sku.minStock})`)
     } else {
-      console.log(`  = PortionStock "${sku.name}" sudah ada (qty ${ps.currentQty}) — dibiarkan`)
+      console.log(`  = PortionStock "${sku.name}" sudah ada (qty ${ps.currentQty}) - dibiarkan`)
     }
   }
 
   // =========================================================================
-  // STEP 3 — Variant menus (resolve stock targets BEFORE create, then upsert)
+  // STEP 3 - Variant menus (resolve stock targets BEFORE create, then upsert)
   // =========================================================================
   console.log('\n=== STEP 3: VARIANT MENUS ===')
   for (const spec of VARIANT_MENUS) {
@@ -214,7 +214,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   }
 
   // =========================================================================
-  // STEP 4 — Hide collapsed SKUs (posVisible=false), keep stockType + PortionStock
+  // STEP 4 - Hide collapsed SKUs (posVisible=false), keep stockType + PortionStock
   // =========================================================================
   console.log('\n=== STEP 4: HIDE COLLAPSED SKUS ===')
   for (const spec of VARIANT_MENUS) {
@@ -229,14 +229,14 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   }
 
   // =========================================================================
-  // STEP 5 — Pakets (convert legacy paket menus in place into FK components)
+  // STEP 5 - Pakets (convert legacy paket menus in place into FK components)
   // =========================================================================
   console.log('\n=== STEP 5: PAKETS ===')
   for (const spec of PAKET_SPECS) {
     const existing = await findMenuByName(spec.name)
     if (!existing) {
       report.paketsSkipped.push(spec.name)
-      console.log(`  ! paket "${spec.name}" tidak ditemukan — dilewati (tidak dibuat)`)
+      console.log(`  ! paket "${spec.name}" tidak ditemukan - dilewati (tidak dibuat)`)
       continue
     }
 
@@ -295,7 +295,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   }
 
   // =========================================================================
-  // STEP 6 — Reconciliation report
+  // STEP 6 - Reconciliation report
   // =========================================================================
   console.log('\n=== RECONCILIATION ===')
   console.log(`  Variant menus created : ${report.variantMenusCreated}`)
@@ -347,7 +347,7 @@ async function main() {
     console.log(`  Δtransactions=${txAfter - txBefore} (must be 0)`)
     console.log(`  Δtransaction_items=${itemsAfter - itemsBefore} (must be 0)`)
     if (txAfter !== txBefore || itemsAfter !== itemsBefore) {
-      throw new Error('HISTORY MUTATED — transactions/items count changed! Investigate.')
+      throw new Error('HISTORY MUTATED - transactions/items count changed! Investigate.')
     }
     console.log('\nBackfill selesai ✓ (additive, idempotent, history intact).')
   } finally {

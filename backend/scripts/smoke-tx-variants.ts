@@ -140,7 +140,7 @@ async function main() {
   void choiceComp;
 
   // 5. Menu PORTION target KEDUA (distinct dari #portion) untuk slot choice
-  //    stock-bearing — supaya decrement fixed vs choice bisa dibedakan tegas.
+  //    stock-bearing - supaya decrement fixed vs choice bisa dibedakan tegas.
   const STOCK2_START = 80;
   const portion2 = await prisma.menu.create({
     data: {

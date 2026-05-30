@@ -60,7 +60,7 @@ import type {
 // View shape (mapper)
 // ============================================================
 
-/// REV 2.10: baris selection yang dipersist per TransactionItem — slot paket
+/// REV 2.10: baris selection yang dipersist per TransactionItem - slot paket
 /// (isPreference=false) + free-preference (isPreference=true, mis. Suhu). Mirror
 /// frontend TransactionItemSelection (types/index.ts).
 export interface TransactionItemSelectionView {
@@ -218,7 +218,7 @@ const transactionInclude = {
 } satisfies Prisma.TransactionInclude;
 
 // ============================================================
-// Stock resolution (REV 2.10 — FK-based via MenuNode graph)
+// Stock resolution (REV 2.10 - FK-based via MenuNode graph)
 // ============================================================
 //
 // REV 2.10: resolusi stok berbasis FK (MenuVariant.stockTargetMenuId + PaketComponent
@@ -227,7 +227,7 @@ const transactionInclude = {
 // pure resolver `resolveStockTargets` (unit-tested di variant-resolver.test.ts).
 //
 // `linkedSubOptionsSchema` / `paketSubOptionsSchema` tidak lagi dipakai untuk order
-// baru — backfill REV 2.10 sudah memindah pilihan ke relasi MenuVariant/PaketComponent.
+// baru - backfill REV 2.10 sudah memindah pilihan ke relasi MenuVariant/PaketComponent.
 
 interface ResolvedItem {
   input: OrderItemInput;
@@ -333,7 +333,7 @@ async function buildMenuGraph(
 }
 
 /// REV 2.10 P3: validasi pilihan slot paket SEBELUM resolveStockTargets.
-/// `resolveStockTargets` adalah pure no-throw resolver yang MEMPERCAYAI input —
+/// `resolveStockTargets` adalah pure no-throw resolver yang MEMPERCAYAI input -
 /// tanpa guard ini, paketChoices yang ngawur (slot hilang, slot tak dikenal,
 /// opsi bukan anggota slot) bisa men-decrement stok sembarang menu. Guard ini
 /// memakai daftar opsi yang diizinkan per slot dari graph (node.paket.choices[].options,
@@ -850,7 +850,7 @@ export async function addPayment(
   }
 
   // Atomic finalize: lock parent row, re-read committed payments, validate, insert
-  // slice, dan (kalau lunas) flip status + re-stamp shiftId — semua di dalam SATU
+  // slice, dan (kalau lunas) flip status + re-stamp shiftId - semua di dalam SATU
   // $transaction. Race fix: payments-sum read + remaining-check yang dulu di luar
   // transaction bisa di-bypass dua slice near-simultan; sekarang ter-serialize via
   // FOR UPDATE row lock pada parent.
@@ -878,7 +878,7 @@ export async function addPayment(
     }
 
     // REV 2.8 (review fail-fast): kalau slice ini melunasi, resolve shift SEBELUM
-    // insert payment. resolveActiveShift bisa throw 409 (0 atau 2+ shift aktif) —
+    // insert payment. resolveActiveShift bisa throw 409 (0 atau 2+ shift aktif) -
     // resolve dulu supaya tidak insert-lalu-rollback sia-sia. Read via outer prisma
     // (tabel shift beda dari row transactions yang di-lock → tak konflik).
     const newSum = sumExisting.add(amt);
@@ -966,7 +966,7 @@ export async function voidTransaction(
   }
   const settled = await prisma.settlement.findFirst({ where: { date: existing.shift.date } });
   if (settled) {
-    throw new AppError('Business day transaksi ini sudah di-settle — tidak bisa diubah (refund di luar lingkup sistem)', 409);
+    throw new AppError('Business day transaksi ini sudah di-settle - tidak bisa diubah (refund di luar lingkup sistem)', 409);
   }
 
   await prisma.$transaction(async (tx) => {
@@ -1141,7 +1141,7 @@ export async function deleteTransactionItem(
 
   await prisma.$transaction(async (tx) => {
     // REV 2.10: resolve reverse deductions SEBELUM delete (selections cascade-deleted
-    // saat item dihapus). Graph FK-based — konsisten dengan create/void.
+    // saat item dihapus). Graph FK-based - konsisten dengan create/void.
     const graph = await buildMenuGraph(tx);
     const deductions = deductionsForStoredItem(graph, item);
     await tx.transactionItem.delete({ where: { id: itemId } });

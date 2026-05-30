@@ -1,7 +1,7 @@
 // PaymentMethodFormModal - REV 2.6 create / edit metode pembayaran.
 //
 // Field:
-//   - code         (text, immutable setelah create — read-only saat edit)
+//   - code         (text, immutable setelah create - read-only saat edit)
 //   - label        (text, required)
 //   - colorHex     (8 swatch preset, button group)
 //   - iconName     (ALLOWED_PAYMENT_ICONS dari service, button group dengan
@@ -140,7 +140,7 @@ export function PaymentMethodFormModal({ existing, allBanks, onClose, onSuccess 
         return existing.id
       }
 
-      // Create — kirim full payload termasuk bankIds (backend create + assign
+      // Create - kirim full payload termasuk bankIds (backend create + assign
       // atomic).
       const payload: CreatePaymentMethodInput = {
         code: form.code,
@@ -338,7 +338,7 @@ export function PaymentMethodFormModal({ existing, allBanks, onClose, onSuccess 
           </div>
         </div>
 
-        {/* Bank multi-select — hanya muncul kalau requiresBank=true */}
+        {/* Bank multi-select - hanya muncul kalau requiresBank=true */}
         {form.requiresBank && (
           <div className="space-y-2">
             <label className="text-label text-neutral-700 block">

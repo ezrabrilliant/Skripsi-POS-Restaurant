@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test REV 2.6 — payment-methods + banks (23 scenarios)
+# Smoke test REV 2.6 - payment-methods + banks (23 scenarios)
 # Run dari worktree root atau backend/. Backend dev server WAJIB jalan dulu.
 set -u
 BASE=http://localhost:8000/api

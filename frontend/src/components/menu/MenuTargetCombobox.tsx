@@ -7,7 +7,7 @@
  *   (string). Konsisten dengan resolusi `findFirst({ name })` lama.
  * - **Controlled (REV 2.10 FK)**: parent mengirim `options` eksplisit (mis.
  *   value = id menu sebagai string, termasuk SKU tersembunyi). Komponen tidak
- *   fetch sendiri — tinggal render options yang dikasih.
+ *   fetch sendiri - tinggal render options yang dikasih.
  */
 
 import { useMemo } from 'react'

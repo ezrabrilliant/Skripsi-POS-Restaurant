@@ -1,4 +1,4 @@
-// REV 2.8 — import stok opname harian buku (halaman kiri) sebagai PortionMovement
+// REV 2.8 - import stok opname harian buku (halaman kiri) sebagai PortionMovement
 // dengan ledger (qty_before/qty_after) + waktu opname pagi 09:30–09:59.
 //
 // Sumber: book-stock-raw.json (ekstraksi verbatim 27 doc /docs/data buku/).

@@ -1,4 +1,4 @@
-// REV 2.10 collapse spec — single source of truth for the menu-variant redesign.
+// REV 2.10 collapse spec - single source of truth for the menu-variant redesign.
 // Consumed by BOTH `scripts/backfill-menu-variants.ts` (existing dev/prod DB) and
 // `seed.ts` (fresh DB), so the variant catalog is identical either way.
 //
@@ -10,7 +10,7 @@
 //     holders but get posVisible=false (hidden from the POS grid). History is preserved
 //     (old transactions still reference them by id).
 //   - A PAKET (kind=paket) is normalized from the legacy subOptions JSON into FK
-//     components. Paket choice options reference a SPECIFIC menu (leaf) — drinks are
+//     components. Paket choice options reference a SPECIFIC menu (leaf) - drinks are
 //     info-only (nonStock → no decrement), ayam/kuah point at the stock-holding SKU.
 //
 // Owner decisions locked 2026-05-30 (chat): Kecap/Merah NO LONGER share stock; Semur
@@ -45,7 +45,7 @@ export interface VariantMenuSpec {
   imageUrl?: string
   groups: VariantOptionGroupSpec[]
   variants: VariantSpec[]
-  /** Existing menu names to hide from POS (posVisible=false) — the collapsed SKUs. */
+  /** Existing menu names to hide from POS (posVisible=false) - the collapsed SKUs. */
   hides: string[]
 }
 
@@ -77,7 +77,7 @@ export const NEW_PORTION_SKUS: { name: string; minStock: number; initialQty: num
 ]
 
 export const VARIANT_MENUS: VariantMenuSpec[] = [
-  // ---- Minuman: Es Teh (Rasa × Ukuran; Suhu free) — non-additive grid 8/10/12/15 ----
+  // ---- Minuman: Es Teh (Rasa × Ukuran; Suhu free) - non-additive grid 8/10/12/15 ----
   {
     name: 'Es Teh',
     category: 'Minuman',
@@ -96,7 +96,7 @@ export const VARIANT_MENUS: VariantMenuSpec[] = [
     ],
     hides: ['Teh Tawar Biasa', 'Teh Manis Biasa', 'Teh Tawar Jumbo', 'Teh Manis Jumbo'],
   },
-  // ---- Es Jeruk (Jenis) — per-variant price ----
+  // ---- Es Jeruk (Jenis) - per-variant price ----
   {
     name: 'Es Jeruk',
     category: 'Minuman',

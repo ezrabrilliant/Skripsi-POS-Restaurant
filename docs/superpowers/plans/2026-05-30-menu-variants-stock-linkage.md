@@ -1,4 +1,4 @@
-# Menu Variants + Stock Linkage Redesign (REV 2.10) — Implementation Plan
+# Menu Variants + Stock Linkage Redesign (REV 2.10) - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -19,43 +19,43 @@
 
 ## Critical Don'ts (carry from prior migrations)
 
-- NEVER `prisma migrate reset` / `db push --force-reset` / `db:fresh` on LOCAL or PROD — both hold real data. All schema changes here are **additive** → `prisma db push` only.
-- Smoke scripts delete data — run ONLY against `pos_restaurant_test` via `npx tsx --env-file=.env.test scripts/...`. The guard (refuse non-`_test` DB) must be honored/added.
-- Local dev `.env` may be missing (deleted earlier) — set `$env:DATABASE_URL="mysql://root:@localhost:3306/pos_restaurant"` or recreate from `.env.example` before running scripts. Prod `.env` is loopback and intact.
+- NEVER `prisma migrate reset` / `db push --force-reset` / `db:fresh` on LOCAL or PROD - both hold real data. All schema changes here are **additive** → `prisma db push` only.
+- Smoke scripts delete data - run ONLY against `pos_restaurant_test` via `npx tsx --env-file=.env.test scripts/...`. The guard (refuse non-`_test` DB) must be honored/added.
+- Local dev `.env` may be missing (deleted earlier) - set `$env:DATABASE_URL="mysql://root:@localhost:3306/pos_restaurant"` or recreate from `.env.example` before running scripts. Prod `.env` is loopback and intact.
 - Migration on PROD = backup (mysqldump) first, off-peak, verify counts before/after.
 
 ## File Structure (decomposition)
 
 **Backend (new/modified):**
-- `backend/prisma/schema.prisma` — add enums `MenuKind`, `PaketComponentKind`; new models; extend `Menu`, `TransactionItem`.
-- `backend/src/modules/menus/menus.schema.ts` — add Zod for option-group/variant/paket builder payloads (keep legacy linked/paket JSON schemas during transition for the backfill validator only).
-- `backend/src/modules/menus/menus.service.ts` — variant/paket CRUD + nested fetch for POS/owner.
-- `backend/src/modules/menus/menus.controller.ts` + `menus.routes.ts` — endpoints.
-- `backend/src/modules/menus/variant-resolver.ts` — **NEW pure module**: `resolveStockTargets`, `buildVariantLabel`, combination helpers (unit-tested).
-- `backend/src/modules/transactions/transactions.service.ts` — use `resolveStockTargets`; record `variantId` + `transaction_item_selections`; drop name resolver.
-- `backend/src/modules/transactions/transactions.schema.ts` — order item payload gains `variantId?` + `selections?`/`paketChoices?`.
-- `backend/prisma/menu-catalog.ts` + `seed.ts` — express the new catalog (variant menus) for fresh DBs.
-- `backend/scripts/backfill-menu-variants.ts` — **NEW** idempotent backfill (JSON→tables, create display menus, hide granular SKUs).
-- `backend/scripts/smoke-menu-variants.ts` — **NEW** integration smoke (test DB).
-- `backend/src/modules/menus/__tests__/variant-resolver.test.ts` — **NEW** Vitest unit tests.
+- `backend/prisma/schema.prisma` - add enums `MenuKind`, `PaketComponentKind`; new models; extend `Menu`, `TransactionItem`.
+- `backend/src/modules/menus/menus.schema.ts` - add Zod for option-group/variant/paket builder payloads (keep legacy linked/paket JSON schemas during transition for the backfill validator only).
+- `backend/src/modules/menus/menus.service.ts` - variant/paket CRUD + nested fetch for POS/owner.
+- `backend/src/modules/menus/menus.controller.ts` + `menus.routes.ts` - endpoints.
+- `backend/src/modules/menus/variant-resolver.ts` - **NEW pure module**: `resolveStockTargets`, `buildVariantLabel`, combination helpers (unit-tested).
+- `backend/src/modules/transactions/transactions.service.ts` - use `resolveStockTargets`; record `variantId` + `transaction_item_selections`; drop name resolver.
+- `backend/src/modules/transactions/transactions.schema.ts` - order item payload gains `variantId?` + `selections?`/`paketChoices?`.
+- `backend/prisma/menu-catalog.ts` + `seed.ts` - express the new catalog (variant menus) for fresh DBs.
+- `backend/scripts/backfill-menu-variants.ts` - **NEW** idempotent backfill (JSON→tables, create display menus, hide granular SKUs).
+- `backend/scripts/smoke-menu-variants.ts` - **NEW** integration smoke (test DB).
+- `backend/src/modules/menus/__tests__/variant-resolver.test.ts` - **NEW** Vitest unit tests.
 
 **Frontend (new/modified):**
-- `frontend/src/types/index.ts` — `MenuKind`, `OptionGroup`, `Option`, `MenuVariant`, `PaketComponent`, `PaketChoiceOption`, `TransactionItemSelection`; extend `Menu`, order payloads.
-- `frontend/src/services/menuService.ts` — variant/paket CRUD + nested reads.
-- `frontend/src/components/MenuFormModal.tsx` — progressive disclosure shell.
-- `frontend/src/components/menu/VariantBuilder.tsx` — **NEW** (option groups + auto variant grid).
-- `frontend/src/components/menu/PaketBuilder.tsx` — adapt to FK refs (reuse).
-- `frontend/src/components/VariantPickerModal.tsx` — **NEW** generic POS picker (replaces `SubOptionsModal`).
-- `frontend/src/components/MenuGrid.tsx` — filter `posVisible`, open picker by `kind`.
-- `frontend/src/stores/cartStore.ts` — carry `variantId` + `selections`.
-- `frontend/src/services/transactionService.ts` — order payload.
-- `frontend/src/pages/HistoryPage.tsx` — display variant + selections.
-- `frontend/src/pages/MenuPage.tsx` — show variants; revise B2 `menuStockLink` to use FK.
-- `frontend/src/lib/menuStockLink.ts` — simplify to FK-based (no name match).
+- `frontend/src/types/index.ts` - `MenuKind`, `OptionGroup`, `Option`, `MenuVariant`, `PaketComponent`, `PaketChoiceOption`, `TransactionItemSelection`; extend `Menu`, order payloads.
+- `frontend/src/services/menuService.ts` - variant/paket CRUD + nested reads.
+- `frontend/src/components/MenuFormModal.tsx` - progressive disclosure shell.
+- `frontend/src/components/menu/VariantBuilder.tsx` - **NEW** (option groups + auto variant grid).
+- `frontend/src/components/menu/PaketBuilder.tsx` - adapt to FK refs (reuse).
+- `frontend/src/components/VariantPickerModal.tsx` - **NEW** generic POS picker (replaces `SubOptionsModal`).
+- `frontend/src/components/MenuGrid.tsx` - filter `posVisible`, open picker by `kind`.
+- `frontend/src/stores/cartStore.ts` - carry `variantId` + `selections`.
+- `frontend/src/services/transactionService.ts` - order payload.
+- `frontend/src/pages/HistoryPage.tsx` - display variant + selections.
+- `frontend/src/pages/MenuPage.tsx` - show variants; revise B2 `menuStockLink` to use FK.
+- `frontend/src/lib/menuStockLink.ts` - simplify to FK-based (no name match).
 
 ---
 
-# PHASE 0 — Schema (additive) + Prisma client
+# PHASE 0 - Schema (additive) + Prisma client
 
 ### Task 0.1: Add enums + new models + extend Menu/TransactionItem
 
@@ -76,7 +76,7 @@ enum PaketComponentKind {
 }
 ```
 
-- [ ] **Step 2: Extend `Menu`** — add fields + relations (keep all existing fields, incl. `subOptions Json?` for now):
+- [ ] **Step 2: Extend `Menu`** - add fields + relations (keep all existing fields, incl. `subOptions Json?` for now):
 
 ```prisma
   // REV 2.10
@@ -188,7 +188,7 @@ model TransactionItemSelection {
 }
 ```
 
-- [ ] **Step 4: Extend `TransactionItem`** — add `variantId` + relations (keep `subOptionsSelected Json?` for now):
+- [ ] **Step 4: Extend `TransactionItem`** - add `variantId` + relations (keep `subOptionsSelected Json?` for now):
 
 ```prisma
   variantId  Int?         @map("variant_id")
@@ -211,12 +211,12 @@ Expected: "Your database is now in sync" with NO data-loss prompt (additive). If
 
 ```bash
 git add backend/prisma/schema.prisma
-git commit -m "feat(schema): REV 2.10 — menu variants + paket + selections (additive)"
+git commit -m "feat(schema): REV 2.10 - menu variants + paket + selections (additive)"
 ```
 
 ---
 
-# PHASE 1 — Pure variant resolver (TDD)
+# PHASE 1 - Pure variant resolver (TDD)
 
 The order-time engine and label-building are pure logic → unit-test first.
 
@@ -280,7 +280,7 @@ Expected: PASS.
 
 ```bash
 git add backend/src/modules/menus/variant-resolver.ts backend/src/modules/menus/__tests__/variant-resolver.test.ts
-git commit -m "feat(menus): REV 2.10 — variant label + cartesian helpers (TDD)"
+git commit -m "feat(menus): REV 2.10 - variant label + cartesian helpers (TDD)"
 ```
 
 ### Task 1.2: `resolveStockTargets` (pure, over an in-memory menu graph)
@@ -289,7 +289,7 @@ Resolve a chosen item → list of stock deductions. Pure function operating on a
 
 **Files:** Modify `backend/src/modules/menus/variant-resolver.ts`; Modify the test file.
 
-- [ ] **Step 1: Write failing tests** — model the three kinds + cascade + nonStock:
+- [ ] **Step 1: Write failing tests** - model the three kinds + cascade + nonStock:
 
 ```ts
 import { resolveStockTargets, type MenuNode } from '../variant-resolver'
@@ -326,7 +326,7 @@ it('paket choosing air mineral (nonStock) → only fixed', () => {
 })
 ```
 
-- [ ] **Step 2: Run → fail.** Run: `npx vitest run src/modules/menus/__tests__/variant-resolver.test.ts` — Expected: FAIL.
+- [ ] **Step 2: Run → fail.** Run: `npx vitest run src/modules/menus/__tests__/variant-resolver.test.ts` - Expected: FAIL.
 
 - [ ] **Step 3: Implement** `MenuNode` types + `resolveStockTargets`:
 
@@ -387,11 +387,11 @@ function mergeDeductions(d: StockDeduction[]): StockDeduction[] {
 ```
 
 - [ ] **Step 4: Run → pass.** Expected: all tests PASS.
-- [ ] **Step 5: Commit** `git commit -m "feat(menus): REV 2.10 — resolveStockTargets engine (TDD, FK-based)"`.
+- [ ] **Step 5: Commit** `git commit -m "feat(menus): REV 2.10 - resolveStockTargets engine (TDD, FK-based)"`.
 
 ---
 
-# PHASE 2 — Backend CRUD: option groups / variants / paket
+# PHASE 2 - Backend CRUD: option groups / variants / paket
 
 ### Task 2.1: Zod payloads for the menu builder
 
@@ -454,13 +454,13 @@ export const menuUpsertSchema = z.object({
 export type MenuUpsertInput = z.infer<typeof menuUpsertSchema>
 ```
 
-- [ ] **Step 2: Commit** `git commit -m "feat(menus): REV 2.10 — Zod builder payloads (variant/paket)"`.
+- [ ] **Step 2: Commit** `git commit -m "feat(menus): REV 2.10 - Zod builder payloads (variant/paket)"`.
 
-### Task 2.2: Service — create/update menu with nested option groups + variants + paket
+### Task 2.2: Service - create/update menu with nested option groups + variants + paket
 
 **Files:** Modify `backend/src/modules/menus/menus.service.ts`
 
-- [ ] **Step 1: Implement `upsertMenu`** — wrap in `prisma.$transaction`; on update, replace child rows (delete+recreate option groups/variants/paket components for simplicity; their FKs cascade). Map `variant.optionLabels` (group name → option label) to `MenuVariantOption` rows by matching created option ids. Validate `stockTargetMenuId` exists + is a real menu. Set `Menu.kind`/`posVisible`.
+- [ ] **Step 1: Implement `upsertMenu`** - wrap in `prisma.$transaction`; on update, replace child rows (delete+recreate option groups/variants/paket components for simplicity; their FKs cascade). Map `variant.optionLabels` (group name → option label) to `MenuVariantOption` rows by matching created option ids. Validate `stockTargetMenuId` exists + is a real menu. Set `Menu.kind`/`posVisible`.
 
 ```ts
 // signature
@@ -474,11 +474,11 @@ export async function upsertMenu(id: number | null, input: MenuUpsertInput): Pro
 //  - return getMenuDetail(menuId)
 ```
 
-- [ ] **Step 2: Implement `getMenuDetail(id)` + `listMenus(query)`** — `include` optionGroups.options, variants.options, paketComponents.choiceOptions, portionStock. For POS list, filter `posVisible=true` + `isActive`. For owner list, allow `includeHidden`.
+- [ ] **Step 2: Implement `getMenuDetail(id)` + `listMenus(query)`** - `include` optionGroups.options, variants.options, paketComponents.choiceOptions, portionStock. For POS list, filter `posVisible=true` + `isActive`. For owner list, allow `includeHidden`.
 
 - [ ] **Step 3: Smoke-test via script** (Task 2.4 covers full smoke). For now ad-hoc: create a variant menu (Es Teh, 2 groups, 4 variants) via the service in a scratch and assert 4 variants + correct labels.
 
-- [ ] **Step 4: Commit** `git commit -m "feat(menus): REV 2.10 — upsertMenu + nested fetch service"`.
+- [ ] **Step 4: Commit** `git commit -m "feat(menus): REV 2.10 - upsertMenu + nested fetch service"`.
 
 ### Task 2.3: Controller + routes
 
@@ -486,7 +486,7 @@ export async function upsertMenu(id: number | null, input: MenuUpsertInput): Pro
 
 - [ ] **Step 1:** Replace the old create/update handlers to use `menuUpsertSchema` + `upsertMenu`. Keep `GET /menus` (public, posVisible+active), `GET /menus/:id` (detail), `POST /menus` (owner), `PUT /menus/:id` (owner), deactivate/reactivate. Permission: owner-only for mutations (per matrix). Response `{success,message,data:{menu}}`.
 - [ ] **Step 2: Register** routes (already registered in `app.ts`; no change unless path changes).
-- [ ] **Step 3: Commit** `git commit -m "feat(menus): REV 2.10 — controller/routes for variant/paket upsert"`.
+- [ ] **Step 3: Commit** `git commit -m "feat(menus): REV 2.10 - controller/routes for variant/paket upsert"`.
 
 ### Task 2.4: Integration smoke (test DB)
 
@@ -494,11 +494,11 @@ export async function upsertMenu(id: number | null, input: MenuUpsertInput): Pro
 
 - [ ] **Step 1:** Guard: refuse to run unless `DATABASE_URL` contains `_test`. Scenarios: (1) create Es Teh variant menu (Rasa×Ukuran + free Suhu) → assert 4 variants, prices 8/10/12/15, Suhu group has affectsVariant=false and no variant rows include it; (2) create Ayam Potong (Bagian×CaraMasak) variants → stockTargetMenuId set; (3) create Paket with fixed + choice(Teh variant-menu | Air Mineral) → assert structure; (4) update menu (rename group) → children replaced cleanly; (5) GET list posVisible filter hides stock SKUs.
 - [ ] **Step 2: Run** `npx tsx --env-file=.env.test scripts/smoke-menu-variants.ts` → Expected: all scenarios print PASS.
-- [ ] **Step 3: Commit** `git commit -m "test(menus): REV 2.10 — variant/paket CRUD smoke"`.
+- [ ] **Step 3: Commit** `git commit -m "test(menus): REV 2.10 - variant/paket CRUD smoke"`.
 
 ---
 
-# PHASE 3 — Order-time integration
+# PHASE 3 - Order-time integration
 
 ### Task 3.1: Order item payload schema
 
@@ -518,7 +518,7 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 // keep legacy subOptionsSelected optional during transition
 ```
 
-- [ ] **Step 2: Commit** `git commit -m "feat(tx): REV 2.10 — order item payload (variantId + paketChoices + preferences)"`.
+- [ ] **Step 2: Commit** `git commit -m "feat(tx): REV 2.10 - order item payload (variantId + paketChoices + preferences)"`.
 
 ### Task 3.2: Service uses `resolveStockTargets`; records variantId + selections
 
@@ -528,11 +528,11 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 - [ ] **Step 2:** Set `TransactionItem.unitPrice` = variant.price (variant) / menu.price (simple) / paket.price (paket). Persist `variantId`. Create `TransactionItemSelection` rows from `paketChoices` (isPreference=false) + `preferences` (isPreference=true).
 - [ ] **Step 3:** Keep void/reverse logic working (reverse uses the same deductions; ensure movement reversal reads recorded deductions or recomputes from the stored item+variant). Simplest: on void, recompute `resolveStockTargets` from stored `variantId`/selections and reverse.
 - [ ] **Step 4: Extend `smoke-tx` (or new smoke)** in test DB: order a variant → correct stock target decremented; order paket with Teh choice → multi-decrement + selections rows present; void → stock restored. Run `npx tsx --env-file=.env.test scripts/smoke-tx.ts`.
-- [ ] **Step 5: Commit** `git commit -m "feat(tx): REV 2.10 — FK-based stock resolution + variant/selection recording"`.
+- [ ] **Step 5: Commit** `git commit -m "feat(tx): REV 2.10 - FK-based stock resolution + variant/selection recording"`.
 
 ---
 
-# PHASE 4 — Backfill + seed + verification (LOCAL)
+# PHASE 4 - Backfill + seed + verification (LOCAL)
 
 ### Task 4.1: Backfill script (idempotent)
 
@@ -546,7 +546,7 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
   5. Print a reconciliation report: counts created, names unresolved (must be 0 before prod).
 - [ ] **Step 2: Run on LOCAL dev DB** (after Phase 0 push): `$env:DATABASE_URL=...pos_restaurant; npx tsx scripts/backfill-menu-variants.ts` → review report, 0 unresolved.
 - [ ] **Step 3:** Manually verify in `prisma studio` / a query: Es Teh has 4 variants 8/10/12/15; Ayam Potong variants point to existing portion menus; old teh menus `posVisible=false`; paket components populated.
-- [ ] **Step 4: Commit** `git commit -m "feat(scripts): REV 2.10 — backfill menu variants (idempotent, history-safe)"`.
+- [ ] **Step 4: Commit** `git commit -m "feat(scripts): REV 2.10 - backfill menu variants (idempotent, history-safe)"`.
 
 ### Task 4.2: Update `menu-catalog.ts` + `seed.ts` for fresh DBs
 
@@ -554,7 +554,7 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 
 - [ ] **Step 1:** Express the catalog in the new structure (variant menus + paket components) so `npm run db:seed` on a fresh DB yields the same shape as backfill. Keep granular stock SKUs (posVisible=false) as the stock holders.
 - [ ] **Step 2:** Verify against a fresh `pos_restaurant_test`: `db push --force-reset` is FORBIDDEN on real DBs but OK on the throwaway test DB → reseed → run `smoke-menu-variants` + `smoke-tx`.
-- [ ] **Step 3: Commit** `git commit -m "feat(seed): REV 2.10 — catalog in variant/paket structure"`.
+- [ ] **Step 3: Commit** `git commit -m "feat(seed): REV 2.10 - catalog in variant/paket structure"`.
 
 ### Task 4.3: Backend gate
 
@@ -565,25 +565,25 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 
 ---
 
-# PHASE 5 — Frontend types + services
+# PHASE 5 - Frontend types + services
 
 ### Task 5.1: Types
 
 **Files:** Modify `frontend/src/types/index.ts`
 
 - [ ] **Step 1:** Add `MenuKind`, `OptionGroup`, `Option`, `MenuVariant`, `PaketComponent`, `PaketChoiceOption`, `TransactionItemSelection`; extend `Menu` with `kind`, `posVisible`, `optionGroups?`, `variants?`, `paketComponents?`; extend order item payload + `TransactionItemView` with `variantId`/`variantLabel`/`selections`. Keep legacy `SubOptions` types until POS migration (Phase 7) done, then remove.
-- [ ] **Step 2:** `cd frontend && npx tsc --noEmit` → 0. Commit `"feat(fe): REV 2.10 — variant/paket types"`.
+- [ ] **Step 2:** `cd frontend && npx tsc --noEmit` → 0. Commit `"feat(fe): REV 2.10 - variant/paket types"`.
 
 ### Task 5.2: menuService + transactionService
 
 **Files:** Modify `frontend/src/services/menuService.ts`, `transactionService.ts`
 
 - [ ] **Step 1:** `menuService.upsert(payload)`, `menuService.detail(id)`, `list({ includeHidden })`. `transactionService` order payload carries `variantId`/`paketChoices`/`preferences`.
-- [ ] **Step 2:** tsc 0. Commit `"feat(fe): REV 2.10 — menu/transaction services"`.
+- [ ] **Step 2:** tsc 0. Commit `"feat(fe): REV 2.10 - menu/transaction services"`.
 
 ---
 
-# PHASE 6 — Owner progressive "Add Menu" form
+# PHASE 6 - Owner progressive "Add Menu" form
 
 ### Task 6.1: VariantBuilder
 
@@ -591,7 +591,7 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 
 - [ ] **Step 1:** Props `{ groups, variants, onChange, menusForStockTarget }`. UI: add/remove option group (name + affectsVariant toggle + options); **auto-generate** the variant grid as the cartesian of `affectsVariant=true` groups; each row: editable price + stock-target combobox (reuse `MenuTargetCombobox`) + active toggle. Preserve edited price/stock when regenerating (key by sorted optionLabels). Match existing modal tone (design-system primitives, `text-body-sm`, mobile-first).
 - [ ] **Step 2:** Audit references first (Frontend Consistency Mandate): `MenuFormModal.tsx`, `PaketBuilder.tsx`, `RawMaterialsTab` form. Use `Dialog`/`Input`/`Combobox`/`Button`/`Checkbox` primitives.
-- [ ] **Step 3:** tsc 0 + `vite build`. Commit `"feat(fe): REV 2.10 — VariantBuilder (auto grid + price/stock per combo)"`.
+- [ ] **Step 3:** tsc 0 + `vite build`. Commit `"feat(fe): REV 2.10 - VariantBuilder (auto grid + price/stock per combo)"`.
 
 ### Task 6.2: Progressive MenuFormModal + PaketBuilder adapt
 
@@ -599,42 +599,42 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 
 - [ ] **Step 1:** State 1 = basics + two buttons ("Tambah pilihan varian" → mount VariantBuilder, set kind=variant; "Jadikan paket" → mount adapted PaketBuilder, set kind=paket; mutually exclusive). Save → `menuService.upsert` with assembled payload + inferred `kind`.
 - [ ] **Step 2:** Adapt `PaketBuilder` to emit FK-based `paketComponents` (fixed: targetMenuId/variantId + qty; choice: options referencing menu/variant) instead of legacy name JSON. Reuse `MenuTargetCombobox` for picking targets.
-- [ ] **Step 3:** Manual e2e (dev): create Es Teh (4 variants, prices), Ayam Potong (variants→stock), a Paket; reopen to edit. tsc 0 + build + lint 0. Commit `"feat(fe): REV 2.10 — progressive Add Menu (VariantBuilder + PaketBuilder FK)"`.
+- [ ] **Step 3:** Manual e2e (dev): create Es Teh (4 variants, prices), Ayam Potong (variants→stock), a Paket; reopen to edit. tsc 0 + build + lint 0. Commit `"feat(fe): REV 2.10 - progressive Add Menu (VariantBuilder + PaketBuilder FK)"`.
 
 ---
 
-# PHASE 7 — POS generic picker
+# PHASE 7 - POS generic picker
 
 ### Task 7.1: VariantPickerModal (replaces SubOptionsModal)
 
 **Files:** Create `frontend/src/components/VariantPickerModal.tsx`; Modify `frontend/src/components/MenuGrid.tsx`, `frontend/src/stores/cartStore.ts`, `frontend/src/components/CartPanel.tsx`
 
-- [ ] **Step 1:** `VariantPickerModal` renders generically from a menu's `optionGroups`: one selectable row per group (pick exactly 1). For `kind=variant`: resolve chosen options → matching `MenuVariant` → show price; `affectsVariant=false` groups recorded as preferences. For `kind=paket`: render fixed items (read-only) + each choice slot; choosing an option that targets a variant-menu opens that menu's picker inline (recursive — reuse the same component). Emit `{ menuId, variantId?, paketChoices?, preferences?, unitPrice }` to cart.
+- [ ] **Step 1:** `VariantPickerModal` renders generically from a menu's `optionGroups`: one selectable row per group (pick exactly 1). For `kind=variant`: resolve chosen options → matching `MenuVariant` → show price; `affectsVariant=false` groups recorded as preferences. For `kind=paket`: render fixed items (read-only) + each choice slot; choosing an option that targets a variant-menu opens that menu's picker inline (recursive - reuse the same component). Emit `{ menuId, variantId?, paketChoices?, preferences?, unitPrice }` to cart.
 - [ ] **Step 2:** `MenuGrid` shows only `posVisible` menus; tap → if `kind==='simple'` add directly, else open `VariantPickerModal`. `cartStore` line item carries `variantId`/`paketChoices`/`preferences`/`variantLabel`. `CartPanel` shows the variant label + preference notes (replaces REV 2.4 Panas/Dingin hardcoded toggle).
 - [ ] **Step 3:** Delete `SubOptionsModal.tsx` + the hardcoded `AMBIGUOUS_TEMP_MENUS` temp-toggle logic (now data-driven free-preference groups).
-- [ ] **Step 4:** Manual e2e: order Es Teh (pick rasa/ukuran/suhu → correct price), Ayam Potong (→ stock), Paket (Teh cascades, Air Mineral terminal). tsc 0 + build + lint 0. Commit `"feat(fe): REV 2.10 — generic VariantPickerModal + POS wiring; drop SubOptionsModal"`.
+- [ ] **Step 4:** Manual e2e: order Es Teh (pick rasa/ukuran/suhu → correct price), Ayam Potong (→ stock), Paket (Teh cascades, Air Mineral terminal). tsc 0 + build + lint 0. Commit `"feat(fe): REV 2.10 - generic VariantPickerModal + POS wiring; drop SubOptionsModal"`.
 
 ---
 
-# PHASE 8 — History/Menu display + B2 reconcile
+# PHASE 8 - History/Menu display + B2 reconcile
 
 ### Task 8.1: HistoryPage + MenuPage display
 
 **Files:** Modify `frontend/src/pages/HistoryPage.tsx`, `frontend/src/pages/MenuPage.tsx`
 
 - [ ] **Step 1:** HistoryPage item rows show `variantLabel` + `selections` (slot → chosen, preferences) instead of raw `subOptionsSelected` JSON. MenuPage rows show variant count/summary + (for variant menus) a way to see variants.
-- [ ] **Step 2:** tsc 0 + build. Commit `"feat(fe): REV 2.10 — history/menu variant display"`.
+- [ ] **Step 2:** tsc 0 + build. Commit `"feat(fe): REV 2.10 - history/menu variant display"`.
 
 ### Task 8.2: Reconcile Workstream B2 (FK-based jump)
 
 **Files:** Modify `frontend/src/lib/menuStockLink.ts`, `frontend/src/pages/MenuPage.tsx`
 
 - [ ] **Step 1:** Replace name-based `resolveStockTargetId` with FK: a menu's stock link uses `variant.stockTargetMenuId` (or the menu's own portion id). Remove name-matching + `?q=` fallback (FK guarantees target). Keep `?focusMenuId` highlight (B1).
-- [ ] **Step 2:** tsc 0 + build + lint 0. Commit `"refactor(fe): REV 2.10 — B2 jump links use FK stock target (drop name resolver)"`.
+- [ ] **Step 2:** tsc 0 + build + lint 0. Commit `"refactor(fe): REV 2.10 - B2 jump links use FK stock target (drop name resolver)"`.
 
 ---
 
-# PHASE 9 — Migration execution + verification + docs
+# PHASE 9 - Migration execution + verification + docs
 
 ### Task 9.1: LOCAL full verification
 
@@ -646,7 +646,7 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 
 - [ ] **mysqldump** full `pos_restaurant` → `/home/ubuntu/backups/prod-pre-rev210-<ts>.sql` (verify size > 0).
 - [ ] Deploy backend code (tarball workflow per [[project_deployment_server]]) + `npx prisma generate`.
-- [ ] `npx prisma db push` (env prod) — additive, expect "in sync", **NO data-loss prompt** (else ABORT + restore).
+- [ ] `npx prisma db push` (env prod) - additive, expect "in sync", **NO data-loss prompt** (else ABORT + restore).
 - [ ] `npx tsx --env-file=.env scripts/backfill-menu-variants.ts` → report 0 unresolved; verify counts before/after (old menus + transactions unchanged).
 - [ ] Deploy frontend `dist`.
 - [ ] Smoke prod: menus list (variant cards), order a test variant + paket off-hours → correct stock, void/cleanup. Watch `journalctl -u pos-backend -f`.
@@ -662,10 +662,10 @@ preferences: z.array(z.object({ groupLabel: z.string(), chosenLabel: z.string() 
 ## Self-Review (run after writing; fix inline)
 
 - **Spec coverage:** §3 data model → Phase 0; §4 owner flow → Phase 6; §5 POS → Phase 7; §6 engine → Phases 1+3; §7 migration → Phases 4+9; §9 testing → Phases 1,2.4,3.4,4.3,9.1; §11 B impact → Phase 8.2. ✔ all sections mapped.
-- **Placeholders:** schema/Zod/resolver/tests have real code; CRUD service (2.2) + UI components (6,7) specified by exact interface + behavior + verify steps (project has no FE unit tests; FE verified by tsc/build/lint/manual e2e per convention) — concrete, no "TBD".
+- **Placeholders:** schema/Zod/resolver/tests have real code; CRUD service (2.2) + UI components (6,7) specified by exact interface + behavior + verify steps (project has no FE unit tests; FE verified by tsc/build/lint/manual e2e per convention) - concrete, no "TBD".
 - **Type consistency:** `resolveStockTargets(graph, item)` / `MenuNode` / `StockDeduction` consistent across 1.2 → 3.2; `menuUpsertSchema`/`MenuUpsertInput` consistent 2.1 → 2.2 → 5.2; `stockTargetMenuId` naming consistent across schema/service/resolver/frontend.
 
 ## Execution options
 
-1. **Subagent-Driven (recommended)** — fresh subagent per task, review between tasks.
-2. **Inline Execution** — executing-plans, batch with checkpoints.
+1. **Subagent-Driven (recommended)** - fresh subagent per task, review between tasks.
+2. **Inline Execution** - executing-plans, batch with checkpoints.

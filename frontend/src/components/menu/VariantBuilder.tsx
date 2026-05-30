@@ -1,5 +1,5 @@
 /**
- * VariantBuilder REV 2.10 — form visual untuk menu kind=variant.
+ * VariantBuilder REV 2.10 - form visual untuk menu kind=variant.
  *
  * Owner mendefinisikan **grup opsi** (mis. "Bagian Ayam", "Cara Masak", "Suhu")
  * lalu sistem otomatis menghitung **cartesian product** dari grup yang
@@ -68,7 +68,7 @@ export interface VariantBuilderValue {
 interface VariantBuilderProps {
   value: VariantBuilderValue
   onChange: (next: VariantBuilderValue) => void
-  /** Harga dasar menu — default harga varian baru. */
+  /** Harga dasar menu - default harga varian baru. */
   basePrice: number
   /** Nama menu yang sedang di-edit (di-exclude dari pilihan stock target). */
   excludeMenuName?: string
@@ -217,7 +217,7 @@ export function menuToVariantBuilderState(menu: Menu): VariantBuilderValue {
   const overrides: Record<string, VariantOverride> = {}
   for (const v of menu.variants ?? []) {
     // Rekonstruksi map groupName -> label dari optionIds varian ini. Pakai
-    // SELURUH entri yang ketemu (partial OK) — jangan drop varian kalau ada
+    // SELURUH entri yang ketemu (partial OK) - jangan drop varian kalau ada
     // grup yang hilang (data drift dari backfill). Key by variantSignature
     // (group-order-independent) supaya cocok dengan grid bila kombinasi masih ada.
     const optionLabels: Record<string, string> = {}
@@ -324,7 +324,7 @@ function OptionGroupEditor({
         >
           <span className="font-semibold block">Bebas</span>
           <span className="text-caption text-neutral-500">
-            Pilihan saja (mis. suhu) — harga sama
+            Pilihan saja (mis. suhu) - harga sama
           </span>
         </button>
       </div>
@@ -395,7 +395,7 @@ export function VariantBuilder({
         label: m.name,
         helper: m.category,
       }))
-    return [{ value: '', label: '— tidak ada (nonStock) —' }, ...opts]
+    return [{ value: '', label: '- tidak ada (nonStock) -' }, ...opts]
   }, [portionMenus, excludeMenuName])
 
   const rows = useMemo(
@@ -540,7 +540,7 @@ export function VariantBuilder({
                     }
                     options={stockTargetOptions}
                     label="Kurangi stok dari"
-                    placeholder="— tidak ada (nonStock) —"
+                    placeholder="- tidak ada (nonStock) -"
                   />
                   {/* REV 2.11: untuk varian nonStock (tanpa stock leaf), owner pilih
                       SKU tersembunyi sebagai sumber modal/COGS. Bila stockTarget ada,
@@ -551,7 +551,7 @@ export function VariantBuilder({
                       onChange={(v) => setOverride(row.signature, { costSourceMenuId: v ? Number(v) : null })}
                       options={stockTargetOptions}
                       label="Modal ikut menu (SKU tersembunyi)"
-                      placeholder="— pakai modal menu ini —"
+                      placeholder="- pakai modal menu ini -"
                     />
                   )}
                 </div>

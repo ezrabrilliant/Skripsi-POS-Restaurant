@@ -37,7 +37,7 @@ export const orderItemSchema = z.object({
     )
     .optional(),
   /// REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu dingin/panas).
-  /// Dicatat sebagai TransactionItemSelection isPreference=true — tidak pengaruh stok/harga.
+  /// Dicatat sebagai TransactionItemSelection isPreference=true - tidak pengaruh stok/harga.
   preferences: z
     .array(z.object({ groupLabel: z.string().trim().min(1), chosenLabel: z.string().trim().min(1) }))
     .optional(),

@@ -176,7 +176,7 @@ export async function unassignBank(methodId: number, bankId: number): Promise<Pa
 
   // Block: kalau requiresBank=true dan ini bank terakhir
   if (method.requiresBank && method._count.banks <= 1) {
-    throw new AppError('Method ini wajib punya minimal 1 bank — tidak bisa unassign yang terakhir', 400);
+    throw new AppError('Method ini wajib punya minimal 1 bank - tidak bisa unassign yang terakhir', 400);
   }
 
   await prisma.paymentMethodBank

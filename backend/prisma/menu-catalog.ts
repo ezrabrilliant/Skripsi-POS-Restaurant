@@ -264,7 +264,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
     minStock: 5,
     imageUrl: SEMUR_DAGING_IMG,
   },
-  // REV 2.8: Semur Ayam — item stok-only dari buku (dicatat opname harian, jarang dijual).
+  // REV 2.8: Semur Ayam - item stok-only dari buku (dicatat opname harian, jarang dijual).
   { name: 'Semur Ayam', category: 'Sayur & Sup', price: 30000, stockType: 'portion', minStock: 5, imageUrl: SEMUR_DAGING_IMG },
   {
     name: 'Gulai Daging',
@@ -316,7 +316,7 @@ export const MENU_CATALOG: MenuCatalogItem[] = [
   { name: 'Sambal Terasi', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
   { name: 'Sambal Tomat', category: 'Side Dish', price: 5000, stockType: 'nonStock', imageUrl: SAMBAL_IMG },
   // REV 2.6: 2 varian kerupuk dari data buku historis (Krupuk B 7k + Krupuk C/Udang 15k).
-  // REV 2.8: portion (ditrack opname harian di buku — Krupuk B→Kerupuk, Krupuk C→Kerupuk Udang).
+  // REV 2.8: portion (ditrack opname harian di buku - Krupuk B→Kerupuk, Krupuk C→Kerupuk Udang).
   { name: 'Kerupuk', category: 'Side Dish', price: 7000, stockType: 'portion', minStock: 5, imageUrl: SAMBAL_IMG },
   { name: 'Kerupuk Udang', category: 'Side Dish', price: 15000, stockType: 'portion', minStock: 5, imageUrl: SAMBAL_IMG },
 

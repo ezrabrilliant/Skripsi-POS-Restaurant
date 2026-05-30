@@ -12,7 +12,7 @@
 //   - Waiter: dashboard primary stok porsi + raw materials reminders, plus active
 //     shifts hari ini (supaya tahu shift mana yang attach kalau fallback input order).
 //
-// REV 2.6: byMethod dinamis (MethodTotalEntry[]) — bukan object 6 fixed key.
+// REV 2.6: byMethod dinamis (MethodTotalEntry[]) - bukan object 6 fixed key.
 // Mendukung method custom (mis. ShopeePay) muncul otomatis di chart owner.
 // BankBreakdownEntry.method jadi generic string (drop hardcoded 'edc' | 'transfer').
 
@@ -230,7 +230,7 @@ async function bankBreakdown(
   where: Prisma.TransactionWhereInput,
 ): Promise<BankBreakdownEntry[]> {
   // REV 2.6: bank breakdown via TransactionPayment.bank groupBy. Drop hardcoded
-  // method filter ('edc' | 'transfer'); pakai filter bank IS NOT NULL — sama
+  // method filter ('edc' | 'transfer'); pakai filter bank IS NOT NULL - sama
   // dengan pattern settlements module Phase 6 (method requiresBank=true di master
   // akan punya bank value pada payment row).
   const rows = await prisma.transactionPayment.groupBy({

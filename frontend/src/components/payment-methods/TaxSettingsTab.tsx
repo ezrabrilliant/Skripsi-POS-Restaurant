@@ -21,7 +21,7 @@ export default function TaxSettingsTab() {
     queryFn: settingsService.get,
   })
 
-  // Local draft state — di-sync dari server saat load, lalu user edit sebelum Simpan.
+  // Local draft state - di-sync dari server saat load, lalu user edit sebelum Simpan.
   const [enabled, setEnabled] = useState(false)
   const [rate, setRate] = useState('10')
 
@@ -36,7 +36,7 @@ export default function TaxSettingsTab() {
     mutationFn: () =>
       settingsService.update({ taxEnabled: enabled, taxRate: Number(rate) }),
     onSuccess: (s) => {
-      toast.success(`Pengaturan PB1 disimpan — ${s.taxEnabled ? `aktif ${s.taxRate}%` : 'nonaktif'}`)
+      toast.success(`Pengaturan PB1 disimpan - ${s.taxEnabled ? `aktif ${s.taxRate}%` : 'nonaktif'}`)
       qc.invalidateQueries({ queryKey: ['settings'] })
     },
     onError: (err: Error) => toast.error(err.message),
@@ -91,7 +91,7 @@ export default function TaxSettingsTab() {
           </button>
         </div>
 
-        {/* Rate input — disabled kalau toggle off */}
+        {/* Rate input - disabled kalau toggle off */}
         <div className={cn('space-y-1.5', !enabled && 'opacity-50')}>
           <label htmlFor="tax-rate" className="text-body-sm font-medium text-neutral-700">
             Tarif PB1 (%)

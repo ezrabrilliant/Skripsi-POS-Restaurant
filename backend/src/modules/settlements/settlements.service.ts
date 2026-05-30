@@ -306,7 +306,7 @@ export async function createSettlement(
   // bila belum ada yang ditutup.
   const closer = shiftsThatDay.find((s) => s.closedAt) ?? shiftsThatDay[0]!;
 
-  // Permission inline (shift-redesign Phase 3 — old shift.type === malam check GONE):
+  // Permission inline (shift-redesign Phase 3 - old shift.type === malam check GONE):
   //   - Owner boleh settle hari apapun.
   //   - Kasir hanya boleh settle kalau dia kasir penutup shift terakhir hari itu.
   if (userRole === UserRole.cashier) {

@@ -1,4 +1,4 @@
-// REV 2.11 P6 — idempotent backfill of historical COGS (`TransactionItem.unitCost`).
+// REV 2.11 P6 - idempotent backfill of historical COGS (`TransactionItem.unitCost`).
 //
 // For every TransactionItem belonging to a `status='paid'` transaction, recomputes
 // `unitCost` from the CURRENT menu costs using the same engine the order-time path uses
@@ -10,7 +10,7 @@
 //   - Touches ONLY `transaction_items.unit_cost` (never deletes/creates rows, never
 //     mutates transactions or stock). costMap is read from current `Menu.cost`.
 //   - Run AFTER the owner has entered costs (dev costs are mostly null → unitCost=0,
-//     which is fine — the goal is the script runs cleanly + is idempotent).
+//     which is fine - the goal is the script runs cleanly + is idempotent).
 //
 // Resolution rule (design §5.1): variant → costSourceMenuId ?? stockTargetMenuId ?? own
 // menu; simple/leaf → itself; paket → Σ all components (fixed + chosen, incl. nonStock).
@@ -209,10 +209,10 @@ async function main() {
     console.log('\n=== RECONCILIATION ===')
     console.log(`  items scanned (paid)  : ${report.itemsScanned}`)
     console.log(`  unitCost backfilled   : ${report.itemsUpdated} items`)
-    console.log(`  items with zero cost  : ${report.itemsZeroCost} (cost null/0 in catalog — expected pre-input)`)
+    console.log(`  items with zero cost  : ${report.itemsZeroCost} (cost null/0 in catalog - expected pre-input)`)
     console.log(`  errors                : ${report.errors}`)
     if (report.errors > 0) {
-      throw new Error(`Backfill COGS selesai dengan ${report.errors} error — investigasi log di atas.`)
+      throw new Error(`Backfill COGS selesai dengan ${report.errors} error - investigasi log di atas.`)
     }
     console.log('\nBackfill COGS selesai ✓ (idempotent recompute-and-set, history rows intact).')
   } finally {

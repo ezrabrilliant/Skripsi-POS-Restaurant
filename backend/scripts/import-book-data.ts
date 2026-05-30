@@ -25,7 +25,7 @@ function wib(date: string, hh: number, mm: number): Date {
 
 async function resetImport(dates: string[]) {
   // Hapus HANYA data import buku: shift malam pada TANGGAL yang sedang di-import
-  // (scoped — TIDAK menyentuh tanggal di luar scope, mis. data live prod 27-28 Mei).
+  // (scoped - TIDAK menyentuh tanggal di luar scope, mis. data live prod 27-28 Mei).
   const shifts = await prisma.shift.findMany({
     where: {
       type: 'malam',
@@ -90,7 +90,7 @@ async function importDay(day: BookDay, menuByName: Map<string, { id: number; pri
     for (const it of tx.items) {
       if (it.qty <= 0) continue
       const menu = menuByName.get(it.name)
-      if (!menu) throw new Error(`Menu tidak ditemukan: "${it.name}" (${day.date} — ${tx.raw})`)
+      if (!menu) throw new Error(`Menu tidak ditemukan: "${it.name}" (${day.date} - ${tx.raw})`)
       const itemSubtotal = menu.price.mul(it.qty)
       await prisma.transactionItem.create({
         data: {

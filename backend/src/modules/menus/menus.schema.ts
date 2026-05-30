@@ -159,7 +159,7 @@ export type UpdateMenuInput = z.infer<typeof updateMenuSchema>;
 export type ListMenuQuery = z.infer<typeof listQuerySchema>;
 
 // ============================================================
-// REV 2.10 — Builder payloads (variant / paket catalog layer)
+// REV 2.10 - Builder payloads (variant / paket catalog layer)
 // ============================================================
 //
 // Menu kind=variant: punya MenuOptionGroup[] (axis varian + free-preference) +

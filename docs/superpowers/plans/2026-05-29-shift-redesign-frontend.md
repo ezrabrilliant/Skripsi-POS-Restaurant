@@ -1,10 +1,10 @@
-# Shift Redesign (REV 2.7) — FRONTEND Implementation Plan
+# Shift Redesign (REV 2.7) - FRONTEND Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Sesuaikan frontend dengan backend REV 2.7: OpenShiftDialog window-aware + serah-terima, POSPage gate single-active + freshness lintas-device, modal tutup-final dengan daftar tx-open per-meja, SettlementPage re-key ke business date, reminder pergantian shift, tab owner "Jam Shift".
 
-**Architecture:** Mengikuti backend plan ([2026-05-29-shift-redesign-backend.md](2026-05-29-shift-redesign-backend.md)) — DIJALANKAN SETELAH backend hijau. Logika window klien bersifat **advisory** (server tetap otoritas via 409); klien hanya untuk enable/disable tombol + auto-select. Tidak ada unit-test frontend (project tidak punya infra) → verifikasi = `npm run build` (`tsc -b && vite build`) + `npm run lint` + e2e manual browser per checkpoint.
+**Architecture:** Mengikuti backend plan ([2026-05-29-shift-redesign-backend.md](2026-05-29-shift-redesign-backend.md)) - DIJALANKAN SETELAH backend hijau. Logika window klien bersifat **advisory** (server tetap otoritas via 409); klien hanya untuk enable/disable tombol + auto-select. Tidak ada unit-test frontend (project tidak punya infra) → verifikasi = `npm run build` (`tsc -b && vite build`) + `npm run lint` + e2e manual browser per checkpoint.
 
 **Tech Stack:** React 18 + TS + Vite + Tailwind + React Query + Zustand + design-system primitives (`Dialog`, `Button`, `Input`, `Tabs`, `Skeleton`, `Badge`, `Checkbox`), `useToast`, `useConfirm`, `cn`.
 
@@ -25,25 +25,25 @@ Tiap fase ditutup dengan: `cd frontend && npm run build` (0 error) + `npm run li
 ## File Structure Map
 
 **Buat baru:**
-- `frontend/src/lib/shiftWindow.ts` — util klien advisory: `parseHHMM`, `restoNowMinutes`, `canOpenClient`, `isAfterChangeover`.
-- `frontend/src/components/payment-methods/ShiftWindowTab.tsx` — tab owner set jam shift (mirror TaxSettingsTab).
-- `frontend/src/components/shifts/CloseShiftBlockedModal.tsx` — modal daftar tx-open per-meja + redirect.
-- `frontend/src/components/ShiftChangeReminder.tsx` — banner non-blocking pergantian shift.
+- `frontend/src/lib/shiftWindow.ts` - util klien advisory: `parseHHMM`, `restoNowMinutes`, `canOpenClient`, `isAfterChangeover`.
+- `frontend/src/components/payment-methods/ShiftWindowTab.tsx` - tab owner set jam shift (mirror TaxSettingsTab).
+- `frontend/src/components/shifts/CloseShiftBlockedModal.tsx` - modal daftar tx-open per-meja + redirect.
+- `frontend/src/components/ShiftChangeReminder.tsx` - banner non-blocking pergantian shift.
 
 **Modifikasi:**
-- `frontend/src/services/settingsService.ts` — `AppSettings` + `UpdateSettingsInput` tambah window.
-- `frontend/src/services/shiftService.ts` — `closeShift(id, mode?)`.
-- `frontend/src/services/settlementService.ts` — `preview(date)`, `create({date,counts})`.
-- `frontend/src/types/index.ts` — pastikan `Shift.date` ada; `SettlementPreview` tambah `openingCashTotal`; `CreateSettlementPayload` `{date,counts}`.
-- `frontend/src/components/OpenShiftDialog.tsx` — window-aware + serah-terima.
-- `frontend/src/pages/POSPage.tsx` — gate single-active + active-shift `refetchInterval` + invalidate on 409.
-- `frontend/src/pages/SettlementPage.tsx` — re-key ke business date + host CloseShiftBlockedModal.
-- `frontend/src/pages/PaymentMethodsPage.tsx` — tambah tab "Jam Shift".
+- `frontend/src/services/settingsService.ts` - `AppSettings` + `UpdateSettingsInput` tambah window.
+- `frontend/src/services/shiftService.ts` - `closeShift(id, mode?)`.
+- `frontend/src/services/settlementService.ts` - `preview(date)`, `create({date,counts})`.
+- `frontend/src/types/index.ts` - pastikan `Shift.date` ada; `SettlementPreview` tambah `openingCashTotal`; `CreateSettlementPayload` `{date,counts}`.
+- `frontend/src/components/OpenShiftDialog.tsx` - window-aware + serah-terima.
+- `frontend/src/pages/POSPage.tsx` - gate single-active + active-shift `refetchInterval` + invalidate on 409.
+- `frontend/src/pages/SettlementPage.tsx` - re-key ke business date + host CloseShiftBlockedModal.
+- `frontend/src/pages/PaymentMethodsPage.tsx` - tambah tab "Jam Shift".
 - Layout/host untuk `ShiftChangeReminder` (mis. `frontend/src/components/Layout.tsx`).
 
 ---
 
-## Phase F0 — Services + Types
+## Phase F0 - Services + Types
 
 ### Task F0.1: `settingsService` + types window
 
@@ -72,7 +72,7 @@ export interface UpdateSettingsInput {
 }
 ```
 
-- [ ] **Step 2:** Build check — `cd frontend && npx tsc -b` → 0 error.
+- [ ] **Step 2:** Build check - `cd frontend && npx tsc -b` → 0 error.
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -110,9 +110,9 @@ create: async (payload: CreateSettlementPayload): Promise<Settlement> => {
 
 - [ ] **Step 3:** `types/index.ts`: pastikan `Shift` punya `date: string`. Tambah `openingCashTotal: number` ke `SettlementPreview`. `SettlementPreview` tetap punya `shiftType`/`cashierName`/`date` (dari preview backend). Kalau `Shift.date` belum ada, tambahkan.
 
-- [ ] **Step 4:** Build check — `npx tsc -b` → 0 error (akan ada error di SettlementPage yang masih pakai `preview(shiftId)`; itu dibereskan di F4 — kalau mau commit bersih, lakukan F0.2 + F4 dalam satu fase. Untuk sekarang biarkan error sampai F4, JANGAN commit setengah jalan; gabungkan commit F0.2 dengan F4 bila perlu).
+- [ ] **Step 4:** Build check - `npx tsc -b` → 0 error (akan ada error di SettlementPage yang masih pakai `preview(shiftId)`; itu dibereskan di F4 - kalau mau commit bersih, lakukan F0.2 + F4 dalam satu fase. Untuk sekarang biarkan error sampai F4, JANGAN commit setengah jalan; gabungkan commit F0.2 dengan F4 bila perlu).
 
-- [ ] **Step 5: Commit (kalau tsc bersih)** — kalau belum, tunda commit ke F4.
+- [ ] **Step 5: Commit (kalau tsc bersih)** - kalau belum, tunda commit ke F4.
 
 ```bash
 git add frontend/src/services/shiftService.ts frontend/src/services/settlementService.ts frontend/src/types/index.ts
@@ -121,7 +121,7 @@ git commit -m "feat(fe): shiftService close mode + settlementService keyed by bu
 
 ---
 
-## Phase F1 — Util window klien
+## Phase F1 - Util window klien
 
 ### Task F1.1: `lib/shiftWindow.ts` (advisory)
 
@@ -172,7 +172,7 @@ export function canOpenClient(i: ClientOpenInput): boolean {
 }
 ```
 
-- [ ] **Step 2:** Build check — `npx tsc -b` → 0 error.
+- [ ] **Step 2:** Build check - `npx tsc -b` → 0 error.
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -182,7 +182,7 @@ git commit -m "feat(fe): advisory client shift-window helper (mirror backend rul
 
 ---
 
-## Phase F2 — Owner "Jam Shift" tab
+## Phase F2 - Owner "Jam Shift" tab
 
 ### Task F2.1: `ShiftWindowTab.tsx`
 
@@ -257,8 +257,8 @@ export default function ShiftWindowTab() {
 
 - [ ] **Step 2:** Wire ke PaymentMethodsPage: tambah `'shift'` ke `type Tab`, item Tabs `{ value:'shift', label:'Jam Shift', icon:<Clock className="w-4 h-4"/> }` (import `Clock`), dan `{tab === 'shift' && <ShiftWindowTab />}`.
 
-- [ ] **Step 3:** Build + lint — `npm run build && npm run lint` → 0 error.
-- [ ] **Step 4: e2e manual** — login owner → Pembayaran → tab Jam Shift → ubah jam → Simpan → reload → nilai persist.
+- [ ] **Step 3:** Build + lint - `npm run build && npm run lint` → 0 error.
+- [ ] **Step 4: e2e manual** - login owner → Pembayaran → tab Jam Shift → ubah jam → Simpan → reload → nilai persist.
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -268,7 +268,7 @@ git commit -m "feat(fe): owner Jam Shift settings tab"
 
 ---
 
-## Phase F3 — OpenShiftDialog window-aware + serah-terima
+## Phase F3 - OpenShiftDialog window-aware + serah-terima
 
 ### Task F3.1: Rewrite OpenShiftDialog
 
@@ -307,9 +307,9 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [settings, hasOpenShift, pagiOpenedToday])
 ```
-Empty-state (di body form, kalau `settings && !anyOpenable`): tampilkan "Di luar jam operasional — tidak ada shift yang bisa dibuka sekarang." + tombol Buka disabled. Loading (`settingsQ.isLoading`): Skeleton + tombol disabled.
+Empty-state (di body form, kalau `settings && !anyOpenable`): tampilkan "Di luar jam operasional - tidak ada shift yang bisa dibuka sekarang." + tombol Buka disabled. Loading (`settingsQ.isLoading`): Skeleton + tombol disabled.
 
-- [ ] **Step 3:** Serah-terima (combined action) — kalau `hasOpenShift` (shift orang lain open) DAN window mengizinkan tipe pengganti: tampilkan tombol sekunder "Serah-terima: tutup {pemilik} lalu buka {tipe}". Handler:
+- [ ] **Step 3:** Serah-terima (combined action) - kalau `hasOpenShift` (shift orang lain open) DAN window mengizinkan tipe pengganti: tampilkan tombol sekunder "Serah-terima: tutup {pemilik} lalu buka {tipe}". Handler:
 
 ```tsx
 const handover = useMutation({
@@ -325,7 +325,7 @@ const handover = useMutation({
 Catatan: untuk serah-terima, `openable()` dievaluasi DENGAN `hasOpenShift=false` (karena shift lama akan ditutup dulu). Buat varian `openableForHandover(type) = canOpenClient({..., hasOpenShift:false})`.
 
 - [ ] **Step 4:** Build + lint → 0 error.
-- [ ] **Step 5: e2e manual** — (a) jam pagi: hanya Pagi enable, buka → sukses; (b) set jam device/owner ke malam: Pagi disable; (c) saat shift pagi orang lain open: muncul "Serah-terima" → tutup pagi + buka malam dalam 1 aksi.
+- [ ] **Step 5: e2e manual** - (a) jam pagi: hanya Pagi enable, buka → sukses; (b) set jam device/owner ke malam: Pagi disable; (c) saat shift pagi orang lain open: muncul "Serah-terima" → tutup pagi + buka malam dalam 1 aksi.
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -335,7 +335,7 @@ git commit -m "feat(fe): OpenShiftDialog window-aware + fail-closed + handover c
 
 ---
 
-## Phase F4 — POSPage gate + freshness; SettlementPage re-key + close modal
+## Phase F4 - POSPage gate + freshness; SettlementPage re-key + close modal
 
 ### Task F4.1: POSPage active-shift freshness + gate
 
@@ -449,7 +449,7 @@ Catatan: karena dedupe backend by `date`, dua kasir yang anchor shift berbeda ta
 - [ ] **Step 3:** Tampilkan baseline modal awal: di header BlindCountForm tambah baris "Modal awal hari ini: {formatCurrency(preview.openingCashTotal)}".
 
 - [ ] **Step 4:** Build + lint → 0 error (sekaligus menyelesaikan error tertunda dari F0.2).
-- [ ] **Step 5: e2e manual** — kasir tutup shift dgn tx open → modal daftar per-meja muncul + tombol redirect ke /pos/<meja> jalan; beresin tx → tutup → settlement preview muncul keyed by date; submit → sukses; buka SettlementPage lagi → tampil detail (bukan form kosong).
+- [ ] **Step 5: e2e manual** - kasir tutup shift dgn tx open → modal daftar per-meja muncul + tombol redirect ke /pos/<meja> jalan; beresin tx → tutup → settlement preview muncul keyed by date; submit → sukses; buka SettlementPage lagi → tampil detail (bukan form kosong).
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -459,7 +459,7 @@ git commit -m "feat(fe): SettlementPage keyed by business date + close-final blo
 
 ---
 
-## Phase F5 — ShiftChangeReminder banner
+## Phase F5 - ShiftChangeReminder banner
 
 ### Task F5.1: `ShiftChangeReminder.tsx`
 
@@ -497,11 +497,11 @@ export default function ShiftChangeReminder() {
   )
 }
 ```
-> Dismissal disimpan per `shiftId` di state (cukup; reload akan re-arm — acceptable. Kalau mau persist lintas reload, simpan ke localStorage key `reminder-dismissed-<shiftId>`).
+> Dismissal disimpan per `shiftId` di state (cukup; reload akan re-arm - acceptable. Kalau mau persist lintas reload, simpan ke localStorage key `reminder-dismissed-<shiftId>`).
 
 - [ ] **Step 2:** Mount `<ShiftChangeReminder />` di `Layout.tsx` (sekali, di luar konten halaman).
 - [ ] **Step 3:** Build + lint → 0 error.
-- [ ] **Step 4: e2e manual** — set changeover ke jam < sekarang, shift pagi open → banner muncul kanan atas; dismiss → hilang; reload → muncul lagi (acceptable) / kalau localStorage dipakai, tetap hilang sampai shift ganti.
+- [ ] **Step 4: e2e manual** - set changeover ke jam < sekarang, shift pagi open → banner muncul kanan atas; dismiss → hilang; reload → muncul lagi (acceptable) / kalau localStorage dipakai, tetap hilang sampai shift ganti.
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -511,7 +511,7 @@ git commit -m "feat(fe): non-blocking shift-change reminder banner"
 
 ---
 
-## Phase F6 — Verifikasi penuh + e2e end-to-end
+## Phase F6 - Verifikasi penuh + e2e end-to-end
 
 ### Task F6.1: Build + lint + e2e skenario lengkap
 
@@ -541,5 +541,5 @@ git commit -m "feat(fe): non-blocking shift-change reminder banner"
 ## Execution Handoff
 
 Frontend dijalankan SETELAH backend hijau. Dua opsi eksekusi (untuk kedua plan):
-1. **Subagent-Driven (rekomendasi)** — dispatch subagent fresh per task, review antar task.
-2. **Inline Execution** — eksekusi di sesi ini, batch + checkpoint.
+1. **Subagent-Driven (rekomendasi)** - dispatch subagent fresh per task, review antar task.
+2. **Inline Execution** - eksekusi di sesi ini, batch + checkpoint.

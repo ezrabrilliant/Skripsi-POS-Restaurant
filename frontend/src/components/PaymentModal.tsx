@@ -57,7 +57,7 @@ import { useConfirm } from '@/design-system/hooks/useConfirm'
 import CombineTableModal from './CombineTableModal'
 
 /** Resolve nama icon lucide ke komponen React. Fallback CreditCard kalau
- * iconName tidak terdaftar (defensive — backend whitelist tapi data lama
+ * iconName tidak terdaftar (defensive - backend whitelist tapi data lama
  * atau method custom mungkin saja punya nilai berbeda). */
 function resolveIcon(iconName: string): React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }> {
   const Icon = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>>)[iconName]
@@ -115,7 +115,7 @@ export default function PaymentModal({
 
   // Query target Tx (subscribed - refetch via invalidate setelah mutation).
   // FIX: refetchOnMount 'always' supaya tiap kali modal dibuka, detail Tx target
-  // selalu di-fetch ulang dari network — override global staleTime 5 menit (main.tsx).
+  // selalu di-fetch ulang dari network - override global staleTime 5 menit (main.tsx).
   // Tanpa ini, reopen modal untuk Tx yang sama dalam 5 menit menyajikan snapshot
   // basi (mis. subtotal sebelum item target diedit/dihapus). Lihat CombineTableModal:91.
   const { data: transaction, isLoading: txLoading, isFetching: txFetching } = useQuery({
@@ -317,7 +317,7 @@ export default function PaymentModal({
   const mergeMutation = useMutation({
     mutationFn: (payload: MergePayload) => transactionService.merge(payload),
     onSuccess: () => {
-      // Invalidate supaya TablesPage grid + CombineTableModal picker refresh —
+      // Invalidate supaya TablesPage grid + CombineTableModal picker refresh -
       // source meja jadi kosong / candidate hilang dari list.
       qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
       qc.invalidateQueries({ queryKey: ['transactions', 'open-merge-source-of', transactionId] })
@@ -433,7 +433,7 @@ export default function PaymentModal({
           <br />
           {willCloseTx ? (
             <>
-              Slice ini menutup sisa — transaksi akan menjadi <strong>lunas</strong>.
+              Slice ini menutup sisa - transaksi akan menjadi <strong>lunas</strong>.
             </>
           ) : (
             <>
@@ -484,7 +484,7 @@ export default function PaymentModal({
   const submitting = addPayMutation.isPending || mergeMutation.isPending
   // FIX: pas first slice, aggregate + daftar candidate dihitung dari query transaction +
   // openTxs. Selama keduanya masih refetch on mount (refetchOnMount 'always'), angka yang
-  // tampil masih dari cache & bisa basi — blokir submit dulu supaya kasir tidak meng-confirm
+  // tampil masih dari cache & bisa basi - blokir submit dulu supaya kasir tidak meng-confirm
   // nominal stale (mis. 47k padahal 77k). Sub-detik di network normal. Slice ke-2+ tidak
   // terpengaruh (total sudah locked di Tx.total server-side saat first slice).
   const firstSliceDataStale = isFirstSlice && (txFetching || openTxsFetching)

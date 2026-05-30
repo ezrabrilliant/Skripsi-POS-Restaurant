@@ -12,10 +12,10 @@
 REV 2.3 Phase 4b + REV 2.4 multi-pesanan implement split bill (visual grouping via `TransactionItem.partyId`) di HistoryPage row action, dan merge bill intra-table (auto saat bayar Tx multi-ronde). Per feedback user 2026-05-26: kedua fitur **generic, tidak pernah dipakai operasional resto**.
 
 **Penyebab:**
-1. Lokasi salah — split di HistoryPage = setelah customer pulang. Padahal momen yang relevan adalah saat pembayaran.
-2. Split bill tidak komplit — backend cuma assign `partyId` ke item, payment tetap single per Tx. Footer modal sendiri admit "visual grouping saja".
-3. Combine antar meja tidak ada — yang ada cuma merge multi-Tx dalam meja yang sama.
-4. Schema tidak support split tender — `Tx.paymentMethod` & `paymentBank` singular field.
+1. Lokasi salah - split di HistoryPage = setelah customer pulang. Padahal momen yang relevan adalah saat pembayaran.
+2. Split bill tidak komplit - backend cuma assign `partyId` ke item, payment tetap single per Tx. Footer modal sendiri admit "visual grouping saja".
+3. Combine antar meja tidak ada - yang ada cuma merge multi-Tx dalam meja yang sama.
+4. Schema tidak support split tender - `Tx.paymentMethod` & `paymentBank` singular field.
 
 **Goal REV 2.5:**
 - Replace split bill multi-party dengan **Split Tender** (1 customer multi-metode).
@@ -35,7 +35,7 @@ REV 2.3 Phase 4b + REV 2.4 multi-pesanan implement split bill (visual grouping v
 | Combine Tables dari TablesPage | ✅ Adopt baru |
 | Combine Tables dari PaymentModal | ✅ Adopt baru |
 | Audit badge di HistoryPage | ✅ Adopt baru |
-| Add Round intra-table (REV 2.4) | ✅ Sudah ada — unchanged |
+| Add Round intra-table (REV 2.4) | ✅ Sudah ada - unchanged |
 | Permission matrix REV 2.3 | ✅ Tetap |
 
 ### Drop
@@ -46,7 +46,7 @@ REV 2.3 Phase 4b + REV 2.4 multi-pesanan implement split bill (visual grouping v
 | `TransactionItem.partyId` field | Tidak digunakan setelah drop split multi-party |
 | `splitTransaction` endpoint | Idem |
 | `SplitBillModal.tsx` component | Idem |
-| `MergeBillModal.tsx` di HistoryPage | Lokasi salah — pindah ke PaymentModal |
+| `MergeBillModal.tsx` di HistoryPage | Lokasi salah - pindah ke PaymentModal |
 | Move items antar meja | Workaround: void + re-input |
 
 ---
@@ -97,7 +97,7 @@ model User {
 
 `prisma db push --force-reset` + `npm run db:seed`. Aman karena belum ada data produksi (masih test data).
 
-### Query refactor — settlement & dashboard byMethod
+### Query refactor - settlement & dashboard byMethod
 
 ```ts
 // SEBELUM (paymentMethod di Tx):
@@ -177,11 +177,11 @@ addPaymentSchema = z.object({
 ### Removed
 
 - `PUT /transactions/:id/split` (splitTransaction endpoint)
-- `POST /transactions/:id/payment` (paid old endpoint — replaced by `/payments`)
+- `POST /transactions/:id/payment` (paid old endpoint - replaced by `/payments`)
 
 ### Unchanged
 
-- `POST /transactions/merge` (mergeBills) — backend logic sama, cuma UI trigger baru dari TablesPage + PaymentModal
+- `POST /transactions/merge` (mergeBills) - backend logic sama, cuma UI trigger baru dari TablesPage + PaymentModal
 
 ---
 
@@ -306,11 +306,11 @@ Badge clickable: `useRef` + `scrollIntoView` ke Tx target.
 
 ### Backend smoke test
 
-11 skenario di `backend/scripts/smoke-split-tender-combine.sh` — open shift, order 2 meja, combine, addPayment partial, addPayment final (trigger paid + cascade), reject overpay, reject remove after paid, verify settlement preview, verify dashboard.
+11 skenario di `backend/scripts/smoke-split-tender-combine.sh` - open shift, order 2 meja, combine, addPayment partial, addPayment final (trigger paid + cascade), reject overpay, reject remove after paid, verify settlement preview, verify dashboard.
 
 ### Frontend manual e2e (browser)
 
-13 langkah via `npm run dev` http://localhost:3000 — login Jason, buka shift, order 2 meja, combine via TablesPage menu, payment split tender via PaymentModal, verify badge di HistoryPage, verify settlement preview.
+13 langkah via `npm run dev` http://localhost:3000 - login Jason, buka shift, order 2 meja, combine via TablesPage menu, payment split tender via PaymentModal, verify badge di HistoryPage, verify settlement preview.
 
 ### Permission verification
 

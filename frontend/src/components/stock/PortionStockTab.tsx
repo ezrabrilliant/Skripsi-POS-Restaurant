@@ -107,7 +107,7 @@ export default function PortionStockTab() {
             : 'aman',
   })
 
-  // Riwayat per item (drawer) — pakai endpoint detail yang membawa recentMovements.
+  // Riwayat per item (drawer) - pakai endpoint detail yang membawa recentMovements.
   const { data: historyDetail, isLoading: historyLoading } = useQuery({
     queryKey: ['portionStock', historyMenuId],
     queryFn: () => portionService.detail(historyMenuId!),
@@ -164,7 +164,7 @@ export default function PortionStockTab() {
       align: 'right',
       cell: (s) =>
         s.currentQty == null ? (
-          <span className="text-neutral-300">—</span>
+          <span className="text-neutral-300">-</span>
         ) : (
           <span
             className={cn(
@@ -185,7 +185,7 @@ export default function PortionStockTab() {
       header: 'Min',
       align: 'right',
       cell: (s) => (
-        <span className="text-neutral-500 tabular-nums">{s.minStock ?? '—'}</span>
+        <span className="text-neutral-500 tabular-nums">{s.minStock ?? '-'}</span>
       ),
     },
     {
@@ -203,7 +203,7 @@ export default function PortionStockTab() {
       hideMobile: true,
       cell: (s) =>
         s.stockType !== 'portion' ? (
-          <span className="text-neutral-300">—</span>
+          <span className="text-neutral-300">-</span>
         ) : s.lastStockedAt ? (
           <div>
             <div className="text-neutral-700">{relativeTime(s.lastStockedAt)}</div>
@@ -349,7 +349,7 @@ export default function PortionStockTab() {
                         <p className="text-caption text-neutral-500">min {s.minStock}</p>
                       </>
                     ) : (
-                      <p className="text-title font-semibold text-neutral-300">—</p>
+                      <p className="text-title font-semibold text-neutral-300">-</p>
                     )}
                   </div>
                 </div>

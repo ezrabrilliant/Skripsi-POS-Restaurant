@@ -1,17 +1,17 @@
 /**
- * ⚠️ DEAD / OBSOLETE pasca REV 2.11 — JANGAN DI-RUN. Script ini menyentuh
+ * ⚠️ DEAD / OBSOLETE pasca REV 2.11 - JANGAN DI-RUN. Script ini menyentuh
  * `raw_material_movements`/`purchase*` yang tabelnya sudah di-DROP di REV 2.11
  * (belanja/raw-materials dihapus). Dipertahankan hanya sebagai catatan historis
  * cara backfill ledger REV 2.8; akan crash kalau dijalankan.
  *
- * REV 2.8 backfill — isi kolom ledger baru di portion_movements & raw_material_movements
+ * REV 2.8 backfill - isi kolom ledger baru di portion_movements & raw_material_movements
  * dari data lama yang hanya menyimpan tautan di teks `note`.
  *
- *  1. FK sumber  — parse `note` (transactionId / Edit Tx / void transactionId / Purchase id).
+ *  1. FK sumber  - parse `note` (transactionId / Edit Tx / void transactionId / Purchase id).
  *                  HANYA di-set kalau baris sumber benar-benar ada (jaga FK constraint);
  *                  TIDAK pernah me-null-kan FK yang sudah terisi (aman untuk baris baru
- *                  yang ditulis kode REV 2.8 — note-nya sudah manusiawi tanpa pola lama).
- *  2. qty_before / qty_after — rekonstruksi via JALAN-MUNDUR per menu/material dari stok
+ *                  yang ditulis kode REV 2.8 - note-nya sudah manusiawi tanpa pola lama).
+ *  2. qty_before / qty_after - rekonstruksi via JALAN-MUNDUR per menu/material dari stok
  *                  sekarang: after(terakhir)=current; before=after−delta; after(sebelum)=before.
  *                  Selalu konsisten (after = before + delta). Kalau Σdelta ≠ current_qty
  *                  → log warning (kemungkinan stok awal di-set tanpa movement); nilai tetap
@@ -216,7 +216,7 @@ async function backfillRaw(): Promise<void> {
 }
 
 async function main() {
-  console.log('REV 2.8 backfill movement ledger — mulai…');
+  console.log('REV 2.8 backfill movement ledger - mulai…');
   await backfillPortion();
   await backfillRaw();
   console.log('Selesai.');

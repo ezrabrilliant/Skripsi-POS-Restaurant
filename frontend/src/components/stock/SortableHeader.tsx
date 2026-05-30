@@ -1,5 +1,5 @@
 // REV 2.8: header kolom DataTable yang bisa diklik untuk sort. DataTable tidak
-// punya sort bawaan — data di-sort di luar (useStockListControls), komponen ini
+// punya sort bawaan - data di-sort di luar (useStockListControls), komponen ini
 // hanya UI header + indikator arah + aria-sort.
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'

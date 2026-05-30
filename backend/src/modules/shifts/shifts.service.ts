@@ -82,7 +82,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
         include: { cashier: { select: { name: true } } },
       });
       throw new AppError(
-        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`,
+        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open - tutup dulu`,
         409,
       );
     }
@@ -108,7 +108,7 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
         include: { cashier: { select: { name: true } } },
       });
       throw new AppError(
-        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open — tutup dulu`,
+        `Masih ada shift ${open?.type ?? ''} milik ${open?.cashier.name ?? 'kasir lain'} yang open - tutup dulu`,
         409,
       );
     }
@@ -141,7 +141,7 @@ export async function closeShift(
       where: { status: TransactionStatus.open, mergedIntoId: null },
     });
     if (openCount > 0) {
-      const err = new AppError('Ada pesanan belum dibayar — selesaikan dulu sebelum tutup', 409);
+      const err = new AppError('Ada pesanan belum dibayar - selesaikan dulu sebelum tutup', 409);
       (err as AppError & { openOrders?: unknown }).openOrders = await getOpenOrdersForClose();
       throw err;
     }

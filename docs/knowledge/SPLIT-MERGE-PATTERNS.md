@@ -1,16 +1,16 @@
-# SPLIT & MERGE BILL — Pattern Industri & Use Case
+# SPLIT & MERGE BILL - Pattern Industri & Use Case
 
 **Status**: Knowledge reference (REV 2.5, 2026-05-26)
-**Konteks**: POS Ayam Bakar Banjar Monosuko — keputusan adopsi & justifikasi.
+**Konteks**: POS Ayam Bakar Banjar Monosuko - keputusan adopsi & justifikasi.
 **Spec implementasi**: lihat `docs/superpowers/specs/2026-05-26-split-tender-combine-design.md`.
 
 File ini berisi ringkasan pattern industri (Toast, Square, Loyverse, Lightspeed) untuk split-bill & merge-bill di POS web modern, lengkap dengan contoh use case yang relevan untuk konteks resto skala kecil di Indonesia.
 
 ---
 
-## Bagian 1 — Split Bill Pattern
+## Bagian 1 - Split Bill Pattern
 
-### 1.1 — 3 metode split standar industri
+### 1.1 - 3 metode split standar industri
 
 | Metode | Definisi | Frekuensi pakai | Adopsi REV 2.5 |
 |---|---|---|---|
@@ -18,7 +18,7 @@ File ini berisi ringkasan pattern industri (Toast, Square, Loyverse, Lightspeed)
 | **By Item** (drag/tap item → party) | Tiap party bayar item-nya sendiri | ~15-20% | ❌ Drop |
 | **By Amount / Split Tender** | 1 customer, multi-method ATAU N party custom nominal | ~5% | ✅ Adopt (Split Tender saja) |
 
-### 1.2 — Justifikasi scope reduction di REV 2.5
+### 1.2 - Justifikasi scope reduction di REV 2.5
 
 Konteks operasional Indonesia berbeda dari pasar Western:
 
@@ -27,7 +27,7 @@ Konteks operasional Indonesia berbeda dari pasar Western:
 
 **Keputusan**: REV 2.5 cuma adopsi Split Tender. Even Split & By Item di-drop dari schema (`TransactionItem.partyId` ikut dihapus).
 
-### 1.3 — Tax/PB1 handling (kalau suatu hari Even/By Item di-revive)
+### 1.3 - Tax/PB1 handling (kalau suatu hari Even/By Item di-revive)
 
 PB1 di Indonesia = 10%, disetor ke Pemda per bulan. **Sum PB1 semua struk hasil split WAJIB sama dengan PB1 transaksi asli** supaya laporan match.
 
@@ -41,18 +41,18 @@ PB1 di Indonesia = 10%, disetor ke Pemda per bulan. **Sum PB1 semua struk hasil 
 
 ---
 
-## Bagian 2 — Merge Bill Pattern
+## Bagian 2 - Merge Bill Pattern
 
-### 2.1 — 4 skenario merge di POS web
+### 2.1 - 4 skenario merge di POS web
 
 | Skenario | Frekuensi | Contoh | Adopsi REV 2.5 |
 |---|---|---|---|
 | **Add Round** (intra-table) | Sangat sering | Meja sudah pesan, tambah pesanan ronde 2 | ✅ Sudah ada (REV 2.4 "Tambah Pesanan") |
 | **Combine Tables** (inter-table) | Sedang | Rombongan 8 orang di meja 5 + 6 mau bayar bareng | ✅ Adopt baru |
-| **Move Items** (pindah item antar meja) | Jarang | Salah input meja — ayam paket harusnya untuk meja 4 | ❌ Skip (workaround: void + re-input) |
+| **Move Items** (pindah item antar meja) | Jarang | Salah input meja - ayam paket harusnya untuk meja 4 | ❌ Skip (workaround: void + re-input) |
 | **Consolidate** (1 customer 2 Tx terpisah) | Jarang | Takeaway lalu balik & pesan lagi | ❌ Skip (rare) |
 
-### 2.2 — Pattern fundamental: source → destination
+### 2.2 - Pattern fundamental: source → destination
 
 Semua merge punya struktur sama: **source Tx di-tag `mergedIntoId`, destination Tx absorb total + PB1**.
 
@@ -72,15 +72,15 @@ Semua merge punya struktur sama: **source Tx di-tag `mergedIntoId`, destination 
                                Total:    Rp 80.3k
 ```
 
-**Source Tx tidak dihapus** — di-tag `mergedIntoId` saja. Audit trail terjaga.
+**Source Tx tidak dihapus** - di-tag `mergedIntoId` saja. Audit trail terjaga.
 
 **Destination Tx absorb subtotal + recompute PB1** dari combined subtotal.
 
-### 2.3 — Critical rule: revenue exclude source Tx
+### 2.3 - Critical rule: revenue exclude source Tx
 
 Query revenue harian / settlement / dashboard **WAJIB** filter `mergedIntoId IS NULL`. Kalau tidak, items dihitung 2× (source + destination) → laporan PB1 over-stated.
 
-### 2.4 — Anti-patterns yang di-forbid
+### 2.4 - Anti-patterns yang di-forbid
 
 | Anti-pattern | Alasan forbid |
 |---|---|
@@ -88,9 +88,9 @@ Query revenue harian / settlement / dashboard **WAJIB** filter `mergedIntoId IS 
 | Merge antar tanggal berbeda | Revenue per hari jadi inconsistent |
 | Merge antar shift berbeda | Tracking shift cashier jadi rusak |
 | Cascade merge (A→B→C chain) | Audit trail jadi pohon. Pattern aman: sequential 2-way only |
-| Share 1 item antar 2 party | Rounding ribet — pakai Split Tender pada party gabungan |
+| Share 1 item antar 2 party | Rounding ribet - pakai Split Tender pada party gabungan |
 
-### 2.5 — PB1 saat merge
+### 2.5 - PB1 saat merge
 
 PB1 di-**recompute** dari combined subtotal, **bukan** sum source PB1.
 
@@ -108,9 +108,9 @@ Untuk 10% flat tanpa diskon: sum source PB1 = PB1 destination by coincidence. Ta
 
 ---
 
-## Bagian 3 — Use Case Konkret (REV 2.5)
+## Bagian 3 - Use Case Konkret (REV 2.5)
 
-### UC1 — Split Tender: cash customer kurang
+### UC1 - Split Tender: cash customer kurang
 
 **Skenario**: Meja 3, total Rp 165.500 (3 menu + PB1 10%). Customer kasih Rp 100.000 cash, sisa minta QRIS karena cash habis.
 
@@ -132,7 +132,7 @@ TransactionPayment #2: txId=100, method=qris, amount=65500
 
 ---
 
-### UC2 — Combine Tables (dari TablesPage): rombongan minta gabung sebelum bayar
+### UC2 - Combine Tables (dari TablesPage): rombongan minta gabung sebelum bayar
 
 **Skenario**: Rombongan keluarga di Meja 5 (Rp 75k) dan Meja 6 (Rp 50k). Setelah selesai makan, minta bayar bareng.
 
@@ -153,7 +153,7 @@ Tx #106 (meja 6): unchanged, JOIN dengan #105 untuk display
 
 ---
 
-### UC3 — Combine Tables (dari PaymentModal): pindah meja last-second
+### UC3 - Combine Tables (dari PaymentModal): pindah meja last-second
 
 **Skenario**: Customer di Meja 3 sudah pesan, mau gabung dengan teman yang di Meja 5 saat mau bayar.
 
@@ -169,7 +169,7 @@ Tx #106 (meja 6): unchanged, JOIN dengan #105 untuk display
 
 ---
 
-### UC4 — Combine + Split Tender (kombinasi)
+### UC4 - Combine + Split Tender (kombinasi)
 
 **Skenario**: 2 keluarga makan di Meja 5 + Meja 6 (combined total Rp 200k subtotal). Mau bayar bareng tapi salah satu kasih cash Rp 80k, sisanya transfer.
 
@@ -191,20 +191,20 @@ TransactionPayment #2: txId=200, method=transfer, bank=BCA, amount=140000
 
 ---
 
-## Bagian 4 — Cross-cutting Rules
+## Bagian 4 - Cross-cutting Rules
 
 Aturan yang **wajib** dipatuhi untuk semua implementasi split/merge:
 
-1. **Single source of truth via TransactionPayment table** — sum slices = Tx.total saat status=paid.
-2. **Lock setelah paid** — tidak boleh add/remove payment slice, tidak boleh merge/un-merge.
-3. **Revenue query filter `mergedIntoId IS NULL`** — di setiap aggregation (settlement, dashboard, history).
-4. **PB1 recompute dari aggregate subtotal** parent + mergedFrom — bukan sum source PB1.
-5. **Validasi same-shift untuk merge** — source & destination harus shift sama.
-6. **Audit trail visible** — HistoryPage tampilkan badge "🔗 Gabungan dari #X" / "🔗 Tergabung ke #Y".
+1. **Single source of truth via TransactionPayment table** - sum slices = Tx.total saat status=paid.
+2. **Lock setelah paid** - tidak boleh add/remove payment slice, tidak boleh merge/un-merge.
+3. **Revenue query filter `mergedIntoId IS NULL`** - di setiap aggregation (settlement, dashboard, history).
+4. **PB1 recompute dari aggregate subtotal** parent + mergedFrom - bukan sum source PB1.
+5. **Validasi same-shift untuk merge** - source & destination harus shift sama.
+6. **Audit trail visible** - HistoryPage tampilkan badge "🔗 Gabungan dari #X" / "🔗 Tergabung ke #Y".
 7. **Permission unchanged** (matrix REV 2.3): payment, split tender, combine = owner+kasir; waiter di-hide.
-8. **Discount apply ke FIRST payment slice saja** — setelah slice pertama, discount input locked.
-9. **Sequential payment** — slice 1 → submit → slice 2, bukan parallel batch.
-10. **Combine sequential 2-way** — 3-way combine = 2 kali combine berurutan (5→6, lalu 7→6).
+8. **Discount apply ke FIRST payment slice saja** - setelah slice pertama, discount input locked.
+9. **Sequential payment** - slice 1 → submit → slice 2, bukan parallel batch.
+10. **Combine sequential 2-way** - 3-way combine = 2 kali combine berurutan (5→6, lalu 7→6).
 
 ---
 
@@ -217,7 +217,7 @@ Aturan yang **wajib** dipatuhi untuk semua implementasi split/merge:
 - **Operasional ground truth**: `docs/operasional-resto.md`
 
 POS yang dijadikan referensi pattern industri:
-- [Toast POS](https://pos.toasttab.com/) — drag-drop split bill
-- [Square POS](https://squareup.com/us/en/point-of-sale) — tap-to-assign mobile split
-- [Loyverse POS](https://loyverse.com/) — even split + merge open receipts
-- [Lightspeed Restaurant](https://www.lightspeedhq.com/pos/restaurant/) — combine tables + transfer items
+- [Toast POS](https://pos.toasttab.com/) - drag-drop split bill
+- [Square POS](https://squareup.com/us/en/point-of-sale) - tap-to-assign mobile split
+- [Loyverse POS](https://loyverse.com/) - even split + merge open receipts
+- [Lightspeed Restaurant](https://www.lightspeedhq.com/pos/restaurant/) - combine tables + transfer items

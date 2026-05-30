@@ -23,7 +23,7 @@ export function sendSuccess<T>(
 /**
  * Kirim respons gagal. `data` default null, tapi beberapa error bisnis
  * (mis. tutup shift dengan transaksi open) ingin menyertakan payload tambahan
- * supaya client bisa menampilkannya — lewatkan via parameter `data`.
+ * supaya client bisa menampilkannya - lewatkan via parameter `data`.
  */
 export function sendError(
   res: Response,

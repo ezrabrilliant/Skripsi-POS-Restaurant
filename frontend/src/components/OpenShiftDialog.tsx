@@ -228,7 +228,7 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
 
             {settings && !anyOpenable && !hasOpenShift ? (
               <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-body-sm text-neutral-600">
-                Di luar jam operasional — tidak ada shift yang bisa dibuka sekarang.
+                Di luar jam operasional - tidak ada shift yang bisa dibuka sekarang.
               </p>
             ) : null}
 

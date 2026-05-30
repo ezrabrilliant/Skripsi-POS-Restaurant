@@ -78,7 +78,7 @@ if [ -z "$MALAM_SHIFT_ID" ]; then
   echo "ERROR: gagal dapat malam shift id. Server log + DB state perlu diperiksa. Exit."
   exit 1
 fi
-# Cek owner shift dari relasi (mungkin Jason, bukan Bryant — settle gating tetap perlu match)
+# Cek owner shift dari relasi (mungkin Jason, bukan Bryant - settle gating tetap perlu match)
 MALAM_CASHIER=$(curl -s "$BASE/shifts/$MALAM_SHIFT_ID" -H "Authorization: Bearer $BRYANT_TOKEN" | jq_field 'console.log(j.data.shift.cashierName)')
 echo "Malam shift cashier = $MALAM_CASHIER (id=$MALAM_SHIFT_ID)"
 
@@ -124,11 +124,11 @@ echo "=== 13. Tutup shift malam ($MALAM_CASHIER) ==="
 curl -s -X POST $BASE/shifts/$MALAM_SHIFT_ID/close -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'console.log("shift closed:", j.data.shift.closedAt)'
 
 echo ""
-echo "=== 14. GET /settlements/preview?shiftId=X — REV 2.6 system: array ==="
+echo "=== 14. GET /settlements/preview?shiftId=X - REV 2.6 system: array ==="
 curl -s "$BASE/settlements/preview?shiftId=$MALAM_SHIFT_ID" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const p=j.data.preview; console.log(JSON.stringify({shiftId:p.shiftId,shiftType:p.shiftType,cashier:p.cashierName,system:p.system,totalSystem:p.totalSystem,bankBreakdown:p.bankBreakdown,existingSettlementId:p.existingSettlementId},null,2))'
 
 echo ""
-echo "=== 15. POST submit (kasir lain coba settle shift $MALAM_CASHIER) → 403 — REV 2.6 counts: {} ==="
+echo "=== 15. POST submit (kasir lain coba settle shift $MALAM_CASHIER) → 403 - REV 2.6 counts: {} ==="
 # REV 2.6: counts dinamis, bukan 6 field actualXxx fixed.
 # System totals (sesuai step 12): cash=5500, edc=27500, qris=5500, gojek=11000, grab=5500, transfer=22000.
 SUBMIT_BODY="{\"shiftId\":$MALAM_SHIFT_ID,\"counts\":{\"cash\":5500,\"edc\":27500,\"qris\":5500,\"gojek\":11000,\"grab\":5500,\"transfer\":22000}}"
@@ -155,7 +155,7 @@ echo "=== 17. POST submit lagi (duplicate) → 409 UNIQUE ==="
 curl -s -X POST $BASE/settlements -H "Content-Type: application/json" -H "Authorization: Bearer $OWN_KASIR_TOKEN" -d "$SUBMIT_BODY" | head -c 200; echo
 
 echo ""
-echo "=== 18. GET /settlements/:id verify variance (counted=system semua → variance=0) — REV 2.6 methodCounts: [] ==="
+echo "=== 18. GET /settlements/:id verify variance (counted=system semua → variance=0) - REV 2.6 methodCounts: [] ==="
 curl -s "$BASE/settlements/$SETTLE_ID" -H "Authorization: Bearer $OWNER_TOKEN" | jq_field 'const s=j.data.settlement; console.log(JSON.stringify({status:s.status,methodCounts:s.methodCounts,totalCounted:s.totalCounted,totalSystem:s.totalSystem,totalVariance:s.totalVariance,bankBreakdown:s.bankBreakdown},null,2))'
 
 echo ""

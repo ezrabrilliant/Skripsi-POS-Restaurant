@@ -3,7 +3,7 @@
 //   - Nama | Dipakai di N metode | Status | Aksi
 // Aksi: toggle isActive inline + tombol Edit (open BankFormModal) + tombol
 // "+ Tambah Bank" header.
-// Soft delete only via toggle isActive (per Decision #9 spec) — bank yang
+// Soft delete only via toggle isActive (per Decision #9 spec) - bank yang
 // pernah dipakai untuk transaksi tetap accessible untuk audit historis.
 
 import { useState } from 'react'

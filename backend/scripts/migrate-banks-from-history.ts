@@ -27,7 +27,7 @@ async function main() {
 
     const methodRecord = await prisma.paymentMethod.findUnique({ where: { code: method } });
     if (!methodRecord) {
-      console.warn(`  ⚠ method '${method}' tidak ada di payment_methods — skip`);
+      console.warn(`  ⚠ method '${method}' tidak ada di payment_methods - skip`);
       continue;
     }
 

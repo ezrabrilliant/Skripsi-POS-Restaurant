@@ -257,7 +257,7 @@ export const BOOK_DATA: BookDay[] = [
         items: [{ name: 'Gurame Bakar', qty: 1 }, { name: 'Ati Ayam', qty: 2 }, { name: 'Teh Tawar Jumbo', qty: 2 }, { name: 'Petai Goreng', qty: 1 }, { name: 'Nasi Putih', qty: 2 }, { name: 'Kerupuk', qty: 1 }] },
       { raw: '2 Paket B (2 Dada B)', amount: 80000, method: 'qris', bank: 'BCA', orderType: 'dineIn', table: 5,
         items: [{ name: 'Paket B (1 org)', qty: 2, notes: 'Dada Bakar' }] },
-      { raw: '2 Paket B (1 Paha B, Dada G), 1 Rempelo, 1 Ati, 2 Jeruk P, 1 Krupuk (gabung baris "0" — koreksi user)', amount: 165000, method: 'qris', bank: 'BCA', orderType: 'dineIn', table: 6,
+      { raw: '2 Paket B (1 Paha B, Dada G), 1 Rempelo, 1 Ati, 2 Jeruk P, 1 Krupuk (gabung baris "0" - koreksi user)', amount: 165000, method: 'qris', bank: 'BCA', orderType: 'dineIn', table: 6,
         items: [{ name: 'Paket B (1 org)', qty: 2, notes: 'Paha Bakar/Dada Goreng' }, { name: 'Rempelo Ayam', qty: 1 }, { name: 'Ati Ayam', qty: 1 }, { name: 'Jeruk Peras', qty: 2 }, { name: 'Kerupuk', qty: 1 }] },
       { raw: '1 Ekor B', amount: 144000, method: 'gojek', orderType: 'takeaway',
         items: [{ name: '1 Ekor Ayam Bakar Merah', qty: 1, notes: 'GoFood' }] },
@@ -371,7 +371,7 @@ export const BOOK_DATA: BookDay[] = [
     transactions: [
       { raw: '9 Ekor B, 4 Udang W (Fendi, Eming)', amount: 1680000, method: 'transfer', bank: 'BCA', orderType: 'takeaway',
         items: [{ name: '1 Ekor Ayam Bakar Merah', qty: 9 }, { name: 'Udang Windu Bakar (isi 7)', qty: 4 }] },
-      { raw: '1 Ekor, 1 Semur, 1 Gasem, 1 Gule, 1 Rawon (tanpa Paha B — koreksi user)', amount: 240000, method: 'transfer', bank: 'BCA', orderType: 'dineIn', table: 5,
+      { raw: '1 Ekor, 1 Semur, 1 Gasem, 1 Gule, 1 Rawon (tanpa Paha B - koreksi user)', amount: 240000, method: 'transfer', bank: 'BCA', orderType: 'dineIn', table: 5,
         items: [{ name: '1 Ekor Ayam Bakar Merah', qty: 1 }, { name: 'Semur Daging', qty: 1 }, { name: 'Garang Asem Ayam', qty: 1 }, { name: 'Gulai Daging', qty: 1 }, { name: 'Rawon Daging', qty: 1 }] },
       { raw: '2 Paket A (2 Dada B, 2 Teh M), 2 Susuk', amount: 130000, method: 'edc', bank: 'BCA', orderType: 'dineIn', table: 6,
         items: [{ name: 'Paket A (1 org)', qty: 2, notes: 'Dada Bakar + Teh Manis' }, { name: 'Susu Kedelai', qty: 2 }] },

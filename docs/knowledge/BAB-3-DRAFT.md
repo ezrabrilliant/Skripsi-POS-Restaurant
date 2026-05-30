@@ -1,6 +1,6 @@
 # BAB 3 - Analisis dan Desain (Draft Paste-Ready, REV 2.11)
 
-> 🚧 **REV 2.11 (2026-05-30) — PERLU REVIEW THESIS-LEVEL OLEH EZRA.** Naskah ini telah disesuaikan secara faktual ke model COGS (drop subsistem belanja/vendor/raw-materials, tambah modal/COGS per menu + Laporan Laba Rugi Harian). Perubahan struktural utama: entitas 14 → **10**, relasi 19 → **17**, use case 20 → **19**, activity diagram 11 → **9**; Kebutuhan Fungsional #12 (raw materials) & #14 (mencatat pembelian) dihapus, ditambah FR modal/COGS; sub-bab activity 3.2.3.7 (Opname Raw Materials) & 3.2.3.9 (Mencatat Pembelian) dihapus; numbering Gambar/Tabel **perlu disusun ulang** (Gambar 3.2–3.12 dan Tabel 3.2–3.15 lama). **Bagian yang BELUM disisir habis (perlu review manual Ezra):** mapping Gambar/Tabel di atas, renumbering caption, dan kehalusan kalimat prosa naratif. Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
+> 🚧 **REV 2.11 (2026-05-30) - PERLU REVIEW THESIS-LEVEL OLEH EZRA.** Naskah ini telah disesuaikan secara faktual ke model COGS (drop subsistem belanja/vendor/raw-materials, tambah modal/COGS per menu + Laporan Laba Rugi Harian). Perubahan struktural utama: entitas 14 → **10**, relasi 19 → **17**, use case 20 → **19**, activity diagram 11 → **9**; Kebutuhan Fungsional #12 (raw materials) & #14 (mencatat pembelian) dihapus, ditambah FR modal/COGS; sub-bab activity 3.2.3.7 (Opname Raw Materials) & 3.2.3.9 (Mencatat Pembelian) dihapus; numbering Gambar/Tabel **perlu disusun ulang** (Gambar 3.2–3.12 dan Tabel 3.2–3.15 lama). **Bagian yang BELUM disisir habis (perlu review manual Ezra):** mapping Gambar/Tabel di atas, renumbering caption, dan kehalusan kalimat prosa naratif. Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
 
 > ✅ **Implementasi STATUS per 2026-05-24:** Backend + Frontend FULL DONE (11 phase backend + 11 phase frontend + Phase 4b split/merge bill). Backend `tsc --noEmit` 0 errors, frontend `vite build` SUCCESS 1564 modules, ~170+ smoke test scenarios PASS. Naskah Bab 3 di bawah ini menggambarkan sistem yang **sudah jalan**, bukan rencana.
 
@@ -26,7 +26,7 @@
 
 ---
 
-## Mapping Gambar dan Tabel (REV 2.3 — ⚠️ PERLU DISUSUN ULANG untuk REV 2.11)
+## Mapping Gambar dan Tabel (REV 2.3 - ⚠️ PERLU DISUSUN ULANG untuk REV 2.11)
 
 > 🚧 **REV 2.11:** tabel mapping di bawah ini masih versi REV 2.3 (13 Gambar + 15 Tabel). Setelah penghapusan 2 *activity diagram* (Opname Raw Materials + Mencatat Pembelian) dan 5 entitas data dictionary (`raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items`) + penambahan `menu_cost_movements`, mapping ini menjadi **11 Gambar + 11 Tabel** (1 tabel kebutuhan informasi + 10 tabel data dictionary). Penyusunan ulang penomoran Gambar/Tabel diserahkan ke penulis (Ezra) sebagai bagian review thesis-level.
 

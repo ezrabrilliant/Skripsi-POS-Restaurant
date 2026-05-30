@@ -1,4 +1,4 @@
-// Integration smoke REV 2.11 — COGS pipeline end-to-end.
+// Integration smoke REV 2.11 - COGS pipeline end-to-end.
 // Membuktikan: (1) MenuCostMovement initialSet, (2) manualEdit + getCostHistory
 // newest-first, (3) unitCost snapshot varian (resolve via stockTarget), (4) unitCost
 // snapshot paket (Σ cost komponen), (5) dashboard cogsTotal + profit = revenue − cogs,
@@ -43,7 +43,7 @@ async function makeMenu(input: MenuUpsertInput) {
   return m;
 }
 
-// Base input scaffold (semua field wajib MenuUpsertInput) — override per fixture.
+// Base input scaffold (semua field wajib MenuUpsertInput) - override per fixture.
 function baseInput(over: Partial<MenuUpsertInput>): MenuUpsertInput {
   return {
     name: `${TAG} unnamed`,
@@ -293,7 +293,7 @@ async function main() {
   console.log(`  (shift #${shift.id} dibuka)`);
 
   // ================================================================
-  // [3] unitCost snapshot — varian (resolve via stockTarget → #sayur cost)
+  // [3] unitCost snapshot - varian (resolve via stockTarget → #sayur cost)
   // ================================================================
   console.log('\n[3] Order menu varian → TransactionItem.unitCost = cost leaf stockTarget:');
   const VARIANT_QTY = 2;
@@ -309,7 +309,7 @@ async function main() {
   );
 
   // ================================================================
-  // [4] unitCost snapshot — paket (Σ cost komponen resolved)
+  // [4] unitCost snapshot - paket (Σ cost komponen resolved)
   // ================================================================
   console.log('\n[4] Order paket → TransactionItem.unitCost = Σ cost komponen resolved:');
   const PAKET_QTY = 1;
