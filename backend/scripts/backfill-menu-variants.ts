@@ -27,7 +27,7 @@ import { buildVariantLabel } from '../src/modules/menus/variant-resolver'
 import { upsertMenu } from '../src/modules/menus/menus.service'
 import type { MenuUpsertInput } from '../src/modules/menus/menus.schema'
 
-type PrismaLike = Pick<PrismaClient, 'menu' | 'portionStock'>
+type PrismaLike = Pick<PrismaClient, 'menu' | 'portionStock' | 'user'>
 
 interface Report {
   newPortionSkus: number
@@ -57,6 +57,15 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   // Helper: find a menu by exact name (any kind).
   const findMenuByName = (name: string) =>
     prisma.menu.findFirst({ where: { name } })
+
+  // REV 2.11: upsertMenu butuh userId untuk MenuCostMovement (initialSet/manualEdit).
+  // Backfill tidak men-set cost, jadi tidak ada movement yang ditulis — tapi signature
+  // tetap butuh user valid. Pakai owner pertama yang ter-seed.
+  const owner = await prisma.user.findFirst({ where: { role: 'owner' } })
+  if (!owner) {
+    throw new Error('Backfill GAGAL: tidak ada user role=owner untuk atribusi upsertMenu')
+  }
+  const ownerUserId = owner.id
 
   // Helper: resolve a stock-target NAME to a menu id, EXCLUDING display variant
   // menus. This is critical for the Kerupuk clash — a display menu named "Kerupuk"
@@ -177,7 +186,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
     const existing = await prisma.menu.findFirst({
       where: { name: spec.name, kind: 'variant' },
     })
-    await upsertMenu(existing?.id ?? null, payload)
+    await upsertMenu(existing?.id ?? null, payload, ownerUserId)
     if (existing) {
       report.variantMenusUpdated++
       console.log(`  ~ variant menu "${spec.name}" (#${existing.id}) diperbarui (${variants.length} varian)`)
@@ -263,7 +272,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
       optionGroups: [],
       variants: [],
       paketComponents,
-    })
+    }, ownerUserId)
     report.paketsConverted++
     console.log(`  ~ paket "${spec.name}" (#${existing.id}) dikonversi (${paketComponents.length} komponen)`)
   }

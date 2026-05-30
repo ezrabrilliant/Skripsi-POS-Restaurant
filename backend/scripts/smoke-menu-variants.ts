@@ -18,8 +18,10 @@ const ok = (c: boolean, m: string) => {
 
 // Track menu ids dibuat agar cleanup re-runnable.
 const createdMenuIds: number[] = [];
+// REV 2.11: upsertMenu butuh userId (atribusi MenuCostMovement). Resolve di main().
+let smokeUserId = 0;
 async function makeMenu(input: MenuUpsertInput) {
-  const m = await upsertMenu(null, input);
+  const m = await upsertMenu(null, input, smokeUserId);
   createdMenuIds.push(m.id);
   return m;
 }
@@ -37,6 +39,13 @@ async function cleanup() {
 
 async function main() {
   console.log(`[smoke-menu-variants] DB=${process.env.DATABASE_URL?.split('/').pop()}`);
+
+  // REV 2.11: resolve user untuk atribusi upsertMenu (FK MenuCostMovement.userId).
+  // Find-or-create owner supaya smoke jalan di DB test apa pun (seeded atau kosong).
+  const existingOwner = await prisma.user.findFirst({ where: { role: 'owner' } });
+  smokeUserId = existingOwner
+    ? existingOwner.id
+    : (await prisma.user.create({ data: { name: 'SMOKE Owner', pin: '000000', role: 'owner' } })).id;
 
   // ----------------------------------------------------------------
   console.log('\n[1] Buat menu varian "Es Teh" (3 grup, 4 varian):');
@@ -191,7 +200,7 @@ async function main() {
       { optionLabels: { 'Rasa Teh': 'Manis', Ukuran: 'Jumbo' }, label: 'Manis Jumbo', price: 15000, stockTargetMenuId: null, isActive: true, displayOrder: 3 },
     ],
     paketComponents: [],
-  });
+  }, smokeUserId);
   const esTehAfter = await getMenuDetail(esTeh.id);
   ok(esTehAfter.variants.length === 4, `Masih 4 varian setelah update (got ${esTehAfter.variants.length})`);
   ok(esTehAfter.optionGroups.some((g) => g.name === 'Rasa Teh'), 'Grup di-rename jadi "Rasa Teh"');

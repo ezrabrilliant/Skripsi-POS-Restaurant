@@ -188,6 +188,7 @@ export const variantSchema = z.object({
   label: z.string().trim().min(1),
   price: z.number().nonnegative(),
   stockTargetMenuId: z.number().int().positive().nullable().default(null),
+  costSourceMenuId: z.number().int().positive().nullable().default(null),
   isActive: z.boolean().default(true),
   displayOrder: z.number().int().default(0),
 });
@@ -221,6 +222,7 @@ export const menuUpsertSchema = z
     posVisible: z.boolean().default(true),
     stockType: z.enum(['portion', 'linked', 'nonStock']).default('nonStock'),
     minStock: z.number().int().nullable().optional(),
+    cost: z.number().nonnegative().nullable().optional(),
     optionGroups: z.array(optionGroupSchema).default([]),
     variants: z.array(variantSchema).default([]),
     paketComponents: z.array(paketComponentSchema).default([]),

@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import { UserRole } from '@prisma/client';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, authenticateOptional } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
 import {
   handleList,
@@ -13,14 +13,18 @@ import {
   handleUpdate,
   handleDeactivate,
   handleReactivate,
+  handleCostHistory,
 } from './menus.controller';
 import { uploadMiddleware, handleUploadImage } from './menus.upload';
 
 const router = Router();
 
-// Public reads
-router.get('/', handleList);
-router.get('/:id', handleDetail);
+// Public reads (soft auth: owner token → cost included; anon/POS → cost omitted)
+router.get('/', authenticateOptional, handleList);
+router.get('/:id', authenticateOptional, handleDetail);
+
+// Owner-only riwayat modal (path distinct dari '/:id' jadi ordering aman)
+router.get('/:id/cost-history', authenticate, requireRole(UserRole.owner), handleCostHistory);
 
 // Owner-only mutations
 router.post(
