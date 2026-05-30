@@ -2,7 +2,7 @@
 // PageHeader + Tabs (Menu Jual / Varian SKU). Memegang query bersama
 // (key ['menus','admin',showInactive] — SAMA dgn MenuFormModal supaya cache
 // konsisten) + showInactive + routing tab via ?tab + focusMenuId.
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { menuService } from '@/services/menuService'
@@ -47,15 +47,18 @@ export default function MenuPage() {
       { replace: true },
     )
 
-  const clearFocus = () =>
-    setParams(
-      (prev) => {
-        const n = new URLSearchParams(prev)
-        n.delete('focusMenuId')
-        return n
-      },
-      { replace: true },
-    )
+  const clearFocus = useCallback(
+    () =>
+      setParams(
+        (prev) => {
+          const n = new URLSearchParams(prev)
+          n.delete('focusMenuId')
+          return n
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
 
   const menuJualCount = useMemo(() => menus.filter((m) => m.posVisible).length, [menus])
   const varianCount = useMemo(() => menus.filter((m) => !m.posVisible).length, [menus])

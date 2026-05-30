@@ -195,25 +195,28 @@ export function VarianSkuTab({
     },
   ]
 
-  // Focus highlight + auto-reset filter bila row tidak ada di view ter-filter.
+  // Effect 1: when a focus target arrives that isn't in the current filtered view, clear local
+  // filters so it becomes visible. Deps intentionally only [focusMenuId] — we read filter state
+  // lazily here; adding filtered as a dep would re-fire and wipe filters as the user types.
   useEffect(() => {
     if (focusMenuId == null) return
-    const inView = filtered.some((r) => r.id === focusMenuId)
-    if (!inView) {
-      setSearch('')
-      setCategoryFilter('all')
-      setTimeout(() => {
-        document.getElementById('katalog-row-' + focusMenuId)?.scrollIntoView({ block: 'center' })
-        const t = setTimeout(clearFocus, 2000)
-        return () => clearTimeout(t)
-      }, 0)
-    } else {
-      document.getElementById('katalog-row-' + focusMenuId)?.scrollIntoView({ block: 'center' })
-      const t = setTimeout(clearFocus, 2000)
-      return () => clearTimeout(t)
-    }
+    if (filtered.some((r) => r.id === focusMenuId)) return
+    setSearch('')
+    setCategoryFilter('all')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusMenuId])
+
+  // Effect 2: once the focused row is actually in the DOM, scroll to it and clear the param after
+  // 2s. Re-runs when `filtered` changes (filters still resetting) until the row appears.
+  // clearTimeout cleanup is correctly returned from the effect — NOT swallowed inside setTimeout.
+  useEffect(() => {
+    if (focusMenuId == null) return
+    const el = document.getElementById('katalog-row-' + focusMenuId)
+    if (!el) return // not yet rendered (filters still resetting) — re-runs when `filtered` changes
+    el.scrollIntoView({ block: 'center' })
+    const t = setTimeout(clearFocus, 2000)
+    return () => clearTimeout(t)
+  }, [focusMenuId, filtered, clearFocus])
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3">
