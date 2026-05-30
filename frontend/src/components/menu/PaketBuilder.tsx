@@ -81,9 +81,12 @@ export function buildPaketComponentsPayload(
 
   for (const f of state.fixedItems) {
     if (f.targetMenuId === null) continue
+    // Backend wajib label non-empty utk fixed juga. Derive dari nama menu target,
+    // trim, dan fallback "Item" kalau kosong/whitespace/tak ketemu.
+    const derivedName = (menuNameById.get(f.targetMenuId) ?? '').trim()
     components.push({
       kind: 'fixed',
-      label: menuNameById.get(f.targetMenuId) || 'Item',
+      label: derivedName || 'Item',
       qty: f.qty > 0 ? f.qty : 1,
       displayOrder: order++,
       targetMenuId: f.targetMenuId,

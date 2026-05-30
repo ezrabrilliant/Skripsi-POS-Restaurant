@@ -165,6 +165,79 @@ function validate(state: FormState): ValidationErrors {
   return errs
 }
 
+/**
+ * Pre-submit validation yang mengembalikan pesan toast (Indonesia, singkat,
+ * menyebut slot yang bermasalah) kalau ada yang invalid — atau null kalau lolos.
+ * Tujuannya mencegah save yang silent-broken / 422 dari backend.
+ *
+ * - paket: ≥1 komponen; SETIAP fixed punya targetMenuId; SETIAP choice punya
+ *   ≥1 opsi DAN setiap opsi punya targetMenuId.
+ * - variant: ≥1 varian; setiap grup punya nama + ≥1 opsi (grid menjamin varian
+ *   ada bila grup ada).
+ */
+function preSubmitToastError(
+  state: FormState,
+  menuNameById: Map<number, string>,
+): string | null {
+  if (state.mode === 'paket') {
+    const paket = state.paketState
+    const hasFixed = paket.fixedItems.length > 0
+    const hasChoice = paket.choices.length > 0
+    if (!hasFixed && !hasChoice) {
+      return 'Paket butuh minimal 1 komponen'
+    }
+    // Setiap item tetap wajib punya menu target.
+    for (let i = 0; i < paket.fixedItems.length; i++) {
+      if (paket.fixedItems[i].targetMenuId === null) {
+        return `Item tetap ${i + 1} belum dipilih menunya`
+      }
+    }
+    // Setiap slot pilihan wajib ≥1 opsi, dan tiap opsi wajib menu target.
+    for (let i = 0; i < paket.choices.length; i++) {
+      const c = paket.choices[i]
+      const slotName = c.label.trim() || `Pilihan ${i + 1}`
+      if (!c.label.trim()) {
+        return `Pilihan ${i + 1} belum punya nama`
+      }
+      const realOptions = c.options.filter((o) => o.label.trim())
+      if (realOptions.length === 0) {
+        return `Komponen "${slotName}" belum punya opsi`
+      }
+      for (let j = 0; j < c.options.length; j++) {
+        const o = c.options[j]
+        if (!o.label.trim()) continue
+        if (o.targetMenuId === null) {
+          return `Opsi "${o.label.trim()}" di "${slotName}" belum dipilih menunya`
+        }
+      }
+    }
+  }
+
+  if (state.mode === 'variant') {
+    const v = state.variantState
+    const affectsGroups = v.groups.filter((g) => g.affectsVariant)
+    if (affectsGroups.length === 0) {
+      return 'Tambahkan minimal 1 grup "ubah harga/stok"'
+    }
+    for (let i = 0; i < v.groups.length; i++) {
+      const g = v.groups[i]
+      if (!g.name.trim()) {
+        return `Grup ${i + 1} belum punya nama`
+      }
+      if (!g.optionLabels.some((o) => o.trim())) {
+        return `Grup "${g.name.trim()}" belum punya opsi`
+      }
+    }
+    const rows = computeVariantRows(v, state.price)
+    if (rows.length === 0) {
+      return 'Belum ada kombinasi varian yang terbentuk'
+    }
+  }
+
+  void menuNameById
+  return null
+}
+
 /** Rakit payload final dari state. menuNameById dipakai untuk derive label
  * komponen paket fixed (backend wajib label non-empty). */
 function buildPayload(
@@ -267,6 +340,13 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
     setErrors(errs)
     if (Object.keys(errs).length > 0) {
       toast.error('Ada field yang belum lengkap')
+      return
+    }
+    // Pre-submit guard varian/paket: toast jelas + sebut slot yang bermasalah,
+    // cegah save silent-broken / 422 dari backend.
+    const preErr = preSubmitToastError(state, menuNameById)
+    if (preErr) {
+      toast.error(preErr)
       return
     }
     mutation.mutate()
@@ -402,7 +482,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
               >
                 <span className="flex items-center gap-2 text-body-sm font-semibold text-neutral-900">
                   <Package className="h-4 w-4 text-primary-600" aria-hidden />
-                  + Jadikan paket (gabungan item)
+                  + Paket (gabungan item)
                 </span>
                 <span className="text-caption text-neutral-500">
                   ayam + nasi + minuman

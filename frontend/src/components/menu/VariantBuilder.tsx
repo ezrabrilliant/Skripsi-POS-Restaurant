@@ -11,9 +11,12 @@
  *   OptionGroup saja supaya POS bisa render pilihan saat order.
  *
  * Edit preservation: tiap varian di-key dengan signature optionLabels yang
- * di-sort (urut group order → option label). Saat grid regenerate karena owner
- * tambah/hapus opsi, harga/stockTarget/active yang sudah di-edit tetap survive
- * untuk kombinasi yang masih ada.
+ * di-sort BERDASARKAN NAMA GRUP (group-order-independent). Saat grid regenerate
+ * karena owner tambah/hapus opsi ATAU urutan grup berubah (mis. seed dari backend
+ * beda urutan dari saat create), harga/stockTarget/active yang sudah di-edit tetap
+ * survive untuk kombinasi yang masih ada. Satu helper `variantSignature` dipakai
+ * di SEMUA tempat (generate grid, lookup override, seed dari existing) supaya
+ * generation & lookup selalu sepakat.
  */
 
 import { useMemo } from 'react'
@@ -45,7 +48,7 @@ export interface VariantGroupState {
 
 /**
  * Override per-kombinasi yang di-edit owner. Disimpan keyed by signature
- * (lihat `signatureOf`) supaya survive regenerate grid.
+ * (lihat `variantSignature`) supaya survive regenerate grid.
  */
 export interface VariantOverride {
   price: number
@@ -77,9 +80,19 @@ export const emptyVariantBuilderValue: VariantBuilderValue = {
   overrides: {},
 }
 
-/** Signature stabil dari pilihan opsi (urut group order, join "||"). */
-function signatureOf(groupNames: string[], combo: string[]): string {
-  return groupNames.map((g, i) => `${g}=${combo[i]}`).join('||')
+/**
+ * Signature stabil dari pilihan opsi, **group-order-independent**: bagian
+ * `groupName=optionLabel` di-SORT by group name sebelum di-join "||", jadi key
+ * sama persis tak peduli urutan grup di array. Dipakai konsisten di generate
+ * grid, lookup override, dan seed dari existing variants.
+ *
+ * Satu opsi per grup, jadi `optionLabels` adalah map groupName -> chosen label.
+ */
+export function variantSignature(optionLabels: Record<string, string>): string {
+  return Object.keys(optionLabels)
+    .sort()
+    .map((g) => `${g}=${optionLabels[g]}`)
+    .join('||')
 }
 
 /** Cartesian product dari array of arrays. */
@@ -120,11 +133,11 @@ export function computeVariantRows(
 
   const combos = cartesian(optionLists)
   return combos.map((combo) => {
-    const signature = signatureOf(groupNames, combo)
     const optionLabels: Record<string, string> = {}
     groupNames.forEach((g, i) => {
       optionLabels[g] = combo[i]
     })
+    const signature = variantSignature(optionLabels)
     const override = value.overrides[signature]
     return {
       signature,
@@ -183,11 +196,7 @@ export function menuToVariantBuilderState(menu: Menu): VariantBuilderValue {
         .map((o) => o.label),
     }))
 
-  const variantGroups = (menu.optionGroups ?? [])
-    .filter((g) => g.affectsVariant)
-    .slice()
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-  const groupNames = variantGroups.map((g) => g.name.trim())
+  const variantGroups = (menu.optionGroups ?? []).filter((g) => g.affectsVariant)
 
   // MenuVariant.optionIds = id MenuOption penyusun. Map: optionId -> { groupName, label }
   // supaya bisa rekonstruksi kombinasi { groupName -> label } per varian.
@@ -200,15 +209,22 @@ export function menuToVariantBuilderState(menu: Menu): VariantBuilderValue {
 
   const overrides: Record<string, VariantOverride> = {}
   for (const v of menu.variants ?? []) {
-    // Rekonstruksi map groupName -> label dari optionIds varian ini.
-    const byGroup = new Map<string, string>()
+    // Rekonstruksi map groupName -> label dari optionIds varian ini. Pakai
+    // SELURUH entri yang ketemu (partial OK) — jangan drop varian kalau ada
+    // grup yang hilang (data drift dari backfill). Key by variantSignature
+    // (group-order-independent) supaya cocok dengan grid bila kombinasi masih ada.
+    const optionLabels: Record<string, string> = {}
     for (const oid of v.optionIds) {
       const entry = optionLookup.get(oid)
-      if (entry) byGroup.set(entry.groupName, entry.label)
+      if (entry) optionLabels[entry.groupName] = entry.label
     }
-    const combo = groupNames.map((g) => byGroup.get(g) ?? '')
-    if (combo.some((c) => !c)) continue
-    const signature = signatureOf(groupNames, combo)
+    // Fallback defensif: kalau optionIds tak ter-resolve sama sekali (mis. backend
+    // belum kirim optionGroups beririsan), simpan tetap pakai label varian sebagai
+    // key supaya price/stock tersimpan & varian tidak hilang.
+    const signature =
+      Object.keys(optionLabels).length > 0
+        ? variantSignature(optionLabels)
+        : `__variant_${v.id}__${v.label}`
     overrides[signature] = {
       price: v.price,
       stockTargetMenuId: v.stockTargetMenuId,
