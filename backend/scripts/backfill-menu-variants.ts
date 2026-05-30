@@ -35,6 +35,8 @@ interface Report {
   variantMenusUpdated: number
   skusHidden: number
   paketsConverted: number
+  /** REV 2.11: count of nonStock variants stamped with a resolved costSourceMenuId. */
+  costSourceSet: number
   paketsSkipped: string[]
   unresolved: string[]
 }
@@ -50,6 +52,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
     variantMenusUpdated: 0,
     skusHidden: 0,
     paketsConverted: 0,
+    costSourceSet: 0,
     paketsSkipped: [],
     unresolved: [],
   }
@@ -135,6 +138,18 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
       resolvedTargets.push(await resolveStockTarget(v.stockTargetName))
     }
 
+    // 3a-bis. REV 2.11: resolve each variant's costSource leaf (nonStock variants
+    //     whose modal differs per variant: Es Teh / Es Jeruk / Tahu Tempe). The
+    //     leaf is a hidden simple SKU (kind != variant), so resolveStockTarget's
+    //     NOT-variant lookup resolves it unambiguously. Stock-bearing variants omit
+    //     costSourceName → null (backend cost resolver falls back to stockTargetMenuId).
+    const resolvedCostSources: (number | null)[] = []
+    for (const v of spec.variants) {
+      resolvedCostSources.push(
+        v.costSourceName ? await resolveStockTarget(v.costSourceName) : null,
+      )
+    }
+
     // 3b. Build option groups (displayOrder by index; options displayOrder by index).
     const optionGroups: MenuUpsertInput['optionGroups'] = spec.groups.map(
       (g, gi) => ({
@@ -159,11 +174,13 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
           groupOrder: groupOrder.get(groupName)!,
           label,
         }))
+      if (resolvedCostSources[vi] != null) report.costSourceSet++
       return {
         optionLabels: v.optionLabels,
         label: buildVariantLabel(labelParts),
         price: v.price,
         stockTargetMenuId: resolvedTargets[vi],
+        costSourceMenuId: resolvedCostSources[vi],
         isActive: true,
         displayOrder: vi,
       }
@@ -286,6 +303,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   console.log(`  Pakets converted      : ${report.paketsConverted}`)
   console.log(`  SKUs hidden (rows)    : ${report.skusHidden}`)
   console.log(`  New portion SKUs      : ${report.newPortionSkus}`)
+  console.log(`  costSource set        : ${report.costSourceSet}`)
   if (report.paketsSkipped.length > 0) {
     console.log(`  Pakets SKIPPED (missing): ${report.paketsSkipped.join(', ')}`)
   }

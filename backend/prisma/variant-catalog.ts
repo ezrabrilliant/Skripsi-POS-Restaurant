@@ -28,6 +28,14 @@ export interface VariantSpec {
   price: number
   /** Existing menu name that holds the stock (portion SKU), or null for nonStock. */
   stockTargetName: string | null
+  /**
+   * REV 2.11 COGS: for nonStock variants whose modal genuinely differs per variant
+   * (Es Teh per Rasa×Ukuran, Es Jeruk per Jenis, Tahu Tempe per Jenis), the existing
+   * hidden leaf SKU whose `Menu.cost` represents this variant's cost. Resolved to
+   * `costSourceMenuId` during backfill. Omit for stock-bearing variants (backend falls
+   * back to `stockTargetMenuId`) and for uniform-modal variants (Telur/Sambal).
+   */
+  costSourceName?: string
 }
 
 export interface VariantMenuSpec {
@@ -81,10 +89,10 @@ export const VARIANT_MENUS: VariantMenuSpec[] = [
       { name: 'Suhu', affectsVariant: false, options: ['Dingin', 'Panas'] },
     ],
     variants: [
-      { optionLabels: { Rasa: 'Tawar', Ukuran: 'Biasa' }, price: 8000, stockTargetName: null },
-      { optionLabels: { Rasa: 'Manis', Ukuran: 'Biasa' }, price: 10000, stockTargetName: null },
-      { optionLabels: { Rasa: 'Tawar', Ukuran: 'Jumbo' }, price: 12000, stockTargetName: null },
-      { optionLabels: { Rasa: 'Manis', Ukuran: 'Jumbo' }, price: 15000, stockTargetName: null },
+      { optionLabels: { Rasa: 'Tawar', Ukuran: 'Biasa' }, price: 8000, stockTargetName: null, costSourceName: 'Teh Tawar Biasa' },
+      { optionLabels: { Rasa: 'Manis', Ukuran: 'Biasa' }, price: 10000, stockTargetName: null, costSourceName: 'Teh Manis Biasa' },
+      { optionLabels: { Rasa: 'Tawar', Ukuran: 'Jumbo' }, price: 12000, stockTargetName: null, costSourceName: 'Teh Tawar Jumbo' },
+      { optionLabels: { Rasa: 'Manis', Ukuran: 'Jumbo' }, price: 15000, stockTargetName: null, costSourceName: 'Teh Manis Jumbo' },
     ],
     hides: ['Teh Tawar Biasa', 'Teh Manis Biasa', 'Teh Tawar Jumbo', 'Teh Manis Jumbo'],
   },
@@ -96,9 +104,9 @@ export const VARIANT_MENUS: VariantMenuSpec[] = [
     imageUrl: '/menu/es-jeruk-peras.webp',
     groups: [{ name: 'Jenis', affectsVariant: true, options: ['Nipis', 'Peras', 'Murni'] }],
     variants: [
-      { optionLabels: { Jenis: 'Nipis' }, price: 10000, stockTargetName: null },
-      { optionLabels: { Jenis: 'Peras' }, price: 15000, stockTargetName: null },
-      { optionLabels: { Jenis: 'Murni' }, price: 25000, stockTargetName: null },
+      { optionLabels: { Jenis: 'Nipis' }, price: 10000, stockTargetName: null, costSourceName: 'Jeruk Nipis' },
+      { optionLabels: { Jenis: 'Peras' }, price: 15000, stockTargetName: null, costSourceName: 'Jeruk Peras' },
+      { optionLabels: { Jenis: 'Murni' }, price: 25000, stockTargetName: null, costSourceName: 'Jeruk Murni' },
     ],
     hides: ['Jeruk Nipis', 'Jeruk Peras', 'Jeruk Murni'],
   },
@@ -207,8 +215,8 @@ export const VARIANT_MENUS: VariantMenuSpec[] = [
     imageUrl: '/menu/tahu-tempe.webp',
     groups: [{ name: 'Jenis', affectsVariant: true, options: ['Goreng', 'Penyet'] }],
     variants: [
-      { optionLabels: { Jenis: 'Goreng' }, price: 12000, stockTargetName: null },
-      { optionLabels: { Jenis: 'Penyet' }, price: 20000, stockTargetName: null },
+      { optionLabels: { Jenis: 'Goreng' }, price: 12000, stockTargetName: null, costSourceName: 'Tahu Tempe Goreng' },
+      { optionLabels: { Jenis: 'Penyet' }, price: 20000, stockTargetName: null, costSourceName: 'Tahu Tempe Penyet' },
     ],
     hides: ['Tahu Tempe Goreng', 'Tahu Tempe Penyet'],
   },
