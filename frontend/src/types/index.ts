@@ -102,6 +102,9 @@ export interface MenuVariant {
   label: string
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: menu (SKU tersembunyi) sumber modal/COGS untuk varian nonStock
+   * (stockTargetMenuId === null). Bila null, backend fallback ke stockTargetMenuId. */
+  costSourceMenuId: number | null
   isActive: boolean
   displayOrder: number
   optionIds: number[]
@@ -177,6 +180,10 @@ export interface Menu {
   optionGroups?: OptionGroup[]
   variants?: MenuVariant[]
   paketComponents?: PaketComponent[]
+  /** REV 2.11: harga modal / COGS per porsi (leaf/simple). Hanya dikirim untuk
+   * request owner-authenticated (soft-auth); POS/public TIDAK menerima field ini.
+   * null pada parent variant/paket (modal hidup di leaf). */
+  cost?: number | null
 }
 
 // ============================================================
@@ -208,6 +215,8 @@ export interface MenuVariantUpsertPayload {
   label: string
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: sumber modal untuk varian nonStock (lihat MenuVariant.costSourceMenuId). */
+  costSourceMenuId?: number | null
   isActive: boolean
   displayOrder: number
 }
@@ -246,6 +255,9 @@ export interface MenuUpsertPayload {
   optionGroups: OptionGroupUpsertPayload[]
   variants: MenuVariantUpsertPayload[]
   paketComponents: PaketComponentUpsertPayload[]
+  /** REV 2.11: harga modal / COGS (leaf/simple). Owner-only; backend log perubahan
+   * ke MenuCostMovement. Variant/paket parent biarkan 0/null (modal di leaf). */
+  cost?: number | null
 }
 
 // ============================================================
@@ -587,147 +599,22 @@ export interface PortionStockDetail extends PortionStockView {
 }
 
 // ============================================================
-// Unit master (REV 2.5)
+// REV 2.11 — COGS / Harga Modal per menu (audit log perubahan)
 // ============================================================
 
-/** REV 2.5: opname mode menentukan cara hitung stok bahan baku.
- * - exact: numerik akurat (kg, liter, pcs, gram, dll)
- * - scale_0_5: skala subjektif 0..5 (sachet, sdt, "secukupnya", dll - tidak praktis ditimbang) */
-export type OpnameMode = 'exact' | 'scale_0_5'
-
-export interface Unit {
+export type MenuCostChangeReason = 'initialSet' | 'manualEdit'
+export const COST_REASON_LABEL: Record<MenuCostChangeReason, string> = {
+  initialSet: 'Set Awal',
+  manualEdit: 'Penyesuaian Modal',
+}
+export interface MenuCostMovementView {
   id: number
-  label: string
-  opnameMode: OpnameMode
-  createdAt: string
-  updatedAt: string
-}
-
-// ============================================================
-// Raw materials (REV 2.2)
-// ============================================================
-
-export type RawMaterialCategory =
-  | 'bumbuDasar'
-  | 'bahanSegar'
-  | 'bahanPokok'
-  | 'bahanKering'
-  | 'lainnya'
-
-export const RAW_MATERIAL_CATEGORY_LABEL: Record<RawMaterialCategory, string> = {
-  bumbuDasar: 'Bumbu Dasar',
-  bahanSegar: 'Bahan Segar',
-  bahanPokok: 'Bahan Pokok',
-  bahanKering: 'Bahan Kering',
-  lainnya: 'Lainnya',
-}
-
-export interface RawMaterialView {
-  id: number
-  name: string
-  /** REV 2.5.2: soft-delete flag. False = nonaktif (history dipertahankan, item
-   * tersembunyi dari list default kecuali toggle "Tampilkan nonaktif" aktif). */
-  isActive: boolean
-  /** REV 2.5: unitId FK + populated unit object (opnameMode determines opname UI). */
-  unitId: number
-  unit: {
-    id: number
-    label: string
-    opnameMode: OpnameMode
-  }
-  category: RawMaterialCategory
-  stockQty: number
-  minStock: number | null
-  unitPrice: number | null
-  freshnessDays: number | null
-  lastBuyDate: string | null
-  isLowStock: boolean
-  isNearExpiry: boolean
-  daysUntilExpiry: number | null
-  suggestedAction: string | null
-  createdAt: string
-  updatedAt: string
-  /** REV 2.8: timestamp movement terbaru. null = belum pernah. */
-  lastStockedAt: string | null
-}
-
-export type RawMaterialMovementReason = 'purchase' | 'opname' | 'manualAdjust'
-
-export const RAW_REASON_LABEL: Record<RawMaterialMovementReason, string> = {
-  purchase: 'Pembelian',
-  opname: 'Opname',
-  manualAdjust: 'Penyesuaian',
-}
-
-export interface RawMaterialMovementView {
-  id: number
-  delta: number
-  reason: RawMaterialMovementReason
-  qtyBefore: number | null
-  qtyAfter: number | null
+  costBefore: number | null
+  costAfter: number | null
+  reason: MenuCostChangeReason
   note: string | null
   userId: number
   userName: string
-  /** REV 2.8: tautan FK ke pembelian sumber (null untuk opname/manualAdjust). */
-  purchaseId: number | null
-  purchaseItemId: number | null
-  createdAt: string
-}
-
-export interface RawMaterialDetail extends RawMaterialView {
-  recentMovements: RawMaterialMovementView[]
-}
-
-// ============================================================
-// Vendor
-// ============================================================
-
-export interface Vendor {
-  id: number
-  name: string
-  type: string
-  phone: string | null
-  note: string | null
-  purchaseCount: number
-  createdAt: string
-  updatedAt: string
-}
-
-// ============================================================
-// Purchase (REV 2.1 normalized)
-// ============================================================
-
-export interface PurchaseItemView {
-  id: number
-  /** REV 2.5.1: nullable untuk free-form line item (label set, no master FK). */
-  rawMaterialId: number | null
-  rawMaterialName: string | null
-  rawMaterialUnit: string | null
-  /** REV 2.5: opname mode dari unit raw material — drive UI render (exact = qty+price,
-   * scale_0_5 = subtotal saja + note). REV 2.5.1: null untuk free-form. */
-  rawMaterialOpnameMode: OpnameMode | null
-  /** REV 2.5.1: free-form line item label (mis. "Bumbu dasar pasar", "Ayam mentah").
-   * Set kalau rawMaterialId null. Mutually exclusive dengan rawMaterialId. */
-  label: string | null
-  /** REV 2.5: nullable untuk scale_0_5 mode (kasir hanya catat subtotal + note). */
-  qty: number | null
-  unitPrice: number | null
-  subtotal: number
-  note: string | null
-  expiredDate: string | null
-  createdAt: string
-}
-
-export interface Purchase {
-  id: number
-  date: string
-  userId: number
-  userName: string
-  vendorId: number | null
-  vendorName: string | null
-  totalAmount: number
-  note: string | null
-  items: PurchaseItemView[]
   createdAt: string
 }
 

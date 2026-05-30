@@ -23,8 +23,6 @@ import type {
 
 export interface ReminderCounts {
   portionLowCount: number
-  rawMaterialLowCount: number
-  rawMaterialNearExpiryCount: number
 }
 
 // ============================================================
@@ -50,7 +48,7 @@ export interface OwnerReport {
     bankBreakdown: BankBreakdownEntry[]
   }
   expense: {
-    purchaseTotal: number
+    cogsTotal: number
     billTotal: number
     total: number
   }
@@ -100,24 +98,11 @@ export interface WaiterDashboardPortionSample {
   suggestedRestock: number
 }
 
-export interface WaiterDashboardRawMaterialSample {
-  id: number
-  name: string
-  stockQty: number
-  minStock: number | null
-  unit: string
-}
-
 export interface WaiterDashboard {
   portionStocks: {
     totalCount: number
     lowCount: number
     lowSamples: WaiterDashboardPortionSample[]
-  }
-  rawMaterials: {
-    lowCount: number
-    nearExpiryCount: number
-    lowSamples: WaiterDashboardRawMaterialSample[]
   }
   activeShiftsToday: Array<{
     id: number

@@ -31,12 +31,13 @@ Tidak ada cetak struk pesanan ke dapur. Yanti baca dari kertas waiter langsung. 
 | Buka kasir (modal awal shift) | – | ✓ | ✗ |
 | Settlement harian (rekap 6 metode) | ✓ | ✓ | ✗ |
 | Stok porsi: view + opname + mark habis | ✓ | ✓ | ✓ |
-| Raw materials: view + opname + mark habis | ✓ | ✓ | ✓ |
-| Pembelian (input belanja pasar, vendor + items) | ✓ | ✓ | ✗ |
 | Bills / Tagihan operasional (kebersihan/listrik/air/parkir/sewa) | ✓ | ✗ | ✗ |
 | Laporan keuangan & analitik | ✓ *(full)* | ✓ *(hari ini saja, untuk verifikasi shift)* | ✗ |
-| Master data: menu, paket, user, raw material CRUD | ✓ | ✗ | ✗ |
+| Master data: menu, paket, user CRUD | ✓ | ✗ | ✗ |
+| Edit modal/COGS menu (set + ubah, lihat riwayat modal) | ✓ | ✗ | ✗ |
 | Mereview settlement | ✓ | ✗ | ✗ |
+
+> **Update REV 2.11 (2026-05-30):** baris "Raw materials" dan "Pembelian (belanja pasar)" **dihapus** - subsistem belanja/vendor/raw-materials di-drop dari sistem (inventori = finished-goods porsi saja). Master data master raw material juga hilang. Sebagai gantinya ditambah baris **Edit modal/COGS menu = owner-only** (untuk Laporan Laba Rugi Harian = Pendapatan − COGS). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](2026-05-30-cogs-per-menu-remove-belanja-design.md).
 
 **Interpretasi "fallback only" untuk waiter input order:**
 - Backend tidak hard-block waiter dari `POST /transactions`. Endpoint tetap accept role `waiter`.

@@ -82,7 +82,7 @@ function toMenuView(menu: MenuWithStock): MenuView {
 // CRUD
 // ============================================================
 
-export async function listMenus(query: ListMenuQuery): Promise<MenuDetail[]> {
+export async function listMenus(query: ListMenuQuery, includeCost = false): Promise<MenuDetail[]> {
   // REV 2.10: POS/public mode (includeHidden=false) → hanya posVisible=true.
   // Owner mode (includeHidden=true) → semua menu termasuk SKU stok tersembunyi.
   // activeOnly tetap berlaku independen (default true).
@@ -115,18 +115,19 @@ export async function listMenus(query: ListMenuQuery): Promise<MenuDetail[]> {
   }
 
   return menus.map((m) => {
-    const detail = toMenuDetail(m);
+    const detail = toMenuDetail(m, includeCost);
     if (salesMap) detail.salesCount = salesMap.get(m.id) ?? 0;
     return detail;
   });
 }
 
-export async function getMenuById(id: number): Promise<MenuView> {
+export async function getMenuById(id: number, includeCost = false): Promise<MenuView> {
   const menu = await prisma.menu.findUnique({
     where: { id },
     include: { portionStock: true },
   });
   if (!menu) throw notFound('Menu');
+  void includeCost; // cost tidak ada di MenuView (public base shape); param dipertahankan untuk paritas signature.
   return toMenuView(menu);
 }
 
@@ -151,6 +152,7 @@ export interface MenuVariantDetail {
   label: string;
   price: number;
   stockTargetMenuId: number | null;
+  costSourceMenuId: number | null;
   isActive: boolean;
   displayOrder: number;
   // optionIds penyusun varian (untuk grup affectsVariant=true)
@@ -175,6 +177,8 @@ export interface PaketComponentDetail {
 }
 
 export interface MenuDetail extends MenuView {
+  // REV 2.11: modal (COGS) per menu — owner-only. Emit hanya saat includeCost=true.
+  cost: number | null;
   optionGroups: MenuOptionGroupDetail[];
   variants: MenuVariantDetail[];
   paketComponents: PaketComponentDetail[];
@@ -198,9 +202,10 @@ const menuDetailInclude = {
 
 type MenuWithDetail = Prisma.MenuGetPayload<{ include: typeof menuDetailInclude }>;
 
-function toMenuDetail(menu: MenuWithDetail): MenuDetail {
+function toMenuDetail(menu: MenuWithDetail, includeCost = false): MenuDetail {
   return {
     ...toMenuView(menu),
+    cost: includeCost && menu.cost ? menu.cost.toNumber() : null,
     optionGroups: menu.optionGroups.map((g) => ({
       id: g.id,
       name: g.name,
@@ -217,6 +222,7 @@ function toMenuDetail(menu: MenuWithDetail): MenuDetail {
       label: v.label,
       price: v.price.toNumber(),
       stockTargetMenuId: v.stockTargetMenuId,
+      costSourceMenuId: v.costSourceMenuId,
       isActive: v.isActive,
       displayOrder: v.displayOrder,
       optionIds: v.options.map((vo) => vo.optionId),
@@ -240,13 +246,46 @@ function toMenuDetail(menu: MenuWithDetail): MenuDetail {
   };
 }
 
-export async function getMenuDetail(id: number): Promise<MenuDetail> {
+export async function getMenuDetail(id: number, includeCost = false): Promise<MenuDetail> {
   const menu = await prisma.menu.findUnique({
     where: { id },
     include: menuDetailInclude,
   });
   if (!menu) throw new AppError('Menu tidak ditemukan', 404);
-  return toMenuDetail(menu);
+  return toMenuDetail(menu, includeCost);
+}
+
+// ============================================================
+// REV 2.11 — Riwayat perubahan modal (MenuCostMovement)
+// ============================================================
+
+export interface MenuCostMovementView {
+  id: number;
+  costBefore: number | null;
+  costAfter: number | null;
+  reason: 'initialSet' | 'manualEdit';
+  note: string | null;
+  userId: number;
+  userName: string;
+  createdAt: string;
+}
+
+export async function getCostHistory(menuId: number): Promise<MenuCostMovementView[]> {
+  const rows = await prisma.menuCostMovement.findMany({
+    where: { menuId },
+    orderBy: { createdAt: 'desc' },
+    include: { user: { select: { name: true } } },
+  });
+  return rows.map((m) => ({
+    id: m.id,
+    costBefore: m.costBefore ? m.costBefore.toNumber() : null,
+    costAfter: m.costAfter ? m.costAfter.toNumber() : null,
+    reason: m.reason,
+    note: m.note,
+    userId: m.userId,
+    userName: m.user.name,
+    createdAt: m.createdAt.toISOString(),
+  }));
 }
 
 // ============================================================
@@ -273,6 +312,7 @@ const MENU_KIND_MAP: Record<MenuUpsertInput['kind'], MenuKind> = {
 export async function upsertMenu(
   id: number | null,
   input: MenuUpsertInput,
+  userId: number,
 ): Promise<MenuDetail> {
   const stockType = STOCK_TYPE_MAP[input.stockType];
   const kind = MENU_KIND_MAP[input.kind];
@@ -295,9 +335,22 @@ export async function upsertMenu(
           posVisible: input.posVisible,
           minStock: input.minStock ?? null,
           imageUrl: input.imageUrl ?? null,
+          cost: input.cost == null ? null : new Prisma.Decimal(input.cost),
         },
       });
       baseId = created.id;
+      // REV 2.11: log initialSet kalau menu dibuat dengan modal awal.
+      if (input.cost != null) {
+        await tx.menuCostMovement.create({
+          data: {
+            menuId: baseId,
+            costBefore: null,
+            costAfter: new Prisma.Decimal(input.cost),
+            reason: 'initialSet',
+            userId,
+          },
+        });
+      }
     } else {
       const existing = await tx.menu.findUnique({ where: { id }, include: { portionStock: true } });
       if (!existing) throw new AppError('Menu tidak ditemukan', 404);
@@ -312,9 +365,28 @@ export async function upsertMenu(
           posVisible: input.posVisible,
           minStock: input.minStock ?? null,
           imageUrl: input.imageUrl ?? null,
+          cost: input.cost == null ? null : new Prisma.Decimal(input.cost),
         },
       });
       baseId = id;
+      // REV 2.11: log perubahan modal (Decimal-safe + null-safe). initialSet saat
+      // transisi dari null → nilai pertama (kasus utama: owner isi modal pertama kali
+      // di menu yang sudah ada), manualEdit saat ubah nilai yang sudah terisi.
+      const newCost = input.cost == null ? null : new Prisma.Decimal(input.cost);
+      const changed =
+        (existing.cost == null) !== (newCost == null) ||
+        (existing.cost != null && newCost != null && !existing.cost.equals(newCost));
+      if (changed) {
+        await tx.menuCostMovement.create({
+          data: {
+            menuId: baseId,
+            costBefore: existing.cost,
+            costAfter: newCost,
+            reason: existing.cost == null ? 'initialSet' : 'manualEdit',
+            userId,
+          },
+        });
+      }
       // Replace-children: hapus catalog lama (cascade hilangkan turunannya).
       await tx.menuOptionGroup.deleteMany({ where: { menuId: baseId } });
       await tx.menuVariant.deleteMany({ where: { menuId: baseId } });
@@ -375,6 +447,7 @@ export async function upsertMenu(
           label: variant.label,
           price: new Prisma.Decimal(variant.price),
           stockTargetMenuId: variant.stockTargetMenuId,
+          costSourceMenuId: variant.costSourceMenuId ?? null,
           isActive: variant.isActive,
           displayOrder: variant.displayOrder,
         },
@@ -431,7 +504,7 @@ export async function upsertMenu(
     return baseId;
   });
 
-  return getMenuDetail(menuId);
+  return getMenuDetail(menuId, true);
 }
 
 /**
@@ -446,15 +519,18 @@ async function validateMenuReferences(
   const menuIds = new Set<number>();
   const variantIds = new Set<number>();
 
+  // Loose != null: caller objek non-Zod (script backfill/smoke) bisa kirim
+  // undefined (bukan null); undefined TIDAK boleh masuk ke { in: [...] } Prisma.
   for (const v of input.variants) {
-    if (v.stockTargetMenuId !== null) menuIds.add(v.stockTargetMenuId);
+    if (v.stockTargetMenuId != null) menuIds.add(v.stockTargetMenuId);
+    if (v.costSourceMenuId != null) menuIds.add(v.costSourceMenuId);
   }
   for (const c of input.paketComponents) {
-    if (c.targetMenuId !== null) menuIds.add(c.targetMenuId);
-    if (c.targetVariantId !== null) variantIds.add(c.targetVariantId);
+    if (c.targetMenuId != null) menuIds.add(c.targetMenuId);
+    if (c.targetVariantId != null) variantIds.add(c.targetVariantId);
     for (const co of c.choiceOptions) {
-      if (co.targetMenuId !== null) menuIds.add(co.targetMenuId);
-      if (co.targetVariantId !== null) variantIds.add(co.targetVariantId);
+      if (co.targetMenuId != null) menuIds.add(co.targetMenuId);
+      if (co.targetVariantId != null) variantIds.add(co.targetVariantId);
     }
   }
 

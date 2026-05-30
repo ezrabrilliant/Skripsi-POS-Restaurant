@@ -12,7 +12,6 @@ import {
   TrendingUp,
   AlertCircle,
   Receipt,
-  ShoppingCart,
   Calendar,
   Users,
   UtensilsCrossed,
@@ -123,23 +122,18 @@ export default function OwnerDashboard() {
                 hint={`${report.revenue.transactionCount} transaksi`}
               />
               <Stat
-                label="Pengeluaran"
-                value={report.expense.total}
+                label="Beban Pokok (COGS)"
+                value={report.expense.cogsTotal}
                 format="rupiah"
                 icon={<TrendingDown className="w-4 h-4" />}
-                hint={
-                  <>
-                    Belanja {formatCurrency(report.expense.purchaseTotal)} · Tagihan{' '}
-                    {formatCurrency(report.expense.billTotal)}
-                  </>
-                }
+                hint={`Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`}
               />
               <Stat
                 label="Laba Kotor"
                 value={report.profit}
                 format="rupiah"
                 icon={<TrendingUp className="w-4 h-4" />}
-                hint="Pendapatan − Pengeluaran"
+                hint="Pendapatan − COGS"
                 className={
                   report.profit < 0
                     ? '!border-danger-200 !bg-danger-50/30'
@@ -249,10 +243,9 @@ export default function OwnerDashboard() {
 function ReminderCard({
   reminders,
 }: {
-  reminders: { portionLowCount: number; rawMaterialLowCount: number; rawMaterialNearExpiryCount: number }
+  reminders: { portionLowCount: number }
 }) {
-  const total =
-    reminders.portionLowCount + reminders.rawMaterialLowCount + reminders.rawMaterialNearExpiryCount
+  const total = reminders.portionLowCount
   return (
     <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
       <div className="flex items-center gap-2 mb-3">
@@ -271,16 +264,6 @@ function ReminderCard({
             {reminders.portionLowCount}
           </Link>
         </li>
-        <li className="flex justify-between">
-          <span className="text-neutral-700">Raw material perlu restock</span>
-          <span className="font-medium text-neutral-900 tabular-nums">{reminders.rawMaterialLowCount}</span>
-        </li>
-        <li className="flex justify-between">
-          <span className="text-neutral-700">Raw material mendekati basi</span>
-          <span className="font-medium text-neutral-900 tabular-nums">
-            {reminders.rawMaterialNearExpiryCount}
-          </span>
-        </li>
       </ul>
     </div>
   )
@@ -290,10 +273,9 @@ function QuickLinks() {
   const links = [
     { to: '/menu', icon: UtensilsCrossed, label: 'Kelola Menu' },
     { to: '/users', icon: Users, label: 'Kelola Pegawai' },
-    { to: '/stock', icon: Package, label: 'Stok Porsi & Bahan' },
+    { to: '/stock', icon: Package, label: 'Stok Porsi' },
     { to: '/history', icon: Receipt, label: 'Riwayat Transaksi' },
     { to: '/settlement', icon: Calendar, label: 'Settlement' },
-    { to: '/purchases', icon: ShoppingCart, label: 'Belanja' },
     { to: '/bills', icon: Receipt, label: 'Tagihan Bulanan' },
   ]
   return (

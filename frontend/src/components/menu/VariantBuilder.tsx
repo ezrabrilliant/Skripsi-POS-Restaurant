@@ -53,6 +53,9 @@ export interface VariantGroupState {
 export interface VariantOverride {
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: sumber modal untuk varian nonStock (stockTargetMenuId === null).
+   * Survive regenerate grid lewat override keyed by signature. */
+  costSourceMenuId: number | null
   isActive: boolean
 }
 
@@ -112,6 +115,8 @@ export interface ComputedVariantRow {
   label: string
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: sumber modal untuk varian nonStock. */
+  costSourceMenuId: number | null
   isActive: boolean
 }
 
@@ -145,6 +150,7 @@ export function computeVariantRows(
       label: combo.join(' / '),
       price: override?.price ?? basePrice,
       stockTargetMenuId: override?.stockTargetMenuId ?? null,
+      costSourceMenuId: override?.costSourceMenuId ?? null,
       isActive: override?.isActive ?? true,
     }
   })
@@ -177,6 +183,7 @@ export function buildVariantsPayload(
     label: row.label,
     price: row.price,
     stockTargetMenuId: row.stockTargetMenuId,
+    costSourceMenuId: row.costSourceMenuId,
     isActive: row.isActive,
     displayOrder: idx,
   }))
@@ -228,6 +235,7 @@ export function menuToVariantBuilderState(menu: Menu): VariantBuilderValue {
     overrides[signature] = {
       price: v.price,
       stockTargetMenuId: v.stockTargetMenuId,
+      costSourceMenuId: v.costSourceMenuId ?? null,
       isActive: v.isActive,
     }
   }
@@ -427,6 +435,7 @@ export function VariantBuilder({
         return {
           price: row?.price ?? basePrice,
           stockTargetMenuId: row?.stockTargetMenuId ?? null,
+          costSourceMenuId: row?.costSourceMenuId ?? null,
           isActive: row?.isActive ?? true,
         }
       })()
@@ -533,6 +542,18 @@ export function VariantBuilder({
                     label="Kurangi stok dari"
                     placeholder="— tidak ada (nonStock) —"
                   />
+                  {/* REV 2.11: untuk varian nonStock (tanpa stock leaf), owner pilih
+                      SKU tersembunyi sebagai sumber modal/COGS. Bila stockTarget ada,
+                      backend pakai itu sebagai sumber modal otomatis. */}
+                  {row.stockTargetMenuId === null && (
+                    <MenuTargetCombobox
+                      value={row.costSourceMenuId !== null ? String(row.costSourceMenuId) : ''}
+                      onChange={(v) => setOverride(row.signature, { costSourceMenuId: v ? Number(v) : null })}
+                      options={stockTargetOptions}
+                      label="Modal ikut menu (SKU tersembunyi)"
+                      placeholder="— pakai modal menu ini —"
+                    />
+                  )}
                 </div>
               </li>
             ))}

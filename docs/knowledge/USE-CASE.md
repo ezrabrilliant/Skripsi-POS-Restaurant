@@ -1,7 +1,7 @@
-# Use Case Diagram - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.3)
+# Use Case Diagram - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.11)
 
-> **Status:** REV 2.3 (2026-05-24) - bump dari REV 2.2 setelah brainstorming workflow order intake. UC list tetap **20 UC**, namun nuance permission diperjelas: input order primary = kasir, waiter = fallback only. UC `Login` diperbaiki (sebelumnya REV 2.2 masih sebut "pilih nama dari list + localStorage" - out of sync dengan ACTIVITY.md A.1 dan operasional-resto.md yang sudah dikoreksi).
-> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.3 (sumber kebenaran tertinggi)
+> **Status:** REV 2.11 (2026-05-30) - selaras proposal: **drop** UC `Mencatat Pembelian` + `Melakukan Opname Raw Materials` (subsistem belanja/raw-materials dihapus), **tambah** UC `Kelola Modal/COGS Menu` (owner). UC list: 20 → **19 UC** (1 shared + operasional kasir/waiter + owner). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md). Nuance permission REV 2.3 tetap berlaku (input order primary = kasir, waiter fallback).
+> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.11 (sumber kebenaran tertinggi)
 > **Design spec turunan:** [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md)
 > **Visual:** ERD + 11 activity diagram REV 2.2 sudah di-build di `Skripsi.mdj`. Use Case Diagram REV 2.3 pending rebuild.
 
@@ -37,23 +37,23 @@ Use Case Diagram adalah diagram UML pada **tahap analisis** untuk mendokumentasi
 | `<<include>>` | **Include** | Wajib: base UC pasti jalankan included UC |
 | `<<extend>>` | **Extend** | Opsional: extending UC jalan jika kondisi tertentu |
 
-## 4. Tiga Actor (REV 2.3)
+## 4. Tiga Actor (REV 2.11)
 
 | Actor | Role di sistem | Tugas utama |
 |---|---|---|
-| **Owner** | Pemilik restoran (akses penuh + tagihan + master data sekunder) | CRUD menu/user/vendor/raw material, input tagihan bulanan, review settlement, lihat dashboard & laporan |
-| **Kasir** | Operator POS shift (Jason, Bryant, Chen Hong). **Primary input order ke POS.** | Buka kasir, input/kelola pesanan (primary), proses bayar (bank picker untuk EDC/transfer), void bebas, tutup kasir, mencatat pembelian belanja (vendor opsional), restock pagi, barang masuk darurat, opname stok porsi |
-| **Waiter** | Pelayan + helper (Amel, Yanti). **Primary di kertas (tulis order verbal ke kertas, kasih kasir).** | Ambil order ke meja (tulis kertas), antar makanan, buat & antar minuman, cuci piring, restock pagi, opname stok porsi pagi, opname raw materials malam, mark item habis. Input order ke POS hanya sebagai **fallback** bila kasir tidak available - bukan tugas rutin. |
+| **Owner** | Pemilik restoran (akses penuh + tagihan + master data + modal/COGS) | CRUD menu/user, set & ubah modal/COGS menu (+ lihat riwayat modal), input tagihan bulanan, review settlement, lihat dashboard & laporan laba rugi |
+| **Kasir** | Operator POS shift (Jason, Bryant, Chen Hong). **Primary input order ke POS.** | Buka kasir, input/kelola pesanan (primary), proses bayar (bank picker untuk EDC/transfer), void bebas, tutup kasir, restock pagi, barang masuk darurat, opname stok porsi |
+| **Waiter** | Pelayan + helper (Amel, Yanti). **Primary di kertas (tulis order verbal ke kertas, kasih kasir).** | Ambil order ke meja (tulis kertas), antar makanan, buat & antar minuman, cuci piring, restock pagi, opname stok porsi pagi, mark item habis. Input order ke POS hanya sebagai **fallback** bila kasir tidak available - bukan tugas rutin. |
 
 Catatan: Role `Kitchen` (REV 1) **dihapus** karena masak dilakukan di rumah owner, di luar lingkup sistem. Pegawai Lisa (masak only) tidak punya akun sistem. Permission matrix lengkap per role per aksi ada di [`docs/operasional-resto.md`](../operasional-resto.md) seksi "Permission Matrix" dan [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md).
 
-## 5. Dua Puluh Use Case (REV 2.3)
+## 5. Sembilan Belas Use Case (REV 2.11)
 
 ### 5.1. Shared (1)
 
 - **`Login`** (REV 2.3.1 - *cached-name UX*) - First login di device: form 2 field input nama + numpad PIN 6 digit, lalu submit. Setelah berhasil, nama disimpan di localStorage (`pos-auth.lastUserName`). Login berikutnya di device sama: tampilan PIN-only numpad dengan nama auto-fill dari cache; pegawai cukup ketik 6 digit, auto-submit. Tombol "Ganti Pengguna" reset cache dan balik ke form 2 field. Sistem lookup user by nama + verifikasi PIN match. PIN boleh duplikat antar pegawai karena identifikasi via kombinasi nama + PIN. **Tidak ada layar pilih dari daftar seluruh pegawai** - cache cuma simpan 1 nama terakhir per device. Lihat ACTIVITY.md A.1 untuk diagram alur.
 
-### 5.2. Kasir (13 UC, di mana beberapa shared dengan Waiter/Owner)
+### 5.2. Kasir (12 UC, di mana beberapa shared dengan Waiter/Owner)
 
 - **`Buka Kasir`** *(kasir-only)* - pilih ShiftType (pagi/malam), input modal awal laci kas.
 - **`Mengelola Pesanan Meja`** *(kasir primary, waiter fallback only)* - workflow primary: waiter ambil order verbal di meja → tulis di kertas → kasih kertas ke dapur resto (Yanti) → dapur dilanjut ke kasir → kasir input ke POS. Pilih tipe order:
@@ -70,36 +70,25 @@ Catatan: Role `Kitchen` (REV 1) **dihapus** karena masak dilakukan di rumah owne
 - **`Mencatat Barang Masuk`** *(kasir+waiter)* - input restock darurat tengah hari (saat owner kirim dari rumah via Gojek/Grab/antar sendiri karena stok porsi habis). Stok porsi yang sebelumnya minus akan kembali ke positif. Sistem catat di `portion_movements` dengan reason=`restock_emergency`.
 - **`Melakukan Opname Stok Porsi`** *(kasir+waiter)* - cek fisik & koreksi nilai `current_qty` kalau menyimpang dari realita (analog rekonsiliasi cash). Paling pas dilakukan pagi setelah restock pagi dicatat (verifikasi total stok = sisa kemarin + restock pagi + selisih opname). Sistem catat selisih di **`portion_movements`** (rename dari `stock_movements` di REV 2.2) dengan reason=`manual_adjust`.
 - **`Tutup Kasir`** *(kasir malam saja)* - rekap 6 totals (cash/EDC/QRIS/Gojek/Grab/Transfer) dengan breakdown per bank untuk EDC & transfer: tampil total sistem + input total fisik per metode → variance per metode dihitung otomatis.
-- **`Mencatat Pembelian`** *(kasir+owner)* - input log belanja kasir di pasar:
-  - Pilih tanggal & vendor (vendor **opsional**, bisa add new inline kalau toko baru - Phone & note opsional karena di pasar kadang lupa nama penjual)
-  - Tambah baris item: pilih raw material existing atau **add new raw material inline** (popup mini-form: name, unit, category, is_tracked)
-  - Input qty + unit_price per baris → subtotal auto-hitung
-  - Submit → sistem auto-update `raw_materials.stock_qty` (kalau is_tracked=true), `last_buy_date`, `unit_price`
-  - **REV 2.2**: sistem juga auto-insert ke `raw_material_movements` (reason=`purchase`, delta=+qty, user_id=purchase.user_id, note="Purchase id=X dari Vendor Y") untuk audit trail
-  - Bumbu dasar (category=bumbu_dasar) = banyak baris terpisah (cabe, bawang, kemiri, dll). Di laporan owner, dikelompokkan jadi 1 baris "Bumbu Dasar" agregat dengan drill-down detail.
 
-### 5.3. Waiter (1 UC unik selain yang shared)
+### 5.3. Waiter
 
-- **`Melakukan Opname Raw Materials`** *(waiter+kasir, biasanya waiter malam sebelum tutup)* - cek fisik raw materials (terutama yang `is_tracked=true`: beras, kangkung, petai, tahu, tempe, telur), update koreksi stock_qty kalau menyimpang. Untuk perishable seperti sayur, juga bisa update `last_buy_date` kalau pembelian terakhir tidak ter-record. **REV 2.2**: setiap koreksi yang mengubah `stock_qty` otomatis tercatat di tabel `raw_material_movements` (reason=`opname`, delta=selisih, user_id=pelaku, note="Opname malam: dari X jadi Y") untuk audit trail.
+Waiter tidak memiliki UC unik selain yang shared dengan kasir (inventory stok porsi: restock pagi, opname stok porsi, mark item habis) + akses *fallback* input order. (REV 2.11: UC `Melakukan Opname Raw Materials` dihapus bersama subsistem raw materials.)
 
-### 5.4. Owner (5 UC)
+### 5.4. Owner (6 UC)
 
 - **`Mengelola Menu`** *(owner)* - CRUD katalog menu termasuk konfigurasi `stockType` (portion/linked/nonStock), `minStock`, dan `subOptions` untuk paket (definisi pilihan + mapping ke stok porsi yang di-decrement).
+- **`Kelola Modal/COGS Menu`** *(owner ONLY)* - set & ubah modal/COGS per menu (di SKU leaf + menu simple), dan lihat **riwayat perubahan modal** per menu (log `menu_cost_movements`). Modal dipakai untuk Laporan Laba Rugi Harian (Laba Kotor = Pendapatan − COGS). Modal **tidak dibocorkan** ke katalog publik (POS) - hanya owner yang melihatnya.
 - **`Mengelola Pengguna`** *(owner)* - CRUD user, set role (owner/cashier/waiter). PIN boleh duplikat. Owner yang bertanggung jawab memberikan akun & password ke anggota keluarga yang bertugas sebagai kasir.
 - **`Mencatat Tagihan Bulanan`** *(owner ONLY)* - input tagihan operasional (kebersihan, listrik, air, parkir, sewa) per bulan. Kasir tidak punya akses ke fitur ini meskipun anggota keluarga.
 - **`Mereview Settlement`** *(owner)* - tandai settlement kasir malam sebagai reviewed (audit step).
-- **`Melihat Dashboard dan Laporan`** *(owner)* - dashboard realtime (revenue per metode + breakdown bank untuk EDC/transfer, pengeluaran per kategori, laba kotor) + laporan periodic + reminder stok per role (stok porsi perlu restock, raw materials perlu restock/mendekati basi).
+- **`Melihat Dashboard dan Laporan`** *(owner)* - dashboard realtime (revenue per metode + breakdown bank untuk EDC/transfer, COGS, laba kotor = pendapatan − COGS, tagihan terpisah) + laporan periodic + reminder stok porsi per role.
 
-> **Catatan master data sekunder:** CRUD `vendors` dan `raw_materials` di-handle implicitly:
-> - **Add baru**: bisa dilakukan kasir/owner **inline** dari form Mencatat Pembelian (lihat UC #14)
-> - **Edit/delete**: tersedia di halaman list (Vendor dan Raw Materials) yang accessible owner via dashboard
-> Tidak dibuat sebagai UC top-level untuk avoid clutter; flow lebih natural sebagai bagian dari pencatatan pembelian.
+## 6. Dependencies (REV 2.11)
 
-## 6. Dependencies (REV 2.3)
+### 6.1. `<<include>>` (18x)
 
-### 6.1. `<<include>>` (19x)
-
-Semua UC operasional **wajib login** dulu. Pola umum: panah `<<include>>` dari setiap UC operasional ke `Login`. Total 19 include (semua UC kecuali Login itu sendiri).
+Semua UC operasional **wajib login** dulu. Pola umum: panah `<<include>>` dari setiap UC operasional ke `Login`. Total 18 include (semua UC kecuali Login itu sendiri).
 
 ### 6.2. `<<extend>>` (3x)
 
@@ -119,18 +108,20 @@ Karena banyak UC shared antara Kasir & Waiter (Pesanan, Sub-Pilihan, Restock Pag
 |---|---|
 | A. Percepat durasi transaksi | `Mengelola Pesanan Meja` (2 tipe sederhana) + `Memilih Sub-Pilihan Paket` + `Memproses Pembayaran` (bank picker autocomplete) |
 | B. Percepat rekonsiliasi + kurangi mismatch | `Tutup Kasir` (rekap 6 totals + breakdown bank, variance per metode dihitung otomatis) |
-| C. Manajemen stok harian + restock darurat | `Restock Stok Porsi` + `Mencatat Barang Masuk` + `Melakukan Opname Stok Porsi` + `Melakukan Opname Raw Materials` |
-| #4 Owner tidak tahu pengeluaran | `Mencatat Pembelian` (kasir, normalized + vendor opsional) + `Mencatat Tagihan Bulanan` (owner) + `Melihat Dashboard dan Laporan` |
+| C. Manajemen stok harian + restock darurat | `Restock Stok Porsi` + `Mencatat Barang Masuk` + `Melakukan Opname Stok Porsi` |
+| #4 Owner tidak tahu laba & pengeluaran | `Kelola Modal/COGS Menu` (owner) + `Mencatat Tagihan Bulanan` (owner) + `Melihat Dashboard dan Laporan` (laba kotor = pendapatan − COGS, tagihan terpisah) |
 
-## 8. Narasi untuk Bab 3 Skripsi (paste-ready, REV 2.3)
+## 8. Narasi untuk Bab 3 Skripsi (paste-ready, REV 2.11)
 
+> ⚠️ **Catatan REV 2.11:** narasi ini sudah diselaraskan (drop pembelian/raw-materials, tambah modal/COGS), tetapi sebaiknya **di-review thesis-level oleh Ezra** untuk kehalusan kalimat naskah final.
+>
 > **3.4.1 Use Case Diagram**
 >
-> Use case diagram pada Gambar 3.X mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran Ayam Bakar Banjar Monosuko yang akan dibangun. Sistem melibatkan tiga aktor: **Owner** sebagai pemilik restoran dengan akses penuh terhadap master data, tagihan operasional, dan laporan dari mana saja melalui perangkat mobile; **Kasir** sebagai operator POS yang menangani transaksi harian (input order primary, proses pembayaran, settlement, pembelian belanja di pasar) dan pengelolaan stok porsi; serta **Waiter** sebagai pelayan yang mengambil order pelanggan dengan mencatat di kertas, mengantar makanan dan minuman, mencuci piring, dan melakukan opname stok porsi maupun raw materials. Berdasarkan realita lapangan restoran kecil keluarga di mana waiter sangat sibuk pada jam sibuk dengan tugas fisik (cuci piring, antar minuman, ambil order baru), workflow primary untuk pencatatan order tetap berbasis kertas - waiter menulis order di kertas yang kemudian diserahkan ke kasir untuk diinput ke POS. Waiter tetap diberi akun sistem dengan akses penuh ke fitur inventory (opname, mark habis), namun untuk input order ke POS waiter hanya memiliki akses sebagai *fallback* bila kasir tidak available.
+> Use case diagram pada Gambar 3.X mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran Ayam Bakar Banjar Monosuko yang akan dibangun. Sistem melibatkan tiga aktor: **Owner** sebagai pemilik restoran dengan akses penuh terhadap master data, modal/COGS menu, tagihan operasional, dan laporan dari mana saja melalui perangkat mobile; **Kasir** sebagai operator POS yang menangani transaksi harian (input order primary, proses pembayaran, settlement) dan pengelolaan stok porsi; serta **Waiter** sebagai pelayan yang mengambil order pelanggan dengan mencatat di kertas, mengantar makanan dan minuman, mencuci piring, dan melakukan opname stok porsi. Berdasarkan realita lapangan restoran kecil keluarga di mana waiter sangat sibuk pada jam sibuk dengan tugas fisik (cuci piring, antar minuman, ambil order baru), workflow primary untuk pencatatan order tetap berbasis kertas - waiter menulis order di kertas yang kemudian diserahkan ke kasir untuk diinput ke POS. Waiter tetap diberi akun sistem dengan akses ke fitur inventory stok porsi (opname, mark habis), namun untuk input order ke POS waiter hanya memiliki akses sebagai *fallback* bila kasir tidak available.
 >
-> Sistem menyediakan dua puluh use case yang terbagi dalam empat domain fungsional: (1) **autentikasi** melalui use case `Login` yang wajib dilakukan oleh semua aktor dengan form dua field input nama pengguna dan PIN enam digit (pegawai mengetik nama secara manual, tidak ada layar pilih nama dari daftar dan tidak ada penyimpanan nama terakhir di perangkat) - PIN boleh duplikat antar pegawai karena identifikasi pengguna dilakukan via kombinasi nama dan PIN; (2) **operasional transaksi** meliputi `Buka Kasir` per shift pagi atau malam dengan modal awal, `Mengelola Pesanan Meja` untuk dua tipe order (dine-in wajib pilih meja, takeaway tanpa meja - sumber order takeaway seperti walk-in, GoFood, GrabFood, atau gosend teman owner dibedakan dari metode pembayaran) dengan workflow primary kasir input dari kertas waiter dan fallback waiter input langsung saat kasir tidak available, `Memilih Sub-Pilihan Paket` untuk paket hemat dengan modifier dinamis, `Memproses Pembayaran` (kasir-only) dengan enam metode (cash, EDC, QRIS, Gojek, Grab, transfer) di mana EDC dan transfer disertai input bank untuk laporan rekonsiliasi per bank, `Memecah Tagihan` per item untuk split bill, `Menggabungkan Tagihan` untuk merge bill antar transaksi meja, `Membatalkan Pesanan` tanpa perlu approval, `Mencetak Struk` PDF, dan `Tutup Kasir` di akhir hari dengan rekap enam total metode pembayaran dan breakdown per bank; (3) **manajemen stok** meliputi `Restock Stok Porsi` pagi dengan formula kelipatan lima porsi, `Mencatat Barang Masuk` untuk restock darurat tengah hari saat owner kirim stok dari rumah via Gojek atau Grab, `Melakukan Opname Stok Porsi` untuk cek fisik dan koreksi nilai stok porsi pagi setelah restock, serta `Melakukan Opname Raw Materials` untuk cek fisik bahan baku malam sebelum tutup; (4) **administrasi & laporan** meliputi `Mencatat Pembelian` belanja kasir di pasar dengan vendor opsional dan detail item ternormalisasi yang otomatis memperbarui stok bahan baku, `Mengelola Menu` dengan konfigurasi sub-pilihan paket, `Mengelola Pengguna`, `Mencatat Tagihan Bulanan` (kebersihan, listrik, air, parkir, sewa) yang khusus owner, `Mereview Settlement` kasir malam, dan `Melihat Dashboard dan Laporan` realtime dengan reminder stok per role.
+> Sistem menyediakan sembilan belas use case yang terbagi dalam empat domain fungsional: (1) **autentikasi** melalui use case `Login` yang wajib dilakukan oleh semua aktor dengan form dua field input nama pengguna dan PIN enam digit (pegawai mengetik nama secara manual, tidak ada layar pilih nama dari daftar dan tidak ada penyimpanan nama terakhir di perangkat) - PIN boleh duplikat antar pegawai karena identifikasi pengguna dilakukan via kombinasi nama dan PIN; (2) **operasional transaksi** meliputi `Buka Kasir` per shift pagi atau malam dengan modal awal, `Mengelola Pesanan Meja` untuk dua tipe order (dine-in wajib pilih meja, takeaway tanpa meja - sumber order takeaway seperti walk-in, GoFood, GrabFood, atau gosend teman owner dibedakan dari metode pembayaran) dengan workflow primary kasir input dari kertas waiter dan fallback waiter input langsung saat kasir tidak available, `Memilih Sub-Pilihan Paket` untuk paket hemat dengan modifier dinamis, `Memproses Pembayaran` (kasir-only) dengan enam metode (cash, EDC, QRIS, Gojek, Grab, transfer) di mana EDC dan transfer disertai input bank untuk laporan rekonsiliasi per bank, `Memecah Tagihan` per item untuk split bill, `Menggabungkan Tagihan` untuk merge bill antar transaksi meja, `Membatalkan Pesanan` tanpa perlu approval, `Mencetak Struk` PDF, dan `Tutup Kasir` di akhir hari dengan rekap enam total metode pembayaran dan breakdown per bank; (3) **manajemen stok** meliputi `Restock Stok Porsi` pagi dengan formula kelipatan lima porsi, `Mencatat Barang Masuk` untuk restock darurat tengah hari saat owner kirim stok dari rumah via Gojek atau Grab, serta `Melakukan Opname Stok Porsi` untuk cek fisik dan koreksi nilai stok porsi pagi setelah restock; (4) **administrasi & laporan** meliputi `Mengelola Menu` dengan konfigurasi sub-pilihan paket, `Kelola Modal/COGS Menu` (owner) untuk menetapkan dan mengubah modal per menu beserta riwayat perubahannya, `Mengelola Pengguna`, `Mencatat Tagihan Bulanan` (kebersihan, listrik, air, parkir, sewa) yang khusus owner, `Mereview Settlement` kasir malam, dan `Melihat Dashboard dan Laporan` realtime dengan laporan laba rugi harian (laba kotor = pendapatan − COGS, tagihan terpisah) dan reminder stok porsi per role.
 >
-> Hubungan `<<include>>` ditunjukkan dari setiap use case operasional ke `Login`, menandakan bahwa autentikasi merupakan prasyarat wajib (sembilan belas include). Hubungan `<<extend>>` digunakan pada tiga skenario opsional: `Mencetak Struk` extends `Memproses Pembayaran` (struk PDF dicetak hanya jika pelanggan meminta), `Memilih Sub-Pilihan Paket` extends `Mengelola Pesanan Meja` (modifier muncul hanya jika item yang dipilih adalah paket), dan `Memecah Tagihan` extends `Memproses Pembayaran` (split bill dilakukan hanya jika pelanggan meminta bill terpisah per party). Master data sekunder seperti `vendors` dan `raw_materials` di-manage secara implicit melalui form `Mencatat Pembelian` (kasir/owner dapat add baru inline) dan halaman list yang accessible owner (untuk edit/delete), sehingga tidak dibuat sebagai use case top-level demi menjaga keterbacaan diagram.
+> Hubungan `<<include>>` ditunjukkan dari setiap use case operasional ke `Login`, menandakan bahwa autentikasi merupakan prasyarat wajib (delapan belas include). Hubungan `<<extend>>` digunakan pada tiga skenario opsional: `Mencetak Struk` extends `Memproses Pembayaran` (struk PDF dicetak hanya jika pelanggan meminta), `Memilih Sub-Pilihan Paket` extends `Mengelola Pesanan Meja` (modifier muncul hanya jika item yang dipilih adalah paket), dan `Memecah Tagihan` extends `Memproses Pembayaran` (split bill dilakukan hanya jika pelanggan meminta bill terpisah per party). Sistem secara sengaja membatasi inventori pada barang siap jual satuan porsi (tidak ada pengelolaan bahan baku mentah, vendor, maupun pencatatan belanja), sesuai ruang lingkup penelitian.
 
 ## 9. Elemen Visual Diagram
 
@@ -147,9 +138,9 @@ Saat membaca diagram di `docs/diagrams/use-case-diagram-sistem-pos-restoran.png`
 - ❌ UC berupa UI click (`Klik Tombol Submit`) atau technical primitive (`Validate Input`) → pakai business goal.
 - ❌ Actor-to-actor line langsung → pakai shared UC atau generalization.
 - ❌ UC tanpa association ke actor manapun (orphan) → setiap UC minimal 1 aktor.
-- ❌ Menyertakan UC yang tidak ada di operasional riil (mis. "Cetak Laporan PDF Bulanan" jika resto tidak butuh; "Hitung HPP per Menu" karena HPP out of scope) → match REV 2.3 ground truth.
+- ❌ Menyertakan UC yang tidak ada di operasional riil (mis. "Cetak Laporan PDF Bulanan" jika resto tidak butuh; "Hitung HPP per Bahan / Bill of Materials" karena BoM out of scope - modal/COGS dinyatakan langsung per menu via `Kelola Modal/COGS Menu`, bukan dihitung dari konsumsi bahan) → match REV 2.11 ground truth.
 - ❌ Over-engineering tipe order (5 enum padahal cukup 2) - REV 2.1 koreksi REV 2 di point ini.
-- ❌ Pisah UC per master data sekunder (Vendor, Raw Material) sebagai UC top-level → over-clutter; cukup inline-add di Mencatat Pembelian + halaman edit/delete owner.
+- ❌ (REV 2.11) UC `Mencatat Pembelian`, `Melakukan Opname Raw Materials`, dan master data `Vendor`/`Raw Material` **dihapus** - subsistem belanja/raw-materials keluar dari sistem (inventori = finished-goods porsi saja). Jangan menambahkannya kembali sebagai UC.
 
 ## 11. Perubahan vs REV 2 (Diff lengkap REV 2 → REV 2.1)
 

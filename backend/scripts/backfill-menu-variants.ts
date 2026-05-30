@@ -27,7 +27,7 @@ import { buildVariantLabel } from '../src/modules/menus/variant-resolver'
 import { upsertMenu } from '../src/modules/menus/menus.service'
 import type { MenuUpsertInput } from '../src/modules/menus/menus.schema'
 
-type PrismaLike = Pick<PrismaClient, 'menu' | 'portionStock'>
+type PrismaLike = Pick<PrismaClient, 'menu' | 'portionStock' | 'user'>
 
 interface Report {
   newPortionSkus: number
@@ -35,6 +35,8 @@ interface Report {
   variantMenusUpdated: number
   skusHidden: number
   paketsConverted: number
+  /** REV 2.11: count of nonStock variants stamped with a resolved costSourceMenuId. */
+  costSourceSet: number
   paketsSkipped: string[]
   unresolved: string[]
 }
@@ -50,6 +52,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
     variantMenusUpdated: 0,
     skusHidden: 0,
     paketsConverted: 0,
+    costSourceSet: 0,
     paketsSkipped: [],
     unresolved: [],
   }
@@ -57,6 +60,15 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   // Helper: find a menu by exact name (any kind).
   const findMenuByName = (name: string) =>
     prisma.menu.findFirst({ where: { name } })
+
+  // REV 2.11: upsertMenu butuh userId untuk MenuCostMovement (initialSet/manualEdit).
+  // Backfill tidak men-set cost, jadi tidak ada movement yang ditulis — tapi signature
+  // tetap butuh user valid. Pakai owner pertama yang ter-seed.
+  const owner = await prisma.user.findFirst({ where: { role: 'owner' } })
+  if (!owner) {
+    throw new Error('Backfill GAGAL: tidak ada user role=owner untuk atribusi upsertMenu')
+  }
+  const ownerUserId = owner.id
 
   // Helper: resolve a stock-target NAME to a menu id, EXCLUDING display variant
   // menus. This is critical for the Kerupuk clash — a display menu named "Kerupuk"
@@ -126,6 +138,18 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
       resolvedTargets.push(await resolveStockTarget(v.stockTargetName))
     }
 
+    // 3a-bis. REV 2.11: resolve each variant's costSource leaf (nonStock variants
+    //     whose modal differs per variant: Es Teh / Es Jeruk / Tahu Tempe). The
+    //     leaf is a hidden simple SKU (kind != variant), so resolveStockTarget's
+    //     NOT-variant lookup resolves it unambiguously. Stock-bearing variants omit
+    //     costSourceName → null (backend cost resolver falls back to stockTargetMenuId).
+    const resolvedCostSources: (number | null)[] = []
+    for (const v of spec.variants) {
+      resolvedCostSources.push(
+        v.costSourceName ? await resolveStockTarget(v.costSourceName) : null,
+      )
+    }
+
     // 3b. Build option groups (displayOrder by index; options displayOrder by index).
     const optionGroups: MenuUpsertInput['optionGroups'] = spec.groups.map(
       (g, gi) => ({
@@ -150,11 +174,13 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
           groupOrder: groupOrder.get(groupName)!,
           label,
         }))
+      if (resolvedCostSources[vi] != null) report.costSourceSet++
       return {
         optionLabels: v.optionLabels,
         label: buildVariantLabel(labelParts),
         price: v.price,
         stockTargetMenuId: resolvedTargets[vi],
+        costSourceMenuId: resolvedCostSources[vi],
         isActive: true,
         displayOrder: vi,
       }
@@ -177,7 +203,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
     const existing = await prisma.menu.findFirst({
       where: { name: spec.name, kind: 'variant' },
     })
-    await upsertMenu(existing?.id ?? null, payload)
+    await upsertMenu(existing?.id ?? null, payload, ownerUserId)
     if (existing) {
       report.variantMenusUpdated++
       console.log(`  ~ variant menu "${spec.name}" (#${existing.id}) diperbarui (${variants.length} varian)`)
@@ -263,7 +289,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
       optionGroups: [],
       variants: [],
       paketComponents,
-    })
+    }, ownerUserId)
     report.paketsConverted++
     console.log(`  ~ paket "${spec.name}" (#${existing.id}) dikonversi (${paketComponents.length} komponen)`)
   }
@@ -277,6 +303,7 @@ export async function applyVariantCatalog(prisma: PrismaLike): Promise<Report> {
   console.log(`  Pakets converted      : ${report.paketsConverted}`)
   console.log(`  SKUs hidden (rows)    : ${report.skusHidden}`)
   console.log(`  New portion SKUs      : ${report.newPortionSkus}`)
+  console.log(`  costSource set        : ${report.costSourceSet}`)
   if (report.paketsSkipped.length > 0) {
     console.log(`  Pakets SKIPPED (missing): ${report.paketsSkipped.join(', ')}`)
   }

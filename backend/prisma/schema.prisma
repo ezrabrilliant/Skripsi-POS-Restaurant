@@ -103,27 +103,6 @@ enum PortionMovementReason {
   refundVoid       @map("refund_void")
 }
 
-/// REV 2.2: BARU. Audit log perubahan RawMaterial.stock_qty.
-/// purchase auto-insert saat PurchaseItem submit; opname saat opname raw materials;
-/// manual_adjust untuk koreksi langsung via halaman Raw Materials.
-enum RawMaterialMovementReason {
-  purchase
-  opname
-  manualAdjust @map("manual_adjust")
-}
-
-/// REV 2.1: BARU (ganti BulkStockKind rigid).
-/// Pengelompokan raw material untuk laporan owner. Item is_tracked=false
-/// kategori bumbu_dasar di-grouping jadi 1 baris "Bumbu Dasar" di laporan
-/// agregat dengan drill-down detail per item.
-enum RawMaterialCategory {
-  bumbuDasar  @map("bumbu_dasar")
-  bahanSegar  @map("bahan_segar")
-  bahanPokok  @map("bahan_pokok")
-  bahanKering @map("bahan_kering")
-  lainnya
-}
-
 /// Kategori tagihan operasional bulanan (owner only).
 enum BillCategory {
   kebersihan
@@ -131,34 +110,6 @@ enum BillCategory {
   air
   parkir
   sewa
-}
-
-/// REV 2.5 (raw materials redesign): Mode opname per satuan.
-/// - exact: stock_qty integer/decimal dalam unit, purchase auto stock_qty += qty
-/// - scale_0_5: stock_qty 0..5 (subjective fullness), purchase HANYA log expense
-enum OpnameMode {
-  exact
-  scale_0_5
-}
-
-/// REV 2.5 BARU: Master satuan untuk raw materials. Dropdown source di form
-/// add/edit raw material. opname_mode menentukan UI + behavior:
-/// - exact mode: opname input angka, purchase auto stock_qty += qty
-/// - scale_0_5 mode: opname segmented 0..5, purchase HANYA log expense
-///
-/// Pre-seeded di seed.ts: kg, gram, liter, butir, balok, karung, ikat, batang,
-/// pcs (semua exact) + "skala 0-5" (scale_0_5). Owner dapat add unit baru
-/// via dropdown modal di form raw material.
-model Unit {
-  id         Int        @id @default(autoincrement())
-  label      String     @unique @db.VarChar(50)
-  opnameMode OpnameMode @map("opname_mode")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-
-  rawMaterials RawMaterial[]
-
-  @@map("units")
 }
 
 // ============================================================
@@ -181,18 +132,17 @@ model User {
   /// REV 2.3 shift-decoupling: rename dari `transactions` jadi `transactionsCreated`
   /// supaya jelas semantik = transaksi yang USER INI submit (audit trail),
   /// bukan transaksi shift kasir.
-  transactionsCreated  Transaction[]
-  shifts               Shift[]
-  settlementsCashier   Settlement[]          @relation("SettlementCashier")
-  settlementsReview    Settlement[]          @relation("SettlementReviewer")
-  purchases            Purchase[]
-  bills                Bill[]
-  portionMovements     PortionMovement[]
-  rawMaterialMovements RawMaterialMovement[]
+  transactionsCreated Transaction[]
+  shifts              Shift[]
+  settlementsCashier  Settlement[]         @relation("SettlementCashier")
+  settlementsReview   Settlement[]         @relation("SettlementReviewer")
+  bills               Bill[]
+  portionMovements    PortionMovement[]
+  menuCostChanges     MenuCostMovement[]
   /// REV 2.5: payment slices yang user ini record (audit per slice di split tender).
-  recordedPayments     TransactionPayment[]
+  recordedPayments    TransactionPayment[]
   /// REV 2.6: app settings (mis. PB1 toggle) yang user ini ubah terakhir.
-  appSettingsUpdated   AppSetting[]
+  appSettingsUpdated  AppSetting[]
 
   @@map("users")
 }
@@ -207,6 +157,9 @@ model Menu {
   name       String    @db.VarChar(100)
   category   String    @db.VarChar(50)
   price      Decimal   @db.Decimal(10, 2)
+  /// REV 2.11: modal/COGS per unit (owner-only; TIDAK dibocorkan ke GET publik).
+  /// null = belum di-set (diperlakukan 0 saat hitung laba).
+  cost       Decimal?  @map("cost") @db.Decimal(10, 2)
   stockType  StockType @default(nonStock) @map("stock_type")
   /// Minimum stok untuk reminder restock. Hanya bermakna jika stockType=portion.
   minStock   Int?      @map("min_stock")
@@ -227,6 +180,7 @@ model Menu {
   portionStock     PortionStock?
   transactionItems TransactionItem[]
   portionMovements PortionMovement[]
+  costMovements    MenuCostMovement[]
 
   // REV 2.10 — catalog layer
   optionGroups        MenuOptionGroup[]
@@ -301,98 +255,28 @@ model PortionMovement {
   @@map("portion_movements")
 }
 
-/// 5. Master bahan baku (REV 2.5.1: SIMPLIFIED — drop is_tracked).
-/// Semua master raw_materials = always tracked (Beras, Kangkung, Petai, Tahu,
-/// Tempe, Telur). Bumbu dasar + ayam mentah + ikan mentah TIDAK ada master,
-/// di-catat sebagai free-form line item di PurchaseItem (label text, no FK).
-///
-/// Field freshness_days opsional untuk perishable: reminder mendekati basi
-/// (freshness_days − 3) hari setelah last_buy_date.
-///
-/// REV 2.5.2 (2026-05-27): tambah `isActive` flag untuk soft-delete proper.
-/// Delete behavior bifurcated:
-/// - No FK refs (purchase_items + raw_material_movements both 0) → hard delete.
-/// - FK refs exist → soft delete (set isActive=false), audit trail preserved.
-/// List default filter isActive=true; owner bisa kirim ?includeInactive=true
-/// untuk lihat semua dan reactivate via POST /raw-materials/:id/reactivate.
-model RawMaterial {
-  id            Int                 @id @default(autoincrement())
-  name          String              @db.VarChar(100)
-  /// REV 2.5: FK ke master Unit. Opname behavior (exact vs scale_0_5) ditentukan
-  /// dari unit.opname_mode, bukan disimpan di sini.
-  unitId        Int                 @map("unit_id")
-  unit          Unit                @relation(fields: [unitId], references: [id])
-  category      RawMaterialCategory
-  /// REV 2.5.2: soft-delete flag. False = nonaktif (tersembunyi dari list default,
-  /// FK refs preserved untuk audit). Default true.
-  isActive      Boolean             @default(true) @map("is_active")
-  stockQty      Decimal             @default(0) @map("stock_qty") @db.Decimal(10, 2)
-  /// Ambang reminder restock.
-  minStock      Int?                @map("min_stock")
-  /// Harga per unit terakhir, auto-update saat purchase baru.
-  unitPrice     Decimal?            @map("unit_price") @db.Decimal(10, 2)
-  /// Untuk perishable (mis. 10 untuk kangkung). Reminder muncul (freshness − 3) hari setelah last_buy_date.
-  freshnessDays Int?                @map("freshness_days")
-  /// Tanggal pembelian terakhir, auto-update saat purchase_items submit.
-  lastBuyDate   DateTime?           @map("last_buy_date") @db.Date
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
+/// REV 2.11: audit log perubahan Menu.cost (modal). Mirip PortionMovement: simpan
+/// nilai sebelum/sesudah + user + waktu. initialSet saat dari null→nilai pertama.
+model MenuCostMovement {
+  id         Int                  @id @default(autoincrement())
+  menuId     Int                  @map("menu_id")
+  costBefore Decimal?             @map("cost_before") @db.Decimal(10, 2)
+  costAfter  Decimal?             @map("cost_after") @db.Decimal(10, 2)
+  reason     MenuCostChangeReason
+  note       String?              @db.VarChar(255)
+  userId     Int                  @map("user_id")
+  createdAt  DateTime             @default(now()) @map("created_at")
 
-  purchaseItems        PurchaseItem[]
-  rawMaterialMovements RawMaterialMovement[]
+  menu Menu @relation(fields: [menuId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
-  @@map("raw_materials")
+  @@index([menuId, createdAt])
+  @@map("menu_cost_movements")
 }
 
-/// 6. Log audit perubahan RawMaterial.stock_qty (REV 2.2: BARU).
-/// Auto-insert oleh sistem di 3 trigger:
-/// - purchase: tiap PurchaseItem submit dengan raw_material is_tracked=true → delta=+qty
-/// - opname  : tiap submit opname raw materials yang ubah stock_qty → delta=selisih
-/// - manualAdjust: koreksi manual via halaman Raw Materials (owner/kasir)
-/// REV 2.8 (ledger integrity): tautan FK ke Purchase/PurchaseItem (reason=purchase),
-/// plus qtyBefore/qtyAfter self-contained. FK onDelete:SetNull. `note` murni manusiawi.
-model RawMaterialMovement {
-  id             Int                       @id @default(autoincrement())
-  rawMaterialId  Int                       @map("raw_material_id")
-  delta          Decimal                   @db.Decimal(10, 2)
-  reason         RawMaterialMovementReason
-  /// REV 2.8: tautan FK ke pembelian sumber (reason=purchase). Null untuk opname/manualAdjust.
-  purchaseId     Int?                      @map("purchase_id")
-  purchaseItemId Int?                      @map("purchase_item_id")
-  /// REV 2.8: snapshot stok sebelum/sesudah (after = before + delta).
-  qtyBefore      Decimal?                  @map("qty_before") @db.Decimal(10, 2)
-  qtyAfter       Decimal?                  @map("qty_after") @db.Decimal(10, 2)
-  /// Catatan opsional MANUSIAWI (REV 2.8: bukan lagi sumber tautan).
-  note           String?                   @db.VarChar(255)
-  userId         Int                       @map("user_id")
-  createdAt      DateTime                  @default(now()) @map("created_at")
-
-  rawMaterial  RawMaterial   @relation(fields: [rawMaterialId], references: [id])
-  user         User          @relation(fields: [userId], references: [id])
-  purchase     Purchase?     @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
-  purchaseItem PurchaseItem? @relation(fields: [purchaseItemId], references: [id], onDelete: SetNull)
-
-  @@index([rawMaterialId, createdAt])
-  @@index([purchaseId])
-  @@map("raw_material_movements")
-}
-
-/// 7. Master vendor/toko/pasar tempat belanja (REV 2.1: BARU, opsional di Purchase).
-/// Phone dan note opsional karena di pasar kadang kasir lupa nama penjual atau
-/// penjualnya perorangan tanpa nomor telepon.
-model Vendor {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(100)
-  /// Jenis vendor: "toko" / "pasar" / "individu"
-  type      String   @db.VarChar(50)
-  phone     String?  @db.VarChar(20)
-  note      String?  @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  purchases Purchase[]
-
-  @@map("vendors")
+enum MenuCostChangeReason {
+  initialSet @map("initial_set")
+  manualEdit @map("manual_edit")
 }
 
 /// 8. Siklus shift kasir. REV 2.5 multi-cashier sharing: shift = container per
@@ -490,6 +374,8 @@ model TransactionItem {
   qty                Int
   unitPrice          Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal           Decimal  @db.Decimal(12, 2)
+  /// REV 2.11: snapshot modal/COGS per unit saat order (mirror unitPrice). null = baris historis pra-backfill (dihitung 0).
+  unitCost           Decimal? @map("unit_cost") @db.Decimal(10, 2)
   /// LEGACY (pre-REV 2.10): pilihan paket berbasis label di JSON. Diganti relasi
   /// `selections` + `variantId`; dipertahankan untuk data historis.
   subOptionsSelected Json?    @map("sub_options_selected")
@@ -561,70 +447,6 @@ model Settlement {
 
   @@unique([date])
   @@map("settlements")
-}
-
-/// 12. Header log belanja kasir di pasar (REV 2.1: normalized, no more JSON items).
-/// Vendor opsional karena di pasar kadang lupa nama penjual.
-/// Detail per item di tabel PurchaseItem.
-model Purchase {
-  id          Int      @id @default(autoincrement())
-  date        DateTime @db.Date
-  userId      Int      @map("user_id")
-  vendorId    Int?     @map("vendor_id")
-  totalAmount Decimal  @map("total_amount") @db.Decimal(12, 2)
-  note        String?  @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  user                 User                  @relation(fields: [userId], references: [id])
-  vendor               Vendor?               @relation(fields: [vendorId], references: [id])
-  items                PurchaseItem[]
-  /// REV 2.8: audit movement stok raw material yang disebabkan pembelian ini.
-  rawMaterialMovements RawMaterialMovement[]
-
-  @@index([date])
-  @@map("purchases")
-}
-
-/// 13. Detail per baris item dalam satu Purchase.
-///
-/// REV 2.5.1: 2 jenis line item:
-///   A. Typed (rawMaterialId set, label null) — FK ke master RawMaterial.
-///      Saat submit, sistem auto-update raw_materials.last_buy_date,
-///      unit_price (kalau diisi), stock_qty += qty (kalau unit exact mode),
-///      plus log raw_material_movements reason=purchase.
-///   B. Free-form (rawMaterialId null, label set) — text label bebas untuk
-///      bumbu dasar / ayam mentah / ikan mentah / item tanpa master.
-///      Hanya log expense (subtotal + note opsional). Tidak update stok,
-///      tidak insert raw_material_movements.
-///
-/// Validation di service layer: exactly one of {rawMaterialId, label} set.
-model PurchaseItem {
-  id            Int       @id @default(autoincrement())
-  purchaseId    Int       @map("purchase_id")
-  /// REV 2.5.1: nullable. Null = free-form line item (pakai label).
-  rawMaterialId Int?      @map("raw_material_id")
-  /// REV 2.5.1 BARU: label text untuk free-form line item (mis. "Bumbu Dasar",
-  /// "Ayam Mentah"). Null kalau pakai rawMaterialId (typed).
-  label         String?   @db.VarChar(100)
-  /// REV 2.5: nullable untuk scale_0_5 items (qty tidak relevan, hanya log expense).
-  /// REV 2.5.1: juga null untuk free-form items.
-  qty           Decimal?  @db.Decimal(10, 2)
-  /// REV 2.5: nullable untuk scale_0_5 items.
-  /// REV 2.5.1: juga null untuk free-form items.
-  unitPrice     Decimal?  @map("unit_price") @db.Decimal(10, 2)
-  subtotal      Decimal   @db.Decimal(12, 2)
-  /// REV 2.5 BARU: catatan opsional per item (mis. "beli sekarung Cabai 2kg").
-  note          String?   @db.VarChar(255)
-  /// Opsional, untuk perishable.
-  expiredDate   DateTime? @map("expired_date") @db.Date
-  createdAt     DateTime  @default(now()) @map("created_at")
-
-  purchase             Purchase              @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  rawMaterial          RawMaterial?          @relation(fields: [rawMaterialId], references: [id])
-  /// REV 2.8: movement stok yang disebabkan baris pembelian ini. onDelete:SetNull di movement.
-  rawMaterialMovements RawMaterialMovement[]
-
-  @@map("purchase_items")
 }
 
 /// 14. Tagihan operasional bulanan - owner only (validasi di service layer).
@@ -776,6 +598,8 @@ model MenuVariant {
   label             String              @db.VarChar(120)
   price             Decimal             @db.Decimal(10, 2)
   stockTargetMenuId Int?                @map("stock_target_menu_id")
+  /// REV 2.11: SKU leaf wakil modal varian. Resolusi modal = costSourceMenuId ?? stockTargetMenuId.
+  costSourceMenuId  Int?                @map("cost_source_menu_id")
   isActive          Boolean             @default(true) @map("is_active")
   displayOrder      Int                 @default(0) @map("display_order")
   menu              Menu                @relation("MenuOwnsVariant", fields: [menuId], references: [id], onDelete: Cascade)

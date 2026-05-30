@@ -14,7 +14,6 @@ import {
   User,
   Users,
   Receipt,
-  ShoppingCart,
   Menu as MenuIcon,
   ChevronRight,
   Home,
@@ -42,7 +41,6 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/history',    icon: ClipboardList,    label: 'Riwayat' },
     { to: '/settlement', icon: Calculator,       label: 'Tutup Kasir' },
     { to: '/stock',      icon: Package,          label: 'Stok' },
-    { to: '/purchases',  icon: ShoppingCart,     label: 'Belanja' },
     { to: '/bills',      icon: Receipt,          label: 'Tagihan' },
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu' },
     { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
@@ -55,7 +53,6 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/history',    icon: ClipboardList,    label: 'Riwayat' },
     { to: '/settlement', icon: Calculator,       label: 'Tutup Kasir' },
     { to: '/stock',      icon: Package,          label: 'Stok' },
-    { to: '/purchases',  icon: ShoppingCart,     label: 'Belanja' },
   ],
   waiter: [
     { to: '/dashboard',  icon: Home,             label: 'Beranda' },

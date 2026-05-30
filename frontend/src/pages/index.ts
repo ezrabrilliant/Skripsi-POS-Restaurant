@@ -1,5 +1,4 @@
-// REV 2.3 pages index. Drop ReportsPage (OwnerDashboard covers reporting).
-// New: PurchasesPage, BillsPage, 3 dashboard per role.
+// REV 2.11 pages index. Drop PurchasesPage (belanja subsystem removed).
 
 export { default as LoginPage } from './LoginPage'
 export { default as POSPage } from './POSPage'
@@ -9,7 +8,6 @@ export { default as SettlementPage } from './SettlementPage'
 export { default as StockPage } from './StockPage'
 export { default as MenuPage } from './MenuPage'
 export { default as UsersPage } from './UsersPage'
-export { default as PurchasesPage } from './PurchasesPage'
 export { default as BillsPage } from './BillsPage'
 export { default as PaymentMethodsPage } from './PaymentMethodsPage'
 

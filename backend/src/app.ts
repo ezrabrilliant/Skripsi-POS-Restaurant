@@ -16,15 +16,15 @@ import transactionRoutes from './modules/transactions/transactions.routes';
 import settlementRoutes from './modules/settlements/settlements.routes';
 import userRoutes from './modules/users/users.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
-import vendorRoutes from './modules/vendors/vendors.routes';
-import purchaseRoutes from './modules/purchases/purchases.routes';
 import billRoutes from './modules/bills/bills.routes';
 import banksRoutes from './modules/banks/banks.routes';
 import paymentMethodsRoutes from './modules/payment-methods/payment-methods.routes';
-import unitsRoutes from './modules/units/units.routes';
 import settingsRoutes from './modules/settings/settings.routes';
 // REV 2.2: modul `tables` dihapus (table number jadi field di Transaction, 9 meja fixed)
 // REV 2.2: modul `expenses` dihapus (split jadi `purchases` di Phase 7 + `bills` di Phase 8)
+// REV 2.11: modul `vendors` + `purchases` + `units` dihapus (belanja/raw-materials
+//   out of scope; biaya bahan baku ditangani via COGS per menu). Raw-materials
+//   sub-router di-unmount dari modul `stocks` (portion stock tetap ada).
 
 export function createApp() {
   const app = express();
@@ -47,12 +47,9 @@ export function createApp() {
   app.use('/api/transactions', transactionRoutes);
   app.use('/api/settlements', settlementRoutes);
   app.use('/api/users', userRoutes);
-  app.use('/api/vendors', vendorRoutes);
-  app.use('/api/purchases', purchaseRoutes);
   app.use('/api/bills', billRoutes);
   app.use('/api/banks', banksRoutes);
   app.use('/api/payment-methods', paymentMethodsRoutes);
-  app.use('/api/units', unitsRoutes);
   app.use('/api/settings', settingsRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 

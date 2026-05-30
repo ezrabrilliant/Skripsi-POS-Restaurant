@@ -1,12 +1,13 @@
-# ERD - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.3)
+# ERD - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.11)
 
-> **Status:** REV 2.3 (2026-05-24) - version bump kosmetik untuk align dengan permission matrix REV 2.3. **Tidak ada perubahan schema** dari REV 2.2 - tetap 14 entitas, 19 relasi. Permission ditangani di app layer (middleware + frontend conditional UI), bukan di database. Lihat [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md) §3 untuk konfirmasi.
-> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.3 (sumber kebenaran tertinggi)
-> **Schema implementasi:** [`backend/prisma/schema.prisma`](../../backend/prisma/schema.prisma) (saat ini masih REV 2 - perlu rewrite mengikut dokumen ini)
-> **Visual:** ERD REV 2.2 sudah di-build di StarUML (file `Skripsi.mdj`). REV 2.3 tidak butuh rebuild - schema identik.
+> **Status:** REV 2.11 (2026-05-30) - **drop** entitas belanja/raw-materials (`vendors`, `purchases`, `purchase_items`, `raw_materials`, `raw_material_movements`) dan **tambah** COGS per menu: entitas baru `menu_cost_movements` + kolom `menus.cost` + `transaction_items.unit_cost` + `menu_variants.cost_source_menu_id`. Inventori = finished-goods porsi saja (selaras proposal Bab 1 §1.4). Permission tetap di app layer. Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
+> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.11 (sumber kebenaran tertinggi)
+> **Schema implementasi:** [`backend/prisma/schema.prisma`](../../backend/prisma/schema.prisma)
+> **Visual:** ERD StarUML (`Skripsi.mdj`) masih versi lama - **pending rebuild** untuk drop entitas belanja/raw-materials + tambah `menu_cost_movements`.
 
 > ⚠️ **Riwayat versi:**
-> - **REV 2.8 (2026-05-29)** - stock ledger integrity: `portion_movements` & `raw_material_movements` dapat FK ke dokumen sumber (transaction/transaction_item, purchase/purchase_item, `ON DELETE SET NULL`) + kolom `qty_before`/`qty_after`. Tautan pindah dari teks `note` ke FK. +4 relasi (19 → 23). (Catatan: dokumen ini baseline himpunan entitas REV 2.3; entitas REV 2.5–2.7 belum dilipat ke sini.)
+> - **REV 2.11 (2026-05-30)** - drop `vendors`/`purchases`/`purchase_items`/`raw_materials`/`raw_material_movements` (5 entitas) + drop enum `RawMaterialMovementReason`/`RawMaterialCategory`. Tambah entitas `menu_cost_movements` + enum `MenuCostChangeReason`{initialSet, manualEdit} + kolom `menus.cost`/`transaction_items.unit_cost`/`menu_variants.cost_source_menu_id`. Entitas baseline 14 → **10**; relasi 23 → **17** (drop 8 relasi belanja/raw, tambah 2 relasi cost-movement).
+> - **REV 2.8 (2026-05-29)** - stock ledger integrity: `portion_movements` & `raw_material_movements` dapat FK ke dokumen sumber (transaction/transaction_item, purchase/purchase_item, `ON DELETE SET NULL`) + kolom `qty_before`/`qty_after`. Tautan pindah dari teks `note` ke FK. +4 relasi (19 → 23). (Catatan: REV 2.8 mendahului penghapusan REV 2.11; relasi raw/purchase ledger ikut terhapus di REV 2.11.)
 > - **REV 2.3 (2026-05-24)** - version bump kosmetik. No schema change. Hanya alignment dengan permission matrix.
 > - **REV 2.2 (2026-05-24)** - tambah `raw_material_movements` (audit log raw materials) + rename `stock_movements` → `portion_movements`. Total entitas naik 13 → 14, relasi naik 17 → 19.
 > - **REV 2.1 (2026-05-23)** - order type 2 enum, raw_materials fleksibel, vendor opsional, purchase_items normalized.
@@ -32,7 +33,7 @@ Skripsi POS ABM hanya pakai ERD (tidak butuh class diagram terpisah).
 
 ## 3. Konvensi (REV 2.2)
 
-- **Naming entity**: snake_case plural lowercase (`users`, `menus`, `portion_stocks`, `portion_movements`, `raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items`, `bills`).
+- **Naming entity**: snake_case plural lowercase (`users`, `menus`, `portion_stocks`, `portion_movements`, `menu_cost_movements`, `shifts`, `transactions`, `transaction_items`, `settlements`, `bills`).
 - **Naming column**: snake_case (`created_at`, `menu_id`, `current_qty`, `min_stock`, `is_tracked`).
 - **Primary key**: kolom `id` int auto-increment (kecuali `portion_stocks` yang PK-nya `menu_id` karena 1:1 dengan Menu).
 - **Foreign key**: `<entity>_id` referring to `<entity>.id`. Marker `FK → <entity>`.
@@ -44,9 +45,9 @@ Skripsi POS ABM hanya pakai ERD (tidak butuh class diagram terpisah).
   - `DATETIME` untuk audit (`created_at`, `updated_at`)
   - `ENUM(...)` untuk status/kategori terbatas
   - `JSON` untuk konfigurasi struktur dinamis (mis. `menus.sub_options` saja)
-- **M:N harus via junction**: relasi `menus × transactions` di-resolve via `transaction_items`; `raw_materials × purchases` di-resolve via `purchase_items`.
+- **M:N harus via junction**: relasi `menus × transactions` di-resolve via `transaction_items`.
 
-## 4. Enum Definitions (REV 2.2)
+## 4. Enum Definitions (REV 2.11)
 
 ```prisma
 enum UserRole                  { owner, cashier, waiter }                          // kitchen DIHAPUS
@@ -58,32 +59,29 @@ enum ShiftType                 { pagi, malam }                                  
 enum StockType                 { portion, linked, nonStock }                       // klasifikasi menu untuk stok
 enum PortionMovementReason     { order, restock_morning, restock_emergency,        // REV 2.2: RENAME dari StockMovementReason
                                  manual_adjust, refund_void }
-enum RawMaterialMovementReason { purchase, opname, manual_adjust }                 // REV 2.2: BARU - audit log raw materials
-enum RawMaterialCategory       { bumbu_dasar, bahan_segar, bahan_pokok,            // ganti BulkStockKind
-                                 bahan_kering, lainnya }
+enum MenuCostChangeReason      { initialSet, manualEdit }                          // REV 2.11: BARU - log perubahan modal/COGS menu
 enum BillCategory              { kebersihan, listrik, air, parkir, sewa }          // tagihan operasional
+// REV 2.11 DROP: RawMaterialMovementReason, RawMaterialCategory (ikut hapus raw materials)
 ```
 
-## 5. Empat Belas Entitas REV 2.2
+## 5. Sepuluh Entitas REV 2.11
 
 | #   | Entity                   | Purpose                                                            | Notes                                                                |
 | --- | ------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | 1   | `users`                  | Pengguna: owner, kasir, waiter                                     | PIN BOLEH DUPLIKAT (drop unique constraint)                          |
-| 2   | `menus`                  | Katalog menu dengan stockType, minStock, subOptions                | 60 item (25 porsi + linked + non-stok + 5 paket)                     |
+| 2   | `menus`                  | Katalog menu dengan stockType, minStock, subOptions, **cost (modal/COGS, owner-only)** | 60 item (25 porsi + linked + non-stok + 5 paket). REV 2.11: `cost` Decimal? |
 | 3   | `portion_stocks`         | Live count stok porsi per menu + opening snapshot pagi             | 1:1 dengan Menu (stockType=portion), boleh minus                     |
 | 4   | `portion_movements`      | Audit log perubahan stok porsi (REV 2.2: RENAME dari stock_movements) | delta +/- per order/restock/adjust dengan reason                  |
-| 5   | `raw_materials`          | Bahan baku fleksibel                                               | is_tracked + category + unit varchar bebas + freshness_days?         |
-| 6   | `raw_material_movements` | **Audit log perubahan raw materials (REV 2.2: BARU)**              | delta +/- per purchase/opname/adjust dengan reason + user pelaku     |
-| 7   | `vendors`                | Toko/pasar tempat belanja (opsional)                               | Phone & note opsional karena di pasar kadang lupa nama penjual       |
-| 8   | `shifts`                 | Siklus shift per kasir per tipe per tanggal                        | `type` (pagi/malam), unique (date, cashier, type), modal awal        |
-| 9   | `transactions`           | Header pesanan                                                     | `orderType` 2 enum, `payment_bank` (edc/transfer), `merged_into_id?` |
-| 10  | `transaction_items`      | Junction menu × transactions                                       | `sub_options_selected` (JSON), `party_id` (split bill)               |
-| 11  | `settlements`            | Rekap akhir hari (simpel, 6 totals, breakdown bank di runtime)     | 1:1 dengan shift malam saja                                          |
-| 12  | `purchases`              | Header log belanja kasir (normalized)                              | Header saja: date, vendor?, total, note. Detail di `purchase_items`. |
-| 13  | `purchase_items`         | Detail per item dalam 1 purchase                                   | FK ke raw_materials. Auto-update stock_qty + log raw_material_movements saat submit. |
-| 14  | `bills`                  | Tagihan operasional bulanan owner                                  | Owner-only, kategori kebersihan/listrik/air/parkir/sewa              |
+| 5   | `menu_cost_movements`    | **Audit log perubahan modal/COGS menu (REV 2.11: BARU)**          | costBefore/costAfter + reason(initialSet/manualEdit) + user pelaku    |
+| 6   | `shifts`                 | Siklus shift per kasir per tipe per tanggal                        | `type` (pagi/malam), unique (date, cashier, type), modal awal        |
+| 7   | `transactions`           | Header pesanan                                                     | `orderType` 2 enum, `payment_bank` (edc/transfer), `merged_into_id?` |
+| 8   | `transaction_items`      | Junction menu × transactions                                       | `sub_options_selected` (JSON), `party_id` (split bill), **`unit_cost` (snapshot modal, REV 2.11)** |
+| 9   | `settlements`            | Rekap akhir hari (simpel, 6 totals, breakdown bank di runtime)     | 1:1 dengan shift malam saja                                          |
+| 10  | `bills`                  | Tagihan operasional bulanan owner                                  | Owner-only, kategori kebersihan/listrik/air/parkir/sewa              |
 
-Total: **14 entitas**.
+Total: **10 entitas**. (REV 2.11 drop `raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items`.)
+
+> Catatan: tabel `menu_variants`/`paket_components` (REV 2.10 menu variants) belum dilipat ke himpunan baseline ini; REV 2.11 menambah kolom `menu_variants.cost_source_menu_id Int?` (FK→menus, SET NULL) sebagai sumber modal varian nonStock. Entitas REV 2.5–2.7 (`payment_methods`, `banks`, dll) juga terdokumentasi di spec masing-masing.
 
 ## 6. Detail Kolom Per Entitas
 
@@ -103,7 +101,8 @@ Total: **14 entitas**.
 | id | INT | PK | |
 | name | VARCHAR(100) | - | mis. "1 Ekor Ayam Bakar Merah", "Paket A (1 org)" |
 | category | VARCHAR(50) | - | "Signature Ayam Bakar", "Seafood", "Sayur & Sup", "Side Dish", "Minuman", "Paket Hemat" |
-| price | DECIMAL(10,2) | - | Rupiah |
+| price | DECIMAL(10,2) | - | Rupiah (harga jual) |
+| cost | DECIMAL(10,2)? | - | **REV 2.11 BARU**: modal/COGS per unit (owner-only, TIDAK dibocorkan ke GET publik). null = belum di-set (dihitung 0 saat hitung laba). Diisi di SKU leaf + menu simple |
 | stock_type | StockType | - | portion / linked / nonStock |
 | min_stock | INT? | - | Hanya untuk stockType=portion |
 | image_url | VARCHAR(255)? | - | Path foto (/menu/*.webp) atau URL CDN |
@@ -138,52 +137,21 @@ Total: **14 entitas**.
 | user_id | INT | FK→users | Siapa yang trigger |
 | created_at | DATETIME | - | |
 
-### 6.5. `raw_materials`
+### 6.5. `menu_cost_movements` (REV 2.11 - BARU, audit log modal/COGS menu)
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
-| name | VARCHAR(100) | - | mis. "Kangkung", "Beras", "Tahu", "Cabai Rawit", "Bawang Putih" |
-| unit | VARCHAR(20) | - | Satuan bebas: ikat / karung / balok / butir / gram / liter / skala / pcs |
-| category | RawMaterialCategory | - | bumbu_dasar / bahan_segar / bahan_pokok / bahan_kering / lainnya |
-| is_tracked | BOOLEAN | - | true = stok di-update saat beli + muncul di reminder. false = cuma log pengeluaran |
-| stock_qty | DECIMAL(10,2) | - | Kondisi stok saat ini (relevan hanya bila is_tracked=true) |
-| min_stock | INT? | - | Ambang reminder restock (kalau is_tracked=true) |
-| unit_price | DECIMAL(10,2)? | - | Harga per unit terakhir (auto-update saat purchase baru) |
-| freshness_days | INT? | - | Untuk perishable (mis. 10 untuk kangkung). Reminder mendekati basi 3 hari sebelum batas |
-| last_buy_date | DATE? | - | Tanggal pembelian terakhir (auto-update dari purchase_items submit) |
-| created_at, updated_at | DATETIME | - | |
+| menu_id | INT | FK→menus | Menu (SKU leaf / simple) yang modalnya berubah |
+| cost_before | DECIMAL(10,2)? | - | Modal sebelum perubahan (null = sebelumnya belum di-set) |
+| cost_after | DECIMAL(10,2)? | - | Modal sesudah perubahan |
+| reason | MenuCostChangeReason | - | initialSet (set pertama dari null) / manualEdit (ubah nilai) |
+| note | VARCHAR(255)? | - | Konteks manusiawi opsional (mis. "Penyesuaian modal") |
+| user_id | INT | FK→users | Owner yang mengubah modal |
+| created_at | DATETIME | - | `@@index([menu_id, created_at])` |
 
-### 6.6. `raw_material_movements` (REV 2.2 - BARU, audit log raw materials)
-| Kolom | Tipe | PK/FK/UK | Keterangan |
-|---|---|---|---|
-| id | INT | PK | |
-| raw_material_id | INT | FK→raw_materials | Bahan baku yang berubah |
-| delta | DECIMAL(10,2) | - | + saat purchase atau koreksi naik, − saat opname turun atau koreksi turun |
-| reason | RawMaterialMovementReason | - | purchase / opname / manual_adjust |
-| purchase_id | INT? | FK→purchases (SET NULL) | **REV 2.8**: pembelian sumber (reason=purchase) |
-| purchase_item_id | INT? | FK→purchase_items (SET NULL) | **REV 2.8**: baris pembelian sumber |
-| qty_before | DECIMAL(10,2)? | - | **REV 2.8**: stok sebelum perubahan |
-| qty_after | DECIMAL(10,2)? | - | **REV 2.8**: stok sesudah (= qty_before + delta) |
-| note | VARCHAR(255)? | - | **REV 2.8**: konteks manusiawi (tautan via FK) |
-| user_id | INT | FK→users | Siapa yang trigger (kasir untuk purchase, waiter/kasir untuk opname) |
-| created_at | DATETIME | - | |
+> Auto-generated rows: ditulis di dalam `$transaction` `upsertMenu` saat `Menu.cost` berubah - reason=`initialSet` saat null→nilai pertama, reason=`manualEdit` saat ubah nilai. Read owner-only via `GET /menus/:id/cost-history`.
 
-> Auto-generated rows:
-> - Setiap `purchase_item` yang submit dengan raw_material `is_tracked=true` → 1 row dengan reason=`purchase`, delta=+qty, note="Purchase id=X"
-> - Setiap submit opname raw materials yang mengubah `stock_qty` → 1 row per item dengan reason=`opname`, delta=selisih, note="Opname malam: dari X jadi Y"
-> - Owner/kasir koreksi manual via halaman Raw Materials → reason=`manual_adjust`
-
-### 6.7. `vendors`
-| Kolom | Tipe | PK/FK/UK | Keterangan |
-|---|---|---|---|
-| id | INT | PK | |
-| name | VARCHAR(100) | - | mis. "Bu Sari", "Pasar Pagi Blok A", "Toko Pak Budi" |
-| type | VARCHAR(50) | - | "toko" / "pasar" / "individu" |
-| phone | VARCHAR(20)? | - | Opsional - di pasar kadang penjual tidak punya nomor yang sempat dicatat |
-| note | VARCHAR(255)? | - | Opsional |
-| created_at, updated_at | DATETIME | - | |
-
-### 6.8. `shifts`
+### 6.6. `shifts`
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
@@ -194,7 +162,7 @@ Total: **14 entitas**.
 | closed_at | DATETIME? | - | null = shift terbuka |
 | created_at | DATETIME | - | |
 
-### 6.9. `transactions`
+### 6.7. `transactions`
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
@@ -212,21 +180,22 @@ Total: **14 entitas**.
 | total | DECIMAL(12,2) | - | subtotal − discount + tax |
 | created_at, paid_at, voided_at | DATETIME | - | |
 
-### 6.10. `transaction_items`
+### 6.8. `transaction_items`
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
 | transaction_id | INT | FK→transactions (CASCADE) | |
 | menu_id | INT | FK→menus | |
 | qty | INT | - | |
-| unit_price | DECIMAL(10,2) | - | Snapshot harga saat order |
+| unit_price | DECIMAL(10,2) | - | Snapshot harga jual saat order |
+| unit_cost | DECIMAL(10,2)? | - | **REV 2.11 BARU**: snapshot modal/COGS per unit saat order (mirror unit_price). Untuk paket = Σ modal komponen. null = baris historis pra-backfill (dihitung 0). Laba: Σ unit_cost × qty |
 | subtotal | DECIMAL(12,2) | - | qty × unit_price |
 | sub_options_selected | JSON? | - | Hasil pilihan SubOptionsModal untuk paket, mis. `{ayamPart:"Paha", cook:"Bakar"}` |
 | **notes** | **VARCHAR(255)?** | - | **REV 2.4 BARU**: catatan per item dari waiter/kasir saat input - komunikasi customer ke dapur (mis. "kurang manis", "pedas level 2", "Panas"/"Dingin" untuk teh & jeruk yang ambigu suhu). Quick toggle di CartItemRow untuk minuman ambigu mengisi field ini otomatis. |
 | party_id | INT? | - | Split bill grouping: item dengan party_id sama = 1 struk terpisah. null = tidak split |
 | created_at | DATETIME | - | |
 
-### 6.11. `settlements`
+### 6.9. `settlements`
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
@@ -247,37 +216,7 @@ Total: **14 entitas**.
 > Variance per metode dihitung di runtime (`actual − system`), tidak disimpan.
 > Breakdown per bank untuk EDC & transfer dihitung di runtime dari `transactions GROUP BY payment_bank` di tanggal yang sama, tidak disimpan di tabel ini.
 
-### 6.12. `purchases`
-| Kolom | Tipe | PK/FK/UK | Keterangan |
-|---|---|---|---|
-| id | INT | PK | |
-| date | DATE | - | Tanggal belanja |
-| user_id | INT | FK→users | Kasir/owner yg input |
-| vendor_id | INT? | FK→vendors | OPSIONAL (di pasar kadang lupa nama penjual) |
-| total_amount | DECIMAL(12,2) | - | Sum subtotal `purchase_items` (auto-hitung saat submit) |
-| note | VARCHAR(255)? | - | Opsional |
-| created_at | DATETIME | - | |
-
-### 6.13. `purchase_items`
-| Kolom | Tipe | PK/FK/UK | Keterangan |
-|---|---|---|---|
-| id | INT | PK | |
-| purchase_id | INT | FK→purchases (CASCADE) | Detail terhapus saat header di-delete |
-| raw_material_id | INT | FK→raw_materials | Raw material yang dibeli |
-| qty | DECIMAL(10,2) | - | Jumlah yang dibeli |
-| unit_price | DECIMAL(10,2) | - | Harga per unit (akan jadi `raw_materials.unit_price` baru) |
-| subtotal | DECIMAL(12,2) | - | qty × unit_price |
-| expired_date | DATE? | - | Opsional, untuk perishable |
-| created_at | DATETIME | - | |
-
-> Saat `purchase_item` di-submit, sistem auto-update `raw_materials`:
-> - `stock_qty += qty` (kalau is_tracked=true)
-> - `last_buy_date = purchase.date`
-> - `unit_price = item.unit_price` (overwrite ke harga terakhir)
->
-> **Plus REV 2.2:** sistem auto-insert ke `raw_material_movements` (reason=`purchase`, delta=+qty, user_id=purchase.user_id, note="Purchase id=X dari Vendor Y") untuk audit trail.
-
-### 6.14. `bills`
+### 6.10. `bills`
 | Kolom | Tipe | PK/FK/UK | Keterangan |
 |---|---|---|---|
 | id | INT | PK | |
@@ -288,7 +227,7 @@ Total: **14 entitas**.
 | user_id | INT | FK→users | OWNER ONLY (validation di layer service) |
 | created_at | DATETIME | - | |
 
-## 7. Sembilan Belas Relasi REV 2.2
+## 7. Tujuh Belas Relasi REV 2.11
 
 | # | Parent | Child | Via | Cardinality | Catatan |
 |---|---|---|---|---|---|
@@ -296,27 +235,23 @@ Total: **14 entitas**.
 | 2 | users | shifts | cashier_id | 1 : N | Modal awal per shift |
 | 3 | users | settlements | cashier_id | 1 : N | Kasir malam yg submit |
 | 4 | users | settlements | reviewer_id (nullable) | 0..1 : N | Owner yg review |
-| 5 | users | purchases | user_id | 1 : N | Kasir/owner input belanja |
-| 6 | users | bills | user_id | 1 : N | Owner input tagihan |
-| 7 | users | portion_movements | user_id | 1 : N | Audit trail stok porsi |
-| 8 | users | raw_material_movements | user_id | 1 : N | **REV 2.2 BARU** - audit trail raw materials |
-| 9 | shifts | transactions | shift_id | 1 : N | Transaksi ter-attach ke shift kasir |
-| 10 | shifts | settlements | shift_id | 1 : 1 (UNIQUE) | Settlement tutup shift |
-| 11 | menus | portion_stocks | menu_id | 1 : 0..1 | Hanya menu stockType=portion punya stok |
-| 12 | menus | transaction_items | menu_id | 1 : N | Histori order |
-| 13 | menus | portion_movements | menu_id | 1 : N | Audit perubahan stok porsi |
+| 5 | users | bills | user_id | 1 : N | Owner input tagihan |
+| 6 | users | portion_movements | user_id | 1 : N | Audit trail stok porsi |
+| 7 | users | menu_cost_movements | user_id | 1 : N | **REV 2.11 BARU** - owner pengubah modal/COGS |
+| 8 | shifts | transactions | shift_id | 1 : N | Transaksi ter-attach ke shift kasir |
+| 9 | shifts | settlements | shift_id | 1 : 1 (UNIQUE) | Settlement tutup shift |
+| 10 | menus | portion_stocks | menu_id | 1 : 0..1 | Hanya menu stockType=portion punya stok |
+| 11 | menus | transaction_items | menu_id | 1 : N | Histori order |
+| 12 | menus | portion_movements | menu_id | 1 : N | Audit perubahan stok porsi |
+| 13 | menus | menu_cost_movements | menu_id | 1 : N | **REV 2.11 BARU** - audit perubahan modal/COGS menu |
 | 14 | transactions | transaction_items | transaction_id | 1 : 1..N (composition, CASCADE) | Item detail |
 | 15 | transactions | transactions | merged_into_id (self, nullable) | 0..1 : N | Merge bill (transaksi B & C punya merged_into_id=A) |
-| 16 | vendors | purchases | vendor_id (nullable) | 0..1 : N | Vendor opsional di purchase |
-| 17 | purchases | purchase_items | purchase_id | 1 : 1..N (composition, CASCADE) | Detail per item |
-| 18 | raw_materials | purchase_items | raw_material_id | 1 : N | Histori pembelian per material |
-| 19 | raw_materials | raw_material_movements | raw_material_id | 1 : N | **REV 2.2 BARU** - audit perubahan raw materials |
-| 20 | transactions | portion_movements | transaction_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement order/void ke transaksi sumber |
-| 21 | transaction_items | portion_movements | transaction_item_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement ke baris item penyebab decrement |
-| 22 | purchases | raw_material_movements | purchase_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement purchase ke pembelian sumber |
-| 23 | purchase_items | raw_material_movements | purchase_item_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement ke baris pembelian sumber |
+| 16 | transactions | portion_movements | transaction_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement order/void ke transaksi sumber |
+| 17 | transaction_items | portion_movements | transaction_item_id (nullable, SET NULL) | 1 : N | **REV 2.8** - movement ke baris item penyebab decrement |
 
-Total: **19 relasi** (REV 2.2) → **23 relasi** (REV 2.8 ledger; +4 FK movement→dokumen sumber).
+Total: **17 relasi** (REV 2.11). Diff dari 23 relasi REV 2.8: drop 8 relasi yang menyentuh `purchases`/`purchase_items`/`vendors`/`raw_materials`/`raw_material_movements`, tambah 2 relasi `menu_cost_movements` (menus & users).
+
+> Catatan: relasi REV 2.10 menu variants (`menus → menu_variants`, `menus → paket_components`) + FK `menu_variants.cost_source_menu_id → menus` (SET NULL, REV 2.11) belum masuk hitungan baseline ini.
 
 ## 8. Mengapa Struktur Ini Menjawab Masalah Skripsi
 
@@ -324,47 +259,71 @@ Total: **19 relasi** (REV 2.2) → **23 relasi** (REV 2.8 ledger; +4 FK movement
 |---|---|
 | A. Percepat durasi transaksi | `transactions` (orderType 2 enum sederhana, tax/discount auto, payment_bank) + `transaction_items` (subOptionsSelected + partyId untuk split, merged_into_id untuk merge) |
 | B. Percepat rekonsiliasi + kurangi mismatch | `shifts` (modal awal) + `settlements` (6 totals sistem vs aktual, breakdown bank di runtime) |
-| C. Manajemen stok harian | `portion_stocks` (live count + opening snapshot) + `portion_movements` (audit) + `raw_materials` (fleksibel dengan reminder) + **`raw_material_movements` (audit pembelian & opname)** |
-| #4 Owner tidak tahu pengeluaran | `purchases` + `purchase_items` (kasir belanja, normalized + vendor opsional) + `bills` (owner tagihan) + dashboard reminder |
-| #5 Traceability stok | **`portion_movements` + `raw_material_movements`** - semua perubahan stok ter-audit dengan pelaku & timestamp |
+| C. Manajemen stok harian | `portion_stocks` (live count + opening snapshot) + `portion_movements` (audit perubahan stok porsi) |
+| #4 Owner tahu laba & pengeluaran | `menus.cost` + `transaction_items.unit_cost` + `menu_cost_movements` (modal/COGS per menu + snapshot per item + log riwayat) → Laba Kotor = Pendapatan − COGS; `bills` (owner tagihan, tampil terpisah) |
+| #5 Traceability stok & modal | `portion_movements` (perubahan stok) + **`menu_cost_movements`** (perubahan modal) - ter-audit dengan pelaku & timestamp |
 
-## 9. Narasi untuk Bab 3 Skripsi (paste-ready, REV 2.3 - schema identik REV 2.2)
+## 9. Narasi untuk Bab 3 Skripsi (paste-ready, REV 2.11)
 
+> ⚠️ **Catatan REV 2.11:** narasi paragraf di bawah ini perlu **review thesis-level oleh Ezra** - sebagian kalimat masih bergaya prosa REV 2.2 (sebelum drop belanja/raw-materials). Bagian raw-materials & pembelian sudah dihapus dan diganti COGS, tetapi penghalusan kalimat untuk naskah final sebaiknya dicek ulang.
+>
 > **3.5.1 Entity Relationship Diagram**
 >
-> Gambar 3.X menunjukkan Entity Relationship Diagram (ERD) dari Sistem POS Restoran Ayam Bakar Banjar Monosuko. Sistem terdiri dari empat belas entitas utama yang dirancang untuk merepresentasikan operasional restoran dengan dua kategori stok yang dipisah secara struktural beserta audit log masing-masing (stok porsi siap jual yang berkurang otomatis saat transaksi dengan jejak audit di `portion_movements`, dan bahan baku pendukung yang diperbarui manual melalui pencatatan pembelian dan opname dengan jejak audit di `raw_material_movements`), dua tipe order (dine-in dan takeaway yang dibedakan dari ada/tidaknya pemilihan nomor meja, dengan sumber order takeaway diidentifikasi melalui metode pembayaran), serta dua jenis pencatatan keuangan operasional (pembelian belanja harian oleh kasir dan tagihan bulanan oleh owner).
+> Gambar 3.X menunjukkan Entity Relationship Diagram (ERD) dari Sistem POS Restoran Ayam Bakar Banjar Monosuko. Sistem terdiri dari sepuluh entitas utama yang dirancang untuk merepresentasikan operasional restoran dengan satu kategori stok (stok porsi siap jual yang berkurang otomatis saat transaksi dengan jejak audit di `portion_movements`), dua tipe order (dine-in dan takeaway yang dibedakan dari ada/tidaknya pemilihan nomor meja, dengan sumber order takeaway diidentifikasi melalui metode pembayaran), serta perhitungan laba kotor harian melalui modal/COGS per menu (`menus.cost` yang di-snapshot per item transaksi di `transaction_items.unit_cost`, dengan jejak perubahan di `menu_cost_movements`) dan tagihan operasional bulanan oleh owner.
 >
 > Entitas `users` menyimpan data tiga jenis pengguna: owner, kasir, dan waiter, dengan PIN enam digit yang boleh duplikat karena identifikasi pengguna dilakukan melalui kombinasi nama dan PIN saat login. Entitas `menus` merupakan katalog enam puluh item dengan klasifikasi `stock_type` (portion, linked, atau nonStock) yang menentukan perilaku decrement stok saat transaksi. Untuk menu paket (Paket Keluarga, A, B, C, D), kolom JSON `sub_options` menyimpan definisi sub-pilihan dinamis (misalnya Paha atau Dada, Bakar atau Goreng) beserta pemetaan ke stok porsi yang harus dikurangi.
 >
 > Entitas `portion_stocks` menyimpan kondisi stok porsi dengan tambahan kolom `opening_qty_today` dan `opening_qty_date` untuk mengakomodasi snapshot otomatis di awal hari - kondisi ini dipakai untuk menghitung metric "terjual hari ini" pada dashboard. Stok porsi diperbolehkan bernilai negatif untuk mendukung skenario customer tetap memesan saat stok habis; pemilik akan mengirim restock darurat dari rumah melalui Gojek atau Grab, dan kasir mencatatnya melalui fitur "Barang Masuk" yang akan tercatat di `portion_movements` dengan reason `restock_emergency`. Setiap perubahan stok porsi (akibat order, restock, atau opname pagi) tercatat di `portion_movements` beserta delta, alasan, pelaku, dan waktu untuk keperluan audit.
 >
-> Entitas `raw_materials` (penyempurnaan dari desain awal yang menggunakan model rigid `bulk_stocks`) dirancang fleksibel dengan kolom `is_tracked` yang membedakan dua jenis bahan: bahan yang ditrack (beras, sayur, tahu, tempe, telur) yang stok-nya bertambah otomatis saat pembelian dan muncul di reminder restock, serta bahan yang hanya dicatat sebagai log pengeluaran (cabai, bawang, kemiri, dan bumbu kering lainnya yang dikelompokkan di kategori `bumbu_dasar`). Kolom `freshness_days` opsional digunakan untuk bahan perishable seperti sayur dan petai, yang akan memunculkan reminder "mendekati basi" tiga hari sebelum batas kesegaran. Setiap perubahan kondisi raw material - baik karena pembelian, opname malam, maupun koreksi manual - tercatat di `raw_material_movements` (entitas baru REV 2.2) beserta delta, alasan, pelaku, dan waktu, sehingga pemilik dapat melacak setiap perubahan stok bahan baku untuk evaluasi rutin.
+> Untuk perhitungan laba kotor, entitas `menus` ditambah kolom `cost` (modal/COGS per unit) yang hanya dapat diakses owner dan tidak dibocorkan ke katalog publik (POS). Modal melekat pada SKU leaf dan menu simple; varian nonStock menunjuk SKU leaf wakil modal melalui kolom `menu_variants.cost_source_menu_id`. Setiap perubahan modal dicatat di entitas `menu_cost_movements` (nilai sebelum/sesudah, alasan set-awal atau penyesuaian, pelaku, dan waktu), sehingga riwayat modal dapat ditelusuri owner. Sistem secara sadar tidak mencatat bahan baku mentah - inventori dibatasi pada barang siap jual satuan porsi, sesuai ruang lingkup penelitian (lihat sub-bab 3.1.4 Batasan Penelitian).
 >
-> Pencatatan pembelian dinormalisasi melalui dua entitas: `purchases` sebagai header (tanggal, vendor opsional, total) dan `purchase_items` sebagai detail per baris item dengan FK ke `raw_materials`. Entitas `vendors` baru dibuat opsional karena di pasar kadang kasir lupa nama penjual atau penjualnya perorangan tanpa nomor telepon yang sempat dicatat. Saat sebuah `purchase_item` disubmit, sistem otomatis memperbarui `raw_materials.stock_qty` (jika is_tracked), `last_buy_date`, dan `unit_price` ke harga pembelian terakhir, sekaligus menyisipkan record baru di `raw_material_movements` (reason=`purchase`) untuk audit trail.
+> Entitas `transactions` ditambah kolom `order_type` (dineIn atau takeaway), `payment_bank` (terisi hanya untuk metode EDC dan transfer agar owner dapat mendapatkan laporan per bank untuk rekonsiliasi mutasi rekening), `tax_amount` untuk PB1 sepuluh persen otomatis, serta `merged_into_id` (self-reference nullable) untuk mengakomodasi fitur merge bill di mana dua transaksi meja terpisah dapat digabungkan menjadi satu struk pembayaran. Entitas `transaction_items` ditambah `sub_options_selected` (untuk merekam pilihan customer pada paket), `party_id` (untuk fitur split bill - item dengan party_id sama akan menghasilkan satu struk terpisah), dan `unit_cost` (snapshot modal/COGS per unit saat order, mirip `unit_price`, sehingga laba kotor periode lampau tidak berubah saat owner memperbarui modal di kemudian hari).
 >
-> Entitas `transactions` ditambah kolom `order_type` (dineIn atau takeaway), `payment_bank` (terisi hanya untuk metode EDC dan transfer agar owner dapat mendapatkan laporan per bank untuk rekonsiliasi mutasi rekening), `tax_amount` untuk PB1 sepuluh persen otomatis, serta `merged_into_id` (self-reference nullable) untuk mengakomodasi fitur merge bill di mana dua transaksi meja terpisah dapat digabungkan menjadi satu struk pembayaran. Entitas `transaction_items` ditambah `sub_options_selected` (untuk merekam pilihan customer pada paket) dan `party_id` (untuk fitur split bill - item dengan party_id sama akan menghasilkan satu struk terpisah, sehingga satu transaksi dapat menghasilkan dua atau lebih struk PDF).
+> Entitas `settlements` disederhanakan dari desain awal yang menggunakan metode blind count menjadi rekap simpel enam metode pembayaran (cash, EDC, QRIS, Gojek, Grab, transfer) yang dilakukan sekali di akhir hari oleh kasir shift malam. Entitas `bills` menyimpan tagihan operasional bulanan (kebersihan, listrik, air, parkir, sewa) yang hanya dapat diinput oleh owner dan ditampilkan terpisah dari laba kotor.
 >
-> Entitas `settlements` disederhanakan dari desain awal yang menggunakan metode blind count menjadi rekap simpel enam metode pembayaran (cash, EDC, QRIS, Gojek, Grab, transfer) yang dilakukan sekali di akhir hari oleh kasir shift malam. Entitas `expenses` pada desain awal dipecah menjadi dua entitas terpisah: `purchases` untuk log belanja kasir di pasar dan `bills` untuk tagihan operasional bulanan (kebersihan, listrik, air, parkir, sewa) yang hanya dapat diinput oleh owner.
->
-> Sistem memiliki sembilan belas relasi yang menghubungkan entitas-entitas tersebut, dengan dominasi relasi satu-ke-banyak (1:N), satu relasi satu-ke-satu (1:1) antara shift dan settlement, dan satu relasi self-reference pada `transactions` untuk mengakomodasi merge bill. Relasi banyak-ke-banyak antara menu dan transaksi dijabarkan sebagai entitas asosiatif `transaction_items`, sementara relasi banyak-ke-banyak antara raw_materials dan purchases dijabarkan sebagai `purchase_items`. Detail atribut dan tipe data setiap entitas dijabarkan pada Tabel 3.1 hingga Tabel 3.14 di sub-bab berikutnya.
+> Sistem memiliki tujuh belas relasi yang menghubungkan entitas-entitas tersebut, dengan dominasi relasi satu-ke-banyak (1:N), satu relasi satu-ke-satu (1:1) antara shift dan settlement, dan satu relasi self-reference pada `transactions` untuk mengakomodasi merge bill. Relasi banyak-ke-banyak antara menu dan transaksi dijabarkan sebagai entitas asosiatif `transaction_items`. Detail atribut dan tipe data setiap entitas dijabarkan pada Tabel 3.2 hingga Tabel 3.11 di sub-bab berikutnya.
 
-## 10. HPP dan Bill of Materials (Out of Scope)
+## 10. Modal/COGS per Menu + Bill of Materials (Out of Scope)
 
-ERD ini secara sadar **tidak menyertakan relasi otomatis antara `raw_materials` dan `portion_stocks`** (tidak ada Bill of Materials atau resep yang men-decrement bahan mentah saat order masuk). Hal ini sesuai keputusan operasional bahwa HPP per porsi tidak dimasukkan ke dalam lingkup sistem - proses memasak dilakukan secara batch di rumah owner tanpa penimbangan baku, dan komposisi peracikan bumbu bersifat tidak tetap serta tidak terdokumentasi, sehingga data input yang dibutuhkan untuk menghitung HPP tidak tersedia secara konsisten.
+ERD ini secara sadar **tidak mencatat bahan baku mentah maupun Bill of Materials / resep** - inventori dibatasi pada barang siap jual satuan porsi (`portion_stocks`). Modal/COGS dinyatakan langsung per menu oleh owner (`menus.cost`), bukan dihitung dari konsumsi bahan baku terukur per siklus produksi. Hal ini sesuai keputusan operasional bahwa HPP berbasis bahan tidak dimasukkan ke dalam lingkup sistem - proses memasak dilakukan secara batch di rumah owner tanpa penimbangan baku, dan komposisi peracikan bumbu bersifat tidak tetap serta tidak terdokumentasi.
 
 Implikasi struktural di ERD:
-- `raw_materials` dan `portion_stocks` adalah dua sumbu data terpisah, tidak ada FK antara keduanya.
-- `raw_material_movements` dan `portion_movements` juga terpisah (REV 2.2), masing-masing dengan enum reason yang spesifik untuk konteksnya.
+- Tidak ada entitas raw materials, vendor, atau pembelian; tidak ada FK BoM/resep yang men-decrement bahan mentah saat order masuk.
+- Modal/COGS melekat per menu (`menus.cost`, owner-only), di-snapshot per item transaksi (`transaction_items.unit_cost`) sebagai nilai point-in-time mirip harga jual, dengan jejak perubahan di `menu_cost_movements`.
 - Konversi bahan mentah → stok porsi terjadi manual di rumah owner, di luar sistem.
-- Laporan owner menampilkan: Pendapatan total per periode (dari `transactions`), Pengeluaran total per periode (dari `purchases` + `bills`), Laba Kotor = Pendapatan − Pengeluaran. Tidak ada breakdown HPP per menu.
+- Laporan owner menampilkan: Pendapatan total per periode (dari `transactions`), COGS total per periode (Σ `unit_cost` × qty), Laba Kotor = Pendapatan − COGS. Tagihan operasional bulanan (`bills`) ditampilkan terpisah dan tidak dikurangkan ke laba kotor.
 
-Justifikasi lengkap (paragraf paste-ready untuk skripsi Bab 3) ada di [`docs/operasional-resto.md` seksi "HPP dan Laba Rugi (Out of Scope)"](../operasional-resto.md).
+Justifikasi lengkap (paragraf paste-ready untuk skripsi Bab 3) ada di [`docs/operasional-resto.md` seksi "Bill of Materials / HPP per Bahan (Out of Scope)"](../operasional-resto.md) dan "COGS per Menu + Laporan Laba Rugi Harian".
 
 ## 11. Workflow Build di StarUML / Mermaid
 
 Untuk ERD, gunakan **`generate_diagram` dengan Mermaid `erDiagram` syntax** via staruml-mcp. Jangan manual `create_element` per-column (kolom masuk ke `ownedElements` field, bukan `columns` field, sehingga tidak render di entity box). Lihat [[feedback_erd_use_mermaid]] di memory.
 
-ERD REV 2.2 sudah di-build di StarUML, tersave di `Skripsi.mdj`, dalam container "ERD Model" dengan diagram name "Entity Relationship Diagram - Sistem POS Restoran".
+ERD versi lama (REV 2.2) sudah di-build di StarUML, tersave di `Skripsi.mdj`, dalam container "ERD Model" dengan diagram name "Entity Relationship Diagram - Sistem POS Restoran". **⚠️ REV 2.11 visual ERD pending rebuild** - perlu drop entitas `vendors`/`purchases`/`purchase_items`/`raw_materials`/`raw_material_movements` + tambah `menu_cost_movements` + kolom `menus.cost`/`transaction_items.unit_cost`/`menu_variants.cost_source_menu_id`.
+
+## 12.a Perubahan REV 2.8 → REV 2.11 (drop belanja/raw + tambah COGS)
+
+### Entitas
+| Status | REV 2.8 (14 entitas) | REV 2.11 (10 entitas) |
+|---|---|---|
+| ❌ DROP | `vendors`, `purchases`, `purchase_items`, `raw_materials`, `raw_material_movements` | dihapus total (inventori = finished-goods porsi saja, selaras proposal) |
+| 🆕 NEW | - | `menu_cost_movements` (audit log perubahan modal/COGS menu) |
+| 🔄 KOLOM | `menus`, `transaction_items` | + `menus.cost` (modal/COGS owner-only), + `transaction_items.unit_cost` (snapshot modal), + `menu_variants.cost_source_menu_id` |
+| ✅ KEEP | 9 entitas lainnya | Tidak berubah |
+
+### Enum
+| Status | REV 2.8 | REV 2.11 |
+|---|---|---|
+| ❌ DROP | `RawMaterialMovementReason`, `RawMaterialCategory` | dihapus bersama raw materials |
+| 🆕 NEW | - | `MenuCostChangeReason` { initialSet, manualEdit } |
+
+### Relasi
+| Status | REV 2.8 | REV 2.11 |
+|---|---|---|
+| ❌ DROP | 8 relasi: `users→purchases`, `users→raw_material_movements`, `vendors→purchases`, `purchases→purchase_items`, `raw_materials→purchase_items`, `raw_materials→raw_material_movements`, `purchases→raw_material_movements`, `purchase_items→raw_material_movements` | dihapus |
+| 🆕 NEW | - | `menus→menu_cost_movements`, `users→menu_cost_movements` |
+
+**Total: 14 entitas / 23 relasi (REV 2.8) → 10 entitas / 17 relasi (REV 2.11)**.
 
 ## 12.b Perubahan REV 2.2 → REV 2.3 (no schema change)
 
@@ -418,7 +377,7 @@ ERD REV 2.2 sudah di-build di StarUML, tersave di `Skripsi.mdj`, dalam container
 ## 14. Bad Practice yang Dihindari
 
 - ❌ Entity tanpa PK → setiap entity wajib punya PK
-- ❌ M:N digambar langsung dengan crow's-foot fork dua sisi → wajib junction entity (`transaction_items`, `purchase_items`)
+- ❌ M:N digambar langsung dengan crow's-foot fork dua sisi → wajib junction entity (`transaction_items`)
 - ❌ FK tanpa reference ke entity target → tulis `FK → <entity>`
 - ❌ Mix naming (`id_menu` di satu tabel, `menu_id` di tabel lain) → konsisten snake_case
 - ❌ Pakai notasi Chen (diamond relationship) untuk skripsi POS → konsisten crow's-foot

@@ -22,6 +22,7 @@ import { Layers, Package, X } from 'lucide-react'
 import { Button, Dialog, Input, Checkbox, ComboboxFree } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { menuService } from '@/services/menuService'
+import { formatCurrency } from '@/lib/utils'
 import type { Menu, MenuKind, MenuUpsertPayload, StockType } from '@/types'
 import { MenuImageUpload } from '@/components/menu/MenuImageUpload'
 import {
@@ -58,6 +59,8 @@ interface FormState {
   name: string
   category: string
   price: number
+  /** REV 2.11: harga modal / COGS per porsi (hanya untuk menu simple/leaf). */
+  cost: number
   imageUrl: string | null
   isActive: boolean
   /** Posisi tampil di grid POS — dipertahankan dari existing saat edit. */
@@ -76,6 +79,7 @@ function initFromExisting(existing: Menu | null): FormState {
       name: '',
       category: '',
       price: 0,
+      cost: 0,
       imageUrl: null,
       isActive: true,
       posVisible: true,
@@ -98,6 +102,7 @@ function initFromExisting(existing: Menu | null): FormState {
     name: existing.name,
     category: existing.category,
     price: existing.price,
+    cost: existing.cost ?? 0,
     imageUrl: existing.imageUrl,
     isActive: existing.isActive,
     posVisible: existing.posVisible,
@@ -252,6 +257,8 @@ function buildPayload(
     name: state.name.trim(),
     category: state.category.trim(),
     price: state.price,
+    // REV 2.11: modal/COGS hidup di leaf/simple; parent variant/paket biarkan 0.
+    cost: state.cost,
     imageUrl: state.imageUrl,
     kind,
     posVisible: state.posVisible,
@@ -433,6 +440,27 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
             required
           />
         </div>
+
+        {/* REV 2.11: Harga modal / COGS — hanya untuk menu simple (leaf/simple
+            carry cost; variant/paket parent biarkan 0, modal hidup di leaf). */}
+        {state.mode === 'simple' && (
+          <div>
+            <Input
+              label="Harga Modal / COGS (Rp)"
+              type="number" inputMode="numeric"
+              value={state.cost || ''}
+              onChange={(e) => update('cost', Number(e.target.value) || 0)}
+              min={0} step={1000} placeholder="0"
+              helper="Modal per porsi (untuk laba). Boleh dikosongkan = 0."
+            />
+            {state.cost > 0 && state.price > 0 && (
+              <p className="text-caption text-neutral-500 mt-1">
+                Margin {formatCurrency(state.price - state.cost)} (
+                {(((state.price - state.cost) / state.price) * 100).toFixed(0)}%)
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Stok minimum hanya untuk menu simple portion */}
         {state.mode === 'simple' && state.stockType === 'portion' && (

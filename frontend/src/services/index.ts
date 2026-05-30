@@ -1,14 +1,11 @@
-// REV 2.3 services index. Drop: stockService (split), expenseService (split→purchases+bills).
-// New: portionService, rawMaterialsService, vendorService, purchaseService, billService.
+// REV 2.11 services index. Drop: rawMaterialsService, vendorService, purchaseService,
+// unitService (belanja/vendor/raw-materials subsystem removed).
 export * from './authService'
 export * from './menuService'
 export * from './portionService'
-export * from './rawMaterialsService'
 export * from './shiftService'
 export * from './transactionService'
 export * from './settlementService'
 export * from './userService'
-export * from './vendorService'
-export * from './purchaseService'
 export * from './billService'
 export * from './dashboardService'

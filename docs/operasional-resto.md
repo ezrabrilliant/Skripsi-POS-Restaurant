@@ -2,16 +2,17 @@
 
 > Dokumen ini adalah **ground truth** alur bisnis resto, hasil diskusi terstruktur dengan Ezra (owner / pengelola sistem). Semua keputusan teknis sistem (schema, alur kode, UI) harus mengikuti dokumen ini, bukan asumsi generik.
 >
-> **Versi: REV 2.3 (2026-05-24)** - penyempurnaan REV 2.2 setelah brainstorming workflow order intake. Perubahan utama: waiter primary di kertas (bukan co-equal dengan kasir untuk input order), POS access untuk waiter = fallback only. Tambah seksi baru **Permission Matrix** yang menjabarkan akses per role per aksi.
+> **Versi: REV 2.11 (2026-05-30)** - penyelarasan balik ke proposal skripsi (Bab 1 §1.4). Perubahan utama: **hapus** subsistem belanja/vendor/raw materials (inventori = finished-goods porsi saja), **tambah** COGS/modal per menu + Laporan Laba Rugi Harian (Laba Kotor = Pendapatan − COGS, tagihan tampil terpisah). Menggantikan kebijakan lama "HPP out of scope, laba = penjualan − (belanja + tagihan)" yang menyimpang dari proposal.
 >
 > Riwayat versi:
+> - **REV 2.11 (2026-05-30)** - COGS per menu + Laporan Laba Rugi Harian; hapus belanja/vendor/raw materials (selaras proposal). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
 > - **REV 2.3 (2026-05-24)** - clarify waiter fallback + permission matrix lengkap (no schema change)
 > - **REV 2.2 (2026-05-24)** - tambah audit log raw materials (`raw_material_movements`) + rename `stock_movements` → `portion_movements`
 > - **REV 2.1 (2026-05-23)** - order type 2 enum, raw_materials fleksibel, vendor opsional, purchase_items normalized
 
 ## Gambaran Umum Operasional
 
-Restoran X beroperasi mulai pukul 10.00 pagi dengan dua shift kerja, yaitu shift pagi yang dimulai sebelum jam 10.00 dan shift malam yang dimulai pukul 18.00. Seluruh stok makanan siap jual (stok porsi) yang ada di restoran merupakan barang setengah jadi dalam kondisi beku (frozen), yang diproduksi di rumah owner, bukan di restoran. Artinya, semua item seperti ayam, ati, rampela, gurami, udang, hingga kuah-kuahan sudah disiapkan dan dibekukan dari rumah - di restoran tinggal dibakar, digoreng, atau dipanaskan sesuai pesanan. Untuk stok porsi, tidak ada supplier luar; seluruh pasokan berasal dari produksi rumah owner sendiri. Namun untuk **bahan baku/raw materials** (beras, sayur, tahu, tempe, telur, bumbu) yang dipakai untuk masak di rumah dan kebutuhan operasional resto sehari-hari, kasir berbelanja ke pasar atau toko sehingga sistem mencatat vendor (toko/pasar tempat beli) secara opsional.
+Restoran X beroperasi mulai pukul 10.00 pagi dengan dua shift kerja, yaitu shift pagi yang dimulai sebelum jam 10.00 dan shift malam yang dimulai pukul 18.00. Seluruh stok makanan siap jual (stok porsi) yang ada di restoran merupakan barang setengah jadi dalam kondisi beku (frozen), yang diproduksi di rumah owner, bukan di restoran. Artinya, semua item seperti ayam, ati, rampela, gurami, udang, hingga kuah-kuahan sudah disiapkan dan dibekukan dari rumah - di restoran tinggal dibakar, digoreng, atau dipanaskan sesuai pesanan. Untuk stok porsi, tidak ada supplier luar; seluruh pasokan berasal dari produksi rumah owner sendiri. **Inventori yang dicatat sistem hanya barang siap jual (satuan porsi), bukan bahan baku mentah** (beras, sayur, bumbu, dst.) - pengadaan dan pengolahan bahan baku terjadi manual di rumah owner, di luar lingkup sistem (sesuai ruang lingkup proposal Bab 1 §1.4).
 
 Sebelum sistem ini ada, pencatatan dilakukan secara manual menggunakan buku fisik. Buku tersebut memiliki dua sisi: sisi kiri digunakan untuk mencatat stok setiap pagi setelah restock, dan sisi kanan untuk mencatat penjualan hari itu beserta totalnya. Yang bertugas mencatat adalah kasir, yang merupakan anggota keluarga owner, dibantu oleh waiter untuk pencatatan stok di pagi dan malam hari. namun pada malam hari tidak sedetail ketika pagi, malam hanya mencatat yang kurang agar besok paginya perlu di bawa apa aja, dan itupun tidak dicatat, hanya bilang dari waiter ke kasir (anggota keluarga) agar paginya dibawakan sesuai stok yang kurang. 
 
@@ -31,7 +32,7 @@ Di akhir hari, kasir shift malam melakukan rekap total penjualan sekali saja, me
 
 ## Pengguna Sistem
 
-Sistem digunakan oleh tiga jenis pengguna: kasir, waiter, dan owner. Kasir memiliki akses untuk menginput transaksi (input order, proses pembayaran), mencatat dan memperbarui stok, mencatat pembelian belanja, serta membuka dan menutup kasir per shift. Waiter memiliki tugas operasional fisik di lapangan: bersih-bersih meja dan cuci piring, mengantar makanan ke meja, membuat dan mengantar minuman, serta mengambil order dari pelanggan. **Workflow primary waiter tetap kertas** - waiter ambil order verbal di meja, tulis di kertas, lalu menyerahkan kertas ke kasir untuk diinput ke POS. Waiter juga punya akun sistem dengan akses ke fitur inventory (view stok porsi, view raw materials, opname pagi/malam, mark item habis). Sistem **memberikan waiter akses fallback** untuk input order ke POS hanya saat kasir tidak available (misal kasir sedang telepon owner, sedang ke toilet, sedang belanja ke pasar) - bukan workflow default. Realita lapangan: waiter sangat sibuk peak hour (cuci piring + buat minuman + antar makanan + ambil order baru), sehingga memutus alur kerja untuk pegang HP dan input order ke POS tidak realistis sebagai default. Owner dapat melihat laporan dari mana saja, termasuk dari rumah melalui HP atau browser. Khusus untuk input tagihan operasional, hanya owner yang memiliki akses - kasir tidak bisa melakukan ini meskipun kasir adalah anggota keluarga owner.
+Sistem digunakan oleh tiga jenis pengguna: kasir, waiter, dan owner. Kasir memiliki akses untuk menginput transaksi (input order, proses pembayaran), mencatat dan memperbarui stok porsi, serta membuka dan menutup kasir per shift. Waiter memiliki tugas operasional fisik di lapangan: bersih-bersih meja dan cuci piring, mengantar makanan ke meja, membuat dan mengantar minuman, serta mengambil order dari pelanggan. **Workflow primary waiter tetap kertas** - waiter ambil order verbal di meja, tulis di kertas, lalu menyerahkan kertas ke kasir untuk diinput ke POS. Waiter juga punya akun sistem dengan akses ke fitur inventory stok porsi (view stok porsi, opname pagi, mark item habis). Sistem **memberikan waiter akses fallback** untuk input order ke POS hanya saat kasir tidak available (misal kasir sedang telepon owner, sedang ke toilet) - bukan workflow default. Realita lapangan: waiter sangat sibuk peak hour (cuci piring + buat minuman + antar makanan + ambil order baru), sehingga memutus alur kerja untuk pegang HP dan input order ke POS tidak realistis sebagai default. Owner dapat melihat laporan dari mana saja, termasuk dari rumah melalui HP atau browser. Khusus untuk input tagihan operasional dan modal/COGS menu, hanya owner yang memiliki akses - kasir tidak bisa melakukan ini meskipun kasir adalah anggota keluarga owner.
 
 Pegawai riil di resto:
 
@@ -54,17 +55,15 @@ Tabel berikut merinci akses per role per aksi. Permission ditangani di app layer
 | Tutup kasir & settlement harian (rekap 6 metode + breakdown bank) | ✓ | ✓ *(shift malam)* | ✗ |
 | Mereview settlement kasir malam | ✓ | ✗ | ✗ |
 | Stok porsi: view + opname pagi + mark habis + barang masuk + restock pagi | ✓ | ✓ | ✓ |
-| Raw materials: view + opname malam + mark habis | ✓ | ✓ | ✓ |
-| Mencatat pembelian belanja (header purchases + items + add vendor/raw_material inline) | ✓ | ✓ | ✗ |
 | Bills / tagihan operasional bulanan (kebersihan, listrik, air, parkir, sewa) | ✓ | ✗ | ✗ |
-| Laporan keuangan & analitik (revenue, expense, laba kotor) | ✓ *(full periode)* | ✓ *(hari ini saja, untuk verifikasi shift)* | ✗ |
+| Laporan keuangan & analitik (revenue, COGS, laba kotor, tagihan) | ✓ *(full periode)* | ✓ *(hari ini saja, untuk verifikasi shift)* | ✗ |
 | CRUD menu, paket, sub-options, harga | ✓ | ✗ | ✗ |
 | CRUD user, set role, reset PIN | ✓ | ✗ | ✗ |
-| Edit master raw material (rename, ubah unit, ubah is_tracked, ubah min_stock) | ✓ | ✗ | ✗ |
+| Edit modal/COGS menu (set + ubah, lihat riwayat modal) | ✓ | ✗ | ✗ |
 
 **Interpretasi "fallback only" untuk waiter input order:**
 
-Backend tidak memblok hard role `waiter` dari endpoint `POST /transactions`. Endpoint tetap accept ketiga role. Yang membentuk perilaku "fallback" adalah desain UI di frontend: dashboard waiter menampilkan card besar "Stok Porsi Hari Ini" + "Raw Materials Reminder" + tombol "Opname" sebagai primary CTA, sementara akses ke "Input Order" ditaruh sebagai link kecil sekunder (bukan card besar) supaya waiter tidak terbiasa pakai sebagai default. Pada dashboard kasir, sebaliknya - "Input Order Baru" jadi primary CTA. Dengan demikian, sistem mendorong workflow kertas-mediated sebagai default, namun tidak memblok waiter kalau memang harus input (worst case kasir tidak available).
+Backend tidak memblok hard role `waiter` dari endpoint `POST /transactions`. Endpoint tetap accept ketiga role. Yang membentuk perilaku "fallback" adalah desain UI di frontend: dashboard waiter menampilkan card besar "Stok Porsi Hari Ini" + tombol "Opname" sebagai primary CTA, sementara akses ke "Input Order" ditaruh sebagai link kecil sekunder (bukan card besar) supaya waiter tidak terbiasa pakai sebagai default. Pada dashboard kasir, sebaliknya - "Input Order Baru" jadi primary CTA. Dengan demikian, sistem mendorong workflow kertas-mediated sebagai default, namun tidak memblok waiter kalau memang harus input (worst case kasir tidak available).
 
 ## Tipe Order
 
@@ -98,14 +97,7 @@ Di akhir hari, kasir shift malam melakukan rekap total sekali saja, mencakup sel
 
 ## Kategori Stok
 
-Sistem membagi stok menjadi dua jenis: **stok porsi (portion stocks)** dan **stok bahan baku (raw materials)**. Stok porsi adalah item makanan setengah jadi siap jual yang ditrack per porsi dan berkurang otomatis setiap kali terjadi transaksi di POS. Raw materials adalah bahan baku untuk masak di rumah dan kebutuhan operasional resto (beras, sayur, tahu, tempe, telur, bumbu kering, dll) yang diperbarui manual via fitur pembelian (saat kasir belanja ke pasar) dan opname.
-
-Untuk raw materials, sistem menyediakan dua sub-kategori berdasarkan apakah stoknya ditrack atau tidak:
-
-- **is_tracked = true** → stok bertambah otomatis saat dicatat di pembelian; muncul di reminder kalau di bawah `min_stock`. Contoh: kangkung, tahu, tempe, beras, telur, petai.
-- **is_tracked = false** → stok tidak ditrack, hanya dicatat sebagai log pengeluaran saat dibeli; tidak muncul di reminder. Contoh: cabai, bawang merah, bawang putih, kemiri, garam, daun jeruk, lengkuas, minyak goreng, dan bumbu kering lainnya.
-
-Tambahan field `category` (enum: `bumbu_dasar` / `bahan_segar` / `bahan_pokok` / `bahan_kering` / `lainnya`) dipakai untuk grouping di laporan owner. Misalnya semua raw material `category=bumbu_dasar` (cabai, bawang, kemiri, dll) dikelompokkan menjadi 1 baris "Bumbu Dasar" di laporan pengeluaran owner.
+Sistem hanya mencatat satu jenis stok: **stok porsi (portion stocks)** - item makanan setengah jadi siap jual yang ditrack per porsi dan berkurang otomatis setiap kali terjadi transaksi di POS. **Bahan baku mentah (raw materials) tidak ditrack di sistem** - pengadaan beras, sayur, bumbu, dll terjadi manual di rumah owner, di luar lingkup sistem (sesuai ruang lingkup proposal Bab 1 §1.4 yang membatasi inventori pada barang siap jual satuan porsi). Dengan demikian sistem tidak punya fitur pembelian/belanja, vendor, maupun monitoring stok bahan baku.
 
 ## Stok Porsi dan Aturan Restock
 
@@ -124,7 +116,8 @@ Tabel `portion_stocks` tidak hanya menyimpan `current_qty` saja, tapi juga:
 - `opening_qty_today` - snapshot otomatis kondisi stok di awal hari (saat user pertama login pagi). Dipakai untuk metric "terjual hari ini" di dashboard.
 - `min_stock` - ambang minimum (terjadi snapshot per item di kolom Menu.min_stock, tapi dipertahankan duplikatnya di sini untuk kemudahan query reminder)
 - `unit` - pakai "porsi" default (tidak ada variasi unit di stok porsi karena semua dihitung per-porsi sesuai ground truth)
-- Tidak menyimpan harga, karena stok porsi diproduksi dari rumah owner dan tidak ada harga pembelian per unit. Biaya pokok produksi (HPP) **di luar lingkup skripsi**.
+
+> Catatan: modal/COGS bukan disimpan di `portion_stocks` melainkan per menu (lihat seksi "COGS per Menu + Laporan Laba Rugi Harian") - karena modal melekat ke menu/SKU leaf, bukan ke baris stok.
 
 ## Relasi Menu ke Stok
 
@@ -146,78 +139,23 @@ Paket D seharga 38 ribu untuk 1 orang berisi empal penyet, nasi, dan minuman (Te
 
 Stok yang berkurang menyesuaikan sub-pilihan customer. Sebagai contoh, jika customer memesan Paket A dengan pilihan paha goreng, maka stok "Ayam Paha Goreng" berkurang 1, sementara teh tawar tidak berkurang karena tidak masuk stok porsi.
 
-## Raw Materials (Stok Bahan Baku) dan Reminder
+## COGS per Menu + Laporan Laba Rugi Harian
 
-Raw materials diperbarui secara manual melalui dua cara: **fitur pencatatan pembelian** (saat kasir belanja ke pasar) dan **opname** (cek fisik untuk koreksi nilai stok yang menyimpang dari kondisi nyata).
+Sesuai ruang lingkup proposal (Bab 1 §1.4 bagian D: *"Laporan Laba Rugi Harian: laba kotor = Total Penjualan − (Harga Modal Satuan × Jumlah Terjual)"*), sistem menyediakan **modal/COGS (Cost of Goods Sold) per menu**.
 
-### Field standar tiap raw material
+### Konsep
 
-Setiap raw material memiliki field berikut:
+- **Owner menginput modal per menu** (angka modal per porsi). Modal melekat pada **menu / SKU leaf** (mis. "Ayam Paha Bakar", "Jeruk Murni") dan menu simple. Tidak ada resep / penimbangan bahan / Bill of Materials - angka modal adalah angka yang dinyatakan owner secara langsung (coarse, manual, owner-authoritative).
+- **Hanya owner** yang dapat melihat dan mengubah modal. Modal **tidak dibocorkan** ke endpoint menu publik (POS) - kasir/waiter tidak melihat angka modal.
+- Saat order dibuat, sistem **mengambil snapshot modal per unit** (`unitCost`) ke tiap baris transaksi - mirip `unitPrice`. Untuk varian, modal mengikuti SKU leaf-nya; untuk paket, modal = jumlah modal komponen yang dipilih. Mengubah modal hari ini **tidak mengubah** laba periode yang sudah lewat (point-in-time COGS).
+- Setiap perubahan modal menu tercatat di **log riwayat modal** (`menu_cost_movements`) beserta nilai sebelum/sesudah, alasan (set awal / penyesuaian), pelaku, dan waktu - analog dengan log opname stok.
 
-- **`name`** - nama bahan (mis. "Kangkung", "Beras", "Tahu", "Cabai Rawit", "Bawang Putih")
-- **`unit`** - satuan ukur (mis. `ikat`, `karung`, `balok`, `butir`, `gram`, `liter`, `pcs`, `skala`). Bebas, mengikuti kebiasaan resto.
-- **`category`** - pengelompokan untuk laporan: `bumbu_dasar` / `bahan_segar` / `bahan_pokok` / `bahan_kering` / `lainnya`
-- **`is_tracked`** - boolean. `true` = stok di-update saat beli dan ada reminder; `false` = cuma jadi log pengeluaran tanpa monitoring stok
-- **`stock_qty`** - kondisi stok saat ini (relevan hanya bila `is_tracked=true`)
-- **`min_stock`** - ambang reminder restock. Bisa angka kecil seperti `1` untuk beras (skala 1-5 → reminder kalau ≤ 1) atau angka besar seperti `2` untuk tahu (balok)
-- **`unit_price`** - harga per unit terakhir (untuk laporan biaya; otomatis di-update saat purchase baru)
-- **`freshness_days`** *(opsional)* - untuk perishable seperti sayur dan petai. Bila diisi (mis. 10 untuk kangkung), sistem menampilkan countdown sisa hari dari `last_buy_date` di dashboard.
-- **`last_buy_date`** - tanggal pembelian terakhir (auto-update dari purchase_items.date)
+### Laporan Laba Rugi Harian (dashboard owner)
 
-### Contoh raw materials (seed awal)
-
-| name | unit | category | is_tracked | min_stock | freshness_days |
-|---|---|---|---|---|---|
-| Beras | skala | bahan_pokok | true | 1 | - |
-| Kangkung | ikat | bahan_segar | true | 1 | 10 |
-| Petai | ikat | bahan_segar | true | 1 | 10 |
-| Tahu | balok | bahan_pokok | true | 2 | - |
-| Tempe | balok | bahan_pokok | true | 2 | - |
-| Telur | butir | bahan_pokok | true | 3 | - |
-| Cabai Rawit | gram | bumbu_dasar | false | - | - |
-| Bawang Merah | gram | bumbu_dasar | false | - | - |
-| Bawang Putih | gram | bumbu_dasar | false | - | - |
-| Kemiri | gram | bumbu_dasar | false | - | - |
-| Minyak Goreng | liter | bahan_kering | false | - | - |
-| Daun Jeruk | ikat | bumbu_dasar | false | - | - |
-| Sereh | batang | bumbu_dasar | false | - | - |
-
-Daftar di atas hanyalah seed awal. Saat kasir input pembelian dan menemukan bahan yang belum terdaftar (mis. "Bawang Putih" belum ada di daftar), kasir bisa **add new raw material langsung dari form purchase** tanpa keluar dari halaman pembelian.
-
-### Reminder dashboard
-
-Sistem menampilkan reminder di dashboard masing-masing role saat kondisi tertentu terpenuhi:
-
-- `is_tracked=true` AND `stock_qty <= min_stock` → reminder "perlu restock"
-- `is_tracked=true` AND `freshness_days` terisi AND `(today - last_buy_date) >= (freshness_days - 3)` → reminder "mendekati basi, beli baru"
-
-Untuk beras dengan skala 1-5, `min_stock=1` artinya reminder muncul saat skala berada di angka 1 (hampir habis), dengan suggested action "restock 1 karung". Untuk kangkung, reminder muncul 3 hari sebelum batas freshness (mendekati hari ke-7) untuk persiapan belanja sayuran 2 ikat.
-
-## Pembelian (Belanja Kasir)
-
-Fitur pembelian dipakai ketika kasir berbelanja ke pasar atau toko (umumnya di malam hari sebelum tutup atau pagi sebelum buka). Pembelian dicatat sebagai header (`purchases`) dengan tanggal, vendor opsional, total, dan catatan. Detail per item dicatat di tabel anak (`purchase_items`) yang merujuk ke `raw_materials` dengan kuantitas, harga per unit, dan subtotal.
-
-### Vendor (opsional)
-
-Sistem menyediakan tabel `vendors` untuk mencatat toko atau pasar tempat belanja (mis. "Bu Sari", "Pasar Pagi Blok A", "Toko Pak Budi"). Pengisian vendor di tiap pembelian bersifat **opsional** karena di pasar kadang kasir lupa nama penjual atau tidak sempat tanya, terutama kalau penjualnya perorangan dan bukan toko tetap.
-
-Field tabel vendor: `name`, `type` (mis. toko / pasar / individu), `phone` *(opsional)*, `note` *(opsional)*. Phone dan note dibuat opsional karena tidak semua penjual punya nomor telepon yang sempat dicatat.
-
-### Alur form input pembelian
-
-Saat kasir membuka form "Tambah Pembelian":
-
-1. Pilih tanggal pembelian (default: hari ini)
-2. Pilih vendor (opsional - bisa skip atau add new vendor inline)
-3. Tambah baris item per item:
-   - Pilih raw material dari dropdown (bisa filter by category bila banyak)
-   - **Atau add new raw material inline** kalau belum ada di daftar
-   - Input qty + unit_price (subtotal otomatis = qty × unit_price)
-4. Untuk pembelian bumbu dasar yang banyak items, kasir bisa add baris satu per satu (cabe, bawang, kemiri, dst). Saat di-display di laporan owner, semua item dengan `category=bumbu_dasar` dikelompokkan menjadi 1 baris "Bumbu Dasar" dengan total agregat - detail per bumbu tetap bisa di-drill-down.
-5. Total dihitung otomatis dari sum subtotal items
-6. Submit → sistem update `raw_materials.stock_qty` untuk item dengan `is_tracked=true` (stock += qty), update `last_buy_date`, dan update `unit_price` ke harga pembelian terakhir.
-
-Bahan mentah seperti ayam potong, ikan, atau udang yang sesekali dibeli juga dicatat di pembelian sebagai item dengan `is_tracked=false` karena di restoran yang dicatat adalah barang jadi (stok porsi), bukan bahan mentah yang masih perlu diolah di rumah.
+- **Pendapatan** = total penjualan per periode (dari transaksi `paid`, exclude transaksi yang sudah di-merge).
+- **COGS / Beban Pokok** = Σ (`unitCost` × jumlah terjual) atas item dari transaksi `paid` pada periode yang sama (filter identik dengan pendapatan).
+- **Laba Kotor = Pendapatan − COGS**.
+- **Tagihan operasional bulanan (bills)** ditampilkan **terpisah** sebagai info - **tidak dikurangkan** ke laba kotor (model laba satu tingkat).
 
 ## Opname Stok (Cek Fisik untuk Koreksi)
 
@@ -234,10 +172,6 @@ Setelah auto-snapshot, waiter atau kasir tetap bisa melakukan **opname manual** 
 3. Catat ke `portion_movements` (rename dari `stock_movements` di REV 2.2) dengan reason `manual_adjust` dan note "Opname pagi: selisih -2" atau "Opname pagi: selisih +1"
 
 Opname manual stok porsi paling pas dilakukan saat pagi setelah restock pagi dicatat (verifikasi total stok = sisa kemarin + restock pagi + selisih opname).
-
-### Opname raw materials
-
-Sama prinsipnya dengan stok porsi. Waiter di malam hari sebelum tutup membuka halaman Raw Materials, lalu untuk tiap item `is_tracked=true` user cek fisik dan masukkan koreksi kalau perlu. Untuk perishable seperti sayur, waiter juga update `last_buy_date` kalau pembelian terakhir tidak ter-record (mis. sayur dibeli tapi kasir lupa input ke pembelian).
 
 ## Stok Habis di Tengah Hari - Workflow Lengkap
 
@@ -257,16 +191,14 @@ Pencatatan ini bersifat reactive (saat barang datang). Tidak ada konsep "stok pe
 
 Sistem juga menyediakan fitur input tagihan operasional seperti iuran kebersihan, listrik, air, parkir, dan sewa tempat. Fitur ini hanya dapat diakses oleh owner - kasir tidak memiliki akses ke bagian ini meskipun kasir adalah anggota keluarga owner. Owner yang bertanggung jawab untuk memberikan akun dan kata sandi kepada anggota keluarga yang bertugas sebagai kasir, dengan batasan hak akses yang sudah ditentukan.
 
-## HPP dan Laba Rugi (Out of Scope)
+## Bill of Materials / HPP per Bahan (Out of Scope)
 
-Perhitungan HPP per porsi memerlukan data konsumsi bahan baku yang terukur dan tercatat secara akurat untuk setiap siklus produksi. Namun, pada restoran kecil berbasis keluarga seperti objek penelitian ini, proses memasak dilakukan secara batch tanpa penimbangan bahan yang baku, dan komposisi peracikan bumbu bersifat tidak tetap serta tidak terdokumentasi. Hal ini menyebabkan data input yang dibutuhkan untuk menghitung HPP tidak tersedia secara konsisten, sehingga hasil perhitungan yang dihasilkan berpotensi tidak akurat dan menyesatkan. Oleh karena itu, fitur pencatatan HPP tidak dimasukkan ke dalam ruang lingkup sistem ini, agar sistem tetap relevan, mudah digunakan, dan sesuai dengan kapasitas operasional pengguna sasaran.
-
-Pelacakan laba rugi pada sistem ini dilakukan melalui pencatatan total pendapatan harian yang diperoleh dari rekapitulasi transaksi, serta pencatatan pengeluaran operasional secara agregat per periode. Pendekatan ini dipilih karena sesuai dengan karakteristik restoran kecil yang tidak melakukan standard costing, namun tetap membutuhkan gambaran arus kas dan profitabilitas secara periodik.
+Modal/COGS pada sistem ini dinyatakan **langsung per menu** oleh owner (lihat seksi "COGS per Menu + Laporan Laba Rugi Harian"), **bukan** dihitung dari konsumsi bahan baku terukur per siklus produksi. Perhitungan HPP berbasis bahan memerlukan penimbangan bahan yang baku dan komposisi bumbu yang terdokumentasi - hal yang tidak tersedia pada restoran kecil berbasis keluarga ini yang memasak secara batch dengan racikan tidak tetap. Oleh karena itu **tidak ada Bill of Materials / resep** yang men-decrement bahan mentah saat order masuk, dan **tidak ada pencatatan stok bahan baku mentah** di sistem - konversi bahan mentah → stok porsi terjadi manual di rumah owner, di luar lingkup.
 
 Implikasi terhadap desain sistem:
-- Tidak ada relasi otomatis "raw_material → portion_stock" (tidak ada Bill of Materials / resep yang men-decrement bahan mentah saat order masuk).
-- Stok porsi dan raw materials di-track sebagai dua sumbu yang terpisah: stok porsi berkurang otomatis saat order, raw materials di-update via pembelian dan opname manual.
-- Laporan owner menampilkan: Pendapatan total per periode (dari transaksi), Pengeluaran total per periode (dari purchases + bills), Laba Kotor = Pendapatan − Pengeluaran. Tidak ada breakdown HPP per menu maupun margin per porsi.
+- Inventori yang ditrack hanya **stok porsi** (finished goods). Tidak ada entitas raw materials, vendor, atau pembelian/belanja.
+- Modal/COGS melekat per menu sebagai angka owner-authoritative, dengan snapshot per item transaksi saat order (point-in-time, mirror harga jual).
+- Laporan owner menampilkan: Pendapatan total per periode (dari transaksi), COGS total per periode (Σ modal-satuan × jumlah terjual), Laba Kotor = Pendapatan − COGS. Tagihan operasional bulanan (bills) ditampilkan terpisah dan tidak dikurangkan ke laba kotor.
 
 ## Kebijakan Lainnya
 

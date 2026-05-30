@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildVariantLabel, cartesian, resolveStockTargets, type MenuNode } from '../variant-resolver'
+import { buildVariantLabel, cartesian, resolveStockTargets, resolveCostComponents, type MenuNode } from '../variant-resolver'
 
 describe('buildVariantLabel', () => {
   it('joins option labels in group order with " / "', () => {
@@ -53,5 +53,49 @@ describe('resolveStockTargets', () => {
   })
   it('simple nonStock → no deduction', () => {
     expect(resolveStockTargets(graph, { menuId: 50 })).toEqual([])
+  })
+})
+
+describe('resolveCostComponents', () => {
+  const graph = {
+    1: { id: 1, kind: 'simple' as const, stockType: 'portion' as const, cost: 9000 },
+    2: { id: 2, kind: 'simple' as const, stockType: 'nonStock' as const, cost: 2000 }, // nasi
+    3: { id: 3, kind: 'simple' as const, stockType: 'nonStock' as const, cost: 1500 }, // teh leaf
+    10: {
+      id: 10, kind: 'variant' as const, stockType: 'nonStock' as const,
+      variants: { 100: { id: 100, stockTargetMenuId: 1, costSourceMenuId: null } }, // ayam -> leaf 1
+    },
+    11: {
+      id: 11, kind: 'variant' as const, stockType: 'nonStock' as const,
+      variants: { 110: { id: 110, stockTargetMenuId: null, costSourceMenuId: 3 } }, // es teh -> leaf 3
+    },
+    20: {
+      id: 20, kind: 'paket' as const, stockType: 'nonStock' as const,
+      paket: {
+        fixed: [{ qty: 2, targetMenuId: 2, targetVariantId: null }], // 2x nasi
+        choices: [{ label: 'Ayam', options: [{ targetMenuId: 10, targetVariantId: 100 }] }],
+      },
+    },
+  }
+
+  it('simple portion item -> own cost', () => {
+    expect(resolveCostComponents(graph, { menuId: 1 })).toEqual([{ menuId: 1, qty: 1 }])
+  })
+  it('simple nonStock item still books own cost', () => {
+    expect(resolveCostComponents(graph, { menuId: 2 })).toEqual([{ menuId: 2, qty: 1 }])
+  })
+  it('variant with stockTarget resolves to leaf', () => {
+    expect(resolveCostComponents(graph, { menuId: 10, variantId: 100 })).toEqual([{ menuId: 1, qty: 1 }])
+  })
+  it('nonStock variant resolves to costSourceMenuId leaf', () => {
+    expect(resolveCostComponents(graph, { menuId: 11, variantId: 110 })).toEqual([{ menuId: 3, qty: 1 }])
+  })
+  it('paket sums fixed (with qty) + chosen components', () => {
+    const out = resolveCostComponents(graph, {
+      menuId: 20,
+      paketChoices: { Ayam: { targetMenuId: 10, variantId: 100 } },
+    })
+    expect(out).toEqual(expect.arrayContaining([{ menuId: 2, qty: 2 }, { menuId: 1, qty: 1 }]))
+    expect(out).toHaveLength(2)
   })
 })
