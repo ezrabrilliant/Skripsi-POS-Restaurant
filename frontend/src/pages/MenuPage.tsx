@@ -153,14 +153,21 @@ export default function MenuPage() {
           <div className="font-medium text-neutral-900">{m.name}</div>
           <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
           <div className="flex flex-wrap gap-1 mt-1">
-            {m.subOptions && 'choices' in m.subOptions && (
+            {/* REV 2.10: badge berbasis kind (variant/paket) gantikan subOptions JSON. */}
+            {m.kind === 'variant' && (
               <Badge tone="primary" size="sm">
-                Paket · {m.subOptions.choices.length} slot pilihan
+                {m.variants?.length ?? 0} varian
               </Badge>
             )}
-            {m.subOptions && 'stockTarget' in m.subOptions && (
-              <Badge tone="warning" size="sm">
-                Linked → {m.subOptions.stockTarget}
+            {m.kind === 'paket' && (
+              <Badge tone="primary" size="sm">
+                Paket
+              </Badge>
+            )}
+            {/* SKU stok granular yang disembunyikan dari grid POS (collapse REV 2.10). */}
+            {!m.posVisible && (
+              <Badge tone="neutral" variant="outline" size="sm">
+                Tersembunyi dari POS
               </Badge>
             )}
             {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
@@ -333,11 +340,15 @@ export default function MenuPage() {
                     <p className="font-medium text-neutral-900">{m.name}</p>
                     <p className="text-caption text-neutral-500">{m.category}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {m.subOptions && 'choices' in m.subOptions && (
+                      {/* REV 2.10: badge berbasis kind. */}
+                      {m.kind === 'variant' && (
+                        <Badge tone="primary" size="sm">{m.variants?.length ?? 0} varian</Badge>
+                      )}
+                      {m.kind === 'paket' && (
                         <Badge tone="primary" size="sm">Paket</Badge>
                       )}
-                      {m.subOptions && 'stockTarget' in m.subOptions && (
-                        <Badge tone="warning" size="sm">Linked</Badge>
+                      {!m.posVisible && (
+                        <Badge tone="neutral" variant="outline" size="sm">Tersembunyi</Badge>
                       )}
                       {m.stockType === 'portion' && (
                         <Badge tone="neutral" size="sm">

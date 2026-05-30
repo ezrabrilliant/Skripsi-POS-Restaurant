@@ -7,6 +7,8 @@ import { openShift } from '../src/modules/shifts/shifts.service';
 import {
   createTransaction,
   voidTransaction,
+  getTransactionById,
+  listTransactions,
 } from '../src/modules/transactions/transactions.service';
 
 if (!/_test/.test(process.env.DATABASE_URL ?? '')) {
@@ -343,6 +345,42 @@ async function main() {
   ok(
     after6Fixed === before6Fixed && after6Choice === before6Choice,
     `stok tidak berubah saat order ditolak (fixed ${before6Fixed}→${after6Fixed}, choice ${before6Choice}→${after6Choice})`,
+  );
+
+  // ---- [7] REV 2.10 P8: transaction VIEW mapper emit variantId + variantLabel ----
+  // Fetch via getTransactionById (path detail dipakai controller) untuk tx1 (varian).
+  console.log('\n[7] View getTransactionById emit variantId + variantLabel (order varian):');
+  const view1 = await getTransactionById(tx1.id);
+  const vItem = view1.items[0]!;
+  ok(vItem.variantId === variant.id, `view item variantId = ${variant.id} (got ${vItem.variantId})`);
+  ok(vItem.variantLabel === variant.label, `view item variantLabel = "${variant.label}" (got "${vItem.variantLabel}")`);
+  ok(Array.isArray(vItem.selections), 'view item selections adalah array');
+
+  // ---- [8] REV 2.10 P8: VIEW mapper emit selections untuk order paket ----
+  // Order paket baru (qty 1) pilih slot choice → fetch via listTransactions (path
+  // yang dipakai HistoryPage) → assert selections terisi + slot label benar.
+  console.log('\n[8] View listTransactions emit selections (order paket):');
+  const txPaketView = await createTransaction(cashier.id, {
+    orderType: 'dineIn',
+    tableNumber: 5,
+    items: [
+      {
+        menuId: paket.id,
+        qty: 1,
+        paketChoices: { Minuman: { targetMenuId: drink.id, chosenLabel: 'Es Teh' } },
+      },
+    ],
+  } as Parameters<typeof createTransaction>[1]);
+  const list = await listTransactions({ status: 'open' } as Parameters<typeof listTransactions>[0]);
+  const listed = list.find((t) => t.id === txPaketView.id);
+  ok(listed !== undefined, `paket tx #${txPaketView.id} ditemukan via listTransactions`);
+  const pItem = listed?.items[0];
+  ok(Array.isArray(pItem?.selections), 'paket view item selections adalah array');
+  ok((pItem?.selections.length ?? 0) >= 1, `paket view item punya >=1 selection (got ${pItem?.selections.length ?? 0})`);
+  const slot = pItem?.selections.find((s) => s.groupOrSlotLabel === 'Minuman');
+  ok(
+    slot !== undefined && slot.chosenLabel === 'Es Teh' && slot.isPreference === false,
+    `selection slot = {Minuman: Es Teh, isPreference=false} (got slot=${slot?.groupOrSlotLabel}, label=${slot?.chosenLabel}, pref=${slot?.isPreference})`,
   );
 
   console.log(`\n[smoke-tx-variants] HASIL: ${pass} pass, ${fail} fail`);

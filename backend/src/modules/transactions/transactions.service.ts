@@ -59,6 +59,17 @@ import type {
 // View shape (mapper)
 // ============================================================
 
+/// REV 2.10: baris selection yang dipersist per TransactionItem — slot paket
+/// (isPreference=false) + free-preference (isPreference=true, mis. Suhu). Mirror
+/// frontend TransactionItemSelection (types/index.ts).
+export interface TransactionItemSelectionView {
+  groupOrSlotLabel: string;
+  chosenLabel: string;
+  targetMenuId: number | null;
+  targetVariantId: number | null;
+  isPreference: boolean;
+}
+
 export interface TransactionItemView {
   id: number;
   menuId: number;
@@ -70,6 +81,12 @@ export interface TransactionItemView {
   /// REV 2.4: catatan per item dari waiter/kasir saat input. Mis. "kurang manis"
   /// atau "Panas"/"Dingin" untuk minuman ambigu suhu.
   notes: string | null;
+  /// REV 2.10: varian terjual untuk menu kind=variant (null untuk simple/paket).
+  variantId: number | null;
+  /// REV 2.10: label varian untuk display (null kalau bukan item varian).
+  variantLabel: string | null;
+  /// REV 2.10: pilihan slot paket + free-preference yang dipersist.
+  selections: TransactionItemSelectionView[];
   createdAt: string;
 }
 
@@ -118,7 +135,14 @@ type TransactionWithRelations = Prisma.TransactionGetPayload<{
   include: {
     createdBy: true;
     shift: { include: { cashier: { select: { name: true } } } };
-    items: { include: { menu: { select: { name: true } } } };
+    items: {
+      include: {
+        menu: { select: { name: true } };
+        // REV 2.10: bawa varian + selections supaya view bisa display variant/paket.
+        variant: { select: { id: true; label: true } };
+        selections: true;
+      };
+    };
     payments: { include: { recordedBy: { select: { name: true } } } };
   };
 }>;
@@ -150,6 +174,16 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
       subtotal: it.subtotal.toNumber(),
       subOptionsSelected: it.subOptionsSelected,
       notes: it.notes,
+      // REV 2.10: varian + label + selections untuk display di HistoryPage.
+      variantId: it.variantId ?? null,
+      variantLabel: it.variant?.label ?? null,
+      selections: it.selections.map((s) => ({
+        groupOrSlotLabel: s.groupOrSlotLabel,
+        chosenLabel: s.chosenLabel,
+        targetMenuId: s.targetMenuId,
+        targetVariantId: s.targetVariantId,
+        isPreference: s.isPreference,
+      })),
       createdAt: it.createdAt.toISOString(),
     })),
     payments: t.payments.map((p) => ({
@@ -167,7 +201,15 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
 const transactionInclude = {
   createdBy: true,
   shift: { include: { cashier: { select: { name: true } } } },
-  items: { include: { menu: { select: { name: true } } } },
+  items: {
+    // REV 2.10: variant + selections agar toTransactionView bisa emit variant/paket
+    // info. Satu sumber include shared oleh getById + list + listByTable.
+    include: {
+      menu: { select: { name: true } },
+      variant: { select: { id: true, label: true } },
+      selections: true,
+    },
+  },
   payments: {
     include: { recordedBy: { select: { name: true } } },
     orderBy: { recordedAt: 'asc' },
