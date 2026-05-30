@@ -10,7 +10,6 @@ import {
   SettlementPage,
   StockPage,
   MenuPage,
-  SkuVarianPage,
   UsersPage,
   BillsPage,
   PaymentMethodsPage,
@@ -82,7 +81,7 @@ function App() {
 
           {/* Owner-only */}
           <Route path="menu" element={<RoleRoute allow={['owner']}><MenuPage /></RoleRoute>} />
-          <Route path="menu/sku-varian" element={<RoleRoute allow={['owner']}><SkuVarianPage /></RoleRoute>} />
+          <Route path="menu/sku-varian" element={<Navigate to="/menu?tab=varian" replace />} />
           <Route path="users" element={<RoleRoute allow={['owner']}><UsersPage /></RoleRoute>} />
           <Route path="bills" element={<RoleRoute allow={['owner']}><BillsPage /></RoleRoute>} />
           <Route path="payment-methods" element={<RoleRoute allow={['owner']}><PaymentMethodsPage /></RoleRoute>} />
