@@ -3,10 +3,12 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, RotateCcw, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, Search, History } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
+import { COST_REASON_LABEL } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
+import { StockHistorySheet, type HistoryMovement } from '@/components/stock/StockHistorySheet'
 import {
   Button,
   IconButton,
@@ -58,10 +60,14 @@ export default function MenuPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
+  // REV 2.11: drawer riwayat modal/COGS (tap History pada baris menu).
+  const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
 
   const { data: menus = [], isLoading } = useQuery({
+    // REV 2.11: includeHidden agar leaf SKU (posVisible=false) ikut tampil +
+    // editable; owner token (auto-inject) bikin backend kirim field cost.
     queryKey: ['menus', 'admin', showInactive],
-    queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true }),
+    queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true, includeHidden: true }),
   })
 
   const categories = useMemo(() => {
@@ -207,6 +213,18 @@ export default function MenuPage() {
       ),
     },
     {
+      // REV 2.11: modal/COGS per menu. Parent variant/paket → cost null → "—".
+      key: 'cost',
+      header: 'Modal',
+      align: 'right',
+      hideMobile: true,
+      cell: (m) => (
+        <span className="text-neutral-700 tabular-nums">
+          {m.cost != null ? formatCurrency(m.cost) : '—'}
+        </span>
+      ),
+    },
+    {
       key: 'stock',
       header: 'Stok',
       cell: (m) => (
@@ -226,6 +244,13 @@ export default function MenuPage() {
       align: 'right',
       cell: (m) => (
         <div className="inline-flex items-center gap-1">
+          <IconButton
+            label={`Riwayat modal ${m.name}`}
+            icon={<History />}
+            variant="ghost"
+            size="sm"
+            onClick={() => setHistoryMenuId(m.id)}
+          />
           <IconButton
             label={`Edit ${m.name}`}
             icon={<Pencil />}
@@ -363,6 +388,7 @@ export default function MenuPage() {
                   </p>
                 </div>
                 <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
+                  <IconButton label="Riwayat modal" icon={<History />} variant="ghost" size="sm" onClick={() => setHistoryMenuId(m.id)} />
                   <IconButton label="Edit" icon={<Pencil />} variant="ghost" size="sm" onClick={() => setEditingMenu(m)} />
                   {m.isActive ? (
                     <IconButton
@@ -403,7 +429,38 @@ export default function MenuPage() {
             }}
           />
         )}
+
+        {historyMenuId != null && (
+          <CostHistoryDrawer menuId={historyMenuId} onClose={() => setHistoryMenuId(null)} />
+        )}
       </div>
     </div>
+  )
+}
+
+/** REV 2.11: drawer riwayat perubahan modal/COGS. Memetakan
+ * MenuCostMovementView ke HistoryMovement (shape generic StockHistorySheet):
+ * costBefore→qtyBefore, costAfter→qtyAfter, delta = after − before, unit "Rp". */
+function CostHistoryDrawer({ menuId, onClose }: { menuId: number; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['menuCostHistory', menuId],
+    queryFn: () => menuService.costHistory(menuId),
+  })
+  const movements: HistoryMovement[] = (data ?? []).map((m) => ({
+    id: m.id,
+    reasonLabel: COST_REASON_LABEL[m.reason],
+    delta: (m.costAfter ?? 0) - (m.costBefore ?? 0),
+    qtyBefore: m.costBefore,
+    qtyAfter: m.costAfter,
+    note: m.note,
+    userName: m.userName,
+    createdAt: m.createdAt,
+    sourceLabel: null,
+  }))
+  return (
+    <StockHistorySheet
+      open onOpenChange={(o) => !o && onClose()}
+      title="Riwayat Modal" isLoading={isLoading} movements={movements} unitSuffix="Rp"
+    />
   )
 }

@@ -102,6 +102,9 @@ export interface MenuVariant {
   label: string
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: menu (SKU tersembunyi) sumber modal/COGS untuk varian nonStock
+   * (stockTargetMenuId === null). Bila null, backend fallback ke stockTargetMenuId. */
+  costSourceMenuId: number | null
   isActive: boolean
   displayOrder: number
   optionIds: number[]
@@ -177,6 +180,10 @@ export interface Menu {
   optionGroups?: OptionGroup[]
   variants?: MenuVariant[]
   paketComponents?: PaketComponent[]
+  /** REV 2.11: harga modal / COGS per porsi (leaf/simple). Hanya dikirim untuk
+   * request owner-authenticated (soft-auth); POS/public TIDAK menerima field ini.
+   * null pada parent variant/paket (modal hidup di leaf). */
+  cost?: number | null
 }
 
 // ============================================================
@@ -208,6 +215,8 @@ export interface MenuVariantUpsertPayload {
   label: string
   price: number
   stockTargetMenuId: number | null
+  /** REV 2.11: sumber modal untuk varian nonStock (lihat MenuVariant.costSourceMenuId). */
+  costSourceMenuId?: number | null
   isActive: boolean
   displayOrder: number
 }
@@ -246,6 +255,9 @@ export interface MenuUpsertPayload {
   optionGroups: OptionGroupUpsertPayload[]
   variants: MenuVariantUpsertPayload[]
   paketComponents: PaketComponentUpsertPayload[]
+  /** REV 2.11: harga modal / COGS (leaf/simple). Owner-only; backend log perubahan
+   * ke MenuCostMovement. Variant/paket parent biarkan 0/null (modal di leaf). */
+  cost?: number | null
 }
 
 // ============================================================
@@ -584,6 +596,26 @@ export interface PortionMovementView {
 
 export interface PortionStockDetail extends PortionStockView {
   recentMovements: PortionMovementView[]
+}
+
+// ============================================================
+// REV 2.11 — COGS / Harga Modal per menu (audit log perubahan)
+// ============================================================
+
+export type MenuCostChangeReason = 'initialSet' | 'manualEdit'
+export const COST_REASON_LABEL: Record<MenuCostChangeReason, string> = {
+  initialSet: 'Set Awal',
+  manualEdit: 'Penyesuaian Modal',
+}
+export interface MenuCostMovementView {
+  id: number
+  costBefore: number | null
+  costAfter: number | null
+  reason: MenuCostChangeReason
+  note: string | null
+  userId: number
+  userName: string
+  createdAt: string
 }
 
 // ============================================================

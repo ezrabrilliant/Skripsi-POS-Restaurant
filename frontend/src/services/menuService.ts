@@ -6,6 +6,7 @@ import api from '@/lib/api'
 import type {
   ApiResponse,
   Menu,
+  MenuCostMovementView,
   MenuUpsertPayload,
   StockType,
   SubOptions,
@@ -89,6 +90,13 @@ export const menuService = {
   reactivate: async (id: number): Promise<Menu> => {
     const res = await api.post<ApiResponse<{ menu: Menu }>>(`/menus/${id}/reactivate`)
     return res.data.data.menu
+  },
+
+  /** REV 2.11: riwayat perubahan modal/COGS (owner-only). Dipakai drawer
+   * "Riwayat Modal" di MenuPage. */
+  costHistory: async (id: number): Promise<MenuCostMovementView[]> => {
+    const res = await api.get<ApiResponse<{ movements: MenuCostMovementView[] }>>(`/menus/${id}/cost-history`)
+    return res.data.data.movements
   },
 
   uploadImage: async (file: File, name: string): Promise<{ imageUrl: string }> => {
