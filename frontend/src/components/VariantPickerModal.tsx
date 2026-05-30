@@ -208,8 +208,9 @@ function VariantPicker({
     () => [...(menu.optionGroups ?? [])].sort((a, b) => a.displayOrder - b.displayOrder),
     [menu.optionGroups],
   )
+  // REV 2.10 P7: varian nonaktif (isActive=false) tidak boleh ikut matching/selection.
   const variants = useMemo(
-    () => (menu.variants ?? []).filter((v) => v.isActive),
+    () => (menu.variants ?? []).filter((v) => v.isActive !== false),
     [menu.variants],
   )
 
@@ -293,10 +294,9 @@ function VariantPicker({
           {matchedVariant ? formatCurrency(matchedVariant.price) : '—'}
         </span>
       </div>
+      {/* REV 2.10 P7: semua grup terpilih tapi tidak ada varian AKTIF yang match. */}
       {!matchedVariant && allGroupsChosen && (
-        <p className="text-caption text-warning-700">
-          Kombinasi ini belum punya varian. Cek pilihan kembali.
-        </p>
+        <p className="text-caption text-warning-700">Kombinasi ini tidak tersedia</p>
       )}
 
       <Button
