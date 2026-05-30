@@ -26,3 +26,4 @@ export {
 export { FormField } from './FormField'
 export { DataTable, type DataTableColumn } from './DataTable'
 export { PageHeader } from './PageHeader'
+export { FilterToolbar } from './FilterToolbar'
