@@ -200,3 +200,20 @@ Di [`createTransaction`](../../../backend/src/modules/transactions/transactions.
 - **Varian rebuild**: `upsertMenu` replace-children menghapus+membuat ulang varian tiap simpan → karena modal di SKU leaf (bukan di varian), `costSourceMenuId` harus di-set ulang via signature-match saat edit, ATAU di-reseed dari katalog. Plan harus menangani ini (mirip preserve harga/stockTarget yang sudah ada di VariantBuilder).
 - **Modal `null`**: transaksi sebelum backfill / menu tanpa modal → `unitCost` `null`→`0` (laba = pendapatan penuh untuk item itu). Backfill menutup gap untuk data Mei.
 - **Data Mei**: COGS historis = taksiran (modal terkini di-backfill), wajar untuk data buku impor.
+
+---
+
+## 14. Runbook Migrasi PROD (HARD-GATED — jangan jalankan tanpa go-ahead eksplisit)
+
+PROD `monosuko.my.id` saat ini di skema **REV 2.8**; REV 2.10 (varian) **dan** 2.11 (COGS) belum di prod. Migrasi harus berurutan dalam satu jendela maintenance. Semua langkah butuh persetujuan eksplisit owner; **backup dulu**.
+
+1. **Backup**: `mysqldump` DB prod (snapshot penuh) sebelum apa pun.
+2. **REV 2.10 dulu** (prasyarat — additif): deploy kode REV 2.10 → `cd backend && npx prisma db push` (additif varian, zero-loss) → `npx tsx --env-file=.env scripts/backfill-menu-variants.ts` → verifikasi history utuh (count tx/items) + 0 unresolved. (Owner opname stok "1 Ekor Ayam Bakar Kecap" yang qty awal 0.)
+3. **REV 2.11 additif**: deploy kode REV 2.11 → `npx prisma db push` (tambah `menus.cost`, `menu_variants.cost_source_menu_id`, `transaction_items.unit_cost`, tabel `menu_cost_movements` — semua nullable/aditif, zero-loss) → `npx prisma generate`.
+4. **Owner input modal**: owner isi `cost` tiap SKU leaf + menu simple via halaman Menu (angka modal dari owner).
+5. **Backfill COGS**: `npx tsx --env-file=.env scripts/backfill-cogs.ts` (stamp `unitCost` semua transaksi paid historis pakai modal terkini → laba periode lampau bermakna). Idempoten.
+6. **Verifikasi**: cek OwnerDashboard (Laba = Pendapatan − COGS, tagihan terpisah) + cost-history drawer + `GET /menus` publik tak ada `cost`.
+7. **DROP destruktif** (paling akhir, sesudah COGS terverifikasi): `npx prisma db push --accept-data-loss` untuk drop `vendors`/`purchases`/`purchase_items`/`raw_materials`/`raw_material_movements`/`units`. Backup (langkah 1) adalah jaring pengaman.
+8. **Deploy frontend** dist + smoke manual.
+
+Prinsip: **additif dulu (zero-loss) → isi data → verifikasi → baru drop**. Kalau ragu di langkah mana pun, berhenti & konfirmasi.
