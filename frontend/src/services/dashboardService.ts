@@ -50,7 +50,7 @@ export interface OwnerReport {
     bankBreakdown: BankBreakdownEntry[]
   }
   expense: {
-    purchaseTotal: number
+    cogsTotal: number
     billTotal: number
     total: number
   }

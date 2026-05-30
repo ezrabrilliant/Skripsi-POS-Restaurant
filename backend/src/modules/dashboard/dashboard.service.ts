@@ -58,11 +58,11 @@ export interface OwnerReportView {
     bankBreakdown: BankBreakdownEntry[];
   };
   expense: {
-    purchaseTotal: number;
+    cogsTotal: number;
     billTotal: number;
     total: number;
   };
-  profit: number; // revenue.total - expense.total
+  profit: number; // revenue.total − cogsTotal
   reminders: ReminderCounts;
 }
 
@@ -224,6 +224,14 @@ async function revenueByMethod(
   return { total, count, byMethod };
 }
 
+async function cogsTotalFor(txWhere: Prisma.TransactionWhereInput): Promise<number> {
+  const rows = await prisma.transactionItem.findMany({
+    where: { transaction: { ...txWhere, mergedIntoId: null } },
+    select: { unitCost: true, qty: true },
+  });
+  return rows.reduce((s, r) => s + (r.unitCost ? r.unitCost.toNumber() : 0) * r.qty, 0);
+}
+
 async function bankBreakdown(
   where: Prisma.TransactionWhereInput,
 ): Promise<BankBreakdownEntry[]> {
@@ -292,14 +300,11 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
     shift: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
   };
 
-  const [{ total: revenue, count: txCount, byMethod }, banks, purchasesAgg, billsAgg, reminders] =
+  const [{ total: revenue, count: txCount, byMethod }, banks, cogsTotal, billsAgg, reminders] =
     await Promise.all([
       revenueByMethod(txWhere),
       bankBreakdown(txWhere),
-      prisma.purchase.aggregate({
-        where: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
-        _sum: { totalAmount: true },
-      }),
+      cogsTotalFor(txWhere),
       period.type === 'month'
         ? prisma.bill.aggregate({
             where: { month: period.monthFilter },
@@ -319,10 +324,8 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
       reminderCounts(),
     ]);
 
-  const purchaseTotal = purchasesAgg._sum.totalAmount?.toNumber() ?? 0;
   const billTotal = billsAgg._sum.amount?.toNumber() ?? 0;
-  const expenseTotal = purchaseTotal + billTotal;
-  const profit = revenue - expenseTotal;
+  const profit = revenue - cogsTotal;
 
   return {
     period: {
@@ -338,9 +341,9 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
       bankBreakdown: banks,
     },
     expense: {
-      purchaseTotal,
+      cogsTotal,
       billTotal,
-      total: expenseTotal,
+      total: cogsTotal,
     },
     profit,
     reminders,

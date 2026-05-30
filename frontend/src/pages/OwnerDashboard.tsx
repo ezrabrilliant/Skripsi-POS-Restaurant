@@ -123,23 +123,18 @@ export default function OwnerDashboard() {
                 hint={`${report.revenue.transactionCount} transaksi`}
               />
               <Stat
-                label="Pengeluaran"
-                value={report.expense.total}
+                label="Beban Pokok (COGS)"
+                value={report.expense.cogsTotal}
                 format="rupiah"
                 icon={<TrendingDown className="w-4 h-4" />}
-                hint={
-                  <>
-                    Belanja {formatCurrency(report.expense.purchaseTotal)} · Tagihan{' '}
-                    {formatCurrency(report.expense.billTotal)}
-                  </>
-                }
+                hint={`Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`}
               />
               <Stat
                 label="Laba Kotor"
                 value={report.profit}
                 format="rupiah"
                 icon={<TrendingUp className="w-4 h-4" />}
-                hint="Pendapatan − Pengeluaran"
+                hint="Pendapatan − COGS"
                 className={
                   report.profit < 0
                     ? '!border-danger-200 !bg-danger-50/30'
