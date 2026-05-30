@@ -1,26 +1,53 @@
 /**
- * PaketBuilder REV 2.6 - form visual untuk paket dengan struktur
- * "fixed items + choice slots".
+ * PaketBuilder REV 2.10 — form visual untuk menu kind=paket dengan komponen
+ * berbasis FK (targetMenuId), menggantikan shape name-JSON legacy.
  *
- * - **Item Tetap (fixedItems)**: menu yang selalu masuk paket. Saat order,
- *   stok portion/linked target di-decrement otomatis; nonStock cuma jadi
- *   catatan dapur.
- * - **Pilihan Customer (choices)**: slot yang customer harus pilih 1 opsi saat
- *   order paket. Tiap opsi punya label (display) + stockTarget (menu yang
- *   di-decrement, null = info-only).
+ * Emit/consume `PaketComponentUpsertPayload[]`:
+ * - **Item Tetap (kind='fixed')**: menu yang selalu masuk paket + qty.
+ *   targetMenuId = menu yang stoknya di-decrement (portion/linked); nonStock
+ *   target = info-only.
+ * - **Slot Pilihan (kind='choice')**: customer pilih 1 opsi. choiceOptions =
+ *   list { label, targetMenuId, upcharge }. targetVariantId dibiarkan null
+ *   untuk sekarang.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { Input } from '@/design-system/primitives/Input'
 import { Button } from '@/design-system/primitives/Button'
 import { Combobox, type ComboboxOption } from '@/design-system/primitives/Combobox'
-import { MenuTargetCombobox } from './MenuTargetCombobox'
 import { menuService } from '@/services/menuService'
-import type { PaketSubOptions, PaketChoice, PaketChoiceOption } from '@/types'
+import type { Menu } from '@/types'
+import type {
+  PaketComponentUpsertPayload,
+  PaketChoiceOptionUpsertPayload,
+} from '@/types'
 
-export type PaketBuilderValue = PaketSubOptions
+// ============================================================
+// Working state (round-trips ke PaketComponentUpsertPayload[])
+// ============================================================
+
+export interface PaketFixedState {
+  targetMenuId: number | null
+  qty: number
+}
+
+export interface PaketChoiceOptionState {
+  label: string
+  targetMenuId: number | null
+  upcharge: number
+}
+
+export interface PaketChoiceState {
+  label: string
+  options: PaketChoiceOptionState[]
+}
+
+export interface PaketBuilderValue {
+  fixedItems: PaketFixedState[]
+  choices: PaketChoiceState[]
+}
 
 interface PaketBuilderProps {
   value: PaketBuilderValue
@@ -30,68 +57,89 @@ interface PaketBuilderProps {
 }
 
 // ============================================================
-// Helpers
+// Helpers (round-trip)
 // ============================================================
 
 export const emptyPaketBuilderValue: PaketBuilderValue = {
-  description: '',
   fixedItems: [],
   choices: [],
 }
 
-function deriveKey(label: string, index: number): string {
-  const slug = label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-  return slug || `slot${index + 1}`
-}
-
 /**
- * Bangun final paket subOptions dengan key yang dedupe.
- * Backend butuh tiap choice.key unik untuk lookup subOptionsSelected.
+ * Bangun payload FK final (fixed dulu, lalu choices) dengan displayOrder.
+ *
+ * Backend `paketComponentSchema.label` wajib non-empty untuk SEMUA komponen,
+ * termasuk fixed. Fixed item label di-derive dari nama menu target via
+ * `menuNameById` (fallback "Item" kalau tak ketemu).
  */
-export function buildPaketFromState(state: PaketBuilderValue): PaketSubOptions {
-  const used = new Set<string>()
-  const choices: PaketChoice[] = state.choices.map((c, i) => {
-    const base = deriveKey(c.label, i)
-    let key = base
-    let suffix = 1
-    while (used.has(key)) {
-      suffix += 1
-      key = `${base}${suffix}`
-    }
-    used.add(key)
-    return {
-      key,
-      label: c.label.trim(),
-      options: c.options
-        .map((o) => ({
-          label: o.label.trim(),
-          stockTarget: o.stockTarget?.trim() || null,
-        }))
-        .filter((o) => o.label.length > 0),
-    }
-  })
+export function buildPaketComponentsPayload(
+  state: PaketBuilderValue,
+  menuNameById: Map<number, string> = new Map(),
+): PaketComponentUpsertPayload[] {
+  const components: PaketComponentUpsertPayload[] = []
+  let order = 0
 
-  return {
-    description: state.description?.trim() || undefined,
-    fixedItems: state.fixedItems.filter((s) => s.trim().length > 0),
-    choices,
+  for (const f of state.fixedItems) {
+    if (f.targetMenuId === null) continue
+    // Backend wajib label non-empty utk fixed juga. Derive dari nama menu target,
+    // trim, dan fallback "Item" kalau kosong/whitespace/tak ketemu.
+    const derivedName = (menuNameById.get(f.targetMenuId) ?? '').trim()
+    components.push({
+      kind: 'fixed',
+      label: derivedName || 'Item',
+      qty: f.qty > 0 ? f.qty : 1,
+      displayOrder: order++,
+      targetMenuId: f.targetMenuId,
+      targetVariantId: null,
+      choiceOptions: [],
+    })
   }
+
+  for (const c of state.choices) {
+    const choiceOptions: PaketChoiceOptionUpsertPayload[] = c.options
+      .filter((o) => o.label.trim())
+      .map((o) => ({
+        label: o.label.trim(),
+        targetMenuId: o.targetMenuId,
+        targetVariantId: null,
+        upcharge: o.upcharge > 0 ? o.upcharge : 0,
+      }))
+    components.push({
+      kind: 'choice',
+      label: c.label.trim(),
+      qty: 1,
+      displayOrder: order++,
+      targetMenuId: null,
+      targetVariantId: null,
+      choiceOptions,
+    })
+  }
+
+  return components
 }
 
-/** Konversi backend shape -> state internal (untuk edit mode). */
-export function paketToBuilderState(paket: PaketSubOptions): PaketBuilderValue {
-  return {
-    description: paket.description ?? '',
-    fixedItems: [...(paket.fixedItems ?? [])],
-    choices: (paket.choices ?? []).map((c) => ({
-      key: c.key,
+/** Konversi Menu detail (paketComponents) -> editor state (edit mode). */
+export function menuToPaketBuilderState(menu: Menu): PaketBuilderValue {
+  const comps = (menu.paketComponents ?? [])
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+
+  const fixedItems: PaketFixedState[] = comps
+    .filter((c) => c.kind === 'fixed')
+    .map((c) => ({ targetMenuId: c.targetMenuId, qty: c.qty > 0 ? c.qty : 1 }))
+
+  const choices: PaketChoiceState[] = comps
+    .filter((c) => c.kind === 'choice')
+    .map((c) => ({
       label: c.label,
-      options: c.options.map((o) => ({ label: o.label, stockTarget: o.stockTarget })),
-    })),
-  }
+      options: c.choiceOptions.map((o) => ({
+        label: o.label,
+        targetMenuId: o.targetMenuId,
+        upcharge: o.upcharge,
+      })),
+    }))
+
+  return { fixedItems, choices }
 }
 
 // ============================================================
@@ -102,35 +150,22 @@ function FixedItemsSection({
   items,
   onChange,
   menuOptions,
-  excludeMenuName,
 }: {
-  items: string[]
-  onChange: (next: string[]) => void
+  items: PaketFixedState[]
+  onChange: (next: PaketFixedState[]) => void
   menuOptions: ComboboxOption[]
-  excludeMenuName?: string
 }) {
-  const [draft, setDraft] = useState('')
+  const updateAt = (idx: number, patch: Partial<PaketFixedState>) => {
+    onChange(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
 
-  const addItem = (menuName: string) => {
-    if (!menuName || items.includes(menuName)) {
-      setDraft('')
-      return
-    }
-    onChange([...items, menuName])
-    setDraft('')
+  const addItem = () => {
+    onChange([...items, { targetMenuId: null, qty: 1 }])
   }
 
   const removeAt = (idx: number) => {
     onChange(items.filter((_, i) => i !== idx))
   }
-
-  const filteredOptions = useMemo(
-    () =>
-      menuOptions.filter(
-        (o) => o.value !== excludeMenuName && !items.includes(o.value),
-      ),
-    [menuOptions, excludeMenuName, items],
-  )
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -144,39 +179,57 @@ function FixedItemsSection({
       </div>
 
       {items.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-col gap-2">
           {items.map((item, idx) => (
             <li
-              key={`${item}-${idx}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white border border-neutral-300 pl-3 pr-1 py-1"
+              key={idx}
+              className="flex items-end gap-2 rounded-md border border-neutral-200 bg-white p-2.5"
             >
-              <span className="text-body-sm text-neutral-900">{item}</span>
+              <Combobox
+                label="Menu"
+                value={item.targetMenuId !== null ? String(item.targetMenuId) : ''}
+                onValueChange={(v) =>
+                  updateAt(idx, { targetMenuId: v ? Number(v) : null })
+                }
+                options={menuOptions}
+                placeholder="Pilih menu..."
+                searchPlaceholder="Cari menu..."
+                emptyText="Tidak ada menu"
+                containerClassName="flex-1 min-w-0"
+              />
+              <Input
+                label="Qty"
+                type="number"
+                inputMode="numeric"
+                value={item.qty || ''}
+                onChange={(e) => updateAt(idx, { qty: Number(e.target.value) || 0 })}
+                min={1}
+                placeholder="1"
+                containerClassName="w-20 shrink-0"
+              />
               <button
                 type="button"
                 onClick={() => removeAt(idx)}
-                className="rounded-full p-1 hover:bg-danger-50 text-danger-700"
-                aria-label={`Hapus ${item}`}
+                className="rounded-md p-2.5 text-danger-600 hover:bg-danger-50 shrink-0"
+                aria-label={`Hapus item tetap ${idx + 1}`}
               >
-                <X className="h-3.5 w-3.5" aria-hidden />
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      <Combobox
-        label="Tambah menu"
-        hideLabel
-        value={draft}
-        onValueChange={(v) => {
-          setDraft(v)
-          addItem(v)
-        }}
-        options={filteredOptions}
-        placeholder="+ Tambah menu ke paket"
-        searchPlaceholder="Cari menu..."
-        emptyText="Semua menu sudah ditambah"
-      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={addItem}
+        leftIcon={<Plus className="h-4 w-4" aria-hidden />}
+        className="self-start"
+      >
+        Tambah item tetap
+      </Button>
     </section>
   )
 }
@@ -189,16 +242,16 @@ function ChoiceSlotEditor({
   choice,
   onChange,
   onRemove,
-  excludeMenuName,
+  menuOptions,
   slotIndex,
 }: {
-  choice: PaketChoice
-  onChange: (next: PaketChoice) => void
+  choice: PaketChoiceState
+  onChange: (next: PaketChoiceState) => void
   onRemove: () => void
-  excludeMenuName?: string
+  menuOptions: ComboboxOption[]
   slotIndex: number
 }) {
-  const updateOption = (idx: number, patch: Partial<PaketChoiceOption>) => {
+  const updateOption = (idx: number, patch: Partial<PaketChoiceOptionState>) => {
     const next = choice.options.map((o, i) => (i === idx ? { ...o, ...patch } : o))
     onChange({ ...choice, options: next })
   }
@@ -206,7 +259,7 @@ function ChoiceSlotEditor({
   const addOption = () => {
     onChange({
       ...choice,
-      options: [...choice.options, { label: '', stockTarget: null }],
+      options: [...choice.options, { label: '', targetMenuId: null, upcharge: 0 }],
     })
   }
 
@@ -225,7 +278,7 @@ function ChoiceSlotEditor({
           hideLabel
           value={choice.label}
           onChange={(e) => onChange({ ...choice, label: e.target.value })}
-          placeholder="Nama pilihan (mis. Pilih Ayam)"
+          placeholder="Nama pilihan (mis. Pilih Minuman)"
           containerClassName="flex-1"
         />
         <button
@@ -239,39 +292,61 @@ function ChoiceSlotEditor({
       </div>
 
       {choice.options.length > 0 && (
-        <ul className="flex flex-col gap-2 sm:gap-1.5">
+        <ul className="flex flex-col gap-2">
           {choice.options.map((opt, idx) => (
             <li
               key={idx}
-              className="flex flex-col gap-1.5 rounded-md bg-neutral-50 p-2 sm:bg-transparent sm:p-0 sm:grid sm:grid-cols-[1fr_1fr_auto] sm:gap-2 sm:items-center"
+              className="flex flex-col gap-2 rounded-md bg-neutral-50 p-2"
             >
-              <div className="flex items-center gap-2 sm:contents">
+              <div className="flex items-center gap-2">
                 <Input
                   label="Tulisan untuk customer"
                   hideLabel
                   value={opt.label}
                   onChange={(e) => updateOption(idx, { label: e.target.value })}
-                  placeholder="Tulisan customer (mis. Paha Bakar)"
+                  placeholder="Tulisan customer (mis. Teh Manis)"
                   containerClassName="flex-1 min-w-0"
                 />
                 <button
                   type="button"
                   onClick={() => removeOption(idx)}
-                  className="rounded-md p-2 text-danger-600 hover:bg-danger-50 shrink-0 sm:order-last"
+                  className="rounded-md p-2 text-danger-600 hover:bg-danger-50 shrink-0"
                   aria-label={`Hapus opsi ${idx + 1}`}
                 >
                   <X className="h-4 w-4" aria-hidden />
                 </button>
               </div>
-              <MenuTargetCombobox
-                value={opt.stockTarget ?? ''}
-                onChange={(name) => updateOption(idx, { stockTarget: name || null })}
-                label="Kurangi stok"
-                hideLabel
-                placeholder="Kurangi stok... (kosong = info aja)"
-                excludeNames={excludeMenuName ? [excludeMenuName] : []}
-                containerClassName="min-w-0"
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Combobox
+                  label="Kurangi stok"
+                  hideLabel
+                  value={
+                    opt.targetMenuId !== null ? String(opt.targetMenuId) : ''
+                  }
+                  onValueChange={(v) =>
+                    updateOption(idx, { targetMenuId: v ? Number(v) : null })
+                  }
+                  options={menuOptions}
+                  placeholder="Kurangi stok... (kosong = info aja)"
+                  searchPlaceholder="Cari menu..."
+                  emptyText="Tidak ada menu"
+                  containerClassName="min-w-0"
+                />
+                <Input
+                  label="Tambahan harga"
+                  hideLabel
+                  type="number"
+                  inputMode="numeric"
+                  value={opt.upcharge || ''}
+                  onChange={(e) =>
+                    updateOption(idx, { upcharge: Number(e.target.value) || 0 })
+                  }
+                  min={0}
+                  step={1000}
+                  placeholder="Tambahan harga (0)"
+                  containerClassName="min-w-0"
+                />
+              </div>
             </li>
           ))}
         </ul>
@@ -296,24 +371,23 @@ function ChoiceSlotEditor({
 // ============================================================
 
 export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderProps) {
+  // Semua menu (incl. hidden SKU) sebagai pilihan target paket — owner perlu
+  // bisa arahkan ke nonStock (Nasi Putih) maupun SKU stok granular.
   const { data: menus = [] } = useQuery({
-    queryKey: ['menus', 'admin', false],
-    queryFn: () => menuService.list({ activeOnly: true }),
+    queryKey: ['menus', 'paket-targets'],
+    queryFn: () => menuService.list({ activeOnly: false, includeHidden: true }),
     staleTime: 30_000,
   })
 
-  // Semua menu aktif sebagai opsi fixed item (termasuk nonStock seperti Nasi Putih).
-  const allMenuOptions = useMemo<ComboboxOption[]>(
+  const menuOptions = useMemo<ComboboxOption[]>(
     () =>
-      menus.map((m) => ({
-        value: m.name,
-        label: m.name,
-        helper: m.category,
-      })),
-    [menus],
+      menus
+        .filter((m) => m.name !== excludeMenuName)
+        .map((m) => ({ value: String(m.id), label: m.name, helper: m.category })),
+    [menus, excludeMenuName],
   )
 
-  const updateChoice = (idx: number, next: PaketChoice) => {
+  const updateChoice = (idx: number, next: PaketChoiceState) => {
     onChange({
       ...value,
       choices: value.choices.map((c, i) => (i === idx ? next : c)),
@@ -323,7 +397,7 @@ export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderP
   const addChoice = () => {
     onChange({
       ...value,
-      choices: [...value.choices, { key: '', label: '', options: [] }],
+      choices: [...value.choices, { label: '', options: [] }],
     })
   }
 
@@ -336,18 +410,10 @@ export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderP
 
   return (
     <div className="flex flex-col gap-4 rounded-lg bg-neutral-50 border border-neutral-200 p-4">
-      <Input
-        label="Catatan paket (opsional)"
-        value={value.description ?? ''}
-        onChange={(e) => onChange({ ...value, description: e.target.value })}
-        placeholder="Mis. Ayam + Nasi + Sayur + Minuman"
-      />
-
       <FixedItemsSection
         items={value.fixedItems}
         onChange={(next) => onChange({ ...value, fixedItems: next })}
-        menuOptions={allMenuOptions}
-        excludeMenuName={excludeMenuName}
+        menuOptions={menuOptions}
       />
 
       <section className="flex flex-col gap-2.5">
@@ -366,7 +432,7 @@ export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderP
             choice={c}
             onChange={(next) => updateChoice(idx, next)}
             onRemove={() => removeChoice(idx)}
-            excludeMenuName={excludeMenuName}
+            menuOptions={menuOptions}
             slotIndex={idx}
           />
         ))}

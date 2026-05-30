@@ -133,6 +133,13 @@ export const listQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((v) => v !== 'false'),
+  // REV 2.10: owner/admin mode. includeHidden=true → kembalikan SEMUA menu (termasuk
+  // posVisible=false, mis. SKU stok granular "Paha Ayam Bakar"). Default (POS/public)
+  // hanya tampilkan posVisible=true. Catatan: posVisible filter terpisah dari activeOnly.
+  includeHidden: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
   category: z.string().trim().min(1).optional(),
   includeStock: z
     .enum(['true', 'false'])
@@ -150,3 +157,93 @@ export const listQuerySchema = z.object({
 export type CreateMenuInput = z.infer<typeof createMenuSchema>;
 export type UpdateMenuInput = z.infer<typeof updateMenuSchema>;
 export type ListMenuQuery = z.infer<typeof listQuerySchema>;
+
+// ============================================================
+// REV 2.10 — Builder payloads (variant / paket catalog layer)
+// ============================================================
+//
+// Menu kind=variant: punya MenuOptionGroup[] (axis varian + free-preference) +
+//   MenuVariant[] (kombinasi sellable per harga eksak + stock target opsional).
+// Menu kind=paket : punya PaketComponent[] (fixed item / choice slot).
+//
+// optionLabels di variantSchema = map { groupName -> optionLabel } yang merujuk
+// HANYA grup affectsVariant=true. Grup free-preference (mis. Suhu) tidak membentuk
+// varian, jadi tidak ikut di optionLabels.
+
+export const optionSchema = z.object({
+  label: z.string().trim().min(1),
+  displayOrder: z.number().int().default(0),
+});
+
+export const optionGroupSchema = z.object({
+  name: z.string().trim().min(1),
+  affectsVariant: z.boolean().default(true),
+  displayOrder: z.number().int().default(0),
+  options: z.array(optionSchema).min(1),
+});
+
+export const variantSchema = z.object({
+  // optionLabels: map of group NAME -> chosen option LABEL for the variant-defining groups
+  optionLabels: z.record(z.string(), z.string()).default({}),
+  label: z.string().trim().min(1),
+  price: z.number().nonnegative(),
+  stockTargetMenuId: z.number().int().positive().nullable().default(null),
+  isActive: z.boolean().default(true),
+  displayOrder: z.number().int().default(0),
+});
+
+export const paketComponentSchema = z.object({
+  kind: z.enum(['fixed', 'choice']),
+  label: z.string().trim().min(1),
+  qty: z.number().int().min(1).default(1),
+  displayOrder: z.number().int().default(0),
+  targetMenuId: z.number().int().positive().nullable().default(null),
+  targetVariantId: z.number().int().positive().nullable().default(null),
+  choiceOptions: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1),
+        targetMenuId: z.number().int().positive().nullable().default(null),
+        targetVariantId: z.number().int().positive().nullable().default(null),
+        upcharge: z.number().nonnegative().default(0),
+      }),
+    )
+    .default([]),
+});
+
+export const menuUpsertSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    category: z.string().trim().min(1),
+    price: z.number().nonnegative(),
+    imageUrl: z.string().nullable().optional(),
+    kind: z.enum(['simple', 'variant', 'paket']).default('simple'),
+    posVisible: z.boolean().default(true),
+    stockType: z.enum(['portion', 'linked', 'nonStock']).default('nonStock'),
+    minStock: z.number().int().nullable().optional(),
+    optionGroups: z.array(optionGroupSchema).default([]),
+    variants: z.array(variantSchema).default([]),
+    paketComponents: z.array(paketComponentSchema).default([]),
+  })
+  .superRefine((data, ctx) => {
+    if (data.kind === 'variant' && data.variants.length === 0)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants'],
+        message: 'Menu varian wajib punya minimal 1 varian',
+      });
+    if (data.kind === 'paket' && data.paketComponents.length === 0)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['paketComponents'],
+        message: 'Paket wajib punya minimal 1 komponen',
+      });
+    if (data.kind !== 'variant' && data.variants.length > 0)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants'],
+        message: 'Hanya menu kind=variant boleh punya varian',
+      });
+  });
+
+export type MenuUpsertInput = z.infer<typeof menuUpsertSchema>;

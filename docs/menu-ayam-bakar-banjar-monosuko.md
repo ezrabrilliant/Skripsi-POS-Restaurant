@@ -19,12 +19,12 @@
 | Dada Ayam Goreng | 30.000 |
 | Kepala Ayam (per biji) | 2.500 |
 
-## Seafood
+## Seafood & Lainnya
 | Menu | Harga (Rp) |
 |------|------------|
 | Udang Windu Bakar (isi 7) | 150.000 |
 | Udang Windu Goreng (isi 7) | 150.000 |
-| Udang Promo (isi 5) | 30.000 |
+| Udang Promo (isi 5) (udang biasa) | 30.000 |
 | Gurame Bakar | 100.000 |
 | Gurame Goreng | 100.000 |
 | Ati Ayam (per tusuk) | 5.000 |
@@ -39,6 +39,7 @@
 | Garang Asem Ayam | 30.000 |
 | Garang Asem Daging | 30.000 |
 | Rawon Daging | 30.000 |
+| Semur Ayam | 30.000 |
 | Semur Daging | 30.000 |
 | Gulai Daging | 30.000 |
 | Gulai Babat | 30.000 |
@@ -81,11 +82,11 @@
 ## Paket Hemat
 | Menu | Harga (Rp) | Isi |
 |------|------------|-----|
-| Paket Keluarga (3–4 org) | 150.000 | 1 Ekor Ayam Bakar/Goreng + 4 Nasi + 4 Teh Tawar |
-| Paket A (1 org) | 50.000 | Paha/Dada Ayam + Tahu Tempe + Sayur Asem + Nasi + Minuman (Teh/Air) |
+| Paket Keluarga (3–4 org) | 150.000 | 1 Ekor Ayam Bakar/Goreng + 4 Nasi + 4 Minuman |
+| Paket A (1 org) | 50.000 | Paha/Dada Ayam + Tahu Tempe + Sayur Asem + Nasi + Minuman |
 | Paket B (1 org) | 40.000 | Paha/Dada Ayam + Tahu Tempe + Nasi |
 | Paket C (1 org) | 40.000 | Pilihan Rawon/Gulai/Garang Asem/Bakwan/Semur + Nasi + Minuman |
-| Paket D (1 org) | 40.000 | Empal Penyet + Nasi + Minuman |
+| Paket D (1 org) | 38.000 | Empal Penyet + Nasi + Minuman |
 
 ---
 
@@ -96,11 +97,3 @@
 `Paha Ayam Bakar` dan `Paha Ayam Goreng` - supaya stok tiap variant
 tercatat sendiri-sendiri dan dapur tidak perlu konfirmasi ulang.
 
-**Foto menu.** Sumber foto JPEG di
-[`docs/gambar makanan/`](./gambar%20makanan/) dioptimasi ke WebP 600 px
-(quality 75) ke [`frontend/public/menu/`](../frontend/public/menu/) via
-`npm run menu:optimize-images` di folder `backend/`. Hasil rata-rata
-~20 KB per foto (dari ~100 KB sumber), totalnya ~190 KB untuk 9 foto.
-Service worker PWA otomatis cache foto setelah kunjungan pertama,
-sehingga kunjungan berikutnya tampil instan tanpa hit jaringan
-(stale-while-revalidate, cache 30 hari).

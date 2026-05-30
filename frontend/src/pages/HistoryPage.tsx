@@ -554,14 +554,48 @@ function TransactionRow({
 }
 
 /** Satu baris item di expanded detail. Dipakai untuk item milik Tx sendiri maupun
- *  item dari Tx source yang digabung (merge target). */
+ *  item dari Tx source yang digabung (merge target).
+ *
+ *  REV 2.10: tampilkan varian + selections (slot paket + free-preference). Legacy
+ *  subOptionsSelected dipertahankan sebagai fallback untuk row historis yang tidak
+ *  punya selections (pre-REV 2.10). */
 function ItemLine({ item }: { item: Transaction['items'][number] }) {
+  const selections = item.selections ?? []
+  const slotChoices = selections.filter((s) => !s.isPreference)
+  const preferences = selections.filter((s) => s.isPreference)
+  const hasSelections = selections.length > 0
+
   return (
     <li className="flex justify-between text-neutral-800 gap-2">
       <span className="min-w-0">
         {item.menuName}{' '}
         <span className="text-neutral-500 tabular-nums">× {item.qty}</span>
-        {item.subOptionsSelected && (
+        {/* REV 2.10: label varian (mis. "Paha · Bakar") */}
+        {item.variantLabel && (
+          <span className="ml-1.5 text-caption text-primary-700">{item.variantLabel}</span>
+        )}
+        {/* REV 2.10: slot paket (chosenLabel per groupOrSlotLabel) */}
+        {slotChoices.length > 0 && (
+          <span className="mt-0.5 flex flex-wrap gap-1">
+            {slotChoices.map((s, i) => (
+              <Badge key={`slot-${i}`} tone="primary" size="sm">
+                {s.groupOrSlotLabel}: {s.chosenLabel}
+              </Badge>
+            ))}
+          </span>
+        )}
+        {/* REV 2.10: free-preference (mis. "Suhu: Dingin") */}
+        {preferences.length > 0 && (
+          <span className="mt-0.5 flex flex-wrap gap-1">
+            {preferences.map((s, i) => (
+              <Badge key={`pref-${i}`} tone="neutral" size="sm">
+                {s.groupOrSlotLabel}: {s.chosenLabel}
+              </Badge>
+            ))}
+          </span>
+        )}
+        {/* LEGACY fallback: subOptionsSelected hanya kalau tidak ada selections REV 2.10. */}
+        {!hasSelections && item.subOptionsSelected && (
           <span className="ml-1.5 text-caption text-primary-700">
             ({Object.values(item.subOptionsSelected).join(', ')})
           </span>

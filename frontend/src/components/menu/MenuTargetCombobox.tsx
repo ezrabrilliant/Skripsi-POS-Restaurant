@@ -1,27 +1,35 @@
 /**
- * MenuTargetCombobox - thin wrapper Combobox yang menampilkan list menu dengan
- * stockType='portion' (calon target untuk linked/paket stockMap).
+ * MenuTargetCombobox - thin wrapper Combobox untuk memilih menu stock target.
  *
- * Value yang disimpan = NAMA menu (string), bukan id. Konsisten dengan schema
- * backend yang resolve `findFirst({ name })` di transactions.service.
+ * 2 mode pemakaian:
+ * - **Default (legacy, PaketBuilder name-JSON)**: tanpa prop `options`. Komponen
+ *   fetch sendiri list menu stockType='portion' aktif dan value = NAMA menu
+ *   (string). Konsisten dengan resolusi `findFirst({ name })` lama.
+ * - **Controlled (REV 2.10 FK)**: parent mengirim `options` eksplisit (mis.
+ *   value = id menu sebagai string, termasuk SKU tersembunyi). Komponen tidak
+ *   fetch sendiri — tinggal render options yang dikasih.
  */
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Combobox } from '@/design-system/primitives/Combobox'
+import { Combobox, type ComboboxOption } from '@/design-system/primitives/Combobox'
 import { menuService } from '@/services/menuService'
 
 interface MenuTargetComboboxProps {
   value: string
-  onChange: (name: string) => void
+  onChange: (value: string) => void
   label?: string
   hideLabel?: boolean
   placeholder?: string
   helper?: string
   error?: string
-  /** Nama menu yang harus di-exclude dari pilihan (mis. menu yang sedang di-edit). */
+  /** Nama menu yang harus di-exclude dari pilihan (mis. menu yang sedang di-edit).
+   * Hanya berlaku di mode default (self-fetch). */
   excludeNames?: string[]
   containerClassName?: string
+  /** REV 2.10: kalau diisi, komponen pakai options ini apa adanya (tidak
+   * self-fetch). Value yang disimpan mengikuti option.value (mis. id menu). */
+  options?: ComboboxOption[]
 }
 
 export function MenuTargetCombobox({
@@ -34,14 +42,18 @@ export function MenuTargetCombobox({
   error,
   excludeNames = [],
   containerClassName,
+  options: optionsProp,
 }: MenuTargetComboboxProps) {
+  const controlled = optionsProp !== undefined
+
   const { data: menus = [], isLoading } = useQuery({
     queryKey: ['menus', 'portion-targets'],
     queryFn: () => menuService.list({ activeOnly: true }),
     staleTime: 30_000,
+    enabled: !controlled,
   })
 
-  const options = useMemo(() => {
+  const selfOptions = useMemo(() => {
     const excludeSet = new Set(excludeNames)
     return menus
       .filter((m) => m.stockType === 'portion' && !excludeSet.has(m.name))
@@ -52,13 +64,15 @@ export function MenuTargetCombobox({
       }))
   }, [menus, excludeNames])
 
+  const options = controlled ? optionsProp! : selfOptions
+
   return (
     <Combobox
       label={label}
       hideLabel={hideLabel}
-      placeholder={isLoading ? 'Memuat...' : placeholder}
+      placeholder={!controlled && isLoading ? 'Memuat...' : placeholder}
       searchPlaceholder="Cari nama menu..."
-      emptyText="Tidak ada menu porsi aktif"
+      emptyText="Tidak ada menu porsi"
       options={options}
       value={value}
       onValueChange={onChange}

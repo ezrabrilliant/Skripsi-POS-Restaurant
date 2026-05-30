@@ -13,8 +13,9 @@
 //      transaksi terbuka). Footer: "Simpan" + "Bayar" (owner+kasir) atau cuma
 //      "Submit Pesanan" (waiter).
 //
-// Quick suhu toggle [Dingin]/[Panas] di CartItemRow untuk menu yang ambigu
-// (teh, jeruk, kopi, susu kedelai) - klik mengubah CartItem.notes.
+// REV 2.10: drop hardcoded AMBIGUOUS_TEMP_MENUS Panas/Dingin quick-toggle - suhu
+// sekarang dari free-preference group menu varian (via VariantPickerModal).
+// CartItemRow display variantLabel + preferences chips (mis. "Suhu: Dingin") + notes.
 // Touch target: qty ± pakai IconButton size=sm (44×44).
 // Grid meja REV 2.4: 5 cols mobile + desktop (2 baris untuk 9 meja), h-12 md:h-14.
 
@@ -29,22 +30,6 @@ import ActiveOrdersView from './ActiveOrdersView'
 import ActiveTakeawaysView from './ActiveTakeawaysView'
 
 const TABLE_COUNT = 9 // sesuai backend env TABLE_COUNT
-
-/// REV 2.4: menu yang naturally ambigu suhu (bisa Panas atau Dingin). Click
-/// quick toggle di CartItemRow akan set notes = "Dingin" atau "Panas".
-/// Kopi Hangat sengaja TIDAK di-include - namanya sudah menyatakan suhu.
-/// Susu Kedelai sekarang netral (was "Es Susu Kedelai" pre-REV 2.4).
-const AMBIGUOUS_TEMP_MENUS = new Set<string>([
-  'Teh Tawar Biasa',
-  'Teh Tawar Jumbo',
-  'Teh Manis Biasa',
-  'Teh Manis Jumbo',
-  'Jeruk Nipis',
-  'Jeruk Peras',
-  'Jeruk Murni',
-  'Kopi',
-  'Susu Kedelai',
-])
 
 interface Props {
   disabled?: boolean
@@ -430,66 +415,47 @@ function CartItemRow({
   onUpdateNotes: (notes: string) => void
 }) {
   const [editingNotes, setEditingNotes] = useState(false)
-  const showSuhuToggle = AMBIGUOUS_TEMP_MENUS.has(item.menuName)
-  const suhuSelected: 'Dingin' | 'Panas' | null =
-    item.notes === 'Dingin' ? 'Dingin' : item.notes === 'Panas' ? 'Panas' : null
-
-  const handleSuhuClick = (suhu: 'Dingin' | 'Panas') => {
-    // Toggle: kalau klik suhu yang sudah selected, clear notes. Kalau beda, set ke suhu itu.
-    onUpdateNotes(suhuSelected === suhu ? '' : suhu)
-  }
+  // REV 2.10: pilihan paket (legacy subOptionsSelected) + paketChoices baru, gabung jadi chips.
+  const paketChoiceChips = item.paketChoices
+    ? Object.entries(item.paketChoices).map(([slot, c]) => `${slot}: ${c.chosenLabel}`)
+    : []
 
   return (
     <div className="bg-neutral-50/80 border border-neutral-200/50 rounded-lg p-3">
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-body-sm font-medium text-neutral-900 line-clamp-2">{item.menuName}</p>
+          {/* REV 2.10: varian label */}
+          {item.variantLabel && (
+            <p className="text-caption text-primary-700 font-medium">{item.variantLabel}</p>
+          )}
           <p className="text-caption text-neutral-500 tabular-nums">
             {formatCurrency(item.price)} × {item.qty}
           </p>
-          {item.subOptionsSelected && (
+          {/* REV 2.10: chips paketChoices + free-preference + legacy subOptions */}
+          {(item.subOptionsSelected ||
+            paketChoiceChips.length > 0 ||
+            (item.preferences && item.preferences.length > 0)) && (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {Object.entries(item.subOptionsSelected).map(([k, v]) => (
-                <Badge key={k} tone="primary" variant="soft" size="sm">
-                  {v}
+              {item.subOptionsSelected &&
+                Object.entries(item.subOptionsSelected).map(([k, v]) => (
+                  <Badge key={`so-${k}`} tone="primary" variant="soft" size="sm">
+                    {v}
+                  </Badge>
+                ))}
+              {paketChoiceChips.map((chip) => (
+                <Badge key={`pc-${chip}`} tone="primary" variant="soft" size="sm">
+                  {chip}
+                </Badge>
+              ))}
+              {item.preferences?.map((p) => (
+                <Badge key={`pref-${p.groupLabel}`} tone="info" variant="soft" size="sm">
+                  {p.groupLabel}: {p.chosenLabel}
                 </Badge>
               ))}
             </div>
           )}
-          {/* REV 2.4: quick toggle Dingin/Panas untuk minuman ambigu suhu */}
-          {showSuhuToggle && (
-            <div className="mt-1.5 flex gap-1">
-              <button
-                type="button"
-                onClick={() => handleSuhuClick('Dingin')}
-                aria-pressed={suhuSelected === 'Dingin'}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-caption font-medium border transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
-                  suhuSelected === 'Dingin'
-                    ? 'bg-info-50 text-info-700 border-info-200'
-                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50',
-                )}
-              >
-                Dingin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSuhuClick('Panas')}
-                aria-pressed={suhuSelected === 'Panas'}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-caption font-medium border transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
-                  suhuSelected === 'Panas'
-                    ? 'bg-warning-100 text-warning-800 border-warning-200'
-                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50',
-                )}
-              >
-                Panas
-              </button>
-            </div>
-          )}
-          {item.notes && !editingNotes && !suhuSelected && (
+          {item.notes && !editingNotes && (
             <p className="text-caption text-neutral-600 mt-1.5 italic line-clamp-2">📝 {item.notes}</p>
           )}
           {editingNotes ? (
@@ -511,15 +477,13 @@ function CartItemRow({
               containerClassName="mt-2"
             />
           ) : (
-            !suhuSelected && (
-              <button
-                onClick={() => setEditingNotes(true)}
-                className="text-caption text-neutral-500 hover:text-neutral-800 mt-1.5 inline-flex items-center gap-1"
-              >
-                <Pencil className="w-3 h-3" />
-                {item.notes ? 'Ubah catatan' : 'Tambah catatan'}
-              </button>
-            )
+            <button
+              onClick={() => setEditingNotes(true)}
+              className="text-caption text-neutral-500 hover:text-neutral-800 mt-1.5 inline-flex items-center gap-1"
+            >
+              <Pencil className="w-3 h-3" />
+              {item.notes ? 'Ubah catatan' : 'Tambah catatan'}
+            </button>
           )}
         </div>
         <p className="text-body-sm font-semibold text-neutral-900 whitespace-nowrap tabular-nums">

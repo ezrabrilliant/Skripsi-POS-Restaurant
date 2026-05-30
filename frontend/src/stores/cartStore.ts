@@ -2,6 +2,12 @@
 // loadTransaction (per-session, tidak persist). Tambah: subOptionsSelected per CartItem,
 // orderType, tableNumber jadi nullable (null kalau takeaway).
 //
+// REV 2.10: CartItem carry variantId/variantLabel + paketChoices + preferences.
+// addItem accept richer payload (variantId/variantLabel/paketChoices/preferences/
+// unitPrice). Item dengan varian/paketChoices/preferences SELALU jadi row terpisah
+// (tidak di-merge); simple item polos tetap merge by menuId. unitPrice override
+// menu.price supaya subtotal pakai harga varian.
+//
 // CATATAN HYDRATION: Zustand persist hydrate state lama dari localStorage via
 // Object.assign - kalau key di store baru bentrok dengan persisted value lama
 // (mis. fungsi vs number), value lama akan override. Untuk hindari ini:
@@ -15,20 +21,32 @@ import { persist } from 'zustand/middleware'
 import type { CartItem, OrderType } from '@/types'
 import { generateId } from '@/lib/utils'
 
+/** REV 2.10: opsi tambahan saat addItem - varian/paket/preference + unitPrice override. */
+interface AddItemOptions {
+  variantId?: number | null
+  variantLabel?: string | null
+  paketChoices?: CartItem['paketChoices']
+  preferences?: CartItem['preferences']
+  /** Harga per unit (varian). Kalau undefined, pakai menu.price. */
+  unitPrice?: number
+  notes?: string
+  qty?: number
+}
+
+interface AddItemInput extends AddItemOptions {
+  menuId: number
+  menuName: string
+  price: number
+  subOptionsSelected?: Record<string, string> | null
+}
+
 interface CartState {
   items: CartItem[]
   orderType: OrderType
   tableNumber: number | null
 
   // Add
-  addItem: (input: {
-    menuId: number
-    menuName: string
-    price: number
-    qty?: number
-    notes?: string
-    subOptionsSelected?: Record<string, string> | null
-  }) => void
+  addItem: (input: AddItemInput) => void
 
   // Mutations per item id
   updateQty: (id: string, qty: number) => void
@@ -47,24 +65,23 @@ interface CartState {
   clearItems: () => void
 }
 
-function makeCartItem(input: {
-  menuId: number
-  menuName: string
-  price: number
-  qty?: number
-  notes?: string
-  subOptionsSelected?: Record<string, string> | null
-}): CartItem {
+function makeCartItem(input: AddItemInput): CartItem {
   const qty = input.qty ?? 1
+  // REV 2.10: unitPrice override (varian) > price (menu base).
+  const unitPrice = input.unitPrice ?? input.price
   return {
     id: generateId(),
     menuId: input.menuId,
     menuName: input.menuName,
-    price: input.price,
+    price: unitPrice,
     qty,
     notes: input.notes ?? '',
     subOptionsSelected: input.subOptionsSelected ?? null,
-    subtotal: input.price * qty,
+    variantId: input.variantId ?? null,
+    variantLabel: input.variantLabel ?? null,
+    paketChoices: input.paketChoices ?? null,
+    preferences: input.preferences ?? null,
+    subtotal: unitPrice * qty,
   }
 }
 
@@ -72,11 +89,26 @@ function recomputeSubtotal(item: CartItem, qty: number): CartItem {
   return { ...item, qty, subtotal: item.price * qty }
 }
 
-/// 2 item dianggap "sama" kalau: sama menuId + sama subOptionsSelected JSON +
-/// notes kosong di keduanya. Notes berbeda = entry terpisah supaya jelas di struk.
-function isSameAggregable(a: CartItem, b: { menuId: number; subOptionsSelected: Record<string, string> | null; notes: string }): boolean {
+/// 2 item dianggap "sama" (aggregable) HANYA kalau menu polos simple: sama menuId +
+/// notes kosong di keduanya + sama subOptionsSelected JSON + TIDAK ada varian/paket/
+/// preference di keduanya. Item dengan varian/paketChoices/preferences SELALU jadi
+/// entry terpisah supaya jelas di struk + selection-nya tidak ketukar.
+function isSameAggregable(
+  a: CartItem,
+  b: {
+    menuId: number
+    subOptionsSelected: Record<string, string> | null
+    notes: string
+    hasVariantOrPaketOrPref: boolean
+  },
+): boolean {
   if (a.menuId !== b.menuId) return false
   if ((a.notes ?? '') !== '' || (b.notes ?? '') !== '') return false
+  // REV 2.10: kalau salah satu punya varian/paket/preference → tidak aggregable.
+  if (b.hasVariantOrPaketOrPref) return false
+  if (a.variantId != null) return false
+  if (a.paketChoices && Object.keys(a.paketChoices).length > 0) return false
+  if (a.preferences && a.preferences.length > 0) return false
   return JSON.stringify(a.subOptionsSelected ?? null) === JSON.stringify(b.subOptionsSelected ?? null)
 }
 
@@ -89,11 +121,16 @@ export const useCartStore = create<CartState>()(
 
       addItem: (input) => {
         const items = get().items
+        const hasVariantOrPaketOrPref =
+          input.variantId != null ||
+          !!(input.paketChoices && Object.keys(input.paketChoices).length > 0) ||
+          !!(input.preferences && input.preferences.length > 0)
         const idx = items.findIndex((it) =>
           isSameAggregable(it, {
             menuId: input.menuId,
             subOptionsSelected: input.subOptionsSelected ?? null,
             notes: input.notes ?? '',
+            hasVariantOrPaketOrPref,
           }),
         )
         if (idx >= 0) {

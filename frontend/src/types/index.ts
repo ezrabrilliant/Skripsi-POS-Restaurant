@@ -58,6 +58,92 @@ export type PaketSubOptions = {
 
 export type SubOptions = LinkedSubOptions | PaketSubOptions | null
 
+// ============================================================
+// REV 2.10 — Menu Variants + Option Groups + Paket Components
+// ============================================================
+// Data-driven catalog layer yang menggantikan SubOptions JSON. Mirror dari
+// backend menus.service.ts (MenuOptionGroupDetail / MenuVariantDetail /
+// PaketComponentDetail) + menus.schema.ts (menuUpsertSchema) EXACT (field
+// names + number vs string + nullability). Legacy SubOptions di atas
+// dipertahankan untuk MenuPage/HistoryPage yang belum di-refactor.
+
+/** REV 2.10: jenis menu — simple (1 harga, tanpa varian), variant (banyak
+ * MenuVariant per kombinasi opsi), atau paket (kombinasi komponen tetap +
+ * slot pilihan). Mirror dari Prisma enum MenuKind. */
+export type MenuKind = 'simple' | 'variant' | 'paket'
+
+/** REV 2.10: 1 opsi di dalam OptionGroup (mis. "Paha", "Dada" untuk grup
+ * "Bagian Ayam"). Mirror MenuOptionDetail. */
+export interface Option {
+  id: number
+  label: string
+  displayOrder: number
+}
+
+/** REV 2.10: grup opsi pada menu. affectsVariant=true → opsi grup ini
+ * membentuk MenuVariant (axis varian + harga eksak). affectsVariant=false →
+ * free-preference (mis. Suhu dingin/panas) yang tidak pengaruh stok/harga.
+ * Mirror MenuOptionGroupDetail. */
+export interface OptionGroup {
+  id: number
+  name: string
+  affectsVariant: boolean
+  displayOrder: number
+  options: Option[]
+}
+
+/** REV 2.10: varian sellable dari menu kind=variant — harga eksak per
+ * kombinasi opsi. stockTargetMenuId = menu (biasanya SKU stok tersembunyi)
+ * yang di-decrement saat varian terjual; null = tidak track stok.
+ * optionIds = id MenuOption penyusun (dari grup affectsVariant=true).
+ * Mirror MenuVariantDetail. */
+export interface MenuVariant {
+  id: number
+  label: string
+  price: number
+  stockTargetMenuId: number | null
+  isActive: boolean
+  displayOrder: number
+  optionIds: number[]
+}
+
+/** REV 2.10: 1 opsi pilihan pada slot paket kind=choice. upcharge = tambahan
+ * harga kalau opsi ini dipilih. Mirror PaketChoiceOptionDetail. Nama pakai
+ * suffix Detail untuk hindari collision dengan legacy PaketChoiceOption
+ * (SubOptions JSON-based) yang masih dipakai PaketBuilder. */
+export interface PaketChoiceOptionDetail {
+  id: number
+  label: string
+  targetMenuId: number | null
+  targetVariantId: number | null
+  upcharge: number
+}
+
+/** REV 2.10: komponen paket — 'fixed' (item tetap, selalu termasuk) atau
+ * 'choice' (slot pilihan customer dengan choiceOptions). target* = menu/varian
+ * yang di-decrement (untuk fixed). Mirror PaketComponentDetail. */
+export interface PaketComponent {
+  id: number
+  kind: 'fixed' | 'choice'
+  label: string
+  qty: number
+  displayOrder: number
+  targetMenuId: number | null
+  targetVariantId: number | null
+  choiceOptions: PaketChoiceOptionDetail[]
+}
+
+/** REV 2.10: baris selection yang dipersist per TransactionItem — slot paket
+ * (isPreference=false) + free-preference (isPreference=true, mis. Suhu).
+ * Mirror TransactionItemSelection view (ResolvedItem.selections di backend). */
+export interface TransactionItemSelection {
+  groupOrSlotLabel: string
+  chosenLabel: string
+  targetMenuId: number | null
+  targetVariantId: number | null
+  isPreference: boolean
+}
+
 export interface MenuPortionStockView {
   currentQty: number
   minStock: number
@@ -72,6 +158,11 @@ export interface Menu {
   category: string
   price: number
   stockType: StockType
+  /** REV 2.10: jenis menu (simple/variant/paket). */
+  kind: MenuKind
+  /** REV 2.10: tampil di grid POS? SKU stok granular (mis. "Paha Ayam Bakar")
+   * di-set false supaya tersembunyi dari grid kasir tapi tetap jadi stock target. */
+  posVisible: boolean
   minStock: number | null
   imageUrl: string | null
   subOptions: SubOptions
@@ -81,6 +172,80 @@ export interface Menu {
   portionStock: MenuPortionStockView | null
   // Hanya ada saat list dipanggil dengan includePopularity=true (POS).
   salesCount?: number
+  /** REV 2.10: catalog layer — selalu ada di list (backend pakai menuDetailInclude)
+   * + detail. Empty array kalau menu simple tanpa option/variant/paket. */
+  optionGroups?: OptionGroup[]
+  variants?: MenuVariant[]
+  paketComponents?: PaketComponent[]
+}
+
+// ============================================================
+// REV 2.10 — Menu Upsert payload (form create/update)
+// ============================================================
+// Mirror MenuUpsertInput (menus.schema.ts menuUpsertSchema). Controller pakai
+// satu endpoint upsert: POST /menus (create) + PUT /menus/:id (update) keduanya
+// parse menuUpsertSchema penuh (replace-children strategy di service). Dipakai
+// MenuPage form di phase berikutnya.
+
+/** REV 2.10: opsi dalam OptionGroup payload (optionSchema). */
+export interface OptionUpsertPayload {
+  label: string
+  displayOrder: number
+}
+
+/** REV 2.10: grup opsi payload (optionGroupSchema). */
+export interface OptionGroupUpsertPayload {
+  name: string
+  affectsVariant: boolean
+  displayOrder: number
+  options: OptionUpsertPayload[]
+}
+
+/** REV 2.10: varian payload (variantSchema). optionLabels = map
+ * { groupName -> optionLabel } HANYA untuk grup affectsVariant=true. */
+export interface MenuVariantUpsertPayload {
+  optionLabels: Record<string, string>
+  label: string
+  price: number
+  stockTargetMenuId: number | null
+  isActive: boolean
+  displayOrder: number
+}
+
+/** REV 2.10: opsi pilihan slot paket payload (paketComponentSchema.choiceOptions). */
+export interface PaketChoiceOptionUpsertPayload {
+  label: string
+  targetMenuId: number | null
+  targetVariantId: number | null
+  upcharge: number
+}
+
+/** REV 2.10: komponen paket payload (paketComponentSchema). */
+export interface PaketComponentUpsertPayload {
+  kind: 'fixed' | 'choice'
+  label: string
+  qty: number
+  displayOrder: number
+  targetMenuId: number | null
+  targetVariantId: number | null
+  choiceOptions: PaketChoiceOptionUpsertPayload[]
+}
+
+/** REV 2.10: payload upsert menu lengkap dengan catalog layer. Mirror
+ * MenuUpsertInput. imageUrl + minStock optional/nullable. optionGroups/variants/
+ * paketComponents default [] di backend (Zod) — form boleh kirim []. */
+export interface MenuUpsertPayload {
+  name: string
+  category: string
+  price: number
+  imageUrl?: string | null
+  kind: MenuKind
+  posVisible: boolean
+  stockType: StockType
+  minStock?: number | null
+  optionGroups: OptionGroupUpsertPayload[]
+  variants: MenuVariantUpsertPayload[]
+  paketComponents: PaketComponentUpsertPayload[]
 }
 
 // ============================================================
@@ -131,6 +296,15 @@ export interface TransactionItem {
    * customer ke dapur (mis. "kurang manis", "pedas level 2", "Panas"/"Dingin"
    * untuk teh & jeruk yang ambigu suhu). */
   notes: string | null
+  /** REV 2.10: varian terjual untuk menu kind=variant (null untuk simple/paket).
+   * Optional: backend view mapper (toTransactionView) belum emit field ini —
+   * akan ditambah di phase berikutnya bersama variantLabel + selections. */
+  variantId?: number | null
+  /** REV 2.10: label varian untuk display (kalau backend mengirimkannya). */
+  variantLabel?: string | null
+  /** REV 2.10: baris selection (slot paket + free-preference) — optional sampai
+   * backend view mapper mengembalikannya. */
+  selections?: TransactionItemSelection[]
   createdAt: string
 }
 
@@ -173,10 +347,26 @@ export interface CartItem {
   id: string
   menuId: number
   menuName: string
+  /** Harga per unit yang dipakai cart/subtotal. Untuk menu varian = harga varian
+   * terpilih (bukan menu.price); simple/paket = menu.price. */
   price: number
   qty: number
   notes: string
+  /** LEGACY (pre-REV 2.10): pilihan paket berbasis nama (SubOptionsModal). */
   subOptionsSelected: Record<string, string> | null
+  /** REV 2.10: varian terpilih (menu kind=variant). null untuk simple/paket. */
+  variantId?: number | null
+  /** REV 2.10: label varian untuk display di cart row (mis. "Paha · Bakar"). */
+  variantLabel?: string | null
+  /** REV 2.10: pilihan per slot paket kind=choice. Key = slot label
+   * (PaketComponent.label). Mirror OrderItemInput.paketChoices. */
+  paketChoices?: Record<
+    string,
+    { targetMenuId: number; variantId?: number | null; chosenLabel: string }
+  > | null
+  /** REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu). Tidak
+   * pengaruh harga/stok — cuma display + dipersist sebagai TransactionItemSelection. */
+  preferences?: { groupLabel: string; chosenLabel: string }[] | null
   subtotal: number
 }
 

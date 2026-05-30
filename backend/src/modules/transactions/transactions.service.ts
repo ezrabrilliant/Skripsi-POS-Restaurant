@@ -41,9 +41,10 @@ import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
 import {
-  linkedSubOptionsSchema,
-  paketSubOptionsSchema,
-} from '../menus/menus.schema';
+  resolveStockTargets,
+  type MenuNode,
+  type StockDeduction,
+} from '../menus/variant-resolver';
 import type {
   CreateTransactionInput,
   AddItemsInput,
@@ -58,6 +59,17 @@ import type {
 // View shape (mapper)
 // ============================================================
 
+/// REV 2.10: baris selection yang dipersist per TransactionItem — slot paket
+/// (isPreference=false) + free-preference (isPreference=true, mis. Suhu). Mirror
+/// frontend TransactionItemSelection (types/index.ts).
+export interface TransactionItemSelectionView {
+  groupOrSlotLabel: string;
+  chosenLabel: string;
+  targetMenuId: number | null;
+  targetVariantId: number | null;
+  isPreference: boolean;
+}
+
 export interface TransactionItemView {
   id: number;
   menuId: number;
@@ -69,6 +81,12 @@ export interface TransactionItemView {
   /// REV 2.4: catatan per item dari waiter/kasir saat input. Mis. "kurang manis"
   /// atau "Panas"/"Dingin" untuk minuman ambigu suhu.
   notes: string | null;
+  /// REV 2.10: varian terjual untuk menu kind=variant (null untuk simple/paket).
+  variantId: number | null;
+  /// REV 2.10: label varian untuk display (null kalau bukan item varian).
+  variantLabel: string | null;
+  /// REV 2.10: pilihan slot paket + free-preference yang dipersist.
+  selections: TransactionItemSelectionView[];
   createdAt: string;
 }
 
@@ -117,7 +135,14 @@ type TransactionWithRelations = Prisma.TransactionGetPayload<{
   include: {
     createdBy: true;
     shift: { include: { cashier: { select: { name: true } } } };
-    items: { include: { menu: { select: { name: true } } } };
+    items: {
+      include: {
+        menu: { select: { name: true } };
+        // REV 2.10: bawa varian + selections supaya view bisa display variant/paket.
+        variant: { select: { id: true; label: true } };
+        selections: true;
+      };
+    };
     payments: { include: { recordedBy: { select: { name: true } } } };
   };
 }>;
@@ -149,6 +174,16 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
       subtotal: it.subtotal.toNumber(),
       subOptionsSelected: it.subOptionsSelected,
       notes: it.notes,
+      // REV 2.10: varian + label + selections untuk display di HistoryPage.
+      variantId: it.variantId ?? null,
+      variantLabel: it.variant?.label ?? null,
+      selections: it.selections.map((s) => ({
+        groupOrSlotLabel: s.groupOrSlotLabel,
+        chosenLabel: s.chosenLabel,
+        targetMenuId: s.targetMenuId,
+        targetVariantId: s.targetVariantId,
+        isPreference: s.isPreference,
+      })),
       createdAt: it.createdAt.toISOString(),
     })),
     payments: t.payments.map((p) => ({
@@ -166,7 +201,15 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
 const transactionInclude = {
   createdBy: true,
   shift: { include: { cashier: { select: { name: true } } } },
-  items: { include: { menu: { select: { name: true } } } },
+  items: {
+    // REV 2.10: variant + selections agar toTransactionView bisa emit variant/paket
+    // info. Satu sumber include shared oleh getById + list + listByTable.
+    include: {
+      menu: { select: { name: true } },
+      variant: { select: { id: true, label: true } },
+      selections: true,
+    },
+  },
   payments: {
     include: { recordedBy: { select: { name: true } } },
     orderBy: { recordedAt: 'asc' },
@@ -174,54 +217,199 @@ const transactionInclude = {
 } satisfies Prisma.TransactionInclude;
 
 // ============================================================
-// Stock resolution
+// Stock resolution (REV 2.10 — FK-based via MenuNode graph)
 // ============================================================
+//
+// REV 2.10: resolusi stok berbasis FK (MenuVariant.stockTargetMenuId + PaketComponent
+// target FK) menggantikan resolusi berbasis NAMA (subOptions JSON). Graph MenuNode
+// dibangun sekali per request dari catalog (kecil, ~60-90 baris) lalu dipakai oleh
+// pure resolver `resolveStockTargets` (unit-tested di variant-resolver.test.ts).
+//
+// `linkedSubOptionsSchema` / `paketSubOptionsSchema` tidak lagi dipakai untuk order
+// baru — backfill REV 2.10 sudah memindah pilihan ke relasi MenuVariant/PaketComponent.
 
 interface ResolvedItem {
   input: OrderItemInput;
-  menu: { id: number; name: string; price: Prisma.Decimal; stockType: StockType };
-  /// Menu IDs yang harus di-decrement (bisa lebih dari 1 untuk paket dengan
-  /// fixedItems + chosen options). Array kosong = tidak ada decrement.
-  stockTargetMenuIds: number[];
+  menu: { id: number; name: string; price: Prisma.Decimal };
+  /// Harga jual efektif: harga varian kalau variantId di-set, else harga menu.
+  unitPrice: Prisma.Decimal;
+  /// Varian yang dipersist di TransactionItem.variantId (null untuk simple/paket).
+  variantId: number | null;
+  /// Stok yang harus di-decrement. qty = per 1 unit menu (paket fixed bisa >1).
+  /// Decrement aktual = deduction.qty * item.qty.
+  deductions: StockDeduction[];
+  /// Baris TransactionItemSelection yang dipersist (slot paket + free-preference).
+  selections: {
+    groupOrSlotLabel: string;
+    chosenLabel: string;
+    targetMenuId: number | null;
+    targetVariantId: number | null;
+    isPreference: boolean;
+  }[];
 }
 
-/// Resolve nama menu target → ID menu portion. Throw kalau tidak ketemu atau
-/// stockType tidak valid. Linked di-resolve rekursif satu hop ke target final.
-async function resolveTargetNameToPortionId(
-  targetName: string,
-  context: string,
-): Promise<number | null> {
-  const target = await prisma.menu.findFirst({ where: { name: targetName } });
-  if (!target) {
-    throw new AppError(`Stock target "${targetName}" (${context}) tidak ditemukan`, 500);
+/// Bentuk MenuNode graph dari seluruh katalog (di dalam $transaction via `tx`).
+/// Dipakai resolveStockTargets untuk resolusi FK-based. Variant target di paket
+/// (targetVariantId) dipetakan ke owning menuId supaya `targetOf` resolver bekerja.
+async function buildMenuGraph(
+  tx: Prisma.TransactionClient,
+): Promise<Record<number, MenuNode>> {
+  const menus = await tx.menu.findMany({
+    select: {
+      id: true,
+      kind: true,
+      stockType: true,
+      variants: { select: { id: true, stockTargetMenuId: true } },
+      paketComponents: {
+        select: {
+          kind: true,
+          label: true,
+          qty: true,
+          targetMenuId: true,
+          targetVariantId: true,
+          choiceOptions: {
+            select: { label: true, targetMenuId: true, targetVariantId: true },
+          },
+        },
+      },
+    },
+  });
+
+  // variantId -> owning menuId (untuk resolusi target varian di paket).
+  const variantOwner = new Map<number, number>();
+  for (const m of menus) {
+    for (const v of m.variants) variantOwner.set(v.id, m.id);
   }
-  if (target.stockType === StockType.portion) {
-    return target.id;
-  }
-  if (target.stockType === StockType.linked) {
-    const linkedParsed = linkedSubOptionsSchema.safeParse(target.subOptions);
-    if (!linkedParsed.success) {
-      throw new AppError(
-        `Linked target "${target.name}" subOptions tidak valid (butuh {stockTarget})`,
-        500,
-      );
+  // Kalau target hanya menyebut variantId, isi targetMenuId dari owning menu-nya
+  // supaya targetOf(graph, targetMenuId, targetVariantId) menemukan node varian.
+  const resolveTarget = (targetMenuId: number | null, targetVariantId: number | null) => ({
+    targetMenuId: targetMenuId ?? (targetVariantId != null ? variantOwner.get(targetVariantId) ?? null : null),
+    targetVariantId,
+  });
+
+  const graph: Record<number, MenuNode> = {};
+  for (const m of menus) {
+    const node: MenuNode = {
+      id: m.id,
+      kind: m.kind as MenuNode['kind'],
+      stockType:
+        m.stockType === StockType.portion
+          ? 'portion'
+          : m.stockType === StockType.linked
+            ? 'linked'
+            : 'nonStock',
+    };
+    if (m.variants.length > 0) {
+      node.variants = {};
+      for (const v of m.variants) {
+        node.variants[v.id] = { id: v.id, stockTargetMenuId: v.stockTargetMenuId };
+      }
     }
-    return resolveTargetNameToPortionId(
-      linkedParsed.data.stockTarget,
-      `${context} → linked dari "${target.name}"`,
-    );
+    if (m.kind === 'paket') {
+      node.paket = {
+        fixed: m.paketComponents
+          .filter((c) => c.kind === 'fixed')
+          .map((c) => ({ qty: c.qty, ...resolveTarget(c.targetMenuId, c.targetVariantId) })),
+        choices: m.paketComponents
+          .filter((c) => c.kind === 'choice')
+          .map((c) => ({
+            label: c.label,
+            options: c.choiceOptions.map((co) => resolveTarget(co.targetMenuId, co.targetVariantId)),
+          })),
+      };
+    }
+    graph[m.id] = node;
   }
-  // nonStock target = skip decrement (mis. Nasi Putih sebagai fixed item di paket)
-  return null;
+  return graph;
 }
 
-/// Validasi item + resolve stok target untuk setiap item.
-/// Lakukan SEBELUM transaction DB supaya error muncul cepat tanpa rollback besar.
-async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
+/// REV 2.10 P3: validasi pilihan slot paket SEBELUM resolveStockTargets.
+/// `resolveStockTargets` adalah pure no-throw resolver yang MEMPERCAYAI input —
+/// tanpa guard ini, paketChoices yang ngawur (slot hilang, slot tak dikenal,
+/// opsi bukan anggota slot) bisa men-decrement stok sembarang menu. Guard ini
+/// memakai daftar opsi yang diizinkan per slot dari graph (node.paket.choices[].options,
+/// yaitu {targetMenuId, targetVariantId} dari PaketChoiceOption).
+///
+/// Aturan match (allowed option = {targetMenuId, targetVariantId}):
+///   - option.targetVariantId != null → match iff picked.variantId === option.targetVariantId.
+///   - else option.targetMenuId != null → picked.targetMenuId harus === option.targetMenuId, DAN
+///       - target menu kind=variant: picked.variantId harus varian nyata menu itu;
+///       - selain itu (simple/paket, mis. Air Mineral): picked.variantId harus null/undefined.
+function validatePaketChoices(
+  graph: Record<number, MenuNode>,
+  node: MenuNode,
+  item: OrderItemInput,
+): void {
+  if (node.kind !== 'paket' || !node.paket) return;
+  const choices = node.paket.choices;
+  const picks = item.paketChoices ?? {};
+
+  // 1. Slot wajib: setiap slot choice paket harus punya entri matching by label.
+  for (const slot of choices) {
+    if (!Object.prototype.hasOwnProperty.call(picks, slot.label)) {
+      throw new AppError(`Pilihan "${slot.label}" wajib diisi`, 400);
+    }
+  }
+
+  // 2. Slot tak dikenal: setiap key di paketChoices harus punya slot dengan label itu.
+  const slotByLabel = new Map(choices.map((c) => [c.label, c]));
+  for (const key of Object.keys(picks)) {
+    if (!slotByLabel.has(key)) {
+      throw new AppError(`Slot pilihan "${key}" tidak dikenal`, 400);
+    }
+  }
+
+  // 3. Keanggotaan: setiap pilihan harus cocok dengan salah satu opsi yang diizinkan.
+  for (const slot of choices) {
+    // Aman: rule 1 sudah memastikan setiap slot punya entri picks[slot.label].
+    const picked = picks[slot.label]!;
+    const pickedVariantId = picked.variantId ?? null;
+    const matched = slot.options.some((opt) => {
+      const optVariantId = opt.targetVariantId ?? null;
+      const optMenuId = opt.targetMenuId ?? null;
+      if (optVariantId != null) {
+        return pickedVariantId === optVariantId;
+      }
+      if (optMenuId != null) {
+        if (picked.targetMenuId !== optMenuId) return false;
+        const targetNode = graph[optMenuId];
+        // Kalau target menu varian → picked.variantId harus varian nyata menu itu;
+        // selain itu (simple/paket, mis. Air Mineral) → picked.variantId harus null.
+        if (targetNode?.kind === 'variant') {
+          return pickedVariantId != null && targetNode.variants?.[pickedVariantId] != null;
+        }
+        return pickedVariantId == null;
+      }
+      return false;
+    });
+    if (!matched) {
+      const label = picked.chosenLabel ?? String(picked.targetMenuId);
+      throw new AppError(`Pilihan "${label}" tidak valid untuk slot "${slot.label}"`, 400);
+    }
+  }
+}
+
+/// Validasi item + resolve stok target untuk setiap item via graph FK-based.
+/// `graph` dibangun sekali oleh caller (buildMenuGraph). `menuMeta` menyimpan
+/// price + name + variant prices untuk unitPrice + audit note.
+async function resolveItems(
+  tx: Prisma.TransactionClient,
+  graph: Record<number, MenuNode>,
+  items: OrderItemInput[],
+): Promise<ResolvedItem[]> {
   const resolved: ResolvedItem[] = [];
 
   for (const input of items) {
-    const menu = await prisma.menu.findUnique({ where: { id: input.menuId } });
+    const menu = await tx.menu.findUnique({
+      where: { id: input.menuId },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        isActive: true,
+        variants: { select: { id: true, price: true } },
+      },
+    });
     if (!menu) {
       throw new AppError(`Menu id=${input.menuId} tidak ditemukan`, 400);
     }
@@ -229,97 +417,63 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
       throw new AppError(`Menu "${menu.name}" sudah nonaktif`, 400);
     }
 
-    const stockTargetMenuIds: number[] = [];
-
-    if (menu.stockType === StockType.portion) {
-      stockTargetMenuIds.push(menu.id);
-    } else if (menu.stockType === StockType.linked) {
-      const parsed = linkedSubOptionsSchema.safeParse(menu.subOptions);
-      if (!parsed.success) {
-        throw new AppError(
-          `Menu linked "${menu.name}" punya subOptions tidak valid (butuh {stockTarget})`,
-          500,
-        );
+    // unitPrice: harga varian kalau variantId di-set, else harga menu (simple+paket).
+    let unitPrice = menu.price;
+    const variantId = input.variantId ?? null;
+    if (variantId !== null) {
+      const variant = menu.variants.find((v) => v.id === variantId);
+      if (!variant) {
+        throw new AppError(`Varian id=${variantId} bukan milik menu "${menu.name}"`, 400);
       }
-      const targetId = await resolveTargetNameToPortionId(
-        parsed.data.stockTarget,
-        `linked dari "${menu.name}"`,
-      );
-      if (targetId === null) {
-        throw new AppError(
-          `Linked target "${parsed.data.stockTarget}" harus resolve ke menu portion`,
-          500,
-        );
-      }
-      stockTargetMenuIds.push(targetId);
-    } else if (menu.stockType === StockType.nonStock && menu.subOptions !== null) {
-      // Paket REV 2.6: fixedItems + choices struktur
-      const parsed = paketSubOptionsSchema.safeParse(menu.subOptions);
-      if (!parsed.success) {
-        // subOptions ada tapi bukan paket shape valid - mungkin masih shape lama.
-        // Hanya error kalau user kirim subOptionsSelected (kemungkinan kira ini paket).
-        if (input.subOptionsSelected) {
-          throw new AppError(
-            `Menu "${menu.name}" tidak menerima sub-options (structure subOptions tidak valid)`,
-            500,
-          );
-        }
-      } else {
-        const paket = parsed.data;
+      unitPrice = variant.price;
+    }
 
-        // Validasi customer pilihan untuk setiap choice slot (kalau ada)
-        if (paket.choices.length > 0) {
-          if (!input.subOptionsSelected) {
-            throw new AppError(`Menu "${menu.name}" wajib pilih sub-options`, 400);
-          }
-          for (const choice of paket.choices) {
-            const picked = input.subOptionsSelected[choice.key];
-            if (picked === undefined) {
-              throw new AppError(
-                `Pilihan untuk "${choice.label}" (key=${choice.key}) wajib diisi`,
-                400,
-              );
-            }
-            const matchOpt = choice.options.find((o) => o.label === picked);
-            if (!matchOpt) {
-              throw new AppError(
-                `Pilihan "${picked}" tidak valid untuk "${choice.label}" (opsi: ${choice.options.map((o) => o.label).join(', ')})`,
-                400,
-              );
-            }
-          }
-        }
+    // REV 2.10 P3: validasi slot paket SEBELUM resolve stok (resolveStockTargets
+    // adalah pure no-throw resolver yang mempercayai input). Untuk item non-paket,
+    // helper ini no-op. Mencegah paketChoices ngawur men-decrement stok sembarangan.
+    const node = graph[input.menuId];
+    if (node) {
+      validatePaketChoices(graph, node, input);
+    }
 
-        // Kumpulkan target stockMenuIds: dari fixedItems + dari chosen options
-        const targetNames: string[] = [...paket.fixedItems];
-        if (input.subOptionsSelected) {
-          for (const choice of paket.choices) {
-            const picked = input.subOptionsSelected[choice.key];
-            const matchOpt = choice.options.find((o) => o.label === picked);
-            if (matchOpt?.stockTarget) {
-              targetNames.push(matchOpt.stockTarget);
-            }
-          }
-        }
+    const deductions = resolveStockTargets(graph, {
+      menuId: input.menuId,
+      variantId,
+      paketChoices: input.paketChoices,
+    });
 
-        for (const targetName of targetNames) {
-          const targetId = await resolveTargetNameToPortionId(
-            targetName,
-            `paket "${menu.name}"`,
-          );
-          // null = nonStock target (mis. Nasi Putih) → skip decrement
-          if (targetId !== null) {
-            stockTargetMenuIds.push(targetId);
-          }
-        }
+    // Baris selection: slot paket (isPreference=false) + free-preference (isPreference=true).
+    const selections: ResolvedItem['selections'] = [];
+    if (input.paketChoices) {
+      for (const [slotLabel, choice] of Object.entries(input.paketChoices)) {
+        selections.push({
+          groupOrSlotLabel: slotLabel,
+          chosenLabel: choice.chosenLabel,
+          targetMenuId: choice.targetMenuId,
+          targetVariantId: choice.variantId ?? null,
+          isPreference: false,
+        });
       }
     }
-    // else: nonStock tanpa subOptions → tidak ada decrement (minuman, nasi, dll)
+    if (input.preferences) {
+      for (const pref of input.preferences) {
+        selections.push({
+          groupOrSlotLabel: pref.groupLabel,
+          chosenLabel: pref.chosenLabel,
+          targetMenuId: null,
+          targetVariantId: null,
+          isPreference: true,
+        });
+      }
+    }
 
     resolved.push({
       input,
-      menu: { id: menu.id, name: menu.name, price: menu.price, stockType: menu.stockType },
-      stockTargetMenuIds,
+      menu: { id: menu.id, name: menu.name, price: menu.price },
+      unitPrice,
+      variantId,
+      deductions,
+      selections,
     });
   }
 
@@ -327,7 +481,7 @@ async function resolveItems(items: OrderItemInput[]): Promise<ResolvedItem[]> {
 }
 
 /// Dijalankan di dalam $transaction. Buat TransactionItem, decrement PortionStock,
-/// dan insert PortionMovement audit untuk setiap resolved item.
+/// insert PortionMovement audit, + persist TransactionItemSelection untuk setiap item.
 async function persistItemsAndDecrement(
   tx: Prisma.TransactionClient,
   transactionId: number,
@@ -341,25 +495,36 @@ async function persistItemsAndDecrement(
         transactionId,
         menuId: r.menu.id,
         qty: r.input.qty,
-        unitPrice: r.menu.price,
-        subtotal: r.menu.price.mul(r.input.qty),
+        unitPrice: r.unitPrice,
+        subtotal: r.unitPrice.mul(r.input.qty),
+        // LEGACY: tetap tulis subOptionsSelected kalau caller masih kirim (backward compat).
         subOptionsSelected: r.input.subOptionsSelected
           ? (r.input.subOptionsSelected as Prisma.InputJsonValue)
           : Prisma.JsonNull,
         // REV 2.4: persist notes kalau ada. null kalau tidak diisi.
         notes: r.input.notes ?? null,
+        // REV 2.10: varian terjual.
+        variantId: r.variantId,
       },
     });
 
-    for (const targetMenuId of r.stockTargetMenuIds) {
-      const delta = -r.input.qty;
+    // REV 2.10: persist pilihan slot paket + free-preference.
+    if (r.selections.length > 0) {
+      await tx.transactionItemSelection.createMany({
+        data: r.selections.map((s) => ({ ...s, transactionItemId: item.id })),
+      });
+    }
+
+    for (const ded of r.deductions) {
+      const decBy = ded.qty * r.input.qty;
+      const delta = -decBy;
       const updated = await tx.portionStock.update({
-        where: { menuId: targetMenuId },
-        data: { currentQty: { decrement: r.input.qty } },
+        where: { menuId: ded.menuId },
+        data: { currentQty: { decrement: decBy } },
       });
       await tx.portionMovement.create({
         data: {
-          menuId: targetMenuId,
+          menuId: ded.menuId,
           delta,
           reason: PortionMovementReason.order,
           // REV 2.8: tautan via FK (bukan lagi teks note); note = konteks manusiawi.
@@ -373,6 +538,34 @@ async function persistItemsAndDecrement(
       });
     }
   }
+}
+
+/// REV 2.10: rekonstruksi paketChoices dari baris selection tersimpan (non-preference),
+/// supaya reverse-stock saat void/edit/hapus item men-decrement target yang SAMA
+/// dengan saat order dibuat. Slot = groupOrSlotLabel → { targetMenuId, variantId }.
+function reconstructPaketChoices(
+  selections: { groupOrSlotLabel: string; targetMenuId: number | null; targetVariantId: number | null; isPreference: boolean }[],
+): Record<string, { targetMenuId?: number | null; variantId?: number | null }> {
+  const out: Record<string, { targetMenuId?: number | null; variantId?: number | null }> = {};
+  for (const s of selections) {
+    if (s.isPreference) continue;
+    if (s.targetMenuId == null) continue;
+    out[s.groupOrSlotLabel] = { targetMenuId: s.targetMenuId, variantId: s.targetVariantId };
+  }
+  return out;
+}
+
+/// Resolve deductions untuk satu TransactionItem tersimpan (reverse path). Pakai
+/// variantId + selections yang sudah dipersist (bukan input mentah). Graph FK-based.
+function deductionsForStoredItem(
+  graph: Record<number, MenuNode>,
+  item: { menuId: number; variantId: number | null; selections: { groupOrSlotLabel: string; targetMenuId: number | null; targetVariantId: number | null; isPreference: boolean }[] },
+): StockDeduction[] {
+  return resolveStockTargets(graph, {
+    menuId: item.menuId,
+    variantId: item.variantId,
+    paketChoices: reconstructPaketChoices(item.selections),
+  });
 }
 
 /// Hitung ulang subtotal Transaction dari semua TransactionItem yang ada.
@@ -436,10 +629,12 @@ export async function createTransaction(
     }
   }
 
-  // Resolve dulu (di luar $transaction supaya rollback ringan kalau error)
-  const resolved = await resolveItems(input.items);
-
   const transactionId = await prisma.$transaction(async (tx) => {
+    // REV 2.10: bangun MenuNode graph sekali per request (di dalam tx), lalu resolve
+    // stok per item via FK-based resolver.
+    const graph = await buildMenuGraph(tx);
+    const resolved = await resolveItems(tx, graph, input.items);
+
     const created = await tx.transaction.create({
       data: {
         shiftId: shift.id,
@@ -472,9 +667,9 @@ export async function addItems(
     throw new AppError(`Hanya transaksi status open yang bisa ditambah item (saat ini: ${existing.status})`, 400);
   }
 
-  const resolved = await resolveItems(input.items);
-
   await prisma.$transaction(async (tx) => {
+    const graph = await buildMenuGraph(tx);
+    const resolved = await resolveItems(tx, graph, input.items);
     await persistItemsAndDecrement(tx, transactionId, userId, resolved);
     await recomputeSubtotal(tx, transactionId);
   });
@@ -739,7 +934,8 @@ export async function voidTransaction(
   const existing = await prisma.transaction.findUnique({
     where: { id: transactionId },
     include: {
-      items: { include: { menu: true }, orderBy: { id: 'asc' } },
+      // REV 2.10: bawa variantId + selections untuk resolve reverse FK-based.
+      items: { include: { menu: { select: { name: true } }, selections: true }, orderBy: { id: 'asc' } },
       shift: { select: { date: true } },
     },
   });
@@ -752,42 +948,28 @@ export async function voidTransaction(
     throw new AppError('Business day transaksi ini sudah di-settle — tidak bisa diubah (refund di luar lingkup sistem)', 409);
   }
 
-  // Untuk reverse: kita perlu resolve ulang stock target tiap item (karena
-  // subOptions bisa berbeda per item paket). Pakai resolver yang sama.
-  const itemsInput: OrderItemInput[] = existing.items.map((it) => ({
-    menuId: it.menuId,
-    qty: it.qty,
-    subOptionsSelected:
-      typeof it.subOptionsSelected === 'object' && it.subOptionsSelected !== null
-        ? (it.subOptionsSelected as Record<string, string>)
-        : undefined,
-  }));
-  const resolved = await resolveItems(itemsInput);
-
   await prisma.$transaction(async (tx) => {
-    // resolved[i] sejajar dengan existing.items[i]: keduanya dari array in-memory
-    // yang sama (itemsInput = existing.items.map; resolveItems menjaga urutan input),
-    // jadi alignment dijamin independen dari urutan SQL. orderBy id:asc di-include
-    // sekadar determinisme tampilan.
-    for (let i = 0; i < resolved.length; i++) {
-      const r = resolved[i]!;
-      const sourceItemId = existing.items[i]?.id ?? null;
-      for (const targetMenuId of r.stockTargetMenuIds) {
-        const delta = r.input.qty;
+    // REV 2.10: reverse deductions yang SAMA dengan saat order, di-recompute dari
+    // variantId + selections tersimpan via resolver FK-based (graph dibangun sekali).
+    const graph = await buildMenuGraph(tx);
+    for (const item of existing.items) {
+      const deductions = deductionsForStoredItem(graph, item);
+      for (const ded of deductions) {
+        const incBy = ded.qty * item.qty;
         const updated = await tx.portionStock.update({
-          where: { menuId: targetMenuId },
-          data: { currentQty: { increment: r.input.qty } },
+          where: { menuId: ded.menuId },
+          data: { currentQty: { increment: incBy } },
         });
         await tx.portionMovement.create({
           data: {
-            menuId: targetMenuId,
-            delta,
+            menuId: ded.menuId,
+            delta: incBy,
             reason: PortionMovementReason.refundVoid,
             transactionId,
-            transactionItemId: sourceItemId,
-            qtyBefore: updated.currentQty - delta,
+            transactionItemId: item.id,
+            qtyBefore: updated.currentQty - incBy,
             qtyAfter: updated.currentQty,
-            note: `void reverse "${r.menu.name}"`,
+            note: `void reverse "${item.menu.name}"`,
             userId,
           },
         });
@@ -826,7 +1008,8 @@ export async function updateTransactionItem(
 ): Promise<TransactionView> {
   const existing = await prisma.transaction.findUnique({
     where: { id: transactionId },
-    include: { items: { where: { id: itemId } } },
+    // REV 2.10: bawa variantId + selections + menu name untuk resolve FK-based.
+    include: { items: { where: { id: itemId }, include: { menu: { select: { name: true } }, selections: true } } },
   });
   if (!existing) throw notFound('Transaction');
   if (existing.status !== TransactionStatus.open) {
@@ -846,24 +1029,6 @@ export async function updateTransactionItem(
   const newNotes = input.notes !== undefined ? input.notes || null : item.notes;
   const newSubtotal = item.unitPrice.mul(newQty);
 
-  // Resolve stock target hanya kalau qty berubah (notes-only update skip stok).
-  let stockTargetMenuIds: number[] = [];
-  let resolvedMenuName: string = '';
-  if (qtyDelta !== 0) {
-    const resolved = await resolveItems([
-      {
-        menuId: item.menuId,
-        qty: Math.abs(qtyDelta),
-        subOptionsSelected:
-          typeof item.subOptionsSelected === 'object' && item.subOptionsSelected !== null
-            ? (item.subOptionsSelected as Record<string, string>)
-            : undefined,
-      },
-    ]);
-    stockTargetMenuIds = resolved[0]!.stockTargetMenuIds;
-    resolvedMenuName = resolved[0]!.menu.name;
-  }
-
   await prisma.$transaction(async (tx) => {
     await tx.transactionItem.update({
       where: { id: itemId },
@@ -873,45 +1038,49 @@ export async function updateTransactionItem(
         notes: newNotes,
       },
     });
+    // Resolve stock target hanya kalau qty berubah (notes-only update skip stok).
     if (qtyDelta !== 0) {
-      for (const targetMenuId of stockTargetMenuIds) {
+      const graph = await buildMenuGraph(tx);
+      const deductions = deductionsForStoredItem(graph, item);
+      const absDelta = Math.abs(qtyDelta);
+      for (const ded of deductions) {
+        const amount = ded.qty * absDelta;
         if (qtyDelta > 0) {
           // qty naik → decrement stok lebih banyak (audit reason=order)
-          const delta = -qtyDelta;
+          const delta = -amount;
           const updated = await tx.portionStock.update({
-            where: { menuId: targetMenuId },
-            data: { currentQty: { decrement: qtyDelta } },
+            where: { menuId: ded.menuId },
+            data: { currentQty: { decrement: amount } },
           });
           await tx.portionMovement.create({
             data: {
-              menuId: targetMenuId,
+              menuId: ded.menuId,
               delta,
               reason: PortionMovementReason.order,
               transactionId,
               transactionItemId: itemId,
               qtyBefore: updated.currentQty - delta,
               qtyAfter: updated.currentQty,
-              note: `Edit item qty +${qtyDelta} (${resolvedMenuName})`,
+              note: `Edit item qty +${qtyDelta} (${item.menu.name})`,
               userId,
             },
           });
         } else {
           // qty turun → reverse stok (audit reason=refundVoid)
-          const reverseAmt = Math.abs(qtyDelta);
           const updated = await tx.portionStock.update({
-            where: { menuId: targetMenuId },
-            data: { currentQty: { increment: reverseAmt } },
+            where: { menuId: ded.menuId },
+            data: { currentQty: { increment: amount } },
           });
           await tx.portionMovement.create({
             data: {
-              menuId: targetMenuId,
-              delta: reverseAmt,
+              menuId: ded.menuId,
+              delta: amount,
               reason: PortionMovementReason.refundVoid,
               transactionId,
               transactionItemId: itemId,
-              qtyBefore: updated.currentQty - reverseAmt,
+              qtyBefore: updated.currentQty - amount,
               qtyAfter: updated.currentQty,
-              note: `Edit item qty ${qtyDelta} (${resolvedMenuName})`,
+              note: `Edit item qty ${qtyDelta} (${item.menu.name})`,
               userId,
             },
           });
@@ -934,7 +1103,8 @@ export async function deleteTransactionItem(
 ): Promise<TransactionView> {
   const existing = await prisma.transaction.findUnique({
     where: { id: transactionId },
-    include: { items: { where: { id: itemId } } },
+    // REV 2.10: bawa variantId + selections + menu name untuk resolve FK-based.
+    include: { items: { where: { id: itemId }, include: { menu: { select: { name: true } }, selections: true } } },
   });
   if (!existing) throw notFound('Transaction');
   if (existing.status !== TransactionStatus.open) {
@@ -948,38 +1118,28 @@ export async function deleteTransactionItem(
     throw new AppError(`Item id=${itemId} tidak ditemukan di transaksi ${transactionId}`, 404);
   }
 
-  // Resolve stock target via existing pattern supaya reverse decrement konsisten
-  // dengan logic create/void.
-  const resolved = await resolveItems([
-    {
-      menuId: item.menuId,
-      qty: item.qty,
-      subOptionsSelected:
-        typeof item.subOptionsSelected === 'object' && item.subOptionsSelected !== null
-          ? (item.subOptionsSelected as Record<string, string>)
-          : undefined,
-    },
-  ]);
-  const r = resolved[0]!;
-
   await prisma.$transaction(async (tx) => {
+    // REV 2.10: resolve reverse deductions SEBELUM delete (selections cascade-deleted
+    // saat item dihapus). Graph FK-based — konsisten dengan create/void.
+    const graph = await buildMenuGraph(tx);
+    const deductions = deductionsForStoredItem(graph, item);
     await tx.transactionItem.delete({ where: { id: itemId } });
-    for (const targetMenuId of r.stockTargetMenuIds) {
-      const delta = item.qty;
+    for (const ded of deductions) {
+      const incBy = ded.qty * item.qty;
       const updated = await tx.portionStock.update({
-        where: { menuId: targetMenuId },
-        data: { currentQty: { increment: item.qty } },
+        where: { menuId: ded.menuId },
+        data: { currentQty: { increment: incBy } },
       });
       // REV 2.8: item sudah dihapus → transactionItemId null (hanya tautkan transaksi).
       await tx.portionMovement.create({
         data: {
-          menuId: targetMenuId,
-          delta,
+          menuId: ded.menuId,
+          delta: incBy,
           reason: PortionMovementReason.refundVoid,
           transactionId,
-          qtyBefore: updated.currentQty - delta,
+          qtyBefore: updated.currentQty - incBy,
           qtyAfter: updated.currentQty,
-          note: `hapus item "${r.menu.name}" qty=${item.qty}`,
+          note: `hapus item "${item.menu.name}" qty=${item.qty}`,
           userId,
         },
       });
