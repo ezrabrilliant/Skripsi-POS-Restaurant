@@ -190,7 +190,7 @@ export function MenuImageUpload({ value, onChange, name, disabled }: MenuImageUp
             {isUploading ? 'Mengunggah...' : 'Klik atau seret foto ke sini'}
           </p>
           <p className="text-caption text-neutral-500 text-center">
-            JPG/PNG/WebP/GIF · max 5MB · otomatis dikonversi ke WebP
+            JPG/PNG/WebP/GIF · max 5MB
           </p>
         </div>
       )}
