@@ -1,12 +1,16 @@
 // REV 2.8 integration smoke — stock movement LEDGER (FK sumber + qty_before/after).
 // WAJIB DB *_test. Jalankan: npx tsx --env-file=.env.test scripts/smoke-ledger.ts
 //
+// REV 2.11 (2026-05-30): test purchase (raw material movement) DIHAPUS setelah model
+// Vendor/Purchase/PurchaseItem/RawMaterial/RawMaterialMovement di-drop. Import
+// createPurchase + RawMaterialMovementReason dibuang. Coverage tersisa = ledger stok
+// porsi (PortionMovement) yang masih berlaku.
+//
 // Memverifikasi tiap titik tulis movement kini mengisi FK dokumen sumber + snapshot qty:
 //   order/void/edit (portion) → transaction_id + transaction_item_id + before/after
 //   restock/opname (portion)  → before/after, FK transaksi null
-//   purchase (raw)            → purchase_id + purchase_item_id + before/after
 import 'dotenv/config';
-import { UserRole, ShiftType, PortionMovementReason, RawMaterialMovementReason } from '@prisma/client';
+import { UserRole, ShiftType, PortionMovementReason } from '@prisma/client';
 import { prisma } from '../src/config/prisma';
 import { openShift } from '../src/modules/shifts/shifts.service';
 import {
@@ -19,7 +23,6 @@ import {
   listPortionStocks,
   getPortionStockDetail,
 } from '../src/modules/stocks/portion.service';
-import { createPurchase } from '../src/modules/purchases/purchases.service';
 
 if (!/_test/.test(process.env.DATABASE_URL ?? '')) {
   throw new Error('REFUSE: smoke harus pakai DB *_test.');
@@ -105,29 +108,8 @@ async function main() {
   ok(opMov?.qtyBefore === beforeOpname, `opname qty_before = ${beforeOpname} (got ${opMov?.qtyBefore})`);
   ok(opMov?.qtyAfter === target, `opname qty_after = ${target} (got ${opMov?.qtyAfter})`);
 
-  // ── 5. PURCHASE (raw exact): movement purchase ber-FK + before/after ────
-  console.log('\n[5] createPurchase → raw movement ber-FK purchase + before/after:');
-  const rm = await prisma.rawMaterial.findFirst({ where: { isActive: true, unit: { opnameMode: 'exact' } } });
-  if (!rm) {
-    console.log('  (skip — tidak ada raw material exact di seed)');
-  } else {
-    const rawBefore = Number(rm.stockQty);
-    const purchase = await createPurchase(cashier.id, {
-      date: new Date().toISOString().slice(0, 10),
-      items: [{ rawMaterialId: rm.id, qty: 5, unitPrice: 3000 }],
-    } as Parameters<typeof createPurchase>[1]);
-    const pMov = await prisma.rawMaterialMovement.findFirst({
-      where: { rawMaterialId: rm.id, reason: RawMaterialMovementReason.purchase },
-      orderBy: { id: 'desc' },
-    });
-    ok(pMov?.purchaseId === purchase.id, `purchase_id = purchase.id (${pMov?.purchaseId} == ${purchase.id})`);
-    ok(pMov?.purchaseItemId != null, `purchase_item_id terisi (${pMov?.purchaseItemId})`);
-    ok(Number(pMov?.qtyBefore) === rawBefore, `raw qty_before = ${rawBefore} (got ${pMov?.qtyBefore})`);
-    ok(Number(pMov?.qtyAfter) === rawBefore + 5, `raw qty_after = before+5 (got ${pMov?.qtyAfter})`);
-  }
-
-  // ── 6. ENDPOINT SHAPE: list lastStockedAt + detail userName/qty/FK ──────
-  console.log('\n[6] view shapes: list lastStockedAt + detail userName/qty/FK:');
+  // ── 5. ENDPOINT SHAPE: list lastStockedAt + detail userName/qty/FK ──────
+  console.log('\n[5] view shapes: list lastStockedAt + detail userName/qty/FK:');
   const list = await listPortionStocks({} as Parameters<typeof listPortionStocks>[0]);
   const listed = list.find((s) => s.menuId === menu.id);
   ok(listed != null, 'menu ada di list');
