@@ -71,13 +71,13 @@ Pola visual mengikuti [MenuPage.tsx](../../../frontend/src/pages/MenuPage.tsx) (
 - **Edit modal & struktural** dua-duanya lewat `MenuFormModal` yang di-reuse (tidak bikin form baru).
 - **Empty state:** "Belum ada SKU varian" / "Tidak ada yang cocok dengan filter".
 
-### 5.3 Helper `buildParentMap(menus)` (pure, unit-tested — TDD)
+### 5.3 Helper `buildParentMap(menus)` (pure)
 
 Bangun `Map<number, string[]>` (skuId → daftar nama menu induk):
 - parent `kind === 'variant'`: untuk tiap `variants[]` → tambah `stockTargetMenuId` & `costSourceMenuId`.
 - parent `kind === 'paket'`: untuk tiap `paketComponents[]` → tambah `targetMenuId`; untuk tiap `choiceOptions[]` → tambah `targetMenuId`.
 
-Fungsi murni (input `Menu[]`, output `Map`), ditempatkan terpisah supaya gampang di-unit-test. Test dulu (TDD) sebelum dipakai di page.
+Fungsi murni (input `Menu[]`, output `Map`), module-level di `SkuVarianPage.tsx` supaya gampang dibaca & di-review. **Catatan:** frontend project tidak punya test runner (tidak ada vitest) — verifikasi lewat `tsc` + `vite build` + manual e2e (lihat §7), sesuai pola frontend selama ini.
 
 ### 5.4 Bersihin `MenuPage.tsx`
 
@@ -106,17 +106,21 @@ Checkbox status aktif (blok `{existing && …}`): label kondisional —
 
 ## 7. Verifikasi (sebelum klaim selesai)
 
-1. **Unit test** `buildParentMap` (variant target+costSource, paket fixed+choice, multi-induk, yatim).
-2. `tsc --noEmit` (frontend) 0 error + `vite build` sukses + `eslint` 0 error.
-3. **Manual e2e browser:** buka `/menu/sku-varian` → daftar muncul + badge induk benar; edit modal 1 SKU → tersimpan + masuk drawer Riwayat; buka "Kelola Menu" → tidak ada lagi SKU tersembunyi & tidak ada badge "Tersembunyi dari POS"; POS grid tidak berubah.
+> Frontend tidak punya test runner — tidak ada langkah unit test. Verifikasi = compile + build + lint + manual e2e (pola frontend project).
+
+1. `tsc --noEmit` (frontend, via `npm run build` = `tsc -b && vite build`) 0 error + `vite build` sukses + `npm run lint` (ESLint) 0 error.
+2. **Manual e2e browser:** buka `/menu/sku-varian` → daftar muncul + badge induk benar; edit modal 1 SKU → tersimpan + masuk drawer Riwayat; buka "Kelola Menu" → tidak ada lagi SKU tersembunyi & tidak ada badge "Tersembunyi dari POS"; POS grid tidak berubah.
 
 ## 8. File yang disentuh
 
 | Aksi | File |
 |---|---|
-| NEW | `frontend/src/pages/SkuVarianPage.tsx` |
-| NEW | helper `buildParentMap` (+ test) — mis. `frontend/src/pages/skuVarian.helpers.ts` + `*.test.ts` |
-| MOD | `frontend/src/App.tsx` (route) |
-| MOD | `frontend/src/components/Layout.tsx` (nav owner) |
-| MOD | `frontend/src/pages/MenuPage.tsx` (filter posVisible + hapus badge + counts) |
+| NEW | `frontend/src/pages/SkuVarianPage.tsx` (+ helper `buildParentMap` module-level) |
+| NEW | `frontend/src/components/menu/CostHistoryDrawer.tsx` (extract dari MenuPage, dipakai 2 page) |
+| MOD | `frontend/src/pages/index.ts` (barrel export `SkuVarianPage`) |
+| MOD | `frontend/src/App.tsx` (route `/menu/sku-varian` di OwnerRoute) |
+| MOD | `frontend/src/components/Layout.tsx` (nav owner setelah `/menu`) |
+| MOD | `frontend/src/pages/MenuPage.tsx` (filter posVisible + hapus badge + counts + pakai CostHistoryDrawer extracted) |
 | MOD | `frontend/src/components/MenuFormModal.tsx` (label checkbox kondisional) |
+
+**Catatan extract:** `CostHistoryDrawer` saat ini fungsi lokal (non-export) di [MenuPage.tsx](../../../frontend/src/pages/MenuPage.tsx#L444-L466). Diangkat ke komponen sendiri supaya dipakai bareng MenuPage + SkuVarianPage (DRY).
