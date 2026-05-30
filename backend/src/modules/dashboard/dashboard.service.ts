@@ -2,9 +2,10 @@
 //
 // Konsep:
 //   - Owner: laporan finansial penuh periode (today/month/year/custom). Pendapatan
-//     total dari transactions paid, pengeluaran = sum(purchases) + sum(bills),
-//     laba kotor = pendapatan − pengeluaran. Plus bank breakdown EDC/transfer
-//     (dan method requiresBank lain) + reminder counts dari semua sumber.
+//     total dari transactions paid, COGS = Σ(TransactionItem.unitCost × qty) atas
+//     item paid (REV 2.11), laba kotor = pendapatan − COGS. Tagihan (bills) dilaporkan
+//     TERPISAH (tidak dikurangkan ke laba). Plus bank breakdown EDC/transfer
+//     (dan method requiresBank lain) + reminder counts stok porsi.
 //   - Cashier: ringkasan today (per matrix "kasir laporan hari ini saja, untuk
 //     verifikasi shift"). Tampilkan active shift (kalau ada), today's revenue,
 //     open transactions, reminders.
