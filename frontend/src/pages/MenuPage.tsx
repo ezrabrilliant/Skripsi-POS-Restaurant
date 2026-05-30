@@ -63,22 +63,27 @@ export default function MenuPage() {
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
 
   const { data: menus = [], isLoading } = useQuery({
-    // REV 2.11: includeHidden agar leaf SKU (posVisible=false) ikut tampil +
-    // editable; owner token (auto-inject) bikin backend kirim field cost.
+    // includeHidden TETAP true (owner token bikin backend kirim cost) supaya
+    // cache konsisten dengan MenuFormModal & SkuVarianPage. SKU posVisible=false
+    // di-FILTER client-side (lihat visibleMenus) — dikelola di halaman SKU Varian.
     queryKey: ['menus', 'admin', showInactive],
     queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true, includeHidden: true }),
   })
 
+  // "Kelola Menu" hanya menu jual (posVisible=true). SKU tersembunyi pindah ke
+  // halaman SKU Varian.
+  const visibleMenus = useMemo(() => menus.filter((m) => m.posVisible), [menus])
+
   const categories = useMemo(() => {
-    const set = new Set(menus.map((m) => m.category))
+    const set = new Set(visibleMenus.map((m) => m.category))
     return Array.from(set).sort()
-  }, [menus])
+  }, [visibleMenus])
 
   const typeCounts = useMemo(() => {
     const c: Record<StockType, number> = { portion: 0, linked: 0, nonStock: 0 }
-    for (const m of menus) c[m.stockType]++
+    for (const m of visibleMenus) c[m.stockType]++
     return c
-  }, [menus])
+  }, [visibleMenus])
 
   const setSort = (k: MenuSortKey) => {
     if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -90,7 +95,7 @@ export default function MenuPage() {
   const toggleType = (t: StockType) => setTypes((prev) => toggleStockType(prev, t))
 
   const filtered = useMemo(() => {
-    let arr = menus.slice()
+    let arr = visibleMenus.slice()
     if (categoryFilter !== 'all') arr = arr.filter((m) => m.category === categoryFilter)
     arr = arr.filter((m) => types.has(m.stockType))
     const q = search.trim().toLowerCase()
@@ -106,7 +111,7 @@ export default function MenuPage() {
       return byName(a, b)
     })
     return arr
-  }, [menus, categoryFilter, types, search, sortKey, sortDir])
+  }, [visibleMenus, categoryFilter, types, search, sortKey, sortDir])
 
   const deactivate = useMutation({
     mutationFn: (id: number) => menuService.deactivate(id),
@@ -167,12 +172,6 @@ export default function MenuPage() {
             {m.kind === 'paket' && (
               <Badge tone="primary" size="sm">
                 Paket
-              </Badge>
-            )}
-            {/* SKU stok granular yang disembunyikan dari grid POS (collapse REV 2.10). */}
-            {!m.posVisible && (
-              <Badge tone="neutral" variant="outline" size="sm">
-                Tersembunyi dari POS
               </Badge>
             )}
             {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
@@ -288,7 +287,7 @@ export default function MenuPage() {
           <div>
             <h1 className="text-headline font-semibold text-neutral-900">Kelola Menu</h1>
             <p className="text-body-sm text-neutral-600">
-              {filtered.length} dari {menus.length} menu
+              {filtered.length} dari {visibleMenus.length} menu
             </p>
           </div>
           <Button
@@ -370,9 +369,6 @@ export default function MenuPage() {
                       )}
                       {m.kind === 'paket' && (
                         <Badge tone="primary" size="sm">Paket</Badge>
-                      )}
-                      {!m.posVisible && (
-                        <Badge tone="neutral" variant="outline" size="sm">Tersembunyi</Badge>
                       )}
                       {m.stockType === 'portion' && (
                         <Badge tone="neutral" size="sm">
