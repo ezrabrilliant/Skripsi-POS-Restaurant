@@ -18,7 +18,8 @@ export interface MenuNode {
   id: number
   kind: 'simple' | 'variant' | 'paket'
   stockType: 'portion' | 'linked' | 'nonStock'
-  variants?: Record<number, { id: number; stockTargetMenuId: number | null }>
+  cost?: number
+  variants?: Record<number, { id: number; stockTargetMenuId: number | null; costSourceMenuId?: number | null }>
   paket?: {
     fixed: { qty: number; targetMenuId?: number | null; targetVariantId?: number | null }[]
     choices: {
@@ -55,6 +56,24 @@ function targetOf(
   return node.stockType === 'portion' ? node.id : null
 }
 
+// Resolve one (menu, variant?) to the leaf menu whose `cost` represents it.
+// Unlike targetOf (stock): every menu has a cost, so simple/leaf returns itself
+// regardless of stockType; nonStock variants fall back to costSource then own menu.
+function costTargetOf(
+  graph: Record<number, MenuNode>,
+  menuId: number,
+  variantId?: number | null,
+): number | null {
+  const node = graph[menuId]
+  if (!node) return null
+  if (node.kind === 'variant') {
+    if (variantId == null) return menuId
+    const v = node.variants?.[variantId]
+    return v?.costSourceMenuId ?? v?.stockTargetMenuId ?? menuId
+  }
+  return menuId
+}
+
 export function resolveStockTargets(
   graph: Record<number, MenuNode>,
   item: ChosenItem,
@@ -78,6 +97,35 @@ export function resolveStockTargets(
   }
 
   push(targetOf(graph, item.menuId, item.variantId), 1)
+  return mergeDeductions(acc)
+}
+
+// COGS component list: the leaf menus (with qty) whose cost sums to one unit's modal.
+// Mirrors resolveStockTargets but includes nonStock components (nasi/drink) + the
+// item's own cost. Returns {menuId, qty}[]; caller sums graph[menuId].cost * qty.
+export function resolveCostComponents(
+  graph: Record<number, MenuNode>,
+  item: ChosenItem,
+): StockDeduction[] {
+  const node = graph[item.menuId]
+  if (!node) return []
+  const acc: StockDeduction[] = []
+  const push = (menuId: number | null, qty: number) => {
+    if (menuId != null) acc.push({ menuId, qty })
+  }
+
+  if (node.kind === 'paket' && node.paket) {
+    for (const f of node.paket.fixed) {
+      if (f.targetMenuId != null) push(costTargetOf(graph, f.targetMenuId, f.targetVariantId), f.qty)
+    }
+    for (const c of node.paket.choices) {
+      const chosen = item.paketChoices?.[c.label]
+      if (chosen?.targetMenuId != null) push(costTargetOf(graph, chosen.targetMenuId, chosen.variantId), 1)
+    }
+    return mergeDeductions(acc)
+  }
+
+  push(costTargetOf(graph, item.menuId, item.variantId), 1)
   return mergeDeductions(acc)
 }
 
