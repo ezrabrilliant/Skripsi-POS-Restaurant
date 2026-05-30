@@ -20,7 +20,7 @@
 // Tone/typography mengikuti SubOptionsModal lama + PaymentModal: Dialog primitive,
 // button grid min-h-[44px], text-label group header, footer Button primary fullWidth.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import type { Menu, MenuVariant } from '@/types'
@@ -342,7 +342,12 @@ function PaketPicker({
     targetMenuId: number
   } | null>(null)
 
-  const handleSelectOption = (componentId: number, optionId: number, targetMenuId: number | null) => {
+  const handleSelectOption = (
+    componentId: number,
+    optionId: number,
+    targetMenuId: number | null,
+    targetVariantId: number | null,
+  ) => {
     setSelection((prev) => ({ ...prev, [componentId]: optionId }))
     // Reset sub-pick lama untuk slot ini saat ganti opsi.
     setSubPicks((prev) => {
@@ -350,10 +355,11 @@ function PaketPicker({
       delete next[componentId]
       return next
     })
-    // Kalau target adalah menu (cek di nested fetch kalau varian).
-    if (targetMenuId != null) {
-      // Buka nested picker - VariantPickerModal nested akan fetch detail + tahu
-      // apakah kind=variant. Kalau bukan variant, nested onConfirm balik tanpa variantId.
+    // Buka nested sub-picker HANYA kalau opsi mengarah ke sebuah menu tanpa varian
+    // spesifik yang sudah dipin. NestedVariantLoader fetch detail untuk cek apakah
+    // kind=variant (perlu pilih varian) atau bukan (langsung tutup, tanpa UI).
+    // Kalau targetVariantId sudah diset, varian sudah terpilih → tak perlu sub-pick.
+    if (targetMenuId != null && targetVariantId == null) {
       setNestedTarget({ componentId, targetMenuId })
     }
   }
@@ -443,7 +449,12 @@ function PaketPicker({
               selectedKey={chosenOptId !== undefined ? String(chosenOptId) : null}
               onSelect={(key) => {
                 const opt = comp.choiceOptions.find((o) => o.id === Number(key))
-                handleSelectOption(comp.id, Number(key), opt?.targetMenuId ?? null)
+                handleSelectOption(
+                  comp.id,
+                  Number(key),
+                  opt?.targetMenuId ?? null,
+                  opt?.targetVariantId ?? null,
+                )
               }}
             />
             {sub && (
@@ -496,22 +507,18 @@ function NestedVariantLoader({
     queryFn: () => menuService.detail(targetMenuId),
   })
 
-  // Loading: tampilkan dialog kecil placeholder.
-  if (isLoading || !targetMenu) {
-    return (
-      <Dialog open onOpenChange={(o) => !o && onClose()} title="Memuat varian…" size="sm">
-        <div className="space-y-3 py-2">
-          <Skeleton className="h-11 w-full" rounded="lg" />
-          <Skeleton className="h-11 w-full" rounded="lg" />
-        </div>
-      </Dialog>
-    )
-  }
+  // Target bukan menu varian → tidak perlu sub-pick (selection sudah tercatat di
+  // paket level lewat opsi yang dipilih). Tutup loader lewat useEffect, BUKAN saat
+  // render — memanggil onClose (setNestedTarget) di tengah render parent PaketPicker
+  // memicu warning React "Cannot update a component while rendering a different one".
+  const isNonVariant = !!targetMenu && targetMenu.kind !== 'variant'
+  useEffect(() => {
+    if (isNonVariant) onClose()
+  }, [isNonVariant, onClose])
 
-  // Target bukan menu varian → tidak perlu sub-pick. Tutup loader (selection sudah
-  // tercatat di paket level lewat opsi yang dipilih).
-  if (targetMenu.kind !== 'variant') {
-    onClose()
+  // Selama fetch atau saat target non-varian: tidak render apa pun. Paket modal
+  // induk tetap terbuka di belakang, jadi tak ada flash dialog "Memuat varian…".
+  if (isLoading || !targetMenu || isNonVariant) {
     return null
   }
 
