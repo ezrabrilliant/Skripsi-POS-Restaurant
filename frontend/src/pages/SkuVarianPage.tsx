@@ -30,8 +30,9 @@ import { CostHistoryDrawer } from '@/components/menu/CostHistoryDrawer'
  * Bangun map skuId -> daftar nama menu induk (parent) yang mereferensikan SKU
  * itu, lewat variant (stockTarget/costSource) atau paket (component/choiceOption
  * target). Dipakai untuk badge "induk". Fungsi murni; nama induk di-dedup.
+ * Tidak di-export (cuma dipakai di file ini) → hindari warning fast-refresh.
  */
-export function buildParentMap(menus: Menu[]): Map<number, string[]> {
+function buildParentMap(menus: Menu[]): Map<number, string[]> {
   const map = new Map<number, string[]>()
   const add = (skuId: number | null, parentName: string) => {
     if (skuId == null) return
