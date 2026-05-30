@@ -11,7 +11,6 @@ import {
   StockPage,
   MenuPage,
   UsersPage,
-  PurchasesPage,
   BillsPage,
   PaymentMethodsPage,
   OwnerDashboard,
@@ -79,9 +78,6 @@ function App() {
 
           {/* Stok - semua role per matrix REV 2.3 */}
           <Route path="stock" element={<RoleRoute allow={['owner', 'cashier', 'waiter']}><StockPage /></RoleRoute>} />
-
-          {/* Pembelian belanja pasar - owner + kasir */}
-          <Route path="purchases" element={<RoleRoute allow={['owner', 'cashier']}><PurchasesPage /></RoleRoute>} />
 
           {/* Owner-only */}
           <Route path="menu" element={<RoleRoute allow={['owner']}><MenuPage /></RoleRoute>} />

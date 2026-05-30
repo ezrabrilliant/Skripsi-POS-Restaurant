@@ -23,7 +23,6 @@ import {
   Sun,
   Moon,
   Package,
-  ShoppingCart,
   ArrowRight,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
@@ -306,10 +305,9 @@ function ActionCard({
 function ReminderCard({
   reminders,
 }: {
-  reminders: { portionLowCount: number; rawMaterialLowCount: number; rawMaterialNearExpiryCount: number }
+  reminders: { portionLowCount: number }
 }) {
-  const total =
-    reminders.portionLowCount + reminders.rawMaterialLowCount + reminders.rawMaterialNearExpiryCount
+  const total = reminders.portionLowCount
   return (
     <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
       <div className="flex items-center gap-2 mb-3">
@@ -328,16 +326,6 @@ function ReminderCard({
             {reminders.portionLowCount}
           </Link>
         </li>
-        <li className="flex justify-between">
-          <span className="text-neutral-700">Raw material perlu restock</span>
-          <span className="font-medium text-neutral-900 tabular-nums">{reminders.rawMaterialLowCount}</span>
-        </li>
-        <li className="flex justify-between">
-          <span className="text-neutral-700">Raw material mendekati basi</span>
-          <span className="font-medium text-neutral-900 tabular-nums">
-            {reminders.rawMaterialNearExpiryCount}
-          </span>
-        </li>
       </ul>
     </div>
   )
@@ -354,13 +342,6 @@ function SecondaryActionsCard() {
         >
           <Package className="w-4 h-4 text-neutral-500" />
           <span className="text-body-sm text-neutral-800">Cek Stok / Opname</span>
-        </Link>
-        <Link
-          to="/purchases"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-50 active:bg-neutral-100 transition-colors min-h-[44px]"
-        >
-          <ShoppingCart className="w-4 h-4 text-neutral-500" />
-          <span className="text-body-sm text-neutral-800">Catat Pembelian Pasar</span>
         </Link>
       </div>
     </div>

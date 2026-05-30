@@ -7,7 +7,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Package,
-  Sprout,
   ClipboardCheck,
   XCircle,
   ArrowRight,
@@ -19,7 +18,7 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService } from '@/services/dashboardService'
 import { cn } from '@/lib/utils'
-import { Skeleton, Badge, EmptyState } from '@/design-system/primitives'
+import { Skeleton, Badge } from '@/design-system/primitives'
 
 export default function WaiterDashboard() {
   const { user } = useAuthStore()
@@ -47,10 +46,9 @@ export default function WaiterDashboard() {
 
         {dashboard && (
           <>
-            {/* Primary action cards - 2 big cards stok */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Primary action card - stok porsi */}
+            <div className="grid grid-cols-1 gap-3">
               <PortionStockCard data={dashboard.portionStocks} />
-              <RawMaterialsCard data={dashboard.rawMaterials} />
             </div>
 
             {/* Quick actions */}
@@ -61,11 +59,6 @@ export default function WaiterDashboard() {
                   to="/stock?action=opname-portion"
                   icon={ClipboardCheck}
                   label="Opname Stok Porsi"
-                />
-                <QuickAction
-                  to="/stock?tab=raw&action=opname"
-                  icon={ClipboardCheck}
-                  label="Opname Raw Material"
                 />
                 <QuickAction
                   to="/stock?action=mark-habis"
@@ -188,83 +181,6 @@ function PortionStockCard({
         className="mt-3 block text-center text-body-sm font-medium text-primary-700 hover:text-primary-800 hover:underline"
       >
         Lihat semua stok porsi →
-      </Link>
-    </div>
-  )
-}
-
-function RawMaterialsCard({
-  data,
-}: {
-  data: {
-    lowCount: number
-    nearExpiryCount: number
-    lowSamples: Array<{ id: number; name: string; stockQty: number; minStock: number | null; unit: string }>
-  }
-}) {
-  const totalReminder = data.lowCount + data.nearExpiryCount
-  const allSafe = totalReminder === 0
-  return (
-    <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-      <div className="flex items-center gap-2 mb-3">
-        <Sprout className="w-5 h-5 text-success-600" />
-        <h3 className="text-title font-semibold text-neutral-900">Raw Materials</h3>
-        {totalReminder > 0 && (
-          <Badge tone="warning" size="sm" className="ml-auto">
-            {totalReminder} item
-          </Badge>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-2 mb-3 pb-3 border-b border-neutral-100">
-        <div className="text-center">
-          <p
-            className={cn(
-              'text-headline font-semibold tabular-nums',
-              data.lowCount > 0 ? 'text-warning-700' : 'text-success-600'
-            )}
-          >
-            {data.lowCount}
-          </p>
-          <p className="text-caption text-neutral-500">Stok rendah</p>
-        </div>
-        <div className="text-center">
-          <p
-            className={cn(
-              'text-headline font-semibold tabular-nums',
-              data.nearExpiryCount > 0 ? 'text-warning-700' : 'text-success-600'
-            )}
-          >
-            {data.nearExpiryCount}
-          </p>
-          <p className="text-caption text-neutral-500">Mendekati basi</p>
-        </div>
-      </div>
-      {allSafe ? (
-        <EmptyState
-          icon={<CheckCircle2 />}
-          title="Semua bahan aman"
-          compact
-        />
-      ) : (
-        <ul className="space-y-1.5">
-          {data.lowSamples.map((s) => (
-            <li key={s.id} className="flex items-center justify-between text-body-sm py-1">
-              <span className="text-neutral-800 truncate flex-1 mr-2">{s.name}</span>
-              <span className="text-warning-700 font-medium whitespace-nowrap text-caption tabular-nums">
-                {s.stockQty} {s.unit}
-                {s.minStock !== null && (
-                  <span className="ml-1 text-neutral-500">/ min {s.minStock}</span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Link
-        to="/stock?tab=raw"
-        className="mt-3 block text-center text-body-sm font-medium text-success-700 hover:text-success-800 hover:underline"
-      >
-        Lihat semua raw materials →
       </Link>
     </div>
   )
