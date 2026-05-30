@@ -511,16 +511,18 @@ async function validateMenuReferences(
   const menuIds = new Set<number>();
   const variantIds = new Set<number>();
 
+  // Loose != null: caller objek non-Zod (script backfill/smoke) bisa kirim
+  // undefined (bukan null); undefined TIDAK boleh masuk ke { in: [...] } Prisma.
   for (const v of input.variants) {
-    if (v.stockTargetMenuId !== null) menuIds.add(v.stockTargetMenuId);
-    if (v.costSourceMenuId !== null) menuIds.add(v.costSourceMenuId);
+    if (v.stockTargetMenuId != null) menuIds.add(v.stockTargetMenuId);
+    if (v.costSourceMenuId != null) menuIds.add(v.costSourceMenuId);
   }
   for (const c of input.paketComponents) {
-    if (c.targetMenuId !== null) menuIds.add(c.targetMenuId);
-    if (c.targetVariantId !== null) variantIds.add(c.targetVariantId);
+    if (c.targetMenuId != null) menuIds.add(c.targetMenuId);
+    if (c.targetVariantId != null) variantIds.add(c.targetVariantId);
     for (const co of c.choiceOptions) {
-      if (co.targetMenuId !== null) menuIds.add(co.targetMenuId);
-      if (co.targetVariantId !== null) variantIds.add(co.targetVariantId);
+      if (co.targetMenuId != null) menuIds.add(co.targetMenuId);
+      if (co.targetVariantId != null) variantIds.add(co.targetVariantId);
     }
   }
 
