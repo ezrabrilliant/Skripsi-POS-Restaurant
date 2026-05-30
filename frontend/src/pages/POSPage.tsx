@@ -25,7 +25,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShoppingCart, Wallet, ArrowLeft, Info, AlertTriangle } from 'lucide-react'
 import MenuGrid from '@/components/MenuGrid'
 import CartPanel from '@/components/CartPanel'
-import SubOptionsModal from '@/components/SubOptionsModal'
+import VariantPickerModal, { type VariantPickResult } from '@/components/VariantPickerModal'
 import PaymentModal from '@/components/PaymentModal'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
 import { menuService } from '@/services/menuService'
@@ -33,7 +33,7 @@ import { shiftService } from '@/services/shiftService'
 import { transactionService } from '@/services/transactionService'
 import { useCartStore, cartItemCount } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { Menu, PaketSubOptions, Shift, Transaction, UserRole } from '@/types'
+import type { Menu, Shift, Transaction, UserRole } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button, IconButton, Sheet } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -47,7 +47,8 @@ export default function POSPage() {
   const confirm = useConfirm()
   const { user } = useAuthStore()
   const [showMobileCart, setShowMobileCart] = useState(false)
-  const [paketMenuOpen, setPaketMenuOpen] = useState<{ menu: Menu; paket: PaketSubOptions } | null>(null)
+  // REV 2.10: menu varian/paket yang lagi dipilih via VariantPickerModal.
+  const [pickerMenu, setPickerMenu] = useState<Menu | null>(null)
   const [showOpenShiftDialog, setShowOpenShiftDialog] = useState(false)
   // REV 2.4 state baru
   const [inputMode, setInputMode] = useState(false)
@@ -190,8 +191,9 @@ export default function POSPage() {
   // backend ("Source X sudah merged ke Y" saat retry).
 
   const handleMenuClick = (menu: Menu) => {
-    if (menu.subOptions && 'choices' in menu.subOptions) {
-      setPaketMenuOpen({ menu, paket: menu.subOptions })
+    // REV 2.10: variant/paket → buka VariantPickerModal; simple → addItem langsung.
+    if (menu.kind === 'variant' || menu.kind === 'paket') {
+      setPickerMenu(menu)
       return
     }
     // REV 2.4: menu click implisit = "tambah ke cart". Auto-switch ke input mode
@@ -206,22 +208,28 @@ export default function POSPage() {
     })
   }
 
-  const handleSubOptionsConfirm = (selection: Record<string, string>) => {
-    if (!paketMenuOpen) return
+  // REV 2.10: VariantPickerModal confirm → addItem dengan varian/paket/preferences.
+  const handlePickerConfirm = (result: VariantPickResult) => {
+    if (!pickerMenu) return
     setInputMode(true)
     cart.addItem({
-      menuId: paketMenuOpen.menu.id,
-      menuName: paketMenuOpen.menu.name,
-      price: paketMenuOpen.menu.price,
-      subOptionsSelected: selection,
+      menuId: result.menuId,
+      menuName: pickerMenu.name,
+      price: pickerMenu.price,
+      unitPrice: result.unitPrice,
+      variantId: result.variantId ?? null,
+      variantLabel: result.variantLabel ?? null,
+      paketChoices: result.paketChoices ?? null,
+      preferences: result.preferences ?? null,
     })
-    setPaketMenuOpen(null)
+    setPickerMenu(null)
   }
 
   const buildCreatePayload = () => {
     if (!singleActiveShift) return null
     // REV 2.3 shift-decoupling: payload TIDAK include shiftId - backend auto-resolve.
     // REV 2.4: include notes per item (kalau ada - kosong jadi undefined).
+    // REV 2.10: map varian/paketChoices/preferences ke OrderItemInput.
     return {
       orderType: cart.orderType,
       tableNumber: cart.orderType === 'dineIn' && cart.tableNumber ? cart.tableNumber : undefined,
@@ -230,6 +238,13 @@ export default function POSPage() {
         qty: it.qty,
         subOptionsSelected: it.subOptionsSelected ?? undefined,
         notes: it.notes || undefined,
+        variantId: it.variantId ?? undefined,
+        paketChoices:
+          it.paketChoices && Object.keys(it.paketChoices).length > 0
+            ? it.paketChoices
+            : undefined,
+        preferences:
+          it.preferences && it.preferences.length > 0 ? it.preferences : undefined,
       })),
     }
   }
@@ -453,13 +468,12 @@ export default function POSPage() {
         </div>
       </Sheet>
 
-      {/* SubOptions paket modal */}
-      {paketMenuOpen && (
-        <SubOptionsModal
-          menu={paketMenuOpen.menu}
-          paket={paketMenuOpen.paket}
-          onConfirm={handleSubOptionsConfirm}
-          onClose={() => setPaketMenuOpen(null)}
+      {/* REV 2.10: generic variant/paket picker modal */}
+      {pickerMenu && (
+        <VariantPickerModal
+          menu={pickerMenu}
+          onConfirm={handlePickerConfirm}
+          onClose={() => setPickerMenu(null)}
         />
       )}
 

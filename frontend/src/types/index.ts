@@ -347,10 +347,26 @@ export interface CartItem {
   id: string
   menuId: number
   menuName: string
+  /** Harga per unit yang dipakai cart/subtotal. Untuk menu varian = harga varian
+   * terpilih (bukan menu.price); simple/paket = menu.price. */
   price: number
   qty: number
   notes: string
+  /** LEGACY (pre-REV 2.10): pilihan paket berbasis nama (SubOptionsModal). */
   subOptionsSelected: Record<string, string> | null
+  /** REV 2.10: varian terpilih (menu kind=variant). null untuk simple/paket. */
+  variantId?: number | null
+  /** REV 2.10: label varian untuk display di cart row (mis. "Paha · Bakar"). */
+  variantLabel?: string | null
+  /** REV 2.10: pilihan per slot paket kind=choice. Key = slot label
+   * (PaketComponent.label). Mirror OrderItemInput.paketChoices. */
+  paketChoices?: Record<
+    string,
+    { targetMenuId: number; variantId?: number | null; chosenLabel: string }
+  > | null
+  /** REV 2.10: free-preference (grup affectsVariant=false, mis. Suhu). Tidak
+   * pengaruh harga/stok — cuma display + dipersist sebagai TransactionItemSelection. */
+  preferences?: { groupLabel: string; chosenLabel: string }[] | null
   subtotal: number
 }
 

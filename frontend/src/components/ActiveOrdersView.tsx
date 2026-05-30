@@ -222,17 +222,39 @@ function PesananItem({
           <p className="text-body-sm font-medium text-neutral-900 line-clamp-2">
             {item.menuName}
           </p>
+          {/* REV 2.10: varian label */}
+          {item.variantLabel && (
+            <p className="text-caption text-primary-700 font-medium">{item.variantLabel}</p>
+          )}
           <p className="text-caption text-neutral-500 tabular-nums">
             {formatCurrency(item.unitPrice)} × {item.qty}
           </p>
-          {item.subOptionsSelected && Object.keys(item.subOptionsSelected).length > 0 && (
+          {/* REV 2.10: selections (slot paket + free-preference). Fallback ke legacy
+              subOptionsSelected untuk Tx historis yang belum punya selections. */}
+          {item.selections && item.selections.length > 0 ? (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {Object.entries(item.subOptionsSelected).map(([k, v]) => (
-                <Badge key={k} tone="primary" variant="soft" size="sm">
-                  {v}
+              {item.selections.map((sel, i) => (
+                <Badge
+                  key={`sel-${i}`}
+                  tone={sel.isPreference ? 'info' : 'primary'}
+                  variant="soft"
+                  size="sm"
+                >
+                  {sel.groupOrSlotLabel}: {sel.chosenLabel}
                 </Badge>
               ))}
             </div>
+          ) : (
+            item.subOptionsSelected &&
+            Object.keys(item.subOptionsSelected).length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {Object.entries(item.subOptionsSelected).map(([k, v]) => (
+                  <Badge key={k} tone="primary" variant="soft" size="sm">
+                    {v}
+                  </Badge>
+                ))}
+              </div>
+            )
           )}
           {/* Notes: read mode tampil 📝 saja kalau ada; edit mode munculin Pencil button + inline editor */}
           {editing && editingNotes && onUpdateNotes ? (

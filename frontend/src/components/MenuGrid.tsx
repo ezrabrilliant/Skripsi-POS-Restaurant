@@ -1,6 +1,8 @@
 // REV 2.3 MenuGrid - display menu cards grouped per category dengan filter pencarian.
-// onClick delegate ke parent (POSPage): paket dgn subOptions → buka modal;
-// menu biasa → langsung addItem.
+// onClick delegate ke parent (POSPage): variant/paket → buka VariantPickerModal;
+// simple → langsung addItem.
+// REV 2.10: hanya render menu posVisible !== false (SKU stok granular hidden);
+// badge kind variant/paket; routing per kind di POSPage.
 
 import { useMemo, useState } from 'react'
 import { Search, UtensilsCrossed } from 'lucide-react'
@@ -45,7 +47,8 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
   }, [menus])
 
   const filtered = useMemo(() => {
-    let list = menus.filter((m) => m.isActive)
+    // REV 2.10: hide menu non-posVisible (SKU stok granular yang cuma jadi stock target).
+    let list = menus.filter((m) => m.isActive && m.posVisible !== false)
     if (activeCategory !== 'all') list = list.filter((m) => m.category === activeCategory)
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -115,7 +118,13 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
           <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map((menu) => {
               const badge = stockBadge(menu)
-              const isPaket = !!(menu.subOptions && 'choices' in menu.subOptions)
+              // REV 2.10: badge kind dari menu.kind (data-driven), bukan subOptions JSON.
+              const kindBadge =
+                menu.kind === 'paket'
+                  ? 'Paket'
+                  : menu.kind === 'variant'
+                    ? 'Varian'
+                    : null
               const isOutOfStock = menu.stockType === 'portion' && (menu.portionStock?.currentQty ?? 0) <= 0
               return (
                 <button
@@ -151,11 +160,11 @@ export default function MenuGrid({ menus, onMenuClick, loading }: Props) {
                   <p className="text-body font-semibold text-primary-700 mt-1 tabular-nums">
                     {formatCurrency(menu.price)}
                   </p>
-                  {(isPaket || badge) && (
+                  {(kindBadge || badge) && (
                     <div className="mt-2 flex items-center gap-1 flex-wrap">
-                      {isPaket && (
+                      {kindBadge && (
                         <Badge tone="primary" size="sm" variant="soft">
-                          Paket
+                          {kindBadge}
                         </Badge>
                       )}
                       {badge && (
