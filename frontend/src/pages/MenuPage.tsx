@@ -6,9 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, RotateCcw, Search, History } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
-import { COST_REASON_LABEL } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
-import { StockHistorySheet, type HistoryMovement } from '@/components/stock/StockHistorySheet'
 import {
   Button,
   IconButton,
@@ -25,6 +23,7 @@ import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import { MenuFormModal } from '@/components/MenuFormModal'
+import { CostHistoryDrawer } from '@/components/menu/CostHistoryDrawer'
 import { SortableHeader } from '@/components/stock/SortableHeader'
 import { MenuTypeFilter, toggleStockType } from '@/components/stock/MenuTypeFilter'
 
@@ -438,29 +437,3 @@ export default function MenuPage() {
   )
 }
 
-/** REV 2.11: drawer riwayat perubahan modal/COGS. Memetakan
- * MenuCostMovementView ke HistoryMovement (shape generic StockHistorySheet):
- * costBefore→qtyBefore, costAfter→qtyAfter, delta = after − before, unit "Rp". */
-function CostHistoryDrawer({ menuId, onClose }: { menuId: number; onClose: () => void }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['menuCostHistory', menuId],
-    queryFn: () => menuService.costHistory(menuId),
-  })
-  const movements: HistoryMovement[] = (data ?? []).map((m) => ({
-    id: m.id,
-    reasonLabel: COST_REASON_LABEL[m.reason],
-    delta: (m.costAfter ?? 0) - (m.costBefore ?? 0),
-    qtyBefore: m.costBefore,
-    qtyAfter: m.costAfter,
-    note: m.note,
-    userName: m.userName,
-    createdAt: m.createdAt,
-    sourceLabel: null,
-  }))
-  return (
-    <StockHistorySheet
-      open onOpenChange={(o) => !o && onClose()}
-      title="Riwayat Modal" isLoading={isLoading} movements={movements} unitSuffix="Rp"
-    />
-  )
-}
