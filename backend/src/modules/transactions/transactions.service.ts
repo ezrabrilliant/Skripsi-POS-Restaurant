@@ -42,6 +42,7 @@ import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
 import {
   resolveStockTargets,
+  resolveCostComponents,
   type MenuNode,
   type StockDeduction,
 } from '../menus/variant-resolver';
@@ -233,6 +234,8 @@ interface ResolvedItem {
   menu: { id: number; name: string; price: Prisma.Decimal };
   /// Harga jual efektif: harga varian kalau variantId di-set, else harga menu.
   unitPrice: Prisma.Decimal;
+  /// REV 2.11: snapshot modal per unit (Σ cost komponen). Beku di TransactionItem.unitCost.
+  unitCost: Prisma.Decimal;
   /// Varian yang dipersist di TransactionItem.variantId (null untuk simple/paket).
   variantId: number | null;
   /// Stok yang harus di-decrement. qty = per 1 unit menu (paket fixed bisa >1).
@@ -259,7 +262,8 @@ async function buildMenuGraph(
       id: true,
       kind: true,
       stockType: true,
-      variants: { select: { id: true, stockTargetMenuId: true } },
+      cost: true,
+      variants: { select: { id: true, stockTargetMenuId: true, costSourceMenuId: true } },
       paketComponents: {
         select: {
           kind: true,
@@ -299,10 +303,15 @@ async function buildMenuGraph(
             ? 'linked'
             : 'nonStock',
     };
+    node.cost = m.cost ? m.cost.toNumber() : 0;
     if (m.variants.length > 0) {
       node.variants = {};
       for (const v of m.variants) {
-        node.variants[v.id] = { id: v.id, stockTargetMenuId: v.stockTargetMenuId };
+        node.variants[v.id] = {
+          id: v.id,
+          stockTargetMenuId: v.stockTargetMenuId,
+          costSourceMenuId: v.costSourceMenuId,
+        };
       }
     }
     if (m.kind === 'paket') {
@@ -442,6 +451,16 @@ async function resolveItems(
       paketChoices: input.paketChoices,
     });
 
+    const costComponents = resolveCostComponents(graph, {
+      menuId: input.menuId,
+      variantId,
+      paketChoices: input.paketChoices,
+    });
+    const unitCost = costComponents.reduce(
+      (acc, c) => acc.add(new Prisma.Decimal(graph[c.menuId]?.cost ?? 0).mul(c.qty)),
+      new Prisma.Decimal(0),
+    );
+
     // Baris selection: slot paket (isPreference=false) + free-preference (isPreference=true).
     const selections: ResolvedItem['selections'] = [];
     if (input.paketChoices) {
@@ -471,6 +490,7 @@ async function resolveItems(
       input,
       menu: { id: menu.id, name: menu.name, price: menu.price },
       unitPrice,
+      unitCost,
       variantId,
       deductions,
       selections,
@@ -497,6 +517,7 @@ async function persistItemsAndDecrement(
         qty: r.input.qty,
         unitPrice: r.unitPrice,
         subtotal: r.unitPrice.mul(r.input.qty),
+        unitCost: r.unitCost,
         // LEGACY: tetap tulis subOptionsSelected kalau caller masih kirim (backward compat).
         subOptionsSelected: r.input.subOptionsSelected
           ? (r.input.subOptionsSelected as Prisma.InputJsonValue)
