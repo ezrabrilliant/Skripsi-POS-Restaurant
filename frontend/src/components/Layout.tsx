@@ -18,7 +18,6 @@ import {
   ChevronRight,
   Home,
   CreditCard,
-  Boxes,
 } from 'lucide-react'
 import { ROLE_LABELS, type UserRole } from '@/types'
 import { Sheet, Button } from '@/design-system/primitives'
@@ -47,7 +46,6 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/stock',      icon: Package,          label: 'Stok' },
     { to: '/bills',      icon: Receipt,          label: 'Tagihan' },
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
-    { to: '/menu/sku-varian', icon: Boxes,       label: 'SKU Varian' },
     { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
     { to: '/users',      icon: Users,            label: 'Pengguna' },
   ],
