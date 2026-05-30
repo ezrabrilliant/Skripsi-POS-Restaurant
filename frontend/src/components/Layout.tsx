@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Home,
   CreditCard,
+  Boxes,
 } from 'lucide-react'
 import { ROLE_LABELS, type UserRole } from '@/types'
 import { Sheet, Button } from '@/design-system/primitives'
@@ -28,6 +29,9 @@ interface NavItem {
   to: string
   icon: typeof LayoutGrid
   label: string
+  /** Bila true, NavLink hanya aktif saat path EXACT (cegah '/menu' ikut aktif
+   *  di '/menu/sku-varian'). Default: match prefix (kecuali root '/'). */
+  end?: boolean
 }
 
 // REV 2.3: nav per role. Item pertama selalu Beranda (landing setelah login).
@@ -42,7 +46,8 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/settlement', icon: Calculator,       label: 'Tutup Kasir' },
     { to: '/stock',      icon: Package,          label: 'Stok' },
     { to: '/bills',      icon: Receipt,          label: 'Tagihan' },
-    { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu' },
+    { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
+    { to: '/menu/sku-varian', icon: Boxes,       label: 'SKU Varian' },
     { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
     { to: '/users',      icon: Users,            label: 'Pengguna' },
   ],
@@ -112,6 +117,7 @@ export default function Layout() {
               <li key={item.to}>
                 <NavLink
                   to={item.to}
+                  end={item.end}
                   title={item.label}
                   className={({ isActive }) =>
                     cn(
@@ -196,7 +202,7 @@ export default function Layout() {
                   isActive ? 'text-primary-700' : 'text-neutral-500 active:text-neutral-700'
                 )
               }
-              end={item.to === '/'}
+              end={item.end ?? item.to === '/'}
             >
               {({ isActive }) => (
                 <>
@@ -256,6 +262,7 @@ export default function Layout() {
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
+                      end={item.end}
                       onClick={() => setMoreOpen(false)}
                       className={({ isActive }) =>
                         cn(
