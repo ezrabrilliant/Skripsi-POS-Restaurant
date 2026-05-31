@@ -28,6 +28,7 @@ import CartPanel from '@/components/CartPanel'
 import VariantPickerModal, { type VariantPickResult } from '@/components/VariantPickerModal'
 import PaymentModal from '@/components/PaymentModal'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
+import OverdueShiftGate from '@/components/OverdueShiftGate'
 import { menuService } from '@/services/menuService'
 import { shiftService } from '@/services/shiftService'
 import { transactionService } from '@/services/transactionService'
@@ -372,6 +373,12 @@ export default function POSPage() {
         )}
       </>
     )
+  }
+
+  // REV 2.12: shift tunggal yang aktif tapi sudah basi → blok input, arahkan tutup.
+  const overdueShift = activeShifts.find((s) => s.isOverdue) ?? null
+  if (!shiftLoading && overdueShift) {
+    return <OverdueShiftGate shift={overdueShift} onGoToSettlement={() => navigate('/settlement')} />
   }
 
   return (
