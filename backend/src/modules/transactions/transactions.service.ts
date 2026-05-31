@@ -705,8 +705,10 @@ export async function addItems(
   }
 
   const shiftOfTx = await prisma.shift.findUnique({ where: { id: existing.shiftId } });
+  // shiftId non-nullable di schema → shift hilang = anomali integritas, jangan bypass diam-diam.
+  if (!shiftOfTx) throw new AppError('Shift untuk transaksi ini tidak ditemukan.', 500);
   const window = await getShiftWindow();
-  if (shiftOfTx && isShiftStale(shiftOfTx.date, window)) {
+  if (isShiftStale(shiftOfTx.date, window)) {
     throw new AppError(
       `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup — tidak bisa menambah item ke order hari kemarin.`,
       409,
