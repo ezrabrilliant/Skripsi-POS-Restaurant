@@ -3,7 +3,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, User as UserIcon, Shield, Users as UsersIcon } from 'lucide-react'
+import { Plus, Pencil, UserX, User as UserIcon, Shield, Users as UsersIcon } from 'lucide-react'
 import { userService } from '@/services'
 import { useAuthStore } from '@/stores/authStore'
 import { ROLE_LABELS } from '@/types'
@@ -16,6 +16,7 @@ import {
   Skeleton,
   Dialog,
   Input,
+  Checkbox,
   Combobox,
   EmptyState,
   type ComboboxOption,
@@ -27,6 +28,7 @@ type UserFormData = {
   name: string
   pin: string
   role: UserRole
+  isActive: boolean
 }
 
 const ROLE_OPTIONS: ComboboxOption[] = [
@@ -35,7 +37,7 @@ const ROLE_OPTIONS: ComboboxOption[] = [
   { value: 'owner', label: 'Owner' },
 ]
 
-const initialFormData: UserFormData = { name: '', pin: '', role: 'cashier' }
+const initialFormData: UserFormData = { name: '', pin: '', role: 'cashier', isActive: true }
 
 export default function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -76,7 +78,7 @@ export default function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: userService.deleteUser,
     onSuccess: () => {
-      toast.success('User berhasil dihapus')
+      toast.success('User dinonaktifkan')
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (err: Error) => toast.error(err.message),
@@ -90,7 +92,7 @@ export default function UsersPage() {
 
   const openEditModal = (user: UserType) => {
     setEditingUser(user)
-    setFormData({ name: user.name, pin: '', role: user.role })
+    setFormData({ name: user.name, pin: '', role: user.role, isActive: user.isActive })
     setIsModalOpen(true)
   }
 
@@ -102,14 +104,21 @@ export default function UsersPage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!editingUser && (formData.pin.length < 4 || formData.pin.length > 6)) {
-      toast.error('PIN harus 4-6 digit')
+    // Backend wajib PIN tepat 6 digit (^\d{6}$). Create: wajib. Edit: boleh
+    // kosong (tidak diubah), tapi kalau diisi wajib 6 digit.
+    if (!editingUser && formData.pin.length !== 6) {
+      toast.error('PIN harus 6 digit angka')
+      return
+    }
+    if (editingUser && formData.pin && formData.pin.length !== 6) {
+      toast.error('PIN harus 6 digit angka')
       return
     }
     if (editingUser) {
       const updateData: Partial<UserFormData> = {
         name: formData.name,
         role: formData.role,
+        isActive: formData.isActive,
       }
       if (formData.pin) updateData.pin = formData.pin
       updateMutation.mutate({ id: editingUser.id, data: updateData })
@@ -120,13 +129,13 @@ export default function UsersPage() {
 
   const handleDelete = async (user: UserType) => {
     if (user.id === currentUser?.id) {
-      toast.error('Tidak dapat menghapus akun sendiri')
+      toast.error('Tidak dapat menonaktifkan akun sendiri')
       return
     }
     const ok = await confirm({
-      title: `Hapus user "${user.name}"?`,
-      description: 'Akun akan dihapus permanen. Aksi tidak bisa di-undo.',
-      confirmText: 'Ya, Hapus',
+      title: `Nonaktifkan user "${user.name}"?`,
+      description: 'Akun dinonaktifkan (tidak bisa login). Bisa diaktifkan lagi nanti lewat Edit.',
+      confirmText: 'Ya, Nonaktifkan',
       tone: 'danger',
     })
     if (!ok) return
@@ -239,6 +248,13 @@ export default function UsersPage() {
                 helper={isSelfEdit ? 'Tidak dapat mengubah role sendiri' : undefined}
                 searchPlaceholder="Cari role..."
               />
+              {editingUser && !isSelfEdit && (
+                <Checkbox
+                  label="Akun aktif (bisa login & dipakai)"
+                  checked={formData.isActive}
+                  onCheckedChange={(c) => setFormData({ ...formData, isActive: c })}
+                />
+              )}
             </form>
           </Dialog>
         )}
@@ -304,7 +320,12 @@ function UserCard({
   onDelete: () => void
 }) {
   return (
-    <div className="bg-white rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 border border-neutral-200/60">
+    <div
+      className={cn(
+        'bg-white rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 border border-neutral-200/60',
+        !user.isActive && 'opacity-60',
+      )}
+    >
       <div className="flex items-center gap-3 min-w-0">
         <div
           className={cn(
@@ -327,6 +348,11 @@ function UserCard({
                 Anda
               </Badge>
             )}
+            {!user.isActive && (
+              <Badge tone="neutral" size="sm">
+                Nonaktif
+              </Badge>
+            )}
           </div>
           <p className="text-body-sm text-neutral-600">{ROLE_LABELS[user.role]}</p>
         </div>
@@ -334,12 +360,12 @@ function UserCard({
       <div className="flex items-center gap-1 shrink-0">
         <IconButton label="Edit user" icon={<Pencil />} variant="ghost" size="sm" onClick={onEdit} />
         <IconButton
-          label="Hapus user"
-          icon={<Trash2 />}
+          label="Nonaktifkan user"
+          icon={<UserX />}
           variant="ghost"
           size="sm"
           onClick={onDelete}
-          disabled={isCurrent}
+          disabled={isCurrent || !user.isActive}
           className="text-danger-700 hover:bg-danger-50"
         />
       </div>
