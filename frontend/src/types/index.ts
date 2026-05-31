@@ -411,6 +411,8 @@ export interface Shift {
   cashierName?: string
   openingCash: number
   closedAt: string | null
+  /** REV 2.12: true kalau shift masih open tapi sudah lewat business day-nya. */
+  isOverdue?: boolean
   createdAt: string
 }
 

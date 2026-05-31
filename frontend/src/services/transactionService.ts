@@ -62,6 +62,8 @@ export interface AddPaymentPayload {
   bank?: string
   amount: number
   discountAmount?: number
+  /** REV 2.12: id pesanan intra-meja yang digabung saat bayar (atomik di backend). */
+  mergeSourceIds?: number[]
 }
 
 export interface ListTransactionsQuery {
