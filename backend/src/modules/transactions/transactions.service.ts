@@ -40,6 +40,7 @@ import {
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
+import { computePb1 } from './pb1';
 import {
   resolveStockTargets,
   resolveCostComponents,
@@ -122,6 +123,8 @@ export interface TransactionView {
   subtotal: number;
   discountAmount: number;
   taxAmount: number;
+  /// REV 2.12: PB1 ditanggung resto (0 kalau dibebankan ke pelanggan / nonaktif).
+  taxBorneAmount: number;
   total: number;
   items: TransactionItemView[];
   /// REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
@@ -162,6 +165,7 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
     subtotal: t.subtotal.toNumber(),
     discountAmount: t.discountAmount.toNumber(),
     taxAmount: t.taxAmount.toNumber(),
+    taxBorneAmount: t.taxBorneAmount.toNumber(),
     total: t.total.toNumber(),
     createdAt: t.createdAt.toISOString(),
     paidAt: t.paidAt ? t.paidAt.toISOString() : null,
@@ -827,6 +831,7 @@ export async function addPayment(
   // Resolve effective discount/tax/total
   let effectiveDiscount: Prisma.Decimal;
   let effectiveTax: Prisma.Decimal;
+  let effectiveTaxBorne: Prisma.Decimal;
   let effectiveTotal: Prisma.Decimal;
 
   if (isFirstSlice) {
@@ -835,17 +840,24 @@ export async function addPayment(
       throw new AppError('Diskon tidak boleh lebih besar dari subtotal agregat', 400);
     }
     const baseAfterDiscount = aggregateSubtotal.sub(effectiveDiscount);
-    // REV 2.6: tarif PB1 dari AppSetting (toggle on/off + custom rate). Default OFF
-    // karena resto tidak charge PB1 ke customer (harga menu = final). Owner nyalakan
-    // via tab Pajak. taxEnabled=false -> ratePct 0 -> tax 0 -> total = baseAfterDiscount.
+    // REV 2.12: PB1 2-sumbu dari AppSetting (lihat computePb1 + pb1.test.ts).
+    //  - taxEnabled: apakah PB1 dihitung sama sekali.
+    //  - taxChargedToCustomer: true → ditambahkan ke total pelanggan (taxAmount);
+    //    false → ditanggung resto (taxBorneAmount, TIDAK di total, kurangi laba).
     const setting = await prisma.appSetting.findUnique({ where: { id: 1 } });
-    const ratePct = setting?.taxEnabled ? setting.taxRate : new Prisma.Decimal(0);
-    effectiveTax = baseAfterDiscount.mul(ratePct).div(100).toDecimalPlaces(2);
-    effectiveTotal = baseAfterDiscount.add(effectiveTax);
+    const pb1 = computePb1(baseAfterDiscount, {
+      taxEnabled: setting?.taxEnabled ?? false,
+      taxRate: setting?.taxRate ?? 0,
+      taxChargedToCustomer: setting?.taxChargedToCustomer ?? false,
+    });
+    effectiveTax = pb1.taxAmount;
+    effectiveTaxBorne = pb1.taxBorneAmount;
+    effectiveTotal = pb1.total;
   } else {
     // Slice ke-2+: pakai nilai existing yang sudah ter-set saat first slice
     effectiveDiscount = existing.discountAmount;
     effectiveTax = existing.taxAmount;
+    effectiveTaxBorne = existing.taxBorneAmount;
     effectiveTotal = existing.total;
   }
 
@@ -866,7 +878,12 @@ export async function addPayment(
     if (isFirstSlice) {
       await tx.transaction.update({
         where: { id: transactionId },
-        data: { discountAmount: effectiveDiscount, taxAmount: effectiveTax, total: effectiveTotal },
+        data: {
+          discountAmount: effectiveDiscount,
+          taxAmount: effectiveTax,
+          taxBorneAmount: effectiveTaxBorne,
+          total: effectiveTotal,
+        },
       });
     }
 

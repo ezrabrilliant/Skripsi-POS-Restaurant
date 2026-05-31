@@ -10,6 +10,15 @@ import { parseHHMM, type ShiftWindowSettings } from '../shifts/shift-time';
 export interface SettingView {
   taxEnabled: boolean;
   taxRate: number; // persen
+  // REV 2.12
+  taxChargedToCustomer: boolean;
+  restaurantName: string;
+  restaurantAddress: string | null;
+  openingHours: string | null;
+  restaurantPhone: string | null;
+  restaurantLogoUrl: string | null;
+  restockMultiple: number;
+  lowStockThreshold: number;
   updatedAt: string;
   updatedById: number | null;
   timezone: string;
@@ -21,6 +30,14 @@ export interface SettingView {
 type AppSettingRow = {
   taxEnabled: boolean;
   taxRate: { toNumber: () => number };
+  taxChargedToCustomer: boolean;
+  restaurantName: string;
+  restaurantAddress: string | null;
+  openingHours: string | null;
+  restaurantPhone: string | null;
+  restaurantLogoUrl: string | null;
+  restockMultiple: number;
+  lowStockThreshold: number;
   updatedAt: Date;
   updatedById: number | null;
   timezone: string;
@@ -33,6 +50,14 @@ function toView(s: AppSettingRow): SettingView {
   return {
     taxEnabled: s.taxEnabled,
     taxRate: s.taxRate.toNumber(),
+    taxChargedToCustomer: s.taxChargedToCustomer,
+    restaurantName: s.restaurantName,
+    restaurantAddress: s.restaurantAddress,
+    openingHours: s.openingHours,
+    restaurantPhone: s.restaurantPhone,
+    restaurantLogoUrl: s.restaurantLogoUrl,
+    restockMultiple: s.restockMultiple,
+    lowStockThreshold: s.lowStockThreshold,
     updatedAt: s.updatedAt.toISOString(),
     updatedById: s.updatedById,
     timezone: s.timezone,

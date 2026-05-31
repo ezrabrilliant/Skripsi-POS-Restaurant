@@ -14,6 +14,15 @@ export const updateSettingsSchema = z
       .min(0, 'Tarif pajak minimal 0%')
       .max(100, 'Tarif pajak maksimal 100%')
       .optional(),
+    // REV 2.12: PB1 2-sumbu + identitas resto + aturan operasional stok.
+    taxChargedToCustomer: z.boolean().optional(),
+    restaurantName: z.string().trim().min(1).max(120).optional(),
+    restaurantAddress: z.string().trim().max(255).nullable().optional(),
+    openingHours: z.string().trim().max(64).nullable().optional(),
+    restaurantPhone: z.string().trim().max(32).nullable().optional(),
+    restaurantLogoUrl: z.string().trim().max(255).nullable().optional(),
+    restockMultiple: z.number().int().min(1).max(100).optional(),
+    lowStockThreshold: z.number().int().min(0).max(1000).optional(),
     timezone: z.string().min(1).optional(),
     shiftPagiStart: hhmm.optional(),
     shiftChangeover: hhmm.optional(),

@@ -58,10 +58,12 @@ export interface OwnerReportView {
   };
   expense: {
     cogsTotal: number;
+    // REV 2.12: PB1 ditanggung resto (Σ taxBorneAmount). Dikurangkan ke laba.
+    pb1BorneTotal: number;
     billTotal: number;
-    total: number;
+    total: number; // cogsTotal + pb1BorneTotal (bills TERPISAH, tidak termasuk)
   };
-  profit: number; // revenue.total − cogsTotal
+  profit: number; // revenue.total − cogsTotal − pb1BorneTotal
   reminders: ReminderCounts;
 }
 
@@ -226,6 +228,16 @@ async function cogsTotalFor(txWhere: Prisma.TransactionWhereInput): Promise<numb
   return rows.reduce((s, r) => s + (r.unitCost ? r.unitCost.toNumber() : 0) * r.qty, 0);
 }
 
+/** REV 2.12: Σ PB1 yang DITANGGUNG resto (taxBorneAmount) atas transaksi paid pada
+ *  periode (mergedIntoId=null supaya tidak double-count source merge bill). */
+async function pb1BorneTotalFor(txWhere: Prisma.TransactionWhereInput): Promise<number> {
+  const agg = await prisma.transaction.aggregate({
+    where: { ...txWhere, mergedIntoId: null },
+    _sum: { taxBorneAmount: true },
+  });
+  return agg._sum.taxBorneAmount?.toNumber() ?? 0;
+}
+
 async function bankBreakdown(
   where: Prisma.TransactionWhereInput,
 ): Promise<BankBreakdownEntry[]> {
@@ -278,11 +290,12 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
     shift: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
   };
 
-  const [{ total: revenue, count: txCount, byMethod }, banks, cogsTotal, billsAgg, reminders] =
+  const [{ total: revenue, count: txCount, byMethod }, banks, cogsTotal, pb1BorneTotal, billsAgg, reminders] =
     await Promise.all([
       revenueByMethod(txWhere),
       bankBreakdown(txWhere),
       cogsTotalFor(txWhere),
+      pb1BorneTotalFor(txWhere),
       period.type === 'month'
         ? prisma.bill.aggregate({
             where: { month: period.monthFilter },
@@ -303,7 +316,9 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
     ]);
 
   const billTotal = billsAgg._sum.amount?.toNumber() ?? 0;
-  const profit = revenue - cogsTotal;
+  // REV 2.12: laba kotor = pendapatan − COGS − PB1 ditanggung resto. Tagihan (bills)
+  // tetap TERPISAH (tidak dikurangkan), konsisten REV 2.11.
+  const profit = revenue - cogsTotal - pb1BorneTotal;
 
   return {
     period: {
@@ -320,8 +335,9 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
     },
     expense: {
       cogsTotal,
+      pb1BorneTotal,
       billTotal,
-      total: cogsTotal,
+      total: cogsTotal + pb1BorneTotal,
     },
     profit,
     reminders,
