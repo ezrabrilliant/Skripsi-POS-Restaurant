@@ -112,8 +112,12 @@ export default function PaymentModal({
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   })
-  // Rate fraction (0.1 = 10%). 0 kalau PB1 disabled → tax 0, total = base.
-  const taxRate = appSettings?.taxEnabled ? appSettings.taxRate / 100 : 0
+  // REV 2.12: PB1 hanya ditambahkan ke total PELANGGAN kalau aktif DAN dibebankan
+  // ke pelanggan (taxChargedToCustomer). Kalau ditanggung resto, customer bayar
+  // harga apa adanya → rate 0 (konsisten dengan backend computePb1). Tanpa ini
+  // frontend over-compute (mis. 99k) padahal backend 90k → payment ditolak + merge stuck.
+  const taxRate =
+    appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate / 100 : 0
 
   // Query target Tx (subscribed - refetch via invalidate setelah mutation).
   // FIX: refetchOnMount 'always' supaya tiap kali modal dibuka, detail Tx target
@@ -383,10 +387,13 @@ export default function PaymentModal({
     if (!ok) return
     // REV 2.5: merge selected candidates DULU (atomic dengan payment intent).
     // Kalau merge gagal, payment skip. Kalau cancel sebelum konfirmasi, no API call.
-    if (selectedCandidates.size > 0) {
+    // REV 2.12 (defense): hanya merge candidate yang MASIH un-merged (selectedCandidateTxs
+    // = candidateTxs ∩ selected). Cegah double-merge "sudah merged ke X" kalau merge
+    // sebelumnya sukses tapi payment gagal lalu user retry.
+    if (selectedCandidateTxs.length > 0) {
       try {
         await mergeMutation.mutateAsync({
-          sourceIds: Array.from(selectedCandidates),
+          sourceIds: selectedCandidateTxs.map((t) => t.id),
           targetId: transactionId,
         })
       } catch {
@@ -448,10 +455,10 @@ export default function PaymentModal({
     // REV 2.5: merge selected candidates HANYA di first slice (sebelum payment
     // pertama). Slice ke-2+ tidak ada candidates lagi (aggregate sudah ter-commit
     // ke target.total). Picker auto-hide setelah first slice (isFirstSlice=false).
-    if (isFirstSlice && selectedCandidates.size > 0) {
+    if (isFirstSlice && selectedCandidateTxs.length > 0) {
       try {
         await mergeMutation.mutateAsync({
-          sourceIds: Array.from(selectedCandidates),
+          sourceIds: selectedCandidateTxs.map((t) => t.id),
           targetId: transactionId,
         })
       } catch {
@@ -849,7 +856,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
-                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
+                    taxRatePercent={appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate : 0}
                   />
                 </form>
               ) : (
@@ -946,7 +953,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
-                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
+                    taxRatePercent={appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate : 0}
                   />
                 </form>
               )}
