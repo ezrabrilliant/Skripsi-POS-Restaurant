@@ -16,11 +16,24 @@
 // Mendukung method custom (mis. ShopeePay) muncul otomatis di chart owner.
 // BankBreakdownEntry.method jadi generic string (drop hardcoded 'edc' | 'transfer').
 
-import { Prisma, ShiftType, TransactionStatus } from '@prisma/client';
+import { OrderType, Prisma, ShiftType, TransactionStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import type { OwnerReportQuery } from './dashboard.schema';
 import { getShiftWindow } from '../settings/settings.service';
-import { businessDateFor } from '../shifts/shift-time';
+import { businessDateFor, restoNow } from '../shifts/shift-time';
+import {
+  bucketGranularityFor,
+  bucketRevenueRows,
+  groupMenuPerformance,
+  hourOfDayDistribution,
+  settlementVariance,
+  type CategoryPerfRow,
+  type Granularity,
+  type MenuPerfInputRow,
+  type MenuPerfRow,
+  type TrendBucket,
+  type TrendRow,
+} from './dashboard.helpers';
 
 // ============================================================
 // View shape (REV 2.6: dinamis array)
@@ -79,6 +92,14 @@ export interface CashierDashboardView {
     transactionCount: number;
     byMethod: MethodTotalEntry[];
     openTransactionCount: number;
+    // REV 2.13: kartu ringan kasir. topMenus TANPA cost/laba (data modal owner-only).
+    topMenus: { menuId: number; name: string; qty: number; revenue: number }[];
+    itemCount: number; // Σ qty item terjual hari ini
+    atv: number; // average transaction value = revenue / transactionCount
+    orderTypeSplit: {
+      dineIn: { count: number; revenue: number };
+      takeaway: { count: number; revenue: number };
+    };
   };
   reminders: ReminderCounts;
 }
@@ -345,6 +366,174 @@ export async function getOwnerReport(query: OwnerReportQuery): Promise<OwnerRepo
 }
 
 // ============================================================
+// Owner analytics REV 2.13 (tab Menu / Tren / Kasir)
+// ============================================================
+//
+// Semua endpoint owner-only, reuse resolvePeriod() + txWhere yang sama dengan
+// getOwnerReport (status=paid + shift.date in [from,to) + exclude mergedIntoId).
+
+export interface MenuPerformanceView {
+  topMenus: MenuPerfRow[];
+  byCategory: CategoryPerfRow[];
+}
+
+export interface TrendView {
+  granularity: Granularity; // FE: sembunyikan Jam Ramai saat 'hour' (redundan dgn tren jam)
+  revenueTrend: TrendBucket[];
+  peakHours: { hour: number; revenue: number; txCount: number }[];
+}
+
+export interface CashierPerfRow {
+  cashierId: number;
+  cashierName: string;
+  shiftCount: number;
+  txCount: number;
+  revenue: number;
+  atv: number; // average transaction value
+}
+
+export interface SettlementHistoryRow {
+  date: string; // YYYY-MM-DD
+  cashierName: string;
+  totalCounted: number;
+  totalSystem: number;
+  variance: number; // counted − system (+ lebih / − kurang)
+  status: string; // SettlementStatus
+}
+
+export interface StaffView {
+  cashierPerformance: CashierPerfRow[];
+  settlementHistory: SettlementHistoryRow[];
+}
+
+/** Resolusi periode + txWhere bersama untuk endpoint analitik owner. */
+async function resolveOwnerPeriod(query: OwnerReportQuery): Promise<{
+  window: Awaited<ReturnType<typeof getShiftWindow>>;
+  period: PeriodRange;
+  txWhere: Prisma.TransactionWhereInput;
+}> {
+  const window = await getShiftWindow();
+  const restoToday = businessDateFor(window, new Date());
+  const restoMonth = `${restoToday.getUTCFullYear()}-${String(restoToday.getUTCMonth() + 1).padStart(2, '0')}`;
+  const period = resolvePeriod(query, restoToday, restoMonth);
+  const txWhere: Prisma.TransactionWhereInput = {
+    status: TransactionStatus.paid,
+    mergedIntoId: null,
+    shift: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
+  };
+  return { window, period, txWhere };
+}
+
+/** Performa menu: menu terlaris + roll-up per kategori (omzet/laba/margin). Owner-only. */
+export async function getOwnerMenuPerformance(query: OwnerReportQuery): Promise<MenuPerformanceView> {
+  const { txWhere } = await resolveOwnerPeriod(query);
+  const items = await prisma.transactionItem.findMany({
+    where: { transaction: txWhere },
+    select: {
+      menuId: true,
+      qty: true,
+      subtotal: true,
+      unitCost: true,
+      menu: { select: { name: true, category: true } },
+    },
+  });
+  const rows: MenuPerfInputRow[] = items.map((it) => ({
+    menuId: it.menuId,
+    name: it.menu.name,
+    category: it.menu.category,
+    qty: it.qty,
+    subtotal: it.subtotal.toNumber(),
+    unitCost: it.unitCost ? it.unitCost.toNumber() : null,
+  }));
+  const { topMenus, byCategory } = groupMenuPerformance(rows);
+  return { topMenus: topMenus.slice(0, 15), byCategory };
+}
+
+/** Tren omzet + jam ramai. Owner-only. */
+export async function getOwnerTrend(query: OwnerReportQuery): Promise<TrendView> {
+  const { window, period, txWhere } = await resolveOwnerPeriod(query);
+  const granularity = bucketGranularityFor(period.fromDate, period.toDateExclusive);
+  const toLocalHour = (d: Date) => Math.floor(restoNow(window.timezone, d).minutesOfDay / 60);
+
+  const txs = await prisma.transaction.findMany({
+    where: txWhere,
+    select: { total: true, createdAt: true, shift: { select: { date: true } } },
+  });
+  const rows: TrendRow[] = txs.map((t) => ({
+    total: t.total.toNumber(),
+    shiftDate: t.shift.date,
+    createdAt: t.createdAt,
+  }));
+
+  return {
+    granularity,
+    revenueTrend: bucketRevenueRows(rows, granularity, toLocalHour),
+    peakHours: hourOfDayDistribution(
+      rows.map((r) => ({ total: r.total, createdAt: r.createdAt })),
+      toLocalHour,
+    ),
+  };
+}
+
+/** Performa kasir (atribusi = pemilik shift) + riwayat setoran & selisih. Owner-only. */
+export async function getOwnerStaff(query: OwnerReportQuery): Promise<StaffView> {
+  const { period, txWhere } = await resolveOwnerPeriod(query);
+  const [txs, settlements] = await Promise.all([
+    prisma.transaction.findMany({
+      where: txWhere,
+      select: {
+        total: true,
+        shiftId: true,
+        shift: { select: { cashierId: true, cashier: { select: { name: true } } } },
+      },
+    }),
+    prisma.settlement.findMany({
+      where: { date: { gte: period.fromDate, lt: period.toDateExclusive } },
+      include: { cashier: { select: { name: true } }, methodCounts: true },
+      orderBy: { date: 'desc' },
+    }),
+  ]);
+
+  // Group omzet per kasir pemilik shift (bukan createdById).
+  const acc = new Map<number, { cashierId: number; cashierName: string; shiftIds: Set<number>; txCount: number; revenue: number }>();
+  for (const t of txs) {
+    const cid = t.shift.cashierId;
+    let e = acc.get(cid);
+    if (!e) {
+      e = { cashierId: cid, cashierName: t.shift.cashier.name, shiftIds: new Set(), txCount: 0, revenue: 0 };
+      acc.set(cid, e);
+    }
+    e.shiftIds.add(t.shiftId);
+    e.txCount += 1;
+    e.revenue += t.total.toNumber();
+  }
+  const cashierPerformance: CashierPerfRow[] = [...acc.values()]
+    .map((e) => ({
+      cashierId: e.cashierId,
+      cashierName: e.cashierName,
+      shiftCount: e.shiftIds.size,
+      txCount: e.txCount,
+      revenue: e.revenue,
+      atv: e.txCount > 0 ? e.revenue / e.txCount : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const settlementHistory: SettlementHistoryRow[] = settlements.map((s) => {
+    const counts = s.methodCounts.map((m) => ({ counted: m.counted, system: m.system }));
+    return {
+      date: isoDate(s.date),
+      cashierName: s.cashier.name,
+      totalCounted: counts.reduce((x, c) => x + c.counted, 0),
+      totalSystem: counts.reduce((x, c) => x + c.system, 0),
+      variance: settlementVariance(counts),
+      status: s.status,
+    };
+  });
+
+  return { cashierPerformance, settlementHistory };
+}
+
+// ============================================================
 // Cashier dashboard
 // ============================================================
 
@@ -354,7 +543,14 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
   const tomorrow = new Date(today);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-  const [activeShiftRow, todayPaid, openTxCount, reminders] = await Promise.all([
+  // REV 2.13: filter paid hari ini reusable untuk item + orderType breakdown.
+  const txWhereToday: Prisma.TransactionWhereInput = {
+    status: TransactionStatus.paid,
+    mergedIntoId: null,
+    shift: { date: { gte: today, lt: tomorrow } },
+  };
+
+  const [activeShiftRow, todayPaid, openTxCount, reminders, itemRows, orderTypeAgg] = await Promise.all([
     prisma.shift.findFirst({
       where: { cashierId, closedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -371,7 +567,36 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
       },
     }),
     reminderCounts(),
+    prisma.transactionItem.findMany({
+      where: { transaction: txWhereToday },
+      select: { menuId: true, qty: true, subtotal: true, menu: { select: { name: true } } },
+    }),
+    prisma.transaction.groupBy({
+      by: ['orderType'],
+      where: txWhereToday,
+      _sum: { total: true },
+      _count: { _all: true },
+    }),
   ]);
+
+  // Top 5 menu terlaris hari ini (by qty) + total item terjual. TANPA cost.
+  const menuAcc = new Map<number, { menuId: number; name: string; qty: number; revenue: number }>();
+  let itemCount = 0;
+  for (const it of itemRows) {
+    itemCount += it.qty;
+    const e = menuAcc.get(it.menuId) ?? { menuId: it.menuId, name: it.menu.name, qty: 0, revenue: 0 };
+    e.qty += it.qty;
+    e.revenue += it.subtotal.toNumber();
+    menuAcc.set(it.menuId, e);
+  }
+  const topMenus = [...menuAcc.values()]
+    .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue)
+    .slice(0, 5);
+
+  const findOrderType = (t: OrderType) => {
+    const row = orderTypeAgg.find((r) => r.orderType === t);
+    return { count: row?._count._all ?? 0, revenue: row?._sum.total?.toNumber() ?? 0 };
+  };
 
   return {
     activeShift: activeShiftRow
@@ -387,6 +612,13 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
       transactionCount: todayPaid.count,
       byMethod: todayPaid.byMethod,
       openTransactionCount: openTxCount,
+      topMenus,
+      itemCount,
+      atv: todayPaid.count > 0 ? todayPaid.total / todayPaid.count : 0,
+      orderTypeSplit: {
+        dineIn: findOrderType(OrderType.dineIn),
+        takeaway: findOrderType(OrderType.takeaway),
+      },
     },
     reminders,
   };

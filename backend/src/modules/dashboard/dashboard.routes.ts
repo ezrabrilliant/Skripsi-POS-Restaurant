@@ -9,6 +9,9 @@ import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/requireRole';
 import {
   handleOwnerReport,
+  handleOwnerMenuPerformance,
+  handleOwnerTrend,
+  handleOwnerStaff,
   handleCashierDashboard,
   handleWaiterDashboard,
 } from './dashboard.controller';
@@ -17,6 +20,10 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/owner', requireRole(UserRole.owner), handleOwnerReport);
+// REV 2.13: analitik owner tab (lazy-loaded per tab di FE). Owner-only.
+router.get('/owner/menu-performance', requireRole(UserRole.owner), handleOwnerMenuPerformance);
+router.get('/owner/trend', requireRole(UserRole.owner), handleOwnerTrend);
+router.get('/owner/staff', requireRole(UserRole.owner), handleOwnerStaff);
 router.get('/cashier', requireRole(UserRole.owner, UserRole.cashier), handleCashierDashboard);
 router.get('/waiter', handleWaiterDashboard);
 
