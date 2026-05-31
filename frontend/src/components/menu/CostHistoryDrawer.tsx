@@ -1,5 +1,5 @@
 // CostHistoryDrawer - drawer riwayat perubahan modal/COGS per menu (REV 2.11).
-// Diekstrak dari MenuPage supaya dipakai bareng MenuPage + SkuVarianPage.
+// Diekstrak supaya dipakai bareng MenuJualTab + VarianSkuTab (tab Katalog Menu).
 // Memetakan MenuCostMovementView ke HistoryMovement (shape generic StockHistorySheet):
 // costBefore→qtyBefore, costAfter→qtyAfter, delta = after − before, unit "Rp".
 

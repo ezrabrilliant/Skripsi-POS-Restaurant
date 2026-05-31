@@ -1,435 +1,104 @@
-// MenuPage - REV 2.3 owner-only CRUD menu.
-// DataTable responsive + MenuFormModal dengan form builder (no raw JSON).
-
-import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, RotateCcw, Search, History } from 'lucide-react'
+// MenuPage.tsx — host "Katalog Menu" (REV UX elevation).
+// PageHeader + Tabs (Menu Jual / Varian SKU). Memegang query bersama
+// (key ['menus','admin',showInactive] — SAMA dgn MenuFormModal supaya cache
+// konsisten) + showInactive + routing tab via ?tab + focusMenuId.
+import { useCallback, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { menuService } from '@/services/menuService'
-import type { Menu, StockType } from '@/types'
-import { formatCurrency, cn } from '@/lib/utils'
-import {
-  Button,
-  IconButton,
-  Combobox,
-  Checkbox,
-  Input,
-  Badge,
-  Skeleton,
-  DataTable,
-  type DataTableColumn,
-  type ComboboxOption,
-} from '@/design-system/primitives'
-import { useIsMobile } from '@/design-system/hooks/useMediaQuery'
-import { useToast } from '@/design-system/hooks/useToast'
-import { useConfirm } from '@/design-system/hooks/useConfirm'
-import { MenuFormModal } from '@/components/MenuFormModal'
-import { CostHistoryDrawer } from '@/components/menu/CostHistoryDrawer'
-import { SortableHeader } from '@/components/stock/SortableHeader'
-import { MenuTypeFilter, toggleStockType } from '@/components/stock/MenuTypeFilter'
-
-type MenuSortKey = 'name' | 'price' | 'category'
-type SortDir = 'asc' | 'desc'
-
-const MENU_SORT_OPTIONS: ComboboxOption[] = [
-  { value: 'category', label: 'Kategori' },
-  { value: 'name', label: 'Nama (A–Z)' },
-  { value: 'price', label: 'Harga (murah dulu)' },
-]
-
-const STOCK_TYPE_LABEL: Record<StockType, string> = {
-  portion: 'Stok porsi',
-  linked: 'Ikut menu lain',
-  nonStock: 'Tidak di-track',
-}
+import { PageHeader } from '@/design-system/primitives'
+import { MenuJualTab } from '@/components/menu/MenuJualTab'
+import { VarianSkuTab } from '@/components/menu/VarianSkuTab'
 
 export default function MenuPage() {
-  const qc = useQueryClient()
-  const toast = useToast()
-  const confirm = useConfirm()
-  const isMobile = useIsMobile()
   const [showInactive, setShowInactive] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [search, setSearch] = useState('')
-  // Default tampilkan SEMUA tipe (halaman kelola — owner perlu lihat semua menu,
-  // beda dgn tab Stok yang default cuma tracked).
-  const [types, setTypes] = useState<Set<StockType>>(
-    () => new Set<StockType>(['portion', 'linked', 'nonStock'])
-  )
-  const [sortKey, setSortKey] = useState<MenuSortKey>('category')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
-  const [creatingNew, setCreatingNew] = useState(false)
-  // REV 2.11: drawer riwayat modal/COGS (tap History pada baris menu).
-  const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  const [params, setParams] = useSearchParams()
 
   const { data: menus = [], isLoading } = useQuery({
     // includeHidden TETAP true (owner token bikin backend kirim cost) supaya
-    // cache konsisten dengan MenuFormModal & SkuVarianPage. SKU posVisible=false
-    // di-FILTER client-side (lihat visibleMenus) — dikelola di halaman SKU Varian.
+    // cache konsisten dengan MenuFormModal. SKU posVisible=false ditampilkan di
+    // tab "Varian SKU"; menu jual (posVisible=true) di tab "Menu Jual".
     queryKey: ['menus', 'admin', showInactive],
     queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true, includeHidden: true }),
   })
 
-  // "Kelola Menu" hanya menu jual (posVisible=true). SKU tersembunyi pindah ke
-  // halaman SKU Varian.
-  const visibleMenus = useMemo(() => menus.filter((m) => m.posVisible), [menus])
+  const focusMenuId = params.get('focusMenuId') ? Number(params.get('focusMenuId')) : null
+  const explicitTab = params.get('tab')
 
-  const categories = useMemo(() => {
-    const set = new Set(visibleMenus.map((m) => m.category))
-    return Array.from(set).sort()
-  }, [visibleMenus])
+  const resolvedTab: 'jual' | 'varian' =
+    explicitTab === 'varian'
+      ? 'varian'
+      : explicitTab === 'jual'
+        ? 'jual'
+        : focusMenuId != null
+          ? menus.find((m) => m.id === focusMenuId)?.posVisible === false
+            ? 'varian'
+            : 'jual'
+          : 'jual'
 
-  const typeCounts = useMemo(() => {
-    const c: Record<StockType, number> = { portion: 0, linked: 0, nonStock: 0 }
-    for (const m of visibleMenus) c[m.stockType]++
-    return c
-  }, [visibleMenus])
+  const setTab = (t: 'jual' | 'varian') =>
+    setParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.set('tab', t)
+        n.delete('focusMenuId')
+        return n
+      },
+      { replace: true },
+    )
 
-  const setSort = (k: MenuSortKey) => {
-    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else {
-      setSortKey(k)
-      setSortDir('asc')
-    }
-  }
-  const toggleType = (t: StockType) => setTypes((prev) => toggleStockType(prev, t))
-
-  const filtered = useMemo(() => {
-    let arr = visibleMenus.slice()
-    if (categoryFilter !== 'all') arr = arr.filter((m) => m.category === categoryFilter)
-    arr = arr.filter((m) => types.has(m.stockType))
-    const q = search.trim().toLowerCase()
-    if (q) arr = arr.filter((m) => m.name.toLowerCase().includes(q))
-    const dir = sortDir === 'asc' ? 1 : -1
-    const byName = (a: Menu, b: Menu) => a.name.localeCompare(b.name, 'id')
-    arr.sort((a, b) => {
-      let p = 0
-      if (sortKey === 'name') p = byName(a, b)
-      else if (sortKey === 'price') p = Number(a.price) - Number(b.price)
-      else p = a.category.localeCompare(b.category, 'id')
-      if (p !== 0) return p * dir
-      return byName(a, b)
-    })
-    return arr
-  }, [visibleMenus, categoryFilter, types, search, sortKey, sortDir])
-
-  const deactivate = useMutation({
-    mutationFn: (id: number) => menuService.deactivate(id),
-    onSuccess: () => {
-      toast.success('Menu dinonaktifkan')
-      qc.invalidateQueries({ queryKey: ['menus'] })
-    },
-    onError: (err: Error) => toast.error(err.message),
-  })
-
-  const reactivate = useMutation({
-    mutationFn: (id: number) => menuService.reactivate(id),
-    onSuccess: () => {
-      toast.success('Menu diaktifkan kembali')
-      qc.invalidateQueries({ queryKey: ['menus'] })
-    },
-    onError: (err: Error) => toast.error(err.message),
-  })
-
-  const handleDeactivate = async (m: Menu) => {
-    const ok = await confirm({
-      title: `Nonaktifkan "${m.name}"?`,
-      description: 'Menu tidak akan tampil di POS sampai diaktifkan kembali.',
-      confirmText: 'Ya, Nonaktifkan',
-      tone: 'danger',
-    })
-    if (!ok) return
-    deactivate.mutate(m.id)
-  }
-
-  const categoryOptions: ComboboxOption[] = [
-    { value: 'all', label: 'Semua kategori' },
-    ...categories.map((c) => ({ value: c, label: c })),
-  ]
-
-  const columns: DataTableColumn<Menu>[] = [
-    {
-      key: 'name',
-      header: (
-        <SortableHeader
-          label="Menu"
-          active={sortKey === 'name'}
-          dir={sortDir}
-          onSort={() => setSort('name')}
-        />
+  const clearFocus = useCallback(
+    () =>
+      setParams(
+        (prev) => {
+          const n = new URLSearchParams(prev)
+          n.delete('focusMenuId')
+          return n
+        },
+        { replace: true },
       ),
-      cell: (m) => (
-        <div className={cn(!m.isActive && 'opacity-60')}>
-          <div className="font-medium text-neutral-900">{m.name}</div>
-          <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {/* REV 2.10: badge berbasis kind (variant/paket) gantikan subOptions JSON. */}
-            {m.kind === 'variant' && (
-              <Badge tone="primary" size="sm">
-                {m.variants?.length ?? 0} varian
-              </Badge>
-            )}
-            {m.kind === 'paket' && (
-              <Badge tone="primary" size="sm">
-                Paket
-              </Badge>
-            )}
-            {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'category',
-      header: (
-        <SortableHeader
-          label="Kategori"
-          active={sortKey === 'category'}
-          dir={sortDir}
-          onSort={() => setSort('category')}
-        />
-      ),
-      hideMobile: true,
-      cell: (m) => <span className="text-neutral-700">{m.category}</span>,
-    },
-    {
-      key: 'price',
-      header: (
-        <SortableHeader
-          label="Harga"
-          align="right"
-          active={sortKey === 'price'}
-          dir={sortDir}
-          onSort={() => setSort('price')}
-        />
-      ),
-      align: 'right',
-      cell: (m) => (
-        <span className="font-medium text-neutral-900 tabular-nums">
-          {formatCurrency(m.price)}
-        </span>
-      ),
-    },
-    {
-      // REV 2.11: modal/COGS per menu. Parent variant/paket → cost null → "—".
-      key: 'cost',
-      header: 'Modal',
-      align: 'right',
-      hideMobile: true,
-      cell: (m) => (
-        <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'stock',
-      header: 'Stok',
-      cell: (m) => (
-        <div>
-          <div className="text-caption text-neutral-500">{STOCK_TYPE_LABEL[m.stockType]}</div>
-          {m.stockType === 'portion' && (
-            <div className="text-body-sm text-neutral-700 tabular-nums">
-              {m.portionStock?.currentQty ?? '-'} / min {m.minStock ?? 0}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      cell: (m) => (
-        <div className="inline-flex items-center gap-1">
-          <IconButton
-            label={`Riwayat modal ${m.name}`}
-            icon={<History />}
-            variant="ghost"
-            size="sm"
-            onClick={() => setHistoryMenuId(m.id)}
-          />
-          <IconButton
-            label={`Edit ${m.name}`}
-            icon={<Pencil />}
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditingMenu(m)}
-          />
-          {m.isActive ? (
-            <IconButton
-              label={`Nonaktifkan ${m.name}`}
-              icon={<Trash2 />}
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeactivate(m)}
-              className="text-danger-700 hover:bg-danger-50"
-            />
-          ) : (
-            <IconButton
-              label={`Aktifkan ${m.name}`}
-              icon={<RotateCcw />}
-              variant="ghost"
-              size="sm"
-              onClick={() => reactivate.mutate(m.id)}
-              className="text-success-700 hover:bg-success-50"
-            />
-          )}
-        </div>
-      ),
-    },
-  ]
+    [setParams],
+  )
+
+  const menuJualCount = useMemo(() => menus.filter((m) => m.posVisible).length, [menus])
+  const varianCount = useMemo(() => menus.filter((m) => !m.posVisible).length, [menus])
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header className="flex items-center justify-between gap-2">
-          <div>
-            <h1 className="text-headline font-semibold text-neutral-900">Kelola Menu</h1>
-            <p className="text-body-sm text-neutral-600">
-              {filtered.length} dari {visibleMenus.length} menu
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setCreatingNew(true)}
-          >
-            Menu
-          </Button>
-        </header>
+    <div className="h-full flex flex-col">
+      <PageHeader
+        title="Katalog Menu"
+        subtitle={`${menuJualCount} menu jual · ${varianCount} varian SKU`}
+        tabs={{
+          value: resolvedTab,
+          onValueChange: (v) => setTab(v as 'jual' | 'varian'),
+          items: [
+            { value: 'jual', label: 'Menu Jual' },
+            { value: 'varian', label: 'Varian SKU' },
+          ],
+        }}
+      />
 
-        <div className="bg-white rounded-xl p-3 border border-neutral-200/60 space-y-2.5">
-          <div className="flex items-center gap-2">
-            <Input
-              label="Cari"
-              hideLabel
-              type="search"
-              inputMode="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari menu…"
-              leftIcon={<Search className="w-4 h-4" />}
-              containerClassName="flex-1"
-            />
-            {isMobile && (
-              <Combobox
-                hideLabel
-                label="Urutkan"
-                value={sortKey}
-                onValueChange={(v) => setSort(v as MenuSortKey)}
-                options={MENU_SORT_OPTIONS}
-                containerClassName="w-[12rem] shrink-0"
-              />
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Combobox
-              hideLabel
-              label="Filter kategori"
-              value={categoryFilter}
-              onValueChange={setCategoryFilter}
-              options={categoryOptions}
-              searchPlaceholder="Cari kategori..."
-              containerClassName="min-w-[12rem]"
-            />
-            <Checkbox
-              label="Tampilkan nonaktif"
-              checked={showInactive}
-              onCheckedChange={setShowInactive}
-            />
-          </div>
-          <MenuTypeFilter selected={types} counts={typeCounts} onToggle={toggleType} />
-        </div>
-
-        {isLoading ? (
-          <Skeleton className="h-64" />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {resolvedTab === 'jual' ? (
+          <MenuJualTab
+            menus={menus}
+            isLoading={isLoading}
+            showInactive={showInactive}
+            onShowInactiveChange={setShowInactive}
+            focusMenuId={resolvedTab === 'jual' ? focusMenuId : null}
+            clearFocus={clearFocus}
+          />
         ) : (
-          <DataTable
-            columns={columns}
-            data={filtered}
-            rowKey={(m) => m.id}
-            emptyTitle="Tidak ada menu"
-            emptyDescription={
-              search || categoryFilter !== 'all' || types.size < 3
-                ? 'Tidak ada menu cocok dengan filter.'
-                : 'Klik tombol Menu di atas untuk menambah.'
-            }
-            mobileCard={(m) => (
-              <div className={cn(!m.isActive && 'opacity-60', 'space-y-1.5')}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-neutral-900">{m.name}</p>
-                    <p className="text-caption text-neutral-500">{m.category}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {/* REV 2.10: badge berbasis kind. */}
-                      {m.kind === 'variant' && (
-                        <Badge tone="primary" size="sm">{m.variants?.length ?? 0} varian</Badge>
-                      )}
-                      {m.kind === 'paket' && (
-                        <Badge tone="primary" size="sm">Paket</Badge>
-                      )}
-                      {m.stockType === 'portion' && (
-                        <Badge tone="neutral" size="sm">
-                          {m.portionStock?.currentQty ?? 0}/{m.minStock ?? 0}
-                        </Badge>
-                      )}
-                      {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
-                    </div>
-                  </div>
-                  <p className="font-semibold text-neutral-900 tabular-nums shrink-0">
-                    {formatCurrency(m.price)}
-                  </p>
-                </div>
-                <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
-                  <IconButton label="Riwayat modal" icon={<History />} variant="ghost" size="sm" onClick={() => setHistoryMenuId(m.id)} />
-                  <IconButton label="Edit" icon={<Pencil />} variant="ghost" size="sm" onClick={() => setEditingMenu(m)} />
-                  {m.isActive ? (
-                    <IconButton
-                      label="Nonaktifkan"
-                      icon={<Trash2 />}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeactivate(m)}
-                      className="text-danger-700"
-                    />
-                  ) : (
-                    <IconButton
-                      label="Aktifkan"
-                      icon={<RotateCcw />}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => reactivate.mutate(m.id)}
-                      className="text-success-700"
-                    />
-                  )}
-                </div>
-              </div>
-            )}
+          <VarianSkuTab
+            menus={menus}
+            isLoading={isLoading}
+            showInactive={showInactive}
+            onShowInactiveChange={setShowInactive}
+            focusMenuId={resolvedTab === 'varian' ? focusMenuId : null}
+            clearFocus={clearFocus}
           />
-        )}
-
-        {(creatingNew || editingMenu) && (
-          <MenuFormModal
-            existing={editingMenu}
-            onClose={() => {
-              setCreatingNew(false)
-              setEditingMenu(null)
-            }}
-            onSuccess={() => {
-              setCreatingNew(false)
-              setEditingMenu(null)
-              qc.invalidateQueries({ queryKey: ['menus'] })
-            }}
-          />
-        )}
-
-        {historyMenuId != null && (
-          <CostHistoryDrawer menuId={historyMenuId} onClose={() => setHistoryMenuId(null)} />
         )}
       </div>
     </div>
   )
 }
-

@@ -1,6 +1,6 @@
 // REV 2.8: hook kontrol daftar stok (search + kategori + status stok + status
-// opname hari ini + sort). Generic via accessor agar dipakai PortionStockTab &
-// RawMaterialsTab. Semua client-side (dataset kecil ~25/~13 item).
+// opname hari ini + sort). Generic via accessor agar dipakai oleh PortionStockTab.
+// Semua client-side (dataset kecil ~25 item).
 
 import { useMemo, useState } from 'react'
 import { isSameLocalDate } from '@/lib/relativeTime'
@@ -21,8 +21,6 @@ export interface StockListControlsConfig<T> {
   getQty: (r: T) => number
   getLastStockedAt: (r: T) => string | null
   getStatus: (r: T) => StockStatus
-  /** Override daftar kategori (mis. enum tetap raw material). Default: derive dari rows. */
-  categoryOptions?: { value: string; label: string }[]
 }
 
 // Arah default saat pertama klik tiap kolom.
@@ -59,12 +57,11 @@ export function useStockListControls<T>(config: StockListControlsConfig<T>) {
 
   const categoryOptions = useMemo(() => {
     const head = { value: 'all', label: 'Semua kategori' }
-    if (config.categoryOptions) return [head, ...config.categoryOptions]
     const seen = new Map<string, string>()
     for (const r of config.rows) seen.set(config.getCategoryValue(r), config.getCategoryLabel(r))
     return [head, ...[...seen].map(([value, label]) => ({ value, label }))]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.rows, config.categoryOptions])
+  }, [config.rows])
 
   const activeFilterCount =
     (search.trim() ? 1 : 0) +

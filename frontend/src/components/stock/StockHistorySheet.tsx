@@ -1,7 +1,7 @@
 // REV 2.8: drawer riwayat pergerakan stok per item (tap baris). Memanfaatkan
 // endpoint detail (recentMovements) yang kini membawa qtyBefore/qtyAfter, userName,
 // dan FK sumber. Shape movement sudah dinormalisasi oleh tab (reasonLabel +
-// sourceLabel sudah jadi) supaya Sheet ini generic untuk porsi & raw material.
+// sourceLabel sudah jadi) supaya Sheet ini generic.
 
 import { ArrowRight } from 'lucide-react'
 import { Badge, EmptyState, Sheet, Skeleton } from '@/design-system/primitives'
@@ -18,7 +18,7 @@ export interface HistoryMovement {
   note: string | null
   userName: string
   createdAt: string
-  /** "Transaksi #5" / "Pembelian #3" bila ada FK sumber; null kalau tidak. */
+  /** "Transaksi #5" bila ada FK sumber; null kalau tidak. */
   sourceLabel?: string | null
 }
 
@@ -29,7 +29,7 @@ interface StockHistorySheetProps {
   subtitle?: string
   isLoading: boolean
   movements: HistoryMovement[]
-  /** Satuan untuk tampilan qty (raw: unit.label; porsi: "porsi"). */
+  /** Satuan untuk tampilan qty (mis. "porsi"). */
   unitSuffix?: string
 }
 

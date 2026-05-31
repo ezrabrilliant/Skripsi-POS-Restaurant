@@ -56,12 +56,12 @@ export default function WaiterDashboard() {
               <h3 className="text-title font-semibold text-neutral-900 mb-3">Aksi Cepat</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <QuickAction
-                  to="/stock?action=opname-portion"
+                  to="/stock?action=opname"
                   icon={ClipboardCheck}
                   label="Opname Stok Porsi"
                 />
                 <QuickAction
-                  to="/stock?action=mark-habis"
+                  to="/stock"
                   icon={XCircle}
                   label="Mark Item Habis"
                 />

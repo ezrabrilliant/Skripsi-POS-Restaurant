@@ -5,9 +5,10 @@
 //   - Opname (batch, input qty fisik)
 //   - Mark Habis (quick set 0)
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
+import { Plus, ClipboardCheck, XCircle, Truck, History, ArrowUpRight } from 'lucide-react'
 import { portionService } from '@/services/portionService'
 import { PORTION_REASON_LABEL, type PortionStockView, type StockType } from '@/types'
 import { MenuTypeFilter, toggleStockType } from './MenuTypeFilter'
@@ -29,15 +30,25 @@ import { useStockListControls } from './useStockListControls'
 import { StockFilterToolbar } from './StockFilterToolbar'
 import { SortableHeader } from './SortableHeader'
 import { StockHistorySheet, type HistoryMovement } from './StockHistorySheet'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function PortionStockTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showRestockMorning, setShowRestockMorning] = useState(false)
   const [showOpname, setShowOpname] = useState(false)
   const [emergencyTarget, setEmergencyTarget] = useState<PortionStockView | null>(null)
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  // REV 2.11 deep-link: ?focusMenuId=<id> → sorot + scroll baris stok.
+  const [focusMenuId, setFocusMenuId] = useState<number | null>(() => {
+    const raw = searchParams.get('focusMenuId')
+    return raw ? Number(raw) : null
+  })
   // REV 2.8.1: filter tipe stok (multi-select). Default tampilkan yang tracked (portion).
   const [types, setTypes] = useState<Set<StockType>>(() => new Set<StockType>(['portion']))
 
@@ -106,6 +117,54 @@ export default function PortionStockTab() {
             ? 'rendah'
             : 'aman',
   })
+
+  // REV 2.11 deep-link: ?action=opname → buka modal Opname sekali, lalu strip param.
+  useEffect(() => {
+    if (searchParams.get('action') === 'opname') {
+      setShowOpname(true)
+      setSearchParams(
+        (prev) => {
+          const n = new URLSearchParams(prev)
+          n.delete('action')
+          return n
+        },
+        { replace: true }
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // REV 2.11 deep-link: ?focusMenuId → pastikan baris tampil (reset filter kalau perlu).
+  const clearFocusParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.delete('focusMenuId')
+        return n
+      },
+      { replace: true }
+    )
+  }, [setSearchParams])
+
+  useEffect(() => {
+    if (focusMenuId == null) return
+    if (controls.view.some((s) => s.menuId === focusMenuId)) return
+    controls.resetFilters()
+    setTypes(new Set<StockType>(['portion', 'linked', 'nonStock']))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusMenuId])
+
+  useEffect(() => {
+    if (focusMenuId == null) return
+    const el = document.getElementById('stock-row-' + focusMenuId)
+    if (!el) return
+    el.scrollIntoView({ block: 'center' })
+    const t = setTimeout(() => {
+      setFocusMenuId(null)
+      clearFocusParam()
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [focusMenuId, controls.view, clearFocusParam])
 
   // Riwayat per item (drawer) - pakai endpoint detail yang membawa recentMovements.
   const { data: historyDetail, isLoading: historyLoading } = useQuery({
@@ -229,37 +288,51 @@ export default function PortionStockTab() {
       key: 'actions',
       header: '',
       align: 'right',
-      // Aksi stok hanya untuk menu tracked (portion). Non-portion tak punya stok/movement.
-      cell: (s) =>
-        s.stockType !== 'portion' ? null : (
-          <div className="inline-flex items-center gap-1">
+      cell: (s) => (
+        <div className="inline-flex items-center gap-1">
+          {/* Aksi stok hanya untuk menu tracked (portion). Non-portion tak punya stok/movement. */}
+          {s.stockType === 'portion' && (
+            <>
+              <IconButton
+                label={`Barang masuk ${s.menuName}`}
+                icon={<Truck />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setEmergencyTarget(s)}
+                className="text-success-700 hover:bg-success-50"
+              />
+              <IconButton
+                label={`Riwayat ${s.menuName}`}
+                icon={<History />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryMenuId(s.menuId)}
+                className="text-neutral-600 hover:bg-neutral-100"
+              />
+              <IconButton
+                label={`Tandai ${s.menuName} habis`}
+                icon={<XCircle />}
+                variant="ghost"
+                size="sm"
+                onClick={() => handleMarkHabis(s)}
+                disabled={markHabisMutation.isPending}
+                className="text-warning-700 hover:bg-warning-50"
+              />
+            </>
+          )}
+          {/* REV 2.11: lompat ke Katalog Menu (owner-only; Menu owner-only route). */}
+          {isOwner && (
             <IconButton
-              label={`Barang masuk ${s.menuName}`}
-              icon={<Truck />}
+              label={`Buka ${s.menuName} di Menu`}
+              icon={<ArrowUpRight />}
               variant="ghost"
               size="sm"
-              onClick={() => setEmergencyTarget(s)}
-              className="text-success-700 hover:bg-success-50"
+              onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+              className="text-primary-700 hover:bg-primary-50"
             />
-            <IconButton
-              label={`Riwayat ${s.menuName}`}
-              icon={<History />}
-              variant="ghost"
-              size="sm"
-              onClick={() => setHistoryMenuId(s.menuId)}
-              className="text-neutral-600 hover:bg-neutral-100"
-            />
-            <IconButton
-              label={`Tandai ${s.menuName} habis`}
-              icon={<XCircle />}
-              variant="ghost"
-              size="sm"
-              onClick={() => handleMarkHabis(s)}
-              disabled={markHabisMutation.isPending}
-              className="text-warning-700 hover:bg-warning-50"
-            />
-          </div>
-        ),
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -303,6 +376,10 @@ export default function PortionStockTab() {
           columns={columns}
           data={controls.view}
           rowKey={(s) => s.menuId}
+          rowId={(s) => 'stock-row-' + s.menuId}
+          rowClassName={(s) =>
+            s.menuId === focusMenuId ? 'ring-2 ring-primary-400 ring-inset' : undefined
+          }
           emptyTitle="Tidak ada item"
           emptyDescription={
             controls.activeFilterCount > 0
@@ -385,7 +462,29 @@ export default function PortionStockTab() {
                         onClick={() => handleMarkHabis(s)}
                         className="text-warning-700"
                       />
+                      {isOwner && (
+                        <IconButton
+                          label={`Buka ${s.menuName} di Menu`}
+                          icon={<ArrowUpRight />}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+                          className="text-primary-700"
+                        />
+                      )}
                     </div>
+                  </div>
+                )}
+                {!tracked && isOwner && (
+                  <div className="flex items-center justify-end pt-1.5 border-t border-neutral-100">
+                    <IconButton
+                      label={`Buka ${s.menuName} di Menu`}
+                      icon={<ArrowUpRight />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/menu?focusMenuId=' + s.menuId)}
+                      className="text-primary-700"
+                    />
                   </div>
                 )}
               </div>
@@ -554,7 +653,7 @@ function OpnameModal({
   onSuccess: () => void
 }) {
   const toast = useToast()
-  const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number>>({})
+  const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number | ''>>({})
 
   const opname = useMutation({
     mutationFn: portionService.opname,
@@ -567,8 +666,8 @@ function OpnameModal({
 
   const handleSubmit = () => {
     const items = Object.entries(qtyFisikByMenu)
-      .filter(([, qty]) => qty !== undefined && qty >= 0)
-      .map(([menuId, qty]) => ({ menuId: Number(menuId), qtyFisik: qty as number }))
+      .filter(([, qty]) => qty !== '' && qty !== undefined && Number(qty) >= 0)
+      .map(([menuId, qty]) => ({ menuId: Number(menuId), qtyFisik: Number(qty) }))
     if (items.length === 0) {
       toast.error('Isi minimal 1 item qty fisik')
       return
@@ -613,7 +712,10 @@ function OpnameModal({
               min={0}
               value={qtyFisikByMenu[s.menuId] ?? ''}
               onChange={(e) =>
-                setQtyFisikByMenu((prev) => ({ ...prev, [s.menuId]: Number(e.target.value) }))
+                setQtyFisikByMenu((prev) => ({
+                  ...prev,
+                  [s.menuId]: e.target.value === '' ? '' : Number(e.target.value),
+                }))
               }
               placeholder="-"
               containerClassName="w-24"
