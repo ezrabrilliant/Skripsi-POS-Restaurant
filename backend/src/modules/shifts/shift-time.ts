@@ -46,3 +46,17 @@ export function businessDateFor(s: ShiftWindowSettings, now: Date = new Date()):
   return dateOnly;
 }
 
+/// REV 2.12: shift "basi/overdue" = sudah masuk business day baru DAN sesi hari baru
+/// sudah dimulai (>= jam buka pagi). Overtime tengah malam (sebelum pagiStart) TIDAK
+/// dianggap basi supaya kasir bisa menuntaskan tagihan tadi malam tanpa diganggu.
+/// shiftDate & hasil businessDateFor sama-sama UTC-midnight Date → banding via getTime().
+export function isShiftStale(
+  shiftDate: Date,
+  s: ShiftWindowSettings,
+  now: Date = new Date(),
+): boolean {
+  const bizToday = businessDateFor(s, now);
+  const { minutesOfDay } = restoNow(s.timezone, now);
+  return bizToday.getTime() > shiftDate.getTime() && minutesOfDay >= s.pagiStart;
+}
+
