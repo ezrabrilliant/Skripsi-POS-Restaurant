@@ -89,7 +89,11 @@ primitive `Input` (label + helper bawaan).
 
 ## File terdampak
 - `frontend/src/components/payment-methods/ShiftWindowTab.tsx` — rewrite presentational.
-- `frontend/src/components/payment-methods/TaxSettingsTab.tsx` — 1 baris wrapper centering.
+- `frontend/src/components/payment-methods/TaxSettingsTab.tsx` — wrapper centering (`max-w-2xl mx-auto`).
+- `frontend/src/components/payment-methods/RestaurantIdentityTab.tsx` — wrapper centering (`max-w-2xl mx-auto`).
+  Ditambahkan atas permintaan owner ("identitas juga") supaya KEEMPAT tab form (Pajak,
+  Jam Shift, Identitas) seragam centered. Header/label/field tab ini sudah konsisten —
+  hanya centering yang kurang.
 
 ## Verifikasi (definition of done)
 1. `cd frontend && npx tsc --noEmit` → 0 error.
