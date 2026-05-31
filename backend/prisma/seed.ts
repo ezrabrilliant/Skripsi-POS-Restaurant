@@ -98,7 +98,16 @@ async function seedAppSetting() {
   await prisma.appSetting.upsert({
     where: { id: 1 },
     update: {}, // jangan timpa kalau owner sudah ubah
-    create: { id: 1, taxEnabled: false, taxRate: 10 },
+    create: {
+      id: 1,
+      taxEnabled: false,
+      taxRate: 10,
+      // REV 2.12: identitas resto riil (header struk + branding). Owner bisa ubah.
+      restaurantName: 'Ayam Bakar Banjar Monosuko',
+      restaurantAddress: 'Ir. Soekarno No. 221 unit GF, 221 Lane Merr, Surabaya',
+      openingHours: '10.00 - 22.00',
+      restaurantPhone: '+62 877-3424-2941',
+    },
   });
   console.log('  ✓ AppSetting singleton siap');
 }

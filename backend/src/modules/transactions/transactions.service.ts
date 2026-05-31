@@ -40,6 +40,9 @@ import {
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
+import { computePb1 } from './pb1';
+import { getShiftWindow } from '../settings/settings.service';
+import { isShiftStale } from '../shifts/shift-time';
 import {
   resolveStockTargets,
   resolveCostComponents,
@@ -122,6 +125,8 @@ export interface TransactionView {
   subtotal: number;
   discountAmount: number;
   taxAmount: number;
+  /// REV 2.12: PB1 ditanggung resto (0 kalau dibebankan ke pelanggan / nonaktif).
+  taxBorneAmount: number;
   total: number;
   items: TransactionItemView[];
   /// REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
@@ -162,6 +167,7 @@ function toTransactionView(t: TransactionWithRelations): TransactionView {
     subtotal: t.subtotal.toNumber(),
     discountAmount: t.discountAmount.toNumber(),
     taxAmount: t.taxAmount.toNumber(),
+    taxBorneAmount: t.taxBorneAmount.toNumber(),
     total: t.total.toNumber(),
     createdAt: t.createdAt.toISOString(),
     paidAt: t.paidAt ? t.paidAt.toISOString() : null,
@@ -636,6 +642,16 @@ export async function createTransaction(
 ): Promise<TransactionView> {
   const shift = await resolveActiveShift('order baru');
 
+  // REV 2.12 clean-slate: tolak order baru kalau shift aktif sudah lewat business day-nya.
+  // Pembayaran/void TIDAK kena cek ini (perlu untuk membersihkan order sisa kemarin).
+  const window = await getShiftWindow();
+  if (isShiftStale(shift.date, window)) {
+    throw new AppError(
+      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup — tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
+      409,
+    );
+  }
+
   // Validasi order type vs tableNumber
   if (input.orderType === OrderType.dineIn) {
     if (input.tableNumber === undefined) {
@@ -686,6 +702,17 @@ export async function addItems(
   if (!existing) throw notFound('Transaction');
   if (existing.status !== TransactionStatus.open) {
     throw new AppError(`Hanya transaksi status open yang bisa ditambah item (saat ini: ${existing.status})`, 400);
+  }
+
+  const shiftOfTx = await prisma.shift.findUnique({ where: { id: existing.shiftId } });
+  // shiftId non-nullable di schema → shift hilang = anomali integritas, jangan bypass diam-diam.
+  if (!shiftOfTx) throw new AppError('Shift untuk transaksi ini tidak ditemukan.', 500);
+  const window = await getShiftWindow();
+  if (isShiftStale(shiftOfTx.date, window)) {
+    throw new AppError(
+      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup — tidak bisa menambah item ke order hari kemarin.`,
+      409,
+    );
   }
 
   await prisma.$transaction(async (tx) => {
@@ -805,68 +832,76 @@ export async function addPayment(
   const isFirstSlice = existing.payments.length === 0;
   const discountInput = input.discountAmount ?? 0;
   if (!isFirstSlice && discountInput > 0) {
-    throw new AppError(
-      'Diskon hanya bisa di-set saat pembayaran pertama (sebelum ada slice)',
-      400,
-    );
+    throw new AppError('Diskon hanya bisa di-set saat pembayaran pertama (sebelum ada slice)', 400);
+  }
+  // REV 2.12 Fix A: gabung pesanan hanya boleh di pembayaran pertama (sebelum agregat terkunci).
+  const mergeSourceIds = input.mergeSourceIds ?? [];
+  if (mergeSourceIds.length > 0 && !isFirstSlice) {
+    throw new AppError('Gabung pesanan hanya bisa saat pembayaran pertama', 400);
   }
 
-  // Aggregate subtotal (parent + mergedFrom open Tx)
-  const mergedFrom = await prisma.transaction.findMany({
-    where: { mergedIntoId: transactionId },
-    select: { id: true, subtotal: true, status: true },
-  });
-  const aggregateSubtotal = mergedFrom.reduce(
-    (sum, m) => sum.add(m.subtotal),
-    existing.subtotal,
-  );
-  if (aggregateSubtotal.isZero()) {
-    throw new AppError('Transaksi tidak punya item, tidak bisa dibayar', 400);
-  }
+  // PB1 setting dibaca sekali (stabil selama pembayaran).
+  const setting = await prisma.appSetting.findUnique({ where: { id: 1 } });
 
-  // Resolve effective discount/tax/total
-  let effectiveDiscount: Prisma.Decimal;
-  let effectiveTax: Prisma.Decimal;
-  let effectiveTotal: Prisma.Decimal;
-
-  if (isFirstSlice) {
-    effectiveDiscount = new Prisma.Decimal(discountInput);
-    if (effectiveDiscount.greaterThan(aggregateSubtotal)) {
-      throw new AppError('Diskon tidak boleh lebih besar dari subtotal agregat', 400);
-    }
-    const baseAfterDiscount = aggregateSubtotal.sub(effectiveDiscount);
-    // REV 2.6: tarif PB1 dari AppSetting (toggle on/off + custom rate). Default OFF
-    // karena resto tidak charge PB1 ke customer (harga menu = final). Owner nyalakan
-    // via tab Pajak. taxEnabled=false -> ratePct 0 -> tax 0 -> total = baseAfterDiscount.
-    const setting = await prisma.appSetting.findUnique({ where: { id: 1 } });
-    const ratePct = setting?.taxEnabled ? setting.taxRate : new Prisma.Decimal(0);
-    effectiveTax = baseAfterDiscount.mul(ratePct).div(100).toDecimalPlaces(2);
-    effectiveTotal = baseAfterDiscount.add(effectiveTax);
-  } else {
-    // Slice ke-2+: pakai nilai existing yang sudah ter-set saat first slice
-    effectiveDiscount = existing.discountAmount;
-    effectiveTax = existing.taxAmount;
-    effectiveTotal = existing.total;
-  }
-
-  // Atomic finalize: lock parent row, re-read committed payments, validate, insert
-  // slice, dan (kalau lunas) flip status + re-stamp shiftId - semua di dalam SATU
-  // $transaction. Race fix: payments-sum read + remaining-check yang dulu di luar
-  // transaction bisa di-bypass dua slice near-simultan; sekarang ter-serialize via
-  // FOR UPDATE row lock pada parent.
+  // Atomic finalize: SEMUA di dalam satu $transaction supaya merge + payment all-or-nothing.
   await prisma.$transaction(async (tx) => {
     // Lock parent row to serialize concurrent payments on this Tx.
     await tx.$queryRaw`SELECT id FROM transactions WHERE id = ${transactionId} FOR UPDATE`;
+
+    // (Fix A) Merge candidate sources ke parent ini, atomik dengan payment.
+    // Gagal di langkah mana pun setelah ini → seluruh merge ikut rollback.
+    if (mergeSourceIds.length > 0) {
+      const sources = await tx.transaction.findMany({ where: { id: { in: mergeSourceIds } } });
+      if (sources.length !== mergeSourceIds.length) {
+        throw new AppError('Sebagian pesanan yang digabung tidak ditemukan', 400);
+      }
+      for (const s of sources) {
+        if (s.id === transactionId) throw new AppError('Tidak bisa menggabung transaksi ke dirinya sendiri', 400);
+        if (s.status !== TransactionStatus.open) throw new AppError(`Pesanan #${s.id} tidak open, tidak bisa digabung`, 400);
+        if (s.mergedIntoId !== null) throw new AppError(`Pesanan #${s.id} sudah digabung ke #${s.mergedIntoId}`, 400);
+      }
+      await tx.transaction.updateMany({ where: { id: { in: mergeSourceIds } }, data: { mergedIntoId: transactionId } });
+    }
+
+    // Aggregate subtotal (parent + SEMUA merged sources, termasuk yang baru di-merge).
+    const mergedFrom = await tx.transaction.findMany({ where: { mergedIntoId: transactionId }, select: { subtotal: true } });
+    const aggregateSubtotal = mergedFrom.reduce((sum, m) => sum.add(m.subtotal), existing.subtotal);
+    if (aggregateSubtotal.isZero()) throw new AppError('Transaksi tidak punya item, tidak bisa dibayar', 400);
+
+    // Effective discount/tax/total.
+    let effectiveDiscount: Prisma.Decimal;
+    let effectiveTax: Prisma.Decimal;
+    let effectiveTaxBorne: Prisma.Decimal;
+    let effectiveTotal: Prisma.Decimal;
+    if (isFirstSlice) {
+      effectiveDiscount = new Prisma.Decimal(discountInput);
+      if (effectiveDiscount.greaterThan(aggregateSubtotal)) {
+        throw new AppError('Diskon tidak boleh lebih besar dari subtotal agregat', 400);
+      }
+      const baseAfterDiscount = aggregateSubtotal.sub(effectiveDiscount);
+      const pb1 = computePb1(baseAfterDiscount, {
+        taxEnabled: setting?.taxEnabled ?? false,
+        taxRate: setting?.taxRate ?? 0,
+        taxChargedToCustomer: setting?.taxChargedToCustomer ?? false,
+      });
+      effectiveTax = pb1.taxAmount;
+      effectiveTaxBorne = pb1.taxBorneAmount;
+      effectiveTotal = pb1.total;
+    } else {
+      effectiveDiscount = existing.discountAmount;
+      effectiveTax = existing.taxAmount;
+      effectiveTaxBorne = existing.taxBorneAmount;
+      effectiveTotal = existing.total;
+    }
 
     // Re-read committed payments INSIDE the lock (authoritative).
     const slices = await tx.transactionPayment.findMany({ where: { transactionId } });
     const sumExisting = slices.reduce((acc, p) => acc.add(p.amount), new Prisma.Decimal(0));
 
-    // First-slice writes discount/tax/total (computed above).
     if (isFirstSlice) {
       await tx.transaction.update({
         where: { id: transactionId },
-        data: { discountAmount: effectiveDiscount, taxAmount: effectiveTax, total: effectiveTotal },
+        data: { discountAmount: effectiveDiscount, taxAmount: effectiveTax, taxBorneAmount: effectiveTaxBorne, total: effectiveTotal },
       });
     }
 
@@ -877,13 +912,10 @@ export async function addPayment(
       throw new AppError(`Nominal melebihi sisa tagihan. Sisa: Rp ${remaining.toFixed(0)}, dimasukkan: Rp ${amt.toFixed(0)}`, 400);
     }
 
-    // REV 2.8 (review fail-fast): kalau slice ini melunasi, resolve shift SEBELUM
-    // insert payment. resolveActiveShift bisa throw 409 (0 atau 2+ shift aktif) -
-    // resolve dulu supaya tidak insert-lalu-rollback sia-sia. Read via outer prisma
-    // (tabel shift beda dari row transactions yang di-lock → tak konflik).
     const newSum = sumExisting.add(amt);
     const willFinalize = newSum.greaterThanOrEqualTo(effectiveTotal);
-    // Re-stamp attribution ke shift yang aktif saat PEMBAYARAN (bukan saat order dibuat).
+    // Re-stamp attribution ke shift aktif saat PEMBAYARAN. resolveActiveShift TIDAK
+    // mengecek staleness → order sisa kemarin tetap bisa dilunasi & atribusi ke shift kemarin.
     const finalizeShift = willFinalize ? await resolveActiveShift('pembayaran') : null;
 
     await tx.transactionPayment.create({
@@ -892,7 +924,6 @@ export async function addPayment(
 
     if (finalizeShift) {
       const paidAt = new Date();
-      // Idempotent finalize: only flips if still open.
       const flipped = await tx.transaction.updateMany({
         where: { id: transactionId, status: TransactionStatus.open },
         data: { status: TransactionStatus.paid, paidAt, shiftId: finalizeShift.id },
@@ -996,6 +1027,12 @@ export async function voidTransaction(
         });
       }
     }
+    // REV 2.12 Fix C: lepas anak yang ter-merge ke transaksi ini supaya tidak jadi
+    // order tersembunyi yang menunjuk parent void. Anak kembali jadi order standalone.
+    await tx.transaction.updateMany({
+      where: { mergedIntoId: transactionId, status: TransactionStatus.open },
+      data: { mergedIntoId: null },
+    });
     await tx.transaction.update({
       where: { id: transactionId },
       data: {

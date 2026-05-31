@@ -14,6 +14,12 @@ export const handleGet = asyncHandler(async (_req: Request, res: Response) => {
   sendSuccess(res, { settings }, 'Pengaturan aplikasi');
 });
 
+// REV 2.12: identitas publik untuk LoginPage (tanpa auth).
+export const handlePublicIdentity = asyncHandler(async (_req: Request, res: Response) => {
+  const identity = await settingsService.getPublicIdentity();
+  sendSuccess(res, { identity }, 'Identitas restoran');
+});
+
 export const handleUpdate = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw unauthorized();
   const input = updateSettingsSchema.parse(req.body);

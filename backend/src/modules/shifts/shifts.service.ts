@@ -15,7 +15,8 @@ import { Prisma, ShiftType, TransactionStatus, UserRole } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError, notFound, forbidden } from '../../utils/errors';
 import { canOpenShift } from './shift-rules';
-import { restoNow, businessDateFor } from './shift-time';
+import { restoNow, businessDateFor, isShiftStale } from './shift-time';
+import type { ShiftWindowSettings } from './shift-time';
 import { getShiftWindow } from '../settings/settings.service';
 import type { OpenShiftInput, ListShiftsQuery } from './shifts.schema';
 
@@ -32,11 +33,14 @@ export interface ShiftView {
   openingCash: number;
   closedAt: string | null;
   createdAt: string;
+  /// REV 2.12: true kalau shift masih open tapi sudah lewat business day-nya
+  /// (lihat isShiftStale). Frontend memakai ini untuk gate "tutup shift kemarin".
+  isOverdue: boolean;
 }
 
 type ShiftWithCashier = Prisma.ShiftGetPayload<{ include: { cashier: true } }>;
 
-function toShiftView(shift: ShiftWithCashier): ShiftView {
+function toShiftView(shift: ShiftWithCashier, window?: ShiftWindowSettings): ShiftView {
   return {
     id: shift.id,
     date: shift.date.toISOString().substring(0, 10),
@@ -46,6 +50,8 @@ function toShiftView(shift: ShiftWithCashier): ShiftView {
     openingCash: shift.openingCash.toNumber(),
     closedAt: shift.closedAt ? shift.closedAt.toISOString() : null,
     createdAt: shift.createdAt.toISOString(),
+    // isOverdue hanya relevan untuk shift open + butuh window. Tanpa window → false.
+    isOverdue: !shift.closedAt && window ? isShiftStale(shift.date, window) : false,
   };
 }
 
@@ -132,9 +138,14 @@ export async function closeShift(
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw notFound('Shift');
   if (shift.closedAt) throw new AppError('Shift sudah ditutup sebelumnya', 400);
-  // final close requires owner or the shift's own cashier; handover may be done by the incoming cashier.
+  // final close requires owner or the shift's own cashier — KECUALI shift sudah basi
+  // (lewat business day). Untuk shift basi, kasir mana pun yang masuk pagi boleh
+  // menutup supaya hari baru bisa dimulai tanpa menunggu pemilik shift (REV 2.12).
   if (mode === 'final' && byRole !== UserRole.owner && shift.cashierId !== byUserId) {
-    throw forbidden('Hanya kasir pemilik shift yang boleh menutup');
+    const window = await getShiftWindow();
+    if (!isShiftStale(shift.date, window)) {
+      throw forbidden('Hanya kasir pemilik shift yang boleh menutup');
+    }
   }
   if (mode === 'final') {
     const openCount = await prisma.transaction.count({
@@ -185,7 +196,9 @@ export async function getActiveShifts(): Promise<ShiftView[]> {
     orderBy: { createdAt: 'desc' },
     include: { cashier: true },
   });
-  return shifts.map(toShiftView);
+  if (shifts.length === 0) return [];
+  const win = await getShiftWindow();
+  return shifts.map((s) => toShiftView(s, win));
 }
 
 export async function getShiftById(id: number): Promise<ShiftView> {
@@ -209,5 +222,5 @@ export async function listShifts(query: ListShiftsQuery): Promise<ShiftView[]> {
     include: { cashier: true },
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
   });
-  return shifts.map(toShiftView);
+  return shifts.map((s) => toShiftView(s));
 }

@@ -462,6 +462,24 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
           </div>
         )}
 
+        {/* REV 2.12: toggle lacak stok untuk menu simple (portion <-> nonStock).
+            linked tidak diekspos di sini (itu ranah SKU varian). Backend upsert
+            sudah sinkron PortionStock saat beralih ke portion. */}
+        {state.mode === 'simple' && (
+          <div className="pt-1">
+            <Checkbox
+              label="Lacak stok porsi (hitung sisa & ingatkan saat menipis)"
+              checked={state.stockType === 'portion'}
+              onCheckedChange={(c) => update('stockType', c ? 'portion' : 'nonStock')}
+            />
+            <p className="text-caption text-neutral-500 mt-1">
+              {state.stockType === 'portion'
+                ? 'Stok dihitung per porsi & otomatis berkurang tiap terjual. Mulai dari 0 — restock dulu setelah disimpan.'
+                : 'Tidak dilacak — menu selalu bisa dijual (mis. minuman racik / item tanpa stok).'}
+            </p>
+          </div>
+        )}
+
         {/* Stok minimum hanya untuk menu simple portion */}
         {state.mode === 'simple' && state.stockType === 'portion' && (
           <Input

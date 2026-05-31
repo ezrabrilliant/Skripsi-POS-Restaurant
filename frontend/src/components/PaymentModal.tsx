@@ -31,6 +31,7 @@ import {
   Plus,
   Check,
   Unlink,
+  Printer,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import {
@@ -39,11 +40,12 @@ import {
   type Transaction,
   type TransactionPayment,
 } from '@/types'
-import { transactionService, type AddPaymentPayload, type MergePayload } from '@/services/transactionService'
+import { transactionService, type AddPaymentPayload } from '@/services/transactionService'
 import { paymentMethodService } from '@/services/paymentMethodService'
 import { settingsService } from '@/services/settingsService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { calculatePB1 } from '@/lib/decimal'
+import { generateReceiptPdf } from '@/lib/receipt'
 import {
   Dialog,
   Button,
@@ -110,8 +112,12 @@ export default function PaymentModal({
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   })
-  // Rate fraction (0.1 = 10%). 0 kalau PB1 disabled → tax 0, total = base.
-  const taxRate = appSettings?.taxEnabled ? appSettings.taxRate / 100 : 0
+  // REV 2.12: PB1 hanya ditambahkan ke total PELANGGAN kalau aktif DAN dibebankan
+  // ke pelanggan (taxChargedToCustomer). Kalau ditanggung resto, customer bayar
+  // harga apa adanya → rate 0 (konsisten dengan backend computePb1). Tanpa ini
+  // frontend over-compute (mis. 99k) padahal backend 90k → payment ditolak + merge stuck.
+  const taxRate =
+    appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate / 100 : 0
 
   // Query target Tx (subscribed - refetch via invalidate setelah mutation).
   // FIX: refetchOnMount 'always' supaya tiap kali modal dibuka, detail Tx target
@@ -225,12 +231,9 @@ export default function PaymentModal({
     }
   }, [mode, sisa, isPaid])
 
-  // Auto-close on paid. Delay 600ms supaya toast success terlihat.
-  useEffect(() => {
-    if (!isPaid) return
-    const timer = setTimeout(() => onSuccess(), 600)
-    return () => clearTimeout(timer)
-  }, [isPaid, onSuccess])
+  // REV 2.12: TIDAK auto-close saat lunas. Tampilkan layar sukses + tombol
+  // "Simpan Struk"/"Selesai" (early-return isPaid di render). onSuccess dipanggil
+  // saat user klik "Selesai".
 
   // REV 2.6: filter metode pembayaran dinamis berdasarkan flag master di backend:
   //   - isActive (sudah filtered di list(false) tapi double-check defensive)
@@ -311,20 +314,6 @@ export default function PaymentModal({
     onError: (err: Error) => toast.error(err.message || 'Gagal hapus slice'),
   })
 
-  // REV 2.5: merge intra-meja candidates (selected dari picker) ke target.
-  // Dipanggil INSIDE submit flow (atomic dengan addPayment) - bukan upfront -
-  // supaya cancel modal tidak meninggalkan merge state stuck di backend.
-  const mergeMutation = useMutation({
-    mutationFn: (payload: MergePayload) => transactionService.merge(payload),
-    onSuccess: () => {
-      // Invalidate supaya TablesPage grid + CombineTableModal picker refresh -
-      // source meja jadi kosong / candidate hilang dari list.
-      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
-      qc.invalidateQueries({ queryKey: ['transactions', 'open-merge-source-of', transactionId] })
-    },
-    onError: (err: Error) => toast.error(err.message || 'Gagal menggabung pesanan'),
-  })
-
   // REV 2.5: unmerge - lepas source meja dari gabungan. Hanya valid kalau target
   // belum ada payment slice (aggregate belum locked). Sekaligus refetch open Tx
   // list supaya mergedFromOpen ter-update + tableNumber-nya muncul lagi di TablesPage.
@@ -382,23 +371,14 @@ export default function PaymentModal({
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
-    // REV 2.5: merge selected candidates DULU (atomic dengan payment intent).
-    // Kalau merge gagal, payment skip. Kalau cancel sebelum konfirmasi, no API call.
-    if (selectedCandidates.size > 0) {
-      try {
-        await mergeMutation.mutateAsync({
-          sourceIds: Array.from(selectedCandidates),
-          targetId: transactionId,
-        })
-      } catch {
-        return // toast handled in mutation onError
-      }
-    }
+    // REV 2.12 Fix A: merge candidate dikirim bersama payment (atomik di backend).
+    // Tidak ada lagi mergeMutation terpisah → tidak ada stuck merge kalau bayar gagal.
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
       amount: total,
       discountAmount,
+      mergeSourceIds: selectedCandidateTxs.map((t) => t.id),
     })
   }
 
@@ -446,25 +426,13 @@ export default function PaymentModal({
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
-    // REV 2.5: merge selected candidates HANYA di first slice (sebelum payment
-    // pertama). Slice ke-2+ tidak ada candidates lagi (aggregate sudah ter-commit
-    // ke target.total). Picker auto-hide setelah first slice (isFirstSlice=false).
-    if (isFirstSlice && selectedCandidates.size > 0) {
-      try {
-        await mergeMutation.mutateAsync({
-          sourceIds: Array.from(selectedCandidates),
-          targetId: transactionId,
-        })
-      } catch {
-        return // toast handled in mutation onError
-      }
-    }
+    // REV 2.12 Fix A: first slice kirim mergeSourceIds (atomik). Slice ke-2+ tidak.
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
       amount,
-      // discountAmount HANYA dikirim di first slice. Backend reject kalau slice ke-2+ kirim > 0.
       discountAmount: isFirstSlice ? discountAmount : undefined,
+      mergeSourceIds: isFirstSlice ? selectedCandidateTxs.map((t) => t.id) : undefined,
     })
   }
 
@@ -480,8 +448,27 @@ export default function PaymentModal({
     qc.invalidateQueries({ queryKey: ['transactions', 'byTable', tableNumber] })
   }
 
+  // REV 2.12: generate + unduh struk PDF dari transaksi yang sudah dibayar.
+  // Identitas + tarif dari appSettings; label metode dari master payment_methods.
+  const handlePrintReceipt = () => {
+    if (!transaction) return
+    generateReceiptPdf(transaction, {
+      identity: appSettings
+        ? {
+            restaurantName: appSettings.restaurantName,
+            restaurantAddress: appSettings.restaurantAddress,
+            openingHours: appSettings.openingHours,
+            restaurantPhone: appSettings.restaurantPhone,
+            restaurantLogoUrl: appSettings.restaurantLogoUrl,
+          }
+        : null,
+      taxRate: appSettings?.taxRate ?? 10,
+      paymentLabel: (code) => allMethods.find((m) => m.code === code)?.label ?? code,
+    })
+  }
+
   // Submit disable conditions
-  const submitting = addPayMutation.isPending || mergeMutation.isPending
+  const submitting = addPayMutation.isPending
   // FIX: pas first slice, aggregate + daftar candidate dihitung dari query transaction +
   // openTxs. Selama keduanya masih refetch on mount (refetchOnMount 'always'), angka yang
   // tampil masih dari cache & bisa basi - blokir submit dulu supaya kasir tidak meng-confirm
@@ -531,6 +518,69 @@ export default function PaymentModal({
       >
         <div className="text-center py-8 text-danger-700 text-body-sm">
           Gagal memuat metode pembayaran. Coba refresh halaman.
+        </div>
+      </Dialog>
+    )
+  }
+
+  // REV 2.12: layar sukses pasca-bayar (TIDAK auto-close). Simpan struk / Selesai.
+  if (isPaid) {
+    const change = sumPayments - transaction.total
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => !o && onSuccess()}
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Check className="w-5 h-5 text-success-600" />
+            Pembayaran Berhasil
+          </span>
+        }
+        description={
+          <span className="tabular-nums">
+            Tx #{transaction.id}
+            {tableNumber !== null && ` · Meja ${tableNumber}`}
+          </span>
+        }
+        size="md"
+        footer={
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handlePrintReceipt}
+              leftIcon={<Printer className="w-5 h-5" />}
+            >
+              Simpan Struk
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={onSuccess}
+              leftIcon={<Check className="w-5 h-5" />}
+            >
+              Selesai
+            </Button>
+          </div>
+        }
+      >
+        <div className="py-4 text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-success-100 flex items-center justify-center mx-auto">
+            <Check className="w-8 h-8 text-success-600" />
+          </div>
+          <div>
+            <p className="text-caption text-neutral-500">Total dibayar</p>
+            <p className="text-headline font-bold text-neutral-900 tabular-nums">
+              {formatCurrency(transaction.total)}
+            </p>
+          </div>
+          {change > 0 && (
+            <p className="text-body-sm text-neutral-600">Kembalian {formatCurrency(change)}</p>
+          )}
+          <p className="text-caption text-neutral-500">
+            Simpan struk PDF ke perangkat lewat tombol di bawah.
+          </p>
         </div>
       </Dialog>
     )
@@ -768,7 +818,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
-                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
+                    taxRatePercent={appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate : 0}
                   />
                 </form>
               ) : (
@@ -865,7 +915,7 @@ export default function PaymentModal({
                     base={base}
                     tax={tax}
                     total={total}
-                    taxRatePercent={appSettings?.taxEnabled ? appSettings.taxRate : 0}
+                    taxRatePercent={appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate : 0}
                   />
                 </form>
               )}

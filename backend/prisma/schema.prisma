@@ -340,6 +340,9 @@ model Transaction {
   subtotal       Decimal           @default(0) @db.Decimal(12, 2)
   discountAmount Decimal           @default(0) @map("discount_amount") @db.Decimal(12, 2)
   taxAmount      Decimal           @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  /// REV 2.12: PB1 yang DITANGGUNG resto (tidak ditagih ke pelanggan, TIDAK masuk total).
+  /// Dikurangkan ke laba di dashboard. 0 saat PB1 dibebankan ke pelanggan / PB1 nonaktif.
+  taxBorneAmount Decimal           @default(0) @map("tax_borne_amount") @db.Decimal(12, 2)
   total          Decimal           @default(0) @db.Decimal(12, 2)
   createdAt      DateTime          @default(now()) @map("created_at")
   paidAt         DateTime?         @map("paid_at")
@@ -544,6 +547,17 @@ model AppSetting {
   id              Int      @id @default(1)
   taxEnabled      Boolean  @default(false) @map("tax_enabled")
   taxRate         Decimal  @default(10.00) @map("tax_rate") @db.Decimal(5, 2)
+  /// REV 2.12: true = PB1 ditambahkan ke tagihan pelanggan; false = ditanggung resto.
+  taxChargedToCustomer Boolean @default(false) @map("tax_charged_to_customer")
+  /// REV 2.12: identitas resto (header struk + branding login/header). Owner-editable.
+  restaurantName    String  @default("Ayam Bakar Banjar Monosuko") @map("restaurant_name") @db.VarChar(120)
+  restaurantAddress String? @map("restaurant_address") @db.VarChar(255)
+  openingHours      String? @map("opening_hours") @db.VarChar(64)
+  restaurantPhone   String? @map("restaurant_phone") @db.VarChar(32)
+  restaurantLogoUrl String? @map("restaurant_logo_url") @db.VarChar(255)
+  /// REV 2.12: aturan operasional stok (parametrik, ganti hardcode 5).
+  restockMultiple   Int     @default(5) @map("restock_multiple")
+  lowStockThreshold Int     @default(5) @map("low_stock_threshold")
   timezone        String   @default("Asia/Jakarta") @map("timezone") @db.VarChar(64)
   shiftPagiStart  String   @default("07:00") @map("shift_pagi_start") @db.VarChar(5)
   shiftChangeover String   @default("18:00") @map("shift_changeover") @db.VarChar(5)

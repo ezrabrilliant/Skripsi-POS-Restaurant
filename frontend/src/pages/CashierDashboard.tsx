@@ -13,7 +13,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { shiftService } from '@/services/shiftService'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import OverdueShiftGate from '@/components/OverdueShiftGate'
 import {
   Wallet,
   LayoutGrid,
@@ -37,6 +38,7 @@ import OpenShiftDialog from '@/components/OpenShiftDialog'
 
 export default function CashierDashboard() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [showOpenModal, setShowOpenModal] = useState(false)
 
   const { data: dashboard, isLoading, refetch } = useQuery({
@@ -53,6 +55,12 @@ export default function CashierDashboard() {
   })
   const myActiveShift = activeShifts.find((s) => s.cashierId === user?.id) ?? null
   const otherActiveShifts = activeShifts.filter((s) => s.cashierId !== user?.id)
+
+  // REV 2.12: ada shift overdue → blok dashboard, arahkan tutup shift kemarin.
+  const overdueShift = activeShifts.find((s) => s.isOverdue) ?? null
+  if (overdueShift) {
+    return <OverdueShiftGate shift={overdueShift} onGoToSettlement={() => navigate('/settlement')} />
+  }
 
   return (
     <div className="h-full overflow-y-auto">

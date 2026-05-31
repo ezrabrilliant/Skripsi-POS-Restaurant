@@ -339,6 +339,8 @@ export interface Transaction {
   subtotal: number
   discountAmount: number
   taxAmount: number
+  /** REV 2.12: PB1 ditanggung resto (0 kalau dibebankan ke pelanggan / nonaktif). */
+  taxBorneAmount: number
   total: number
   items: TransactionItem[]
   /** REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
@@ -409,6 +411,8 @@ export interface Shift {
   cashierName?: string
   openingCash: number
   closedAt: string | null
+  /** REV 2.12: true kalau shift masih open tapi sudah lewat business day-nya. */
+  isOverdue?: boolean
   createdAt: string
 }
 

@@ -8,13 +8,13 @@
 //   - inputNew mode: takeaway OR (dineIn + empty table)
 //     → CartPanel render cart input + tombol Simpan/Bayar (existing behavior).
 //
-// Bayar flow (REV 2.5):
-//   - POSPage orchestrate intra-table merge (kalau multi-Pesanan REV 2.4) → setPaymentTxId.
-//   - PaymentModal owns add/removePayment lifecycle + own query subscription.
-//   - Single active Tx → langsung setPaymentTxId(tx.id) (no merge needed).
-//   - Multi active Tx → await mergeMutation merge sources ke oldest target lalu
-//     setPaymentTxId(target.id). PaymentModal kemudian display aggregate subtotal
-//     via mergedFrom query internal.
+// Bayar flow (REV 2.12 - merge atomik):
+//   - POSPage TIDAK lagi merge upfront. handlePayTable cuma resolve target Tx
+//     (oldest) + kumpulkan candidate source IDs, lalu setPaymentTxId/Candidates.
+//   - PaymentModal owns add/removePayment lifecycle + own query subscription, DAN
+//     mengirim mergeSourceIds ke addPayment supaya merge terjadi atomik di dalam
+//     $transaction backend (gagal bayar = merge ikut rollback, tidak ada stuck merge).
+//   - Single Tx (candidate kosong) → addPayment tanpa merge.
 //
 // REV 2.3 shift-decoupling preserved: gate 3-case (0/1/2+ active shifts),
 // payload TIDAK kirim shiftId - backend auto-resolve.
@@ -28,6 +28,7 @@ import CartPanel from '@/components/CartPanel'
 import VariantPickerModal, { type VariantPickResult } from '@/components/VariantPickerModal'
 import PaymentModal from '@/components/PaymentModal'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
+import OverdueShiftGate from '@/components/OverdueShiftGate'
 import { menuService } from '@/services/menuService'
 import { shiftService } from '@/services/shiftService'
 import { transactionService } from '@/services/transactionService'
@@ -372,6 +373,12 @@ export default function POSPage() {
         )}
       </>
     )
+  }
+
+  // REV 2.12: shift tunggal yang aktif tapi sudah basi → blok input, arahkan tutup.
+  const overdueShift = activeShifts.find((s) => s.isOverdue) ?? null
+  if (!shiftLoading && overdueShift) {
+    return <OverdueShiftGate shift={overdueShift} onGoToSettlement={() => navigate('/settlement')} />
   }
 
   return (

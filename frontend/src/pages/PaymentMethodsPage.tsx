@@ -5,16 +5,17 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CreditCard, Building2, Receipt, Clock } from 'lucide-react'
+import { CreditCard, Building2, Receipt, Clock, Store } from 'lucide-react'
 import { paymentMethodService } from '@/services/paymentMethodService'
 import { bankService } from '@/services/bankService'
 import PaymentMethodsTab from '@/components/payment-methods/PaymentMethodsTab'
 import BanksTab from '@/components/payment-methods/BanksTab'
 import TaxSettingsTab from '@/components/payment-methods/TaxSettingsTab'
 import ShiftWindowTab from '@/components/payment-methods/ShiftWindowTab'
+import RestaurantIdentityTab from '@/components/payment-methods/RestaurantIdentityTab'
 import { Tabs } from '@/design-system/primitives'
 
-type Tab = 'methods' | 'banks' | 'tax' | 'shift'
+type Tab = 'methods' | 'banks' | 'tax' | 'shift' | 'identity'
 
 export default function PaymentMethodsPage() {
   const [tab, setTab] = useState<Tab>('methods')
@@ -35,7 +36,7 @@ export default function PaymentMethodsPage() {
       <header className="bg-white border-b border-neutral-200 px-3 sm:px-4 py-2.5 flex items-center gap-3 flex-wrap pt-safe md:pt-2.5">
         <div className="min-w-0">
           <h1 className="text-title font-semibold text-neutral-900">Pembayaran</h1>
-          <p className="text-caption text-neutral-500">Konfigurasi metode pembayaran + bank</p>
+          <p className="text-caption text-neutral-500">Metode bayar, bank, pajak, shift &amp; identitas resto</p>
         </div>
         <div className="ml-auto">
           <Tabs
@@ -62,6 +63,11 @@ export default function PaymentMethodsPage() {
                 label: 'Jam Shift',
                 icon: <Clock className="w-4 h-4" />,
               },
+              {
+                value: 'identity',
+                label: 'Identitas',
+                icon: <Store className="w-4 h-4" />,
+              },
             ]}
             variant="segmented"
           />
@@ -81,6 +87,7 @@ export default function PaymentMethodsPage() {
         )}
         {tab === 'tax' && <TaxSettingsTab />}
         {tab === 'shift' && <ShiftWindowTab />}
+        {tab === 'identity' && <RestaurantIdentityTab />}
       </div>
     </div>
   )
