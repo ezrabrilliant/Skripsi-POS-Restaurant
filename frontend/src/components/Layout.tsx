@@ -19,7 +19,6 @@ import {
   Menu as MenuIcon,
   ChevronRight,
   Home,
-  CreditCard,
   Settings,
 } from 'lucide-react'
 import { ROLE_LABELS, type UserRole } from '@/types'
