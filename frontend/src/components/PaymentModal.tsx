@@ -40,7 +40,7 @@ import {
   type Transaction,
   type TransactionPayment,
 } from '@/types'
-import { transactionService, type AddPaymentPayload, type MergePayload } from '@/services/transactionService'
+import { transactionService, type AddPaymentPayload } from '@/services/transactionService'
 import { paymentMethodService } from '@/services/paymentMethodService'
 import { settingsService } from '@/services/settingsService'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -314,20 +314,6 @@ export default function PaymentModal({
     onError: (err: Error) => toast.error(err.message || 'Gagal hapus slice'),
   })
 
-  // REV 2.5: merge intra-meja candidates (selected dari picker) ke target.
-  // Dipanggil INSIDE submit flow (atomic dengan addPayment) - bukan upfront -
-  // supaya cancel modal tidak meninggalkan merge state stuck di backend.
-  const mergeMutation = useMutation({
-    mutationFn: (payload: MergePayload) => transactionService.merge(payload),
-    onSuccess: () => {
-      // Invalidate supaya TablesPage grid + CombineTableModal picker refresh -
-      // source meja jadi kosong / candidate hilang dari list.
-      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
-      qc.invalidateQueries({ queryKey: ['transactions', 'open-merge-source-of', transactionId] })
-    },
-    onError: (err: Error) => toast.error(err.message || 'Gagal menggabung pesanan'),
-  })
-
   // REV 2.5: unmerge - lepas source meja dari gabungan. Hanya valid kalau target
   // belum ada payment slice (aggregate belum locked). Sekaligus refetch open Tx
   // list supaya mergedFromOpen ter-update + tableNumber-nya muncul lagi di TablesPage.
@@ -385,26 +371,14 @@ export default function PaymentModal({
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
-    // REV 2.5: merge selected candidates DULU (atomic dengan payment intent).
-    // Kalau merge gagal, payment skip. Kalau cancel sebelum konfirmasi, no API call.
-    // REV 2.12 (defense): hanya merge candidate yang MASIH un-merged (selectedCandidateTxs
-    // = candidateTxs ∩ selected). Cegah double-merge "sudah merged ke X" kalau merge
-    // sebelumnya sukses tapi payment gagal lalu user retry.
-    if (selectedCandidateTxs.length > 0) {
-      try {
-        await mergeMutation.mutateAsync({
-          sourceIds: selectedCandidateTxs.map((t) => t.id),
-          targetId: transactionId,
-        })
-      } catch {
-        return // toast handled in mutation onError
-      }
-    }
+    // REV 2.12 Fix A: merge candidate dikirim bersama payment (atomik di backend).
+    // Tidak ada lagi mergeMutation terpisah → tidak ada stuck merge kalau bayar gagal.
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
       amount: total,
       discountAmount,
+      mergeSourceIds: selectedCandidateTxs.map((t) => t.id),
     })
   }
 
@@ -452,25 +426,13 @@ export default function PaymentModal({
       cancelText: 'Cek Lagi',
     })
     if (!ok) return
-    // REV 2.5: merge selected candidates HANYA di first slice (sebelum payment
-    // pertama). Slice ke-2+ tidak ada candidates lagi (aggregate sudah ter-commit
-    // ke target.total). Picker auto-hide setelah first slice (isFirstSlice=false).
-    if (isFirstSlice && selectedCandidateTxs.length > 0) {
-      try {
-        await mergeMutation.mutateAsync({
-          sourceIds: selectedCandidateTxs.map((t) => t.id),
-          targetId: transactionId,
-        })
-      } catch {
-        return // toast handled in mutation onError
-      }
-    }
+    // REV 2.12 Fix A: first slice kirim mergeSourceIds (atomik). Slice ke-2+ tidak.
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
       amount,
-      // discountAmount HANYA dikirim di first slice. Backend reject kalau slice ke-2+ kirim > 0.
       discountAmount: isFirstSlice ? discountAmount : undefined,
+      mergeSourceIds: isFirstSlice ? selectedCandidateTxs.map((t) => t.id) : undefined,
     })
   }
 
@@ -506,7 +468,7 @@ export default function PaymentModal({
   }
 
   // Submit disable conditions
-  const submitting = addPayMutation.isPending || mergeMutation.isPending
+  const submitting = addPayMutation.isPending
   // FIX: pas first slice, aggregate + daftar candidate dihitung dari query transaction +
   // openTxs. Selama keduanya masih refetch on mount (refetchOnMount 'always'), angka yang
   // tampil masih dari cache & bisa basi - blokir submit dulu supaya kasir tidak meng-confirm
