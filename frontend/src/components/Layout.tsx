@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Home,
   CreditCard,
+  Settings,
 } from 'lucide-react'
 import { ROLE_LABELS, type UserRole } from '@/types'
 import { Sheet, Button } from '@/design-system/primitives'
@@ -45,11 +46,11 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/tables',     icon: Grid3X3,          label: 'Meja' },
     { to: '/history',    icon: ClipboardList,    label: 'Riwayat' },
     { to: '/settlement', icon: Calculator,       label: 'Tutup Kasir' },
-    { to: '/stock',      icon: Package,          label: 'Stok' },
     { to: '/bills',      icon: Receipt,          label: 'Tagihan' },
+    { to: '/stock',      icon: Package,          label: 'Stok' },
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
-    { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
     { to: '/users',      icon: Users,            label: 'Pengguna' },
+    { to: '/payment-methods', icon: Settings,  label: 'Setting' },
   ],
   cashier: [
     { to: '/dashboard',  icon: Home,             label: 'Beranda' },
