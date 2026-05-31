@@ -555,10 +555,9 @@ export async function getCashierDashboard(cashierId: number): Promise<CashierDas
       where: { cashierId, closedAt: null },
       orderBy: { createdAt: 'desc' },
     }),
-    revenueByMethod({
-      status: TransactionStatus.paid,
-      shift: { date: { gte: today, lt: tomorrow } },
-    }),
+    // REV 2.13: pakai txWhereToday (sudah include mergedIntoId:null) supaya call site
+    // konsisten dengan itemRows/orderTypeAgg, tidak bergantung guard internal revenueByMethod.
+    revenueByMethod(txWhereToday),
     prisma.transaction.count({
       where: {
         status: TransactionStatus.open,
