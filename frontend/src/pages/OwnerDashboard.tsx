@@ -1,369 +1,72 @@
-// OwnerDashboard - REV 2.3
-// Primary: Stat cards Revenue / Expense / Profit + period switcher Tabs.
-// Plus chart bar pendapatan per metode (Recharts) + tabel bank breakdown.
-// Secondary: reminders + quick links ke CRUD master.
-
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import {
-  Wallet,
-  TrendingDown,
-  TrendingUp,
-  AlertCircle,
-  Receipt,
-  Calendar,
-  Users,
-  UtensilsCrossed,
-  Package,
-} from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as ChartTooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
+// OwnerDashboard - REV 2.13 shell ber-tab.
+// Header (greeting + label periode) + PeriodControl (preset + custom range) +
+// section Tabs (Ringkasan / Menu / Tren / Kasir). Tiap section komponennya
+// dirender kondisional → hanya tab aktif yang mount + fetch endpoint-nya sendiri
+// (lazy). Konten lama ada di RingkasanTab; 3 tab baru = analitik REV 2.13.
+import { useState } from 'react'
+import { LayoutDashboard, UtensilsCrossed, TrendingUp, Users } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
-import { dashboardService, type DashboardPeriodType } from '@/services/dashboardService'
-import { shiftService } from '@/services/shiftService'
-import { formatCurrency } from '@/lib/utils'
-import { Tabs, Stat, Badge, Skeleton, EmptyState } from '@/design-system/primitives'
+import { Tabs } from '@/design-system/primitives'
+import { formatDate } from '@/lib/utils'
+import type { OwnerReportQuery } from '@/services/dashboardService'
+import { PeriodControl } from './owner-dashboard/PeriodControl'
+import RingkasanTab from './owner-dashboard/RingkasanTab'
+import MenuPerformanceTab from './owner-dashboard/MenuPerformanceTab'
+import TrendTab from './owner-dashboard/TrendTab'
+import StaffTab from './owner-dashboard/StaffTab'
 
-const PERIOD_OPTIONS = [
-  { value: 'today', label: 'Hari Ini' },
-  { value: 'month', label: 'Bulan Ini' },
-  { value: 'year', label: 'Tahun Ini' },
+type Section = 'ringkasan' | 'menu' | 'tren' | 'kasir'
+
+/** Label periode dibaca dari query (header). */
+function periodLabel(q: OwnerReportQuery): string {
+  if (q.period === 'today') return 'Hari Ini'
+  if (q.period === 'month') return 'Bulan Ini'
+  if (q.period === 'year') return 'Tahun Ini'
+  if (q.period === 'custom' && q.fromDate && q.toDate) {
+    return q.fromDate === q.toDate ? formatDate(q.fromDate) : `${formatDate(q.fromDate)} – ${formatDate(q.toDate)}`
+  }
+  return 'Periode'
+}
+
+const SECTION_ITEMS = [
+  { value: 'ringkasan', label: 'Ringkasan', icon: <LayoutDashboard /> },
+  { value: 'menu', label: 'Menu', icon: <UtensilsCrossed /> },
+  { value: 'tren', label: 'Tren', icon: <TrendingUp /> },
+  { value: 'kasir', label: 'Kasir', icon: <Users /> },
 ]
-
-// REV 2.6: METHOD_LABEL + METHOD_COLOR hardcoded dihapus. Label + warna sekarang
-// datang dari `report.revenue.byMethod[i].methodLabel` + `colorHex` (sumber:
-// master `payment_methods` owner-configurable). Method custom (mis. ShopeePay)
-// otomatis muncul dengan warna pilihan owner.
 
 export default function OwnerDashboard() {
   const { user } = useAuthStore()
-  const [period, setPeriod] = useState<DashboardPeriodType>('today')
-
-  const { data: report, isLoading, error } = useQuery({
-    queryKey: ['ownerReport', period],
-    queryFn: () => dashboardService.getOwnerReport({ period }),
-  })
-
-  // REV 2.3 shift-decoupling: owner perlu awareness shift kasir aktif (untuk
-  // tahu siapa pegang cash hari ini + deteksi overlap yang block input order).
-  const { data: activeShifts = [] } = useQuery({
-    queryKey: ['shifts', 'active'],
-    queryFn: () => shiftService.getActiveShifts(),
-  })
-
-  // REV 2.6: byMethod sudah MethodTotalEntry[] (sorted descending by total dari
-  // backend), tinggal filter entry yang total > 0 untuk hide method tanpa
-  // transaksi di periode.
-  const chartData = useMemo(() => {
-    if (!report) return []
-    return report.revenue.byMethod
-      .filter((entry) => entry.total > 0)
-      .map((entry) => ({
-        method: entry.methodLabel,
-        key: entry.paymentMethodCode,
-        amount: entry.total,
-        color: entry.colorHex,
-      }))
-  }, [report])
+  const [section, setSection] = useState<Section>('ringkasan')
+  const [period, setPeriod] = useState<OwnerReportQuery>({ period: 'today' })
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 pt-safe pb-safe">
-        {/* Header + Period switcher */}
-        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <h1 className="text-headline font-semibold text-neutral-900">Halo, {user?.name}</h1>
-            <p className="text-body-sm text-neutral-600">
-              Dashboard Pemilik · {report?.period.label ?? '…'}
-            </p>
-          </div>
-          <Tabs
-            value={period}
-            onValueChange={(v) => setPeriod(v as DashboardPeriodType)}
-            items={PERIOD_OPTIONS}
-            variant="segmented"
-          />
+        {/* Header */}
+        <header>
+          <h1 className="text-headline font-semibold text-neutral-900">Halo, {user?.name}</h1>
+          <p className="text-body-sm text-neutral-600">Dashboard Pemilik · {periodLabel(period)}</p>
         </header>
 
-        {isLoading && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-28" />
-              ))}
-            </div>
-            <Skeleton className="h-64" />
-          </>
-        )}
+        {/* Period control (berlaku ke semua tab) */}
+        <PeriodControl onChange={setPeriod} />
 
-        {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-xl p-4 text-danger-700 text-body-sm">
-            Gagal memuat: {(error as Error).message}
-          </div>
-        )}
+        {/* Section tabs */}
+        <Tabs
+          value={section}
+          onValueChange={(v) => setSection(v as Section)}
+          items={SECTION_ITEMS}
+          variant="underline"
+          scrollable
+        />
 
-        {report && (
-          <>
-            {/* Top metrics - Revenue / Expense / Profit */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Stat
-                label="Pendapatan"
-                value={report.revenue.total}
-                format="rupiah"
-                icon={<Wallet className="w-4 h-4" />}
-                hint={`${report.revenue.transactionCount} transaksi`}
-              />
-              <Stat
-                label="Beban Pokok (COGS)"
-                value={report.expense.cogsTotal}
-                format="rupiah"
-                icon={<TrendingDown className="w-4 h-4" />}
-                hint={
-                  report.expense.pb1BorneTotal > 0
-                    ? `PB1 ditanggung ${formatCurrency(report.expense.pb1BorneTotal)} · Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
-                    : `Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
-                }
-              />
-              <Stat
-                label="Laba Kotor"
-                value={report.profit}
-                format="rupiah"
-                icon={<TrendingUp className="w-4 h-4" />}
-                hint={
-                  report.expense.pb1BorneTotal > 0
-                    ? 'Pendapatan − COGS − PB1 ditanggung'
-                    : 'Pendapatan − COGS'
-                }
-                className={
-                  report.profit < 0
-                    ? '!border-danger-200 !bg-danger-50/30'
-                    : '!border-success-200 !bg-success-50/30'
-                }
-              />
-            </div>
-
-            {/* Shift panel REV 2.3 shift-decoupling */}
-            <ShiftPanel shifts={activeShifts} />
-
-            {/* Revenue chart + bank breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-                <h3 className="text-title font-semibold text-neutral-900 mb-3">
-                  Pendapatan per Metode
-                </h3>
-                {chartData.length === 0 ? (
-                  <EmptyState
-                    title="Belum ada transaksi"
-                    description="Data muncul setelah ada transaksi yang dibayar."
-                    compact
-                  />
-                ) : (
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 8 }}>
-                        <XAxis
-                          type="number"
-                          hide
-                          domain={[0, 'dataMax']}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="method"
-                          width={70}
-                          tick={{ fontSize: 12, fill: '#5a655e' }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <ChartTooltip
-                          cursor={{ fill: '#f4f4f3' }}
-                          contentStyle={{
-                            borderRadius: '8px',
-                            border: '1px solid #d1d8d3',
-                            fontSize: '12px',
-                          }}
-                          formatter={(v) => formatCurrency(Number(v) || 0)}
-                          labelStyle={{ color: '#1a201c', fontWeight: 600 }}
-                        />
-                        <Bar dataKey="amount" radius={[0, 6, 6, 0]} barSize={22}>
-                          {chartData.map((d) => (
-                            <Cell key={d.key} fill={d.color || '#5a655e'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-                <h3 className="text-title font-semibold text-neutral-900 mb-3">
-                  Breakdown per Bank
-                </h3>
-                <p className="text-caption text-neutral-500 mb-2">EDC + Transfer</p>
-                {report.revenue.bankBreakdown.length === 0 ? (
-                  <EmptyState
-                    title="Belum ada transaksi EDC / transfer"
-                    compact
-                  />
-                ) : (
-                  <ul className="divide-y divide-neutral-100">
-                    {report.revenue.bankBreakdown.map((b, i) => (
-                      <li
-                        key={`${b.method}-${b.bank}-${i}`}
-                        className="flex items-center justify-between py-2"
-                      >
-                        <span className="text-body-sm text-neutral-700 inline-flex items-center gap-2">
-                          <Badge tone="info" variant="soft" size="sm">
-                            {b.method.toUpperCase()}
-                          </Badge>
-                          <span className="text-neutral-900 font-medium">{b.bank}</span>
-                        </span>
-                        <span className="text-body-sm font-semibold text-neutral-900 tabular-nums">
-                          {formatCurrency(b.total)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            {/* Reminders + Quick links */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <ReminderCard reminders={report.reminders} />
-              <QuickLinks />
-            </div>
-          </>
-        )}
+        {/* Lazy: hanya tab aktif yang mount + fetch */}
+        {section === 'ringkasan' && <RingkasanTab period={period} />}
+        {section === 'menu' && <MenuPerformanceTab period={period} />}
+        {section === 'tren' && <TrendTab period={period} />}
+        {section === 'kasir' && <StaffTab period={period} />}
       </div>
-    </div>
-  )
-}
-
-function ReminderCard({
-  reminders,
-}: {
-  reminders: { portionLowCount: number }
-}) {
-  const total = reminders.portionLowCount
-  return (
-    <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-      <div className="flex items-center gap-2 mb-3">
-        <AlertCircle className="w-5 h-5 text-warning-600" />
-        <h3 className="text-title font-semibold text-neutral-900">Reminder Stok</h3>
-        {total > 0 && (
-          <Badge tone="warning" size="sm" className="ml-auto">
-            {total} item
-          </Badge>
-        )}
-      </div>
-      <ul className="space-y-2 text-body-sm">
-        <li className="flex justify-between">
-          <span className="text-neutral-700">Stok porsi di bawah min</span>
-          <Link to="/stock" className="font-medium text-primary-700 hover:underline tabular-nums">
-            {reminders.portionLowCount}
-          </Link>
-        </li>
-      </ul>
-    </div>
-  )
-}
-
-function QuickLinks() {
-  const links = [
-    { to: '/menu', icon: UtensilsCrossed, label: 'Kelola Menu' },
-    { to: '/users', icon: Users, label: 'Kelola Pegawai' },
-    { to: '/stock', icon: Package, label: 'Stok Porsi' },
-    { to: '/history', icon: Receipt, label: 'Riwayat Transaksi' },
-    { to: '/settlement', icon: Calendar, label: 'Settlement' },
-    { to: '/bills', icon: Receipt, label: 'Tagihan Bulanan' },
-  ]
-  return (
-    <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-      <h3 className="text-title font-semibold text-neutral-900 mb-3">Akses Cepat</h3>
-      <div className="grid grid-cols-2 gap-2">
-        {links.map((l) => (
-          <Link
-            key={l.to}
-            to={l.to}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-body-sm text-neutral-800 hover:bg-neutral-50 active:bg-neutral-100 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
-          >
-            <l.icon className="w-4 h-4 text-neutral-500 shrink-0" />
-            <span className="truncate">{l.label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// REV 2.3 shift-decoupling: panel kecil "Shift hari ini" untuk owner.
-// 3 state:
-//   - 0 shift: info neutral "Belum ada shift kasir aktif hari ini."
-//   - 1 shift: success "Shift aktif hari ini: {nama} · {tipe} · modal {rp}"
-//   - 2+ shift: warning "Ada N shift aktif (overlap)" + note bahwa input
-//     order baru akan ditolak sampai salah satu ditutup.
-function ShiftPanel({
-  shifts,
-}: {
-  shifts: Array<{ id: number; type?: 'pagi' | 'malam'; cashierName?: string; createdAt: string; openingCash: number }>
-}) {
-  if (shifts.length === 0) {
-    return (
-      <div className="bg-white rounded-xl p-3 sm:p-4 border border-neutral-200/60 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center">
-          <Wallet className="w-4 h-4" />
-        </div>
-        <div className="text-body-sm text-neutral-600">
-          Belum ada shift kasir aktif hari ini.
-        </div>
-      </div>
-    )
-  }
-  const isOverlap = shifts.length > 1
-  return (
-    <div
-      className={
-        isOverlap
-          ? 'bg-warning-50 border border-warning-300 rounded-xl p-3 sm:p-4'
-          : 'bg-success-50 border border-success-200 rounded-xl p-3 sm:p-4'
-      }
-    >
-      <div className="flex items-center gap-2 mb-1">
-        {isOverlap ? (
-          <AlertCircle className="w-4 h-4 text-warning-700" />
-        ) : (
-          <Wallet className="w-4 h-4 text-success-700" />
-        )}
-        <h3 className="text-body-sm font-semibold text-neutral-900">
-          {isOverlap ? `Ada ${shifts.length} shift aktif (overlap)` : 'Shift aktif hari ini'}
-        </h3>
-      </div>
-      <ul className="text-body-sm space-y-1 text-neutral-700">
-        {shifts.map((s) => (
-          <li key={s.id} className="flex flex-wrap gap-x-2">
-            <span className="font-medium text-neutral-900">{s.cashierName ?? '-'}</span>
-            <span className="text-neutral-500">·</span>
-            <span>{s.type === 'pagi' ? 'Pagi' : s.type === 'malam' ? 'Malam' : '-'}</span>
-            <span className="text-neutral-500">·</span>
-            <span>modal awal {formatCurrency(s.openingCash)}</span>
-          </li>
-        ))}
-      </ul>
-      {isOverlap && (
-        <p className="mt-2 text-caption text-warning-700">
-          Input order baru akan ditolak sampai salah satu shift ditutup. Owner force-close
-          belum tersedia di UI - minta kasir tutup shift via menu Settlement.
-        </p>
-      )}
     </div>
   )
 }
