@@ -339,6 +339,8 @@ export interface Transaction {
   subtotal: number
   discountAmount: number
   taxAmount: number
+  /** REV 2.12: PB1 ditanggung resto (0 kalau dibebankan ke pelanggan / nonaktif). */
+  taxBorneAmount: number
   total: number
   items: TransactionItem[]
   /** REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
