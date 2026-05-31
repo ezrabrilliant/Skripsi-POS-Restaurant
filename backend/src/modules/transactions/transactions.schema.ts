@@ -85,6 +85,10 @@ export const addPaymentSchema = z.object({
   bank: z.string().trim().max(50).nullable().optional(),
   amount: z.number().positive('Nominal harus > 0'),
   discountAmount: z.number().nonnegative().optional(),
+  /// REV 2.12: id transaksi intra-meja yang digabung ke parent ini SAAT bayar (atomik).
+  /// Hanya valid di pembayaran pertama. Merge dilakukan di dalam $transaction addPayment
+  /// supaya gagal bayar = merge ikut rollback (tidak ada stuck merge).
+  mergeSourceIds: z.array(z.number().int().positive()).optional(),
 });
 
 export const listTransactionsQuerySchema = z.object({
