@@ -31,6 +31,7 @@ import {
   Plus,
   Check,
   Unlink,
+  Printer,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import {
@@ -44,6 +45,7 @@ import { paymentMethodService } from '@/services/paymentMethodService'
 import { settingsService } from '@/services/settingsService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { calculatePB1 } from '@/lib/decimal'
+import { generateReceiptPdf } from '@/lib/receipt'
 import {
   Dialog,
   Button,
@@ -225,12 +227,9 @@ export default function PaymentModal({
     }
   }, [mode, sisa, isPaid])
 
-  // Auto-close on paid. Delay 600ms supaya toast success terlihat.
-  useEffect(() => {
-    if (!isPaid) return
-    const timer = setTimeout(() => onSuccess(), 600)
-    return () => clearTimeout(timer)
-  }, [isPaid, onSuccess])
+  // REV 2.12: TIDAK auto-close saat lunas. Tampilkan layar sukses + tombol
+  // "Simpan Struk"/"Selesai" (early-return isPaid di render). onSuccess dipanggil
+  // saat user klik "Selesai".
 
   // REV 2.6: filter metode pembayaran dinamis berdasarkan flag master di backend:
   //   - isActive (sudah filtered di list(false) tapi double-check defensive)
@@ -480,6 +479,25 @@ export default function PaymentModal({
     qc.invalidateQueries({ queryKey: ['transactions', 'byTable', tableNumber] })
   }
 
+  // REV 2.12: generate + unduh struk PDF dari transaksi yang sudah dibayar.
+  // Identitas + tarif dari appSettings; label metode dari master payment_methods.
+  const handlePrintReceipt = () => {
+    if (!transaction) return
+    generateReceiptPdf(transaction, {
+      identity: appSettings
+        ? {
+            restaurantName: appSettings.restaurantName,
+            restaurantAddress: appSettings.restaurantAddress,
+            openingHours: appSettings.openingHours,
+            restaurantPhone: appSettings.restaurantPhone,
+            restaurantLogoUrl: appSettings.restaurantLogoUrl,
+          }
+        : null,
+      taxRate: appSettings?.taxRate ?? 10,
+      paymentLabel: (code) => allMethods.find((m) => m.code === code)?.label ?? code,
+    })
+  }
+
   // Submit disable conditions
   const submitting = addPayMutation.isPending || mergeMutation.isPending
   // FIX: pas first slice, aggregate + daftar candidate dihitung dari query transaction +
@@ -531,6 +549,69 @@ export default function PaymentModal({
       >
         <div className="text-center py-8 text-danger-700 text-body-sm">
           Gagal memuat metode pembayaran. Coba refresh halaman.
+        </div>
+      </Dialog>
+    )
+  }
+
+  // REV 2.12: layar sukses pasca-bayar (TIDAK auto-close). Simpan struk / Selesai.
+  if (isPaid) {
+    const change = sumPayments - transaction.total
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => !o && onSuccess()}
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Check className="w-5 h-5 text-success-600" />
+            Pembayaran Berhasil
+          </span>
+        }
+        description={
+          <span className="tabular-nums">
+            Tx #{transaction.id}
+            {tableNumber !== null && ` · Meja ${tableNumber}`}
+          </span>
+        }
+        size="md"
+        footer={
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handlePrintReceipt}
+              leftIcon={<Printer className="w-5 h-5" />}
+            >
+              Simpan Struk
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={onSuccess}
+              leftIcon={<Check className="w-5 h-5" />}
+            >
+              Selesai
+            </Button>
+          </div>
+        }
+      >
+        <div className="py-4 text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-success-100 flex items-center justify-center mx-auto">
+            <Check className="w-8 h-8 text-success-600" />
+          </div>
+          <div>
+            <p className="text-caption text-neutral-500">Total dibayar</p>
+            <p className="text-headline font-bold text-neutral-900 tabular-nums">
+              {formatCurrency(transaction.total)}
+            </p>
+          </div>
+          {change > 0 && (
+            <p className="text-body-sm text-neutral-600">Kembalian {formatCurrency(change)}</p>
+          )}
+          <p className="text-caption text-neutral-500">
+            Simpan struk PDF ke perangkat lewat tombol di bawah.
+          </p>
         </div>
       </Dialog>
     )
