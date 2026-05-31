@@ -9,10 +9,10 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit2 } from 'lucide-react'
+import { Plus, Edit2, ChevronUp, ChevronDown } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import type { PaymentMethodView, BankView } from '@/types'
-import { paymentMethodService } from '@/services/paymentMethodService'
+import { paymentMethodService, type ReorderPaymentMethodEntry } from '@/services/paymentMethodService'
 import {
   Button,
   IconButton,
@@ -54,6 +54,24 @@ export default function PaymentMethodsTab({ methods, banks, loading }: Props) {
     },
     onError: (err: Error) => toast.error(err.message),
   })
+
+  const reorderMutation = useMutation({
+    mutationFn: (ordered: ReorderPaymentMethodEntry[]) =>
+      paymentMethodService.reorder(ordered),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['paymentMethods'] }),
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  // Pindah metode pada index `from` ke arah `dir` (-1 naik / +1 turun), lalu
+  // kirim urutan baru (displayOrder = index final). methods diasumsikan sudah
+  // urut displayOrder dari list query.
+  const move = (from: number, dir: -1 | 1) => {
+    const to = from + dir
+    if (to < 0 || to >= methods.length) return
+    const next = methods.slice()
+    ;[next[from], next[to]] = [next[to], next[from]]
+    reorderMutation.mutate(next.map((m, i) => ({ id: m.id, displayOrder: i })))
+  }
 
   const columns: DataTableColumn<PaymentMethodView>[] = [
     {
@@ -137,15 +155,36 @@ export default function PaymentMethodsTab({ methods, banks, loading }: Props) {
       key: 'actions',
       header: '',
       align: 'right',
-      cell: (m) => (
-        <IconButton
-          label={`Edit ${m.label}`}
-          icon={<Edit2 />}
-          variant="ghost"
-          size="sm"
-          onClick={() => setEditing(m)}
-        />
-      ),
+      cell: (m) => {
+        const i = methods.findIndex((x) => x.id === m.id)
+        return (
+          <div className="inline-flex items-center gap-0.5">
+            <IconButton
+              label={`Naikkan ${m.label}`}
+              icon={<ChevronUp />}
+              variant="ghost"
+              size="sm"
+              disabled={i <= 0 || reorderMutation.isPending}
+              onClick={() => move(i, -1)}
+            />
+            <IconButton
+              label={`Turunkan ${m.label}`}
+              icon={<ChevronDown />}
+              variant="ghost"
+              size="sm"
+              disabled={i >= methods.length - 1 || reorderMutation.isPending}
+              onClick={() => move(i, 1)}
+            />
+            <IconButton
+              label={`Edit ${m.label}`}
+              icon={<Edit2 />}
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditing(m)}
+            />
+          </div>
+        )
+      },
     },
   ]
 
@@ -178,6 +217,7 @@ export default function PaymentMethodsTab({ methods, banks, loading }: Props) {
           emptyDescription='Klik "Tambah Metode" untuk membuat metode pembayaran baru.'
           mobileCard={(m) => {
             const Icon = resolveIcon(m.iconName)
+            const i = methods.findIndex((x) => x.id === m.id)
             return (
               <div className={cn('space-y-1.5', !m.isActive && 'opacity-60')}>
                 <div className="flex items-start gap-2.5">
@@ -224,13 +264,31 @@ export default function PaymentMethodsTab({ methods, banks, loading }: Props) {
                       )}
                     />
                   </button>
-                  <IconButton
-                    label="Edit"
-                    icon={<Edit2 />}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(m)}
-                  />
+                  <div className="inline-flex items-center gap-0.5">
+                    <IconButton
+                      label={`Naikkan ${m.label}`}
+                      icon={<ChevronUp />}
+                      variant="ghost"
+                      size="sm"
+                      disabled={i <= 0 || reorderMutation.isPending}
+                      onClick={() => move(i, -1)}
+                    />
+                    <IconButton
+                      label={`Turunkan ${m.label}`}
+                      icon={<ChevronDown />}
+                      variant="ghost"
+                      size="sm"
+                      disabled={i >= methods.length - 1 || reorderMutation.isPending}
+                      onClick={() => move(i, 1)}
+                    />
+                    <IconButton
+                      label="Edit"
+                      icon={<Edit2 />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditing(m)}
+                    />
+                  </div>
                 </div>
               </div>
             )
