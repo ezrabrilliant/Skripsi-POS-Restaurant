@@ -126,14 +126,22 @@ export default function OwnerDashboard() {
                 value={report.expense.cogsTotal}
                 format="rupiah"
                 icon={<TrendingDown className="w-4 h-4" />}
-                hint={`Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`}
+                hint={
+                  report.expense.pb1BorneTotal > 0
+                    ? `PB1 ditanggung ${formatCurrency(report.expense.pb1BorneTotal)} · Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
+                    : `Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
+                }
               />
               <Stat
                 label="Laba Kotor"
                 value={report.profit}
                 format="rupiah"
                 icon={<TrendingUp className="w-4 h-4" />}
-                hint="Pendapatan − COGS"
+                hint={
+                  report.expense.pb1BorneTotal > 0
+                    ? 'Pendapatan − COGS − PB1 ditanggung'
+                    : 'Pendapatan − COGS'
+                }
                 className={
                   report.profit < 0
                     ? '!border-danger-200 !bg-danger-50/30'

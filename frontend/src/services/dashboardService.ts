@@ -49,6 +49,8 @@ export interface OwnerReport {
   }
   expense: {
     cogsTotal: number
+    // REV 2.12: PB1 ditanggung resto (Σ taxBorneAmount). Dikurangkan ke laba.
+    pb1BorneTotal: number
     billTotal: number
     total: number
   }
