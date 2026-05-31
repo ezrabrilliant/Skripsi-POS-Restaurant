@@ -41,6 +41,8 @@ import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { AppError, notFound } from '../../utils/errors';
 import { computePb1 } from './pb1';
+import { getShiftWindow } from '../settings/settings.service';
+import { isShiftStale } from '../shifts/shift-time';
 import {
   resolveStockTargets,
   resolveCostComponents,
@@ -640,6 +642,16 @@ export async function createTransaction(
 ): Promise<TransactionView> {
   const shift = await resolveActiveShift('order baru');
 
+  // REV 2.12 clean-slate: tolak order baru kalau shift aktif sudah lewat business day-nya.
+  // Pembayaran/void TIDAK kena cek ini (perlu untuk membersihkan order sisa kemarin).
+  const window = await getShiftWindow();
+  if (isShiftStale(shift.date, window)) {
+    throw new AppError(
+      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup — tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
+      409,
+    );
+  }
+
   // Validasi order type vs tableNumber
   if (input.orderType === OrderType.dineIn) {
     if (input.tableNumber === undefined) {
@@ -690,6 +702,15 @@ export async function addItems(
   if (!existing) throw notFound('Transaction');
   if (existing.status !== TransactionStatus.open) {
     throw new AppError(`Hanya transaksi status open yang bisa ditambah item (saat ini: ${existing.status})`, 400);
+  }
+
+  const shiftOfTx = await prisma.shift.findUnique({ where: { id: existing.shiftId } });
+  const window = await getShiftWindow();
+  if (shiftOfTx && isShiftStale(shiftOfTx.date, window)) {
+    throw new AppError(
+      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup — tidak bisa menambah item ke order hari kemarin.`,
+      409,
+    );
   }
 
   await prisma.$transaction(async (tx) => {
