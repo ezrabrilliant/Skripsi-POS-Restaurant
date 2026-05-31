@@ -52,4 +52,17 @@ export const settingsService = {
     const res = await api.patch<ApiResponse<{ settings: AppSettings }>>('/settings', input)
     return res.data.data.settings
   },
+
+  // REV 2.12: upload logo resto (owner-only). Mengembalikan url untuk disimpan ke
+  // restaurantLogoUrl via update().
+  uploadLogo: async (file: File): Promise<{ imageUrl: string }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await api.post<ApiResponse<{ imageUrl: string }>>(
+      '/settings/logo',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return res.data.data
+  },
 }
