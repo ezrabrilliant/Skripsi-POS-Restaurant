@@ -24,19 +24,31 @@ export default function TaxSettingsTab() {
   // Local draft state - di-sync dari server saat load, lalu user edit sebelum Simpan.
   const [enabled, setEnabled] = useState(false)
   const [rate, setRate] = useState('10')
+  // REV 2.12: true = PB1 ditambahkan ke tagihan pelanggan; false = ditanggung resto.
+  const [charged, setCharged] = useState(false)
 
   useEffect(() => {
     if (settingsQuery.data) {
       setEnabled(settingsQuery.data.taxEnabled)
       setRate(String(settingsQuery.data.taxRate))
+      setCharged(settingsQuery.data.taxChargedToCustomer)
     }
   }, [settingsQuery.data])
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      settingsService.update({ taxEnabled: enabled, taxRate: Number(rate) }),
+      settingsService.update({
+        taxEnabled: enabled,
+        taxRate: Number(rate),
+        taxChargedToCustomer: charged,
+      }),
     onSuccess: (s) => {
-      toast.success(`Pengaturan PB1 disimpan - ${s.taxEnabled ? `aktif ${s.taxRate}%` : 'nonaktif'}`)
+      const mode = !s.taxEnabled
+        ? 'nonaktif'
+        : s.taxChargedToCustomer
+          ? `aktif ${s.taxRate}% (dibebankan ke pelanggan)`
+          : `aktif ${s.taxRate}% (ditanggung resto)`
+      toast.success(`Pengaturan PB1 disimpan - ${mode}`)
       qc.invalidateQueries({ queryKey: ['settings'] })
     },
     onError: (err: Error) => toast.error(err.message),
@@ -46,7 +58,9 @@ export default function TaxSettingsTab() {
   const rateInvalid = rate === '' || Number.isNaN(rateNum) || rateNum < 0 || rateNum > 100
   const dirty =
     !!settingsQuery.data &&
-    (enabled !== settingsQuery.data.taxEnabled || rateNum !== settingsQuery.data.taxRate)
+    (enabled !== settingsQuery.data.taxEnabled ||
+      rateNum !== settingsQuery.data.taxRate ||
+      charged !== settingsQuery.data.taxChargedToCustomer)
 
   if (settingsQuery.isLoading) {
     return (
@@ -67,8 +81,8 @@ export default function TaxSettingsTab() {
           <div className="min-w-0 flex-1">
             <p className="font-medium text-neutral-900">Pajak PB1</p>
             <p className="text-caption text-neutral-500">
-              Kalau aktif, PB1 ditambahkan ke total saat pembayaran. Default nonaktif
-              (harga menu sudah final, customer tidak dikenakan PB1).
+              Aktifkan untuk menghitung PB1 10%. Lalu pilih di bawah: dibebankan ke
+              pelanggan (ditambah ke total) atau ditanggung resto (mengurangi laba).
             </p>
           </div>
           <button
@@ -114,6 +128,38 @@ export default function TaxSettingsTab() {
           {enabled && rateInvalid && (
             <p className="text-caption text-danger-600">Tarif harus antara 0 dan 100.</p>
           )}
+        </div>
+
+        {/* REV 2.12: 2-sumbu - siapa yang menanggung PB1. Hanya relevan kalau aktif. */}
+        <div className={cn('flex items-start gap-3 border-t border-neutral-100 pt-3', !enabled && 'opacity-50')}>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-neutral-900">Bebankan PB1 ke pelanggan?</p>
+            <p className="text-caption text-neutral-500">
+              {charged
+                ? 'Pelanggan membayar harga + PB1 (PB1 ditambahkan ke total).'
+                : 'Pelanggan membayar harga apa adanya; resto menanggung PB1 (mengurangi laba). Kondisi resto saat ini.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCharged((v) => !v)}
+            disabled={!enabled}
+            aria-pressed={charged}
+            aria-label={`${charged ? 'Jangan bebankan' : 'Bebankan'} PB1 ke pelanggan`}
+            className={cn(
+              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 mt-0.5',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+              charged ? 'bg-success-600' : 'bg-neutral-300',
+              !enabled && 'cursor-not-allowed',
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+                charged ? 'translate-x-5' : 'translate-x-1',
+              )}
+            />
+          </button>
         </div>
 
         {/* Info note */}

@@ -8,6 +8,15 @@ import type { ApiResponse } from '@/types'
 export interface AppSettings {
   taxEnabled: boolean
   taxRate: number // persen
+  // REV 2.12: PB1 2-sumbu + identitas resto + aturan operasional stok.
+  taxChargedToCustomer: boolean
+  restaurantName: string
+  restaurantAddress: string | null
+  openingHours: string | null
+  restaurantPhone: string | null
+  restaurantLogoUrl: string | null
+  restockMultiple: number
+  lowStockThreshold: number
   timezone: string
   shiftPagiStart: string
   shiftChangeover: string
@@ -19,6 +28,14 @@ export interface AppSettings {
 export interface UpdateSettingsInput {
   taxEnabled?: boolean
   taxRate?: number
+  taxChargedToCustomer?: boolean
+  restaurantName?: string
+  restaurantAddress?: string | null
+  openingHours?: string | null
+  restaurantPhone?: string | null
+  restaurantLogoUrl?: string | null
+  restockMultiple?: number
+  lowStockThreshold?: number
   timezone?: string
   shiftPagiStart?: string
   shiftChangeover?: string
