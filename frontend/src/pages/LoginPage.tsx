@@ -10,10 +10,11 @@
 
 import { useState, useRef, useEffect, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { LogIn, ArrowLeft, User as UserIcon, Delete } from 'lucide-react'
 import { authService } from '@/services/authService'
+import { settingsService } from '@/services/settingsService'
 import { useAuthStore } from '@/stores/authStore'
 import { Button, Input } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -26,6 +27,13 @@ export default function LoginPage() {
   const [forceFreshMode, setForceFreshMode] = useState(false)
   const showFresh = forceFreshMode || !isCachedMode
   const toast = useToast()
+
+  // REV 2.12: branding dari identitas resto (endpoint publik, tanpa auth).
+  const { data: identity } = useQuery({
+    queryKey: ['settings', 'public'],
+    queryFn: settingsService.getPublicIdentity,
+    staleTime: 60_000,
+  })
 
   const [name, setName] = useState(lastUserName ?? '')
   const [pin, setPin] = useState('')
@@ -115,13 +123,24 @@ export default function LoginPage() {
           animate="animate"
           className="text-center mb-6"
         >
-          <div className="w-16 h-16 bg-primary-600 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-md">
-            <span className="text-white font-bold text-xl tracking-tight">ABM</span>
+          <div
+            className={cn(
+              'w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-md overflow-hidden',
+              identity?.restaurantLogoUrl ? 'bg-white border border-neutral-200' : 'bg-primary-600',
+            )}
+          >
+            {identity?.restaurantLogoUrl ? (
+              <img src={identity.restaurantLogoUrl} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-white font-bold text-xl tracking-tight">ABM</span>
+            )}
           </div>
           <h1 className="text-title font-semibold text-neutral-900 leading-tight">
-            POS Ayam Bakar
+            {identity?.restaurantName ?? 'Ayam Bakar Banjar Monosuko'}
           </h1>
-          <p className="text-body-sm text-neutral-600 mt-0.5">Banjar Monosuko</p>
+          {identity?.openingHours && (
+            <p className="text-body-sm text-neutral-600 mt-0.5">Buka {identity.openingHours}</p>
+          )}
         </motion.div>
 
         {!showFresh && (

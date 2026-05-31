@@ -42,10 +42,24 @@ export interface UpdateSettingsInput {
   shiftMalamEnd?: string
 }
 
+export interface PublicIdentity {
+  restaurantName: string
+  restaurantAddress: string | null
+  openingHours: string | null
+  restaurantPhone: string | null
+  restaurantLogoUrl: string | null
+}
+
 export const settingsService = {
   get: async (): Promise<AppSettings> => {
     const res = await api.get<ApiResponse<{ settings: AppSettings }>>('/settings')
     return res.data.data.settings
+  },
+
+  // REV 2.12: identitas publik (LoginPage belum auth).
+  getPublicIdentity: async (): Promise<PublicIdentity> => {
+    const res = await api.get<ApiResponse<{ identity: PublicIdentity }>>('/settings/public')
+    return res.data.data.identity
   },
 
   update: async (input: UpdateSettingsInput): Promise<AppSettings> => {

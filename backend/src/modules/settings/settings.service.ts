@@ -94,6 +94,27 @@ export async function updateSettings(
   return toView(updated);
 }
 
+export interface PublicIdentity {
+  restaurantName: string;
+  restaurantAddress: string | null;
+  openingHours: string | null;
+  restaurantPhone: string | null;
+  restaurantLogoUrl: string | null;
+}
+
+/** REV 2.12: subset identitas resto untuk konsumsi PUBLIK (LoginPage belum auth).
+ *  Tidak mengekspos pajak/shift/ops. */
+export async function getPublicIdentity(): Promise<PublicIdentity> {
+  const s = await getSettings();
+  return {
+    restaurantName: s.restaurantName,
+    restaurantAddress: s.restaurantAddress,
+    openingHours: s.openingHours,
+    restaurantPhone: s.restaurantPhone,
+    restaurantLogoUrl: s.restaurantLogoUrl,
+  };
+}
+
 export async function getShiftWindow(): Promise<ShiftWindowSettings> {
   const s = await getSettings();
   return {

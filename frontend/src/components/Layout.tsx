@@ -2,6 +2,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { settingsService } from '@/services/settingsService'
 import ShiftChangeReminder from '@/components/ShiftChangeReminder'
 import {
   LayoutGrid,
@@ -69,6 +71,12 @@ export default function Layout() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const [moreOpen, setMoreOpen] = useState(false)
+  // REV 2.12: branding header dari identitas resto (endpoint publik).
+  const { data: identity } = useQuery({
+    queryKey: ['settings', 'public'],
+    queryFn: settingsService.getPublicIdentity,
+    staleTime: 60_000,
+  })
 
   const handleLogout = async () => {
     // Tutup Sheet "Lainnya" duluan supaya tidak tumpang tindih dgn confirm Dialog.
@@ -99,12 +107,21 @@ export default function Layout() {
       <aside className="hidden md:flex w-20 lg:w-64 bg-white border-r border-neutral-200 flex-col flex-shrink-0 pt-safe">
         {/* Brand header */}
         <div className="h-16 flex items-center justify-center lg:justify-start lg:px-5 border-b border-neutral-200 shrink-0">
-          <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center shadow-sm shrink-0">
-            <span className="text-white font-bold text-body tracking-tight">ABM</span>
+          <div
+            className={cn(
+              'w-10 h-10 rounded-lg flex items-center justify-center shadow-sm shrink-0 overflow-hidden',
+              identity?.restaurantLogoUrl ? 'bg-white border border-neutral-200' : 'bg-primary-600',
+            )}
+          >
+            {identity?.restaurantLogoUrl ? (
+              <img src={identity.restaurantLogoUrl} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-white font-bold text-body tracking-tight">ABM</span>
+            )}
           </div>
-          <div className="hidden lg:flex flex-col ml-3 leading-tight">
-            <span className="font-semibold text-body text-neutral-900">POS ABM</span>
-            <span className="text-caption text-neutral-500">Ayam Bakar Banjar</span>
+          <div className="hidden lg:flex flex-col ml-3 leading-tight min-w-0">
+            <span className="font-semibold text-body text-neutral-900 truncate">{identity?.restaurantName ?? 'POS ABM'}</span>
+            <span className="text-caption text-neutral-500">Point of Sale</span>
           </div>
         </div>
 
