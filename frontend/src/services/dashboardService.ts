@@ -71,6 +71,18 @@ export interface OwnerReportQuery {
 // Cashier
 // ============================================================
 
+export interface CashierTopMenu {
+  menuId: number
+  name: string
+  qty: number
+  revenue: number
+}
+
+export interface OrderTypeStat {
+  count: number
+  revenue: number
+}
+
 export interface CashierDashboard {
   activeShift: {
     id: number
@@ -84,8 +96,84 @@ export interface CashierDashboard {
     /** REV 2.6: dinamis per payment method code. */
     byMethod: MethodTotalEntry[]
     openTransactionCount: number
+    /** REV 2.13: kartu ringan kasir. topMenus TANPA cost/laba (owner-only). */
+    topMenus: CashierTopMenu[]
+    itemCount: number
+    atv: number
+    orderTypeSplit: { dineIn: OrderTypeStat; takeaway: OrderTypeStat }
   }
   reminders: ReminderCounts
+}
+
+// ============================================================
+// Owner analytics REV 2.13 (tab Menu / Tren / Kasir)
+// ============================================================
+
+export interface MenuPerfRow {
+  menuId: number
+  name: string
+  category: string
+  qtySold: number
+  revenue: number
+  cogs: number
+  profit: number
+  marginPct: number
+}
+
+export interface CategoryPerfRow {
+  category: string
+  qtySold: number
+  revenue: number
+  cogs: number
+  profit: number
+}
+
+export interface MenuPerformance {
+  topMenus: MenuPerfRow[]
+  byCategory: CategoryPerfRow[]
+}
+
+export type TrendGranularity = 'hour' | 'day' | 'month'
+
+export interface TrendBucket {
+  bucket: string
+  revenue: number
+  txCount: number
+}
+
+export interface PeakHour {
+  hour: number
+  revenue: number
+  txCount: number
+}
+
+export interface OwnerTrend {
+  granularity: TrendGranularity
+  revenueTrend: TrendBucket[]
+  peakHours: PeakHour[]
+}
+
+export interface CashierPerfRow {
+  cashierId: number
+  cashierName: string
+  shiftCount: number
+  txCount: number
+  revenue: number
+  atv: number
+}
+
+export interface SettlementHistoryRow {
+  date: string
+  cashierName: string
+  totalCounted: number
+  totalSystem: number
+  variance: number
+  status: string
+}
+
+export interface OwnerStaff {
+  cashierPerformance: CashierPerfRow[]
+  settlementHistory: SettlementHistoryRow[]
 }
 
 // ============================================================
@@ -124,6 +212,24 @@ export const dashboardService = {
       params: query,
     })
     return res.data.data.report
+  },
+
+  // REV 2.13: 3 endpoint analitik owner (lazy-load per tab).
+  getOwnerMenuPerformance: async (query: OwnerReportQuery = {}): Promise<MenuPerformance> => {
+    const res = await api.get<ApiResponse<MenuPerformance>>('/dashboard/owner/menu-performance', {
+      params: query,
+    })
+    return res.data.data
+  },
+
+  getOwnerTrend: async (query: OwnerReportQuery = {}): Promise<OwnerTrend> => {
+    const res = await api.get<ApiResponse<OwnerTrend>>('/dashboard/owner/trend', { params: query })
+    return res.data.data
+  },
+
+  getOwnerStaff: async (query: OwnerReportQuery = {}): Promise<OwnerStaff> => {
+    const res = await api.get<ApiResponse<OwnerStaff>>('/dashboard/owner/staff', { params: query })
+    return res.data.data
   },
 
   getCashierDashboard: async (): Promise<CashierDashboard> => {

@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 import { shiftService } from '@/services/shiftService'
 import { Link, useNavigate } from 'react-router-dom'
 import OverdueShiftGate from '@/components/OverdueShiftGate'
+import CashierTodayCards from '@/components/CashierTodayCards'
 import {
   Wallet,
   LayoutGrid,
@@ -106,6 +107,8 @@ export default function CashierDashboard() {
               }}
               today={dashboard.today}
             />
+            {/* REV 2.13: kartu ringan menu terlaris + statistik order hari ini */}
+            <CashierTodayCards today={dashboard.today} />
             {otherActiveShifts.length > 0 && (
               <OtherActiveShiftInfo shifts={otherActiveShifts} />
             )}
