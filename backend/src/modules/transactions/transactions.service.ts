@@ -1027,6 +1027,12 @@ export async function voidTransaction(
         });
       }
     }
+    // REV 2.12 Fix C: lepas anak yang ter-merge ke transaksi ini supaya tidak jadi
+    // order tersembunyi yang menunjuk parent void. Anak kembali jadi order standalone.
+    await tx.transaction.updateMany({
+      where: { mergedIntoId: transactionId, status: TransactionStatus.open },
+      data: { mergedIntoId: null },
+    });
     await tx.transaction.update({
       where: { id: transactionId },
       data: {
