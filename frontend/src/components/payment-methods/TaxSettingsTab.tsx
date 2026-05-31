@@ -64,14 +64,14 @@ export default function TaxSettingsTab() {
 
   if (settingsQuery.isLoading) {
     return (
-      <div className="p-3 sm:p-4">
+      <div className="p-3 sm:p-4 max-w-2xl mx-auto">
         <Skeleton className="h-48" />
       </div>
     )
   }
 
   return (
-    <div className="p-3 sm:p-4 space-y-3 max-w-xl">
+    <div className="p-3 sm:p-4 space-y-3 max-w-2xl mx-auto">
       <div className="bg-white rounded-xl border border-neutral-200/60 p-4 space-y-4">
         {/* Toggle row */}
         <div className="flex items-start gap-3">
