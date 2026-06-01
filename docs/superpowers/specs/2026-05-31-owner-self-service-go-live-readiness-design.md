@@ -1,15 +1,15 @@
-# Design Spec — REV 2.12: Owner Self-Service & Go-Live Readiness
+# Design Spec - REV 2.12: Owner Self-Service & Go-Live Readiness
 
 **Tanggal:** 2026-05-31
 **Status:** Approved (brainstorming), siap masuk plan berfase
 **Branch kerja:** dari `feat/katalog-menu-ux` (lihat §Build Order)
-**Pemicu:** Owner tidak bisa mengubah `stockType` sebuah menu (mis. Air Mineral di-seed `nonStock`, padahal botolan → harusnya bisa dilacak). Investigasi mengungkap pola lebih besar: **banyak konfigurasi yang backend-nya bisa diubah tapi tidak ada kontrolnya di UI** — sehingga **setelah live, owner (non-teknis) terdampar** karena tidak mungkin edit lewat kode/database.
+**Pemicu:** Owner tidak bisa mengubah `stockType` sebuah menu (mis. Air Mineral di-seed `nonStock`, padahal botolan → harusnya bisa dilacak). Investigasi mengungkap pola lebih besar: **banyak konfigurasi yang backend-nya bisa diubah tapi tidak ada kontrolnya di UI** - sehingga **setelah live, owner (non-teknis) terdampar** karena tidak mungkin edit lewat kode/database.
 
 ---
 
 ## 1. Konteks & Motivasi
 
-POS ini akan **live di produksi** (`monosuko.my.id`). Setelah live, owner hanya bisa mengubah konfigurasi lewat **UI aplikasi** — tidak bisa edit source code, jalankan script, atau sentuh database. Apa pun yang wajar berubah selama umur restoran **harus** bisa diatur sendiri dari UI; kalau tidak, owner "terdampar".
+POS ini akan **live di produksi** (`monosuko.my.id`). Setelah live, owner hanya bisa mengubah konfigurasi lewat **UI aplikasi** - tidak bisa edit source code, jalankan script, atau sentuh database. Apa pun yang wajar berubah selama umur restoran **harus** bisa diatur sendiri dari UI; kalau tidak, owner "terdampar".
 
 Audit menyeluruh (10 area, dibandingkan: field schema/endpoint yang mutable vs yang benar-benar bisa diedit owner di UI) menghasilkan daftar gap berikut. Spec ini menutup gap **critical/high** yang masuk akal untuk skripsi, dan mendokumentasikan sisanya sebagai **known-gap**.
 
@@ -22,7 +22,7 @@ Audit menyeluruh (10 area, dibandingkan: field schema/endpoint yang mutable vs y
 | Reaktivasi staff (`isActive=true`) | High | ✅ `updateUserSchema.isActive` | ❌ form tak ada toggle | A |
 | Owner edit akun sendiri (nama/PIN) | High | ✅ `PUT /users/:id` | ❌ tak ada UI profil | A |
 | Badge "Nonaktif" staff | Medium | ✅ list kembalikan semua | ❌ tak ada penanda | A |
-| PIN mismatch (UI "4-6" vs backend `^\d{6}$`) | Medium | — | ❌ label menyesatkan | A |
+| PIN mismatch (UI "4-6" vs backend `^\d{6}$`) | Medium | - | ❌ label menyesatkan | A |
 | Identitas resto (nama/alamat/jam/telp/logo) hardcoded | High | ❌ tak ada field | ❌ tak ada UI | B |
 | PB1: "off" sebenarnya "ditanggung resto", bukan "tak ada pajak" | Critical | sebagian (`taxEnabled`+`taxRate`) | ⚠️ model salah konsep | B |
 | Kelipatan restock terkunci `%5` | Medium | ❌ hardcoded `portion.schema.ts:17` | ❌ | B |
@@ -34,13 +34,13 @@ Audit menyeluruh (10 area, dibandingkan: field schema/endpoint yang mutable vs y
 ### 1.2 Yang SUDAH beres (tidak disentuh)
 minStock per menu, konversi simple↔variant↔paket, COGS + audit trail, reaktivasi menu, tarif pajak (rate), jam shift (`ShiftWindowTab`), bank assign/unassign, opname/emergency-in/mark-habis, validasi diskon, bounds tarif pajak.
 
-### 1.3 Keluar scope — didokumentasikan sebagai known-gap (TIDAK dikerjakan)
+### 1.3 Keluar scope - didokumentasikan sebagai known-gap (TIDAK dikerjakan)
 - **Jenis shift `pagi/malam`** (enum Prisma → butuh refactor reference-table + migrasi struktural; risiko tinggi, nilai rendah untuk skripsi).
-- **Currency/locale** (`id-ID`/`IDR` hardcoded) — keputusan produk single-tenant, bukan gap.
+- **Currency/locale** (`id-ID`/`IDR` hardcoded) - keputusan produk single-tenant, bukan gap.
 - **Hard-delete menu** (soft-delete + reactivate sudah audit-safe dan cukup).
 - **Bulk-rename kategori menu** (kategori = free-text per menu; rename satu-satu via form edit).
-- **Branding `POS ABM` di Layout/Login** — diganti via identitas resto WS-B kalau memungkinkan, tapi tidak wajib.
-- **Polling interval / pagination limit** — tuning teknis, bukan konfigurasi bisnis.
+- **Branding `POS ABM` di Layout/Login** - diganti via identitas resto WS-B kalau memungkinkan, tapi tidak wajib.
+- **Polling interval / pagination limit** - tuning teknis, bukan konfigurasi bisnis.
 
 ---
 
@@ -60,7 +60,7 @@ minStock per menu, konversi simple↔variant↔paket, COGS + audit trail, reakti
 
 ## 3. Desain per Workstream
 
-### WS-A — Quick-win Self-Service (frontend-only, TANPA perubahan schema)
+### WS-A - Quick-win Self-Service (frontend-only, TANPA perubahan schema)
 
 Semua field sudah mutable di backend; pekerjaan murni memasang kontrol UI + menyelaraskan validasi.
 
@@ -75,9 +75,9 @@ Semua field sudah mutable di backend; pekerjaan murni memasang kontrol UI + meny
 - Tambah tombol **↑/↓** per baris (mobile-friendly; bukan drag-drop).
 - Pada klik, susun ulang array `id` → panggil `paymentMethodService.reorder(orderedIds)` (sudah ada, belum dipakai) → invalidate query.
 
-**A3. Users — reaktivasi + akun sendiri + badge (`UsersPage.tsx`, `Layout.tsx`)**
+**A3. Users - reaktivasi + akun sendiri + badge (`UsersPage.tsx`, `Layout.tsx`)**
 - **Reaktivasi:** tambah checkbox **"Aktif"** di form edit staff (bind `isActive`), atau tombol "Aktifkan" pada kartu staff nonaktif.
-- **Badge "Nonaktif":** tandai baris/kartu staff `isActive=false` (butuh `isActive` ada di tipe `User` frontend + response list — verifikasi; backend sudah kembalikan semua user).
+- **Badge "Nonaktif":** tandai baris/kartu staff `isActive=false` (butuh `isActive` ada di tipe `User` frontend + response list - verifikasi; backend sudah kembalikan semua user).
 - **Akun Saya:** dialog "Akun Saya" (entry dari avatar/sidebar di `Layout.tsx`) → owner edit **nama + PIN sendiri** via `PUT /users/:id`. Role sendiri tetap **tidak** bisa diubah (sudah di-guard di UI; tambah guard server-side ringan opsional).
 
 **A4. Fix PIN length (`UsersPage.tsx`)**
@@ -87,7 +87,7 @@ Semua field sudah mutable di backend; pekerjaan murni memasang kontrol UI + meny
 
 ---
 
-### WS-B — Settings & Money-Math (AppSetting +field, ikut pola tab yang ada)
+### WS-B - Settings & Money-Math (AppSetting +field, ikut pola tab yang ada)
 
 Pola referensi: `AppSetting` (singleton id=1) → `settings.schema.ts` (Zod) → `settings.service.ts` → tab baru di halaman owner (sekarang "Pembayaran" punya 4 tab: Metode/Bank/Pajak/Jam Shift).
 
@@ -99,7 +99,7 @@ Pola referensi: `AppSetting` (singleton id=1) → `settings.schema.ts` (Zod) →
 - Seed/default: `restaurantName='Ayam Bakar Banjar Monosuko'` agar tidak kosong saat pertama.
 - **Konsumen:** `LoginPage` (judul/branding) + `Layout` header membaca dari settings (fallback ke string lama bila kosong). Header struk (WS-C) membaca dari sini.
 
-**B2. PB1 2-sumbu (money-math) — desain penyimpanan aman**
+**B2. PB1 2-sumbu (money-math) - desain penyimpanan aman**
 
 Kondisi kode sekarang (`transactions.service.ts:838-844`): saat first payment slice, `ratePct = taxEnabled ? taxRate : 0`; `taxAmount = base × ratePct/100`; `total = base + taxAmount`. Jadi `taxEnabled=true` = ditagih ke pelanggan; `false` = tak ada pajak.
 
@@ -112,10 +112,10 @@ Perubahan:
   if (taxChargedToCustomer) { taxAmount = pb1; taxBorneAmount = 0; total = base + pb1 }
   else                      { taxAmount = 0;   taxBorneAmount = pb1; total = base }
   ```
-  Karena dua field amount mutually-exclusive, **tidak perlu** menyimpan boolean snapshot di Transaction — `taxBorneAmount > 0` sudah menandai "ditanggung".
+  Karena dua field amount mutually-exclusive, **tidak perlu** menyimpan boolean snapshot di Transaction - `taxBorneAmount > 0` sudah menandai "ditanggung".
 - **TransactionView** + service mapper: expose `taxBorneAmount`.
 - **Dashboard owner** (`dashboard.service.ts`): `laba = pendapatan − cogs − Σ taxBorneAmount` (filter periode identik dengan revenue/COGS). Tambah baris display "PB1 ditanggung resto".
-- **Settlement:** tidak terdampak — settlement merekonsiliasi `total` (uang yang benar-benar masuk); saat ditanggung, `total=base` jadi cash cocok. PB1 ditanggung bukan uang yang ditagih.
+- **Settlement:** tidak terdampak - settlement merekonsiliasi `total` (uang yang benar-benar masuk); saat ditanggung, `total=base` jadi cash cocok. PB1 ditanggung bukan uang yang ditagih.
 - **`TaxSettingsTab.tsx`:** tambah toggle **"Bebankan PB1 ke pelanggan?"** (`taxChargedToCustomer`) + teks penjelas matriks. Pertahankan toggle `taxEnabled` + input rate.
 
 **B3. Setting operasional stok (parametrik)**
@@ -128,7 +128,7 @@ Perubahan:
 
 ---
 
-### WS-C — Struk PDF + UX Pasca-Bayar (bergantung WS-B)
+### WS-C - Struk PDF + UX Pasca-Bayar (bergantung WS-B)
 
 **C1. UX pasca-bayar (`PaymentModal.tsx`)**
 - Saat ini modal auto-close on success. Ubah: setelah pembayaran sukses, modal **transisi ke state "Sukses"** (bukan menutup): ikon centang + ringkasan (total, kembalian bila ada) + tombol **"Cetak / Simpan Struk"** dan **"Selesai"**. Hanya "Selesai" (atau klik area) yang menutup → balik ke POS.
@@ -136,7 +136,7 @@ Perubahan:
 **C2. Generate struk PDF (client-side)**
 - Library: **jsPDF** (client-side; kasir simpan langsung ke device, cocok PWA, tanpa round-trip backend).
 - Format: **nota kecil hitam-putih** (~58mm/80mm width, layout monospace) sesuai standar struk POS resto.
-- **Header** dari AppSetting (WS-B): nama, jam buka, alamat, telp, (logo bila ada — kecil, B/W/grayscale).
+- **Header** dari AppSetting (WS-B): nama, jam buka, alamat, telp, (logo bila ada - kecil, B/W/grayscale).
 - **Body:** no. transaksi + tanggal/jam, meja/takeaway, kasir, daftar item (qty × harga = subtotal per item, + notes/subOptions), lalu **Subtotal · Diskon · PB1 · Total · Metode Bayar · (Kembalian)**. Bila PB1 ditanggung → baris "Harga sudah termasuk PB1".
 - **Footer:** ucapan terima kasih.
 - **Simpan:** `doc.save('struk-<kode>-<tgl>.pdf')` → unduh ke device.
@@ -147,7 +147,7 @@ Perubahan:
 
 ---
 
-### WS-D — Master-Table Dinamis (2 model baru + migrasi; paling berat)
+### WS-D - Master-Table Dinamis (2 model baru + migrasi; paling berat)
 
 **D1. Kategori tagihan (`BillCategory` enum → master table)**
 - Model baru `BillCategory { id, label, isActive, displayOrder }`. `Bill` +`categoryId Int?` FK (aditif).
@@ -184,12 +184,12 @@ Perubahan:
 - **Branch:** kerjakan di worktree/branch dari `feat/katalog-menu-ux` (atau buat `feat/owner-self-service-rev212`). Tiap WS = fase plan dengan checkpoint review (sesuai preferensi incremental).
 - **Isolasi antar-unit:** WS-A independen (frontend). WS-B fondasi setting+money. WS-C konsumen WS-B (identitas+PB1). WS-D independen, dijalankan terakhir.
 - **Pipeline superpowers per WS:** TDD untuk perubahan backend (Zod + service test dulu), verification-before-completion (tsc + build + lint + e2e), code-review sebelum commit.
-- **Konsistensi frontend:** ikuti Frontend Consistency Mandate — audit komponen sejenis (`TaxSettingsTab`/`ShiftWindowTab` untuk tab setting; `BillsPage`/`MenuFormModal` untuk form; `PaymentModal` untuk state modal), pakai primitive `design-system/primitives` + `ui/`.
+- **Konsistensi frontend:** ikuti Frontend Consistency Mandate - audit komponen sejenis (`TaxSettingsTab`/`ShiftWindowTab` untuk tab setting; `BillsPage`/`MenuFormModal` untuk form; `PaymentModal` untuk state modal), pakai primitive `design-system/primitives` + `ui/`.
 - **Dokumentasi ground-truth:** setiap WS selesai → update `docs/operasional-resto.md` (khususnya luruskan kalimat "PB1 10% wajib" jadi model 2-sumbu), knowledge docs (ERD/DATA-DICTIONARY untuk model baru WS-D, AppSetting baru WS-B), dan memory continuity.
 
 ---
 
 ## 6. Open Items (difinalkan saat impl WS terkait, bukan blocker spec)
-- WS-B: penempatan persis input `restockMultiple`/`lowStockThreshold` (tab sendiri vs gabung) — prioritas rendah.
-- WS-C: layout struk final (lebar 58 vs 80mm, kolom, logo grayscale) — riset firecrawl + mockup ASCII di-review sebelum koding.
+- WS-B: penempatan persis input `restockMultiple`/`lowStockThreshold` (tab sendiri vs gabung) - prioritas rendah.
+- WS-C: layout struk final (lebar 58 vs 80mm, kolom, logo grayscale) - riset firecrawl + mockup ASCII di-review sebelum koding.
 - WS-D: apakah `Bill.category` enum di-drop di batch ini atau ditahan sampai prod stabil (default: tahan, destruktif belakangan).

@@ -1,4 +1,4 @@
-// VarianSkuTab.tsx — tab "Varian SKU" untuk Katalog Menu (REV UX elevation).
+// VarianSkuTab.tsx - tab "Varian SKU" untuk Katalog Menu (REV UX elevation).
 // Daftar datar semua SKU posVisible=false (termasuk yatim & multi-induk).
 // Induk = LINK teks klikable (D4) → tab Menu Jual + focusMenuId. Yatim = badge warning.
 // Query + showInactive dimiliki host (MenuPage); tab ini menerima props.
@@ -129,7 +129,7 @@ export function VarianSkuTab({
       align: 'right',
       cell: (m) => {
         if (m.stockType !== 'portion' || !m.portionStock)
-          return <span className="text-neutral-300">—</span>
+          return <span className="text-neutral-300">-</span>
         const { currentQty, minStock } = m.portionStock
         const low = currentQty <= minStock
         return (
@@ -154,7 +154,7 @@ export function VarianSkuTab({
       align: 'right',
       cell: (m) => (
         <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
+          {m.cost != null ? formatCurrency(m.cost) : '-'}
         </span>
       ),
     },
@@ -197,7 +197,7 @@ export function VarianSkuTab({
   ]
 
   // Effect 1: when a focus target arrives that isn't in the current filtered view, clear local
-  // filters so it becomes visible. Deps intentionally only [focusMenuId] — we read filter state
+  // filters so it becomes visible. Deps intentionally only [focusMenuId] - we read filter state
   // lazily here; adding filtered as a dep would re-fire and wipe filters as the user types.
   useEffect(() => {
     if (focusMenuId == null) return
@@ -209,11 +209,11 @@ export function VarianSkuTab({
 
   // Effect 2: once the focused row is actually in the DOM, scroll to it and clear the param after
   // 2s. Re-runs when `filtered` changes (filters still resetting) until the row appears.
-  // clearTimeout cleanup is correctly returned from the effect — NOT swallowed inside setTimeout.
+  // clearTimeout cleanup is correctly returned from the effect - NOT swallowed inside setTimeout.
   useEffect(() => {
     if (focusMenuId == null) return
     const el = document.getElementById('katalog-row-' + focusMenuId)
-    if (!el) return // not yet rendered (filters still resetting) — re-runs when `filtered` changes
+    if (!el) return // not yet rendered (filters still resetting) - re-runs when `filtered` changes
     el.scrollIntoView({ block: 'center' })
     const t = setTimeout(clearFocus, 2000)
     return () => clearTimeout(t)
@@ -304,7 +304,7 @@ export function VarianSkuTab({
                   </div>
                 </div>
                 <p className="text-right shrink-0 text-body-sm text-neutral-700 tabular-nums">
-                  {m.cost != null ? formatCurrency(m.cost) : '—'}
+                  {m.cost != null ? formatCurrency(m.cost) : '-'}
                 </p>
               </div>
               <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">

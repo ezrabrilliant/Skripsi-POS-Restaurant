@@ -106,7 +106,7 @@ export default function VariantPickerModal({ menu, onConfirm, onClose }: Props) 
 // PickerBody - render setelah catalog tersedia (resolved menu).
 // Footer button + content keduanya di dalam Dialog children supaya state
 // (selection) bisa drive enable/disable confirm. Footer Dialog tidak dipakai
-// karena butuh akses ke selection state — pakai sticky button di akhir body.
+// karena butuh akses ke selection state - pakai sticky button di akhir body.
 // ============================================================
 
 function PickerBody({
@@ -291,7 +291,7 @@ function VariantPicker({
       <div className="flex items-baseline justify-between border-t border-neutral-200 pt-3">
         <span className="text-body-sm text-neutral-600">Harga</span>
         <span className="text-title font-semibold text-neutral-900 tabular-nums">
-          {matchedVariant ? formatCurrency(matchedVariant.price) : '—'}
+          {matchedVariant ? formatCurrency(matchedVariant.price) : '-'}
         </span>
       </div>
       {/* REV 2.10 P7: semua grup terpilih tapi tidak ada varian AKTIF yang match. */}
@@ -385,7 +385,7 @@ function PaketPicker({
       { targetMenuId: number; variantId?: number | null; chosenLabel: string }
     > = {}
     // REV: tambahan harga (upcharge) opsi terpilih masuk ke harga paket. Backend
-    // recompute angka yang sama dari graph (resolvePaketUpcharge) — ini biar tampilan
+    // recompute angka yang sama dari graph (resolvePaketUpcharge) - ini biar tampilan
     // cart/pembayaran cocok dengan yang ditagih.
     let upcharge = 0
     for (const comp of choiceComponents) {
@@ -514,7 +514,7 @@ function NestedVariantLoader({
 
   // Target bukan menu varian → tidak perlu sub-pick (selection sudah tercatat di
   // paket level lewat opsi yang dipilih). Tutup loader lewat useEffect, BUKAN saat
-  // render — memanggil onClose (setNestedTarget) di tengah render parent PaketPicker
+  // render - memanggil onClose (setNestedTarget) di tengah render parent PaketPicker
   // memicu warning React "Cannot update a component while rendering a different one".
   const isNonVariant = !!targetMenu && targetMenu.kind !== 'variant'
   useEffect(() => {

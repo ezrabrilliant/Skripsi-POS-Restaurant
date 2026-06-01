@@ -46,7 +46,7 @@ async function main() {
     const closed = await closeShift(shift.id, cashier2.id, UserRole.cashier, 'final');
     ok(closed.closedAt !== null, `kasir lain (#${cashier2.id}) boleh tutup shift basi #${shift.id}`);
   } else {
-    console.log('  (skip — hanya 1 cashier di seed)');
+    console.log('  (skip - hanya 1 cashier di seed)');
   }
 
   console.log(`\n[smoke-shift-stale] HASIL: ${pass} pass, ${fail} fail`);

@@ -10,13 +10,13 @@
 
 Owner melaporkan area Menu/Stok/SKU Varian "berantakan, tidak konsisten, terasa seperti halaman terpisah-pisah, dan tombol induk tidak berfungsi". Audit kode (6 pembacaan paralel, terverifikasi ke sumber) menemukan akar masalah yang berbeda dari kesan awal:
 
-1. **"Tombol induk tidak ngapa-ngapain"** — itu **bukan tombol**, melainkan `Badge` (sebuah `<span>` non-interaktif tanpa `onClick`). Ada di `SkuVarianPage.tsx` (baris 134–146, 277–285), bukan di MenuPage. Tooltip `title=` hanya jalan saat hover desktop → mati di HP (perangkat yang dipakai staf).
+1. **"Tombol induk tidak ngapa-ngapain"** - itu **bukan tombol**, melainkan `Badge` (sebuah `<span>` non-interaktif tanpa `onClick`). Ada di `SkuVarianPage.tsx` (baris 134–146, 277–285), bukan di MenuPage. Tooltip `title=` hanya jalan saat hover desktop → mati di HP (perangkat yang dipakai staf).
 2. **Tidak ada navigasi Menu → SKU Varian** (dan sebaliknya). `grep sku-varian` hanya menemukan 2 hit: route (`App.tsx`) + item nav (`Layout.tsx`). Tidak ada tautan dalam-halaman. Menu/SKU/Stok juga tidak saling tertaut.
 3. **Bukan "CSS berantakan".** Ketiga halaman memakai design-system dengan benar. Kesan "rada berubah" berasal dari **inkonsistensi struktural**: 3 gaya header berbeda (`text-headline` vs `text-title`, ada/tak ada subtitle jumlah), 3 bentuk filter-toolbar berbeda, serta kolom & set aksi yang berbeda antara MenuPage dan SkuVarianPage padahal keduanya melihat dataset yang sama.
-4. **Fakta kunci:** "SKU Varian" **bukan entitas terpisah** — itu baris `Menu` dengan `posVisible=false`. MenuPage (`posVisible=true`) dan SkuVarianPage (`posVisible=false`) memakai **query key & params identik** (`['menus','admin',showInactive]`, `includeHidden:true`, `includeStock:true`) sehingga **berbagi cache**. Relasi induk↔anak sudah tersedia lewat FK di payload: `MenuVariant.stockTargetMenuId`, `MenuVariant.costSourceMenuId`, `PaketComponent.targetMenuId/targetVariantId`, `PaketChoiceOptionDetail.targetMenuId/targetVariantId`; stok tertanam via `Menu.portionStock`. `buildParentMap` sudah membalik FK ini sepenuhnya di sisi klien.
+4. **Fakta kunci:** "SKU Varian" **bukan entitas terpisah** - itu baris `Menu` dengan `posVisible=false`. MenuPage (`posVisible=true`) dan SkuVarianPage (`posVisible=false`) memakai **query key & params identik** (`['menus','admin',showInactive]`, `includeHidden:true`, `includeStock:true`) sehingga **berbagi cache**. Relasi induk↔anak sudah tersedia lewat FK di payload: `MenuVariant.stockTargetMenuId`, `MenuVariant.costSourceMenuId`, `PaketComponent.targetMenuId/targetVariantId`, `PaketChoiceOptionDetail.targetMenuId/targetVariantId`; stok tertanam via `Menu.portionStock`. `buildParentMap` sudah membalik FK ini sepenuhnya di sisi klien.
 5. **Link mati tambahan (Stok):** `WaiterDashboard.tsx:59,64` menaut ke `/stock?action=opname-portion` & `/stock?action=mark-habis`, tetapi `useSearchParams` **tidak dipakai di mana pun** → param diabaikan, aksi cepat tidak berfungsi.
 
-Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perbaikan termurah & berdampak besar adalah **menyatukan Menu + Varian SKU sebagai satu katalog** dan **menautkan relasi (induk, stok) lewat elemen interaktif yang benar** — semuanya memakai FK & query yang sudah ada.
+Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perbaikan termurah & berdampak besar adalah **menyatukan Menu + Varian SKU sebagai satu katalog** dan **menautkan relasi (induk, stok) lewat elemen interaktif yang benar** - semuanya memakai FK & query yang sudah ada.
 
 ## 2. Tujuan & Non-Tujuan
 
@@ -43,14 +43,14 @@ Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perba
 
 ## 4. Keputusan Desain (terkunci saat brainstorming)
 
-- **D1 — Arsitektur hybrid A+B.** Satu halaman "Katalog Menu", tab **"Menu Jual"** (pohon expandable) + tab **"Varian SKU"** (daftar datar lengkap). Tab datar memastikan SKU yatim & multi-induk tetap ketemu/ dicari; pohon memberi drill-down seamless.
-- **D2 — Nav menjadi 1 item "Menu".** Item nav "SKU Varian" dihapus (jadi tab). Mengurangi sesak nav, khususnya overflow "Lainnya" di mobile (owner punya 11 item).
-- **D3 — Routing berbasis query param.** `/menu` → tab default "Menu Jual". `/menu?tab=varian` → tab Varian SKU. `/menu/sku-varian` lama **di-redirect** ke `/menu?tab=varian` (bookmark tak rusak).
-- **D4 — Induk = link teks** (warna primary, prefiks "↑"). Klik → pindah ke tab "Menu Jual", `focusMenuId` ke induk (scroll + sorot, expand bila perlu). SKU yatim = badge **tone warning** "tanpa induk" (terlihat sebagai hal yang perlu dibereskan).
-- **D5 — Aksi baris:** "Stok →" = `Button variant="outline" size="sm"` (hanya item ber-stok porsi); **Edit** = `IconButton`; **Nonaktifkan/Aktifkan** = di menu overflow **⋯** (`DropdownMenu`); **Riwayat modal** = `IconButton` atau di ⋯. Tak ada chip-jadi-tombol.
-- **D6 — Tautan Stok dua arah** (Stok tetap halaman sendiri): Menu/SKU → `/stock?focusMenuId=`; Stok → `/menu?focusMenuId=` **khusus owner** (kasir/waiter tak lihat, karena Menu owner-only).
-- **D7 — Selaraskan Stok penuh.** Header + filter-toolbar Stok mengadopsi primitive bersama (isi/operasi stok tidak berubah).
-- **D8 — Bersih-bersih disertakan.** Guard opname "kosong vs 0", hapus komentar/ref mati REV 2.11 (belanja/raw-materials) di komponen stok, sinkronkan spec/plan SKU Varian lama ke kode.
+- **D1 - Arsitektur hybrid A+B.** Satu halaman "Katalog Menu", tab **"Menu Jual"** (pohon expandable) + tab **"Varian SKU"** (daftar datar lengkap). Tab datar memastikan SKU yatim & multi-induk tetap ketemu/ dicari; pohon memberi drill-down seamless.
+- **D2 - Nav menjadi 1 item "Menu".** Item nav "SKU Varian" dihapus (jadi tab). Mengurangi sesak nav, khususnya overflow "Lainnya" di mobile (owner punya 11 item).
+- **D3 - Routing berbasis query param.** `/menu` → tab default "Menu Jual". `/menu?tab=varian` → tab Varian SKU. `/menu/sku-varian` lama **di-redirect** ke `/menu?tab=varian` (bookmark tak rusak).
+- **D4 - Induk = link teks** (warna primary, prefiks "↑"). Klik → pindah ke tab "Menu Jual", `focusMenuId` ke induk (scroll + sorot, expand bila perlu). SKU yatim = badge **tone warning** "tanpa induk" (terlihat sebagai hal yang perlu dibereskan).
+- **D5 - Aksi baris:** "Stok →" = `Button variant="outline" size="sm"` (hanya item ber-stok porsi); **Edit** = `IconButton`; **Nonaktifkan/Aktifkan** = di menu overflow **⋯** (`DropdownMenu`); **Riwayat modal** = `IconButton` atau di ⋯. Tak ada chip-jadi-tombol.
+- **D6 - Tautan Stok dua arah** (Stok tetap halaman sendiri): Menu/SKU → `/stock?focusMenuId=`; Stok → `/menu?focusMenuId=` **khusus owner** (kasir/waiter tak lihat, karena Menu owner-only).
+- **D7 - Selaraskan Stok penuh.** Header + filter-toolbar Stok mengadopsi primitive bersama (isi/operasi stok tidak berubah).
+- **D8 - Bersih-bersih disertakan.** Guard opname "kosong vs 0", hapus komentar/ref mati REV 2.11 (belanja/raw-materials) di komponen stok, sinkronkan spec/plan SKU Varian lama ke kode.
 
 ## 5. Arsitektur Informasi & Routing
 
@@ -68,18 +68,18 @@ Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perba
 - Pola **focus+highlight**: baca `focusMenuId` → `scrollIntoView` + ring sementara (mis. `ring-2 ring-primary-400` ~1.5s) lalu hapus. Bila menu adalah anak SKU di tab Menu Jual, expand induknya dulu.
 - Guard role: `/menu` tetap `RoleRoute allow={['owner']}`. Tautan balik Stok→Menu hanya dirender bila `role==='owner'`.
 
-## 6. Tab "Menu Jual" — Pohon Expandable
+## 6. Tab "Menu Jual" - Pohon Expandable
 
 - Daftar **menu jual** (`posVisible=true`). Baris dengan `kind` variant/paket dapat di-**expand** → menampilkan anak SKU-nya (nama, stok, modal) di tempat. Mobile = accordion (kartu induk → kartu anak menjorok).
 - Menu biasa (`kind` simple) = baris datar tanpa panah.
 - Anak SKU dihitung klien dari FK (kebalikan `buildParentMap`): variant → `stockTargetMenuId`/`costSourceMenuId`; paket → `targetMenuId` + `choiceOptions[].targetMenuId`. Helper baru `buildChildrenMap` di `components/menu/menuTree.ts` (satu modul dengan `buildParentMap`).
-- Baris anak menampilkan tombol **"Stok →"** (bila porsi) + **Edit**. SKU yang sama bisa muncul di bawah >1 induk (multi-induk) — wajar; edit memodifikasi SKU yang sama.
+- Baris anak menampilkan tombol **"Stok →"** (bila porsi) + **Edit**. SKU yang sama bisa muncul di bawah >1 induk (multi-induk) - wajar; edit memodifikasi SKU yang sama.
 
-## 7. Tab "Varian SKU" — Daftar Datar
+## 7. Tab "Varian SKU" - Daftar Datar
 
 - Semua SKU `posVisible=false` (logika SkuVarianPage saat ini), termasuk yatim & multi-induk → dapat dicari/diurut langsung.
 - Kolom: **Nama SKU | Induk (link) | Kategori | Stok | Modal | Aksi**.
-- **Induk** = link teks (D4). Multi-induk: "↑ Es Teh, Paket A +1" (sisanya di tooltip desktop **dan** baris bawah kecil di mobile — jangan andalkan hover saja).
+- **Induk** = link teks (D4). Multi-induk: "↑ Es Teh, Paket A +1" (sisanya di tooltip desktop **dan** baris bawah kecil di mobile - jangan andalkan hover saja).
 - Yatim: badge tone warning "tanpa induk".
 
 ## 8. Afordans Baris (berlaku di kedua tab + konsisten dgn Stok)
@@ -98,14 +98,14 @@ Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perba
 
 - **Masuk:** "Stok →" pada baris menu/SKU → `navigate('/stock?focusMenuId='+menuId)`. PortionStockTab membaca `focusMenuId` (via `useSearchParams`), scroll + sorot baris.
 - **Keluar (owner):** baris stok mendapat aksi **"Menu →"** (owner-only) → `/menu?focusMenuId=<menuId>` (resolve tab).
-- **Link mati diperbaiki:** `?action=opname` → buka modal Opname. Quick-action **mark-habis** di WaiterDashboard diarahkan ulang ke `/stock` dengan **filter stok rendah/habis** (karena mark-habis adalah konfirmasi per-baris, bukan modal global) — staf lalu tap baris untuk menandai habis. (Final mekanik di plan.)
+- **Link mati diperbaiki:** `?action=opname` → buka modal Opname. Quick-action **mark-habis** di WaiterDashboard diarahkan ulang ke `/stock` dengan **filter stok rendah/habis** (karena mark-habis adalah konfirmasi per-baris, bukan modal global) - staf lalu tap baris untuk menandai habis. (Final mekanik di plan.)
 
 ## 10. Primitive Bersama yang Diekstrak
 
 > Tujuan: hentikan header/toolbar one-off; dipakai Katalog Menu **dan** Stok.
 
 - **`PageHeader`** (`design-system/primitives/PageHeader.tsx`): props `title`, `subtitle?` (mis. "42 menu jual · 34 varian SKU"), `actions?` (slot kanan, mis. tombol "+ Menu"), `tabs?` (slot segmented control). Mengadopsi arketipe CRUD dominan (`text-headline` + subtitle + tombol primary kanan, kontainer `max-w-6xl mx-auto`).
-- **`FilterToolbar`** (`design-system/primitives/FilterToolbar.tsx`): generalisasi `StockFilterToolbar` saat ini — props `search`, `filters[]` (Combobox), `chipFilters?` (gaya MenuTypeFilter), `sort?`, `actions?`, `rightBadge?`; desktop inline / mobile di balik `Sheet` dengan badge jumlah filter aktif + reset.
+- **`FilterToolbar`** (`design-system/primitives/FilterToolbar.tsx`): generalisasi `StockFilterToolbar` saat ini - props `search`, `filters[]` (Combobox), `chipFilters?` (gaya MenuTypeFilter), `sort?`, `actions?`, `rightBadge?`; desktop inline / mobile di balik `Sheet` dengan badge jumlah filter aktif + reset.
 - **`DataTable` + expandable-row** (perluasan `design-system/primitives/DataTable.tsx`): tambah opsional `expandable?: { canExpand(row): boolean; renderExpanded(row): ReactNode }`, state expand internal keyed `rowKey`, afordans chevron di kolom pertama; `mobileCard` mendapat bagian "expanded" tergabung. Dipakai tab "Menu Jual".
 
 (API di atas adalah kontrak yang diusulkan; signature final diselesaikan saat implementasi/TDD-ringan.)
@@ -118,9 +118,9 @@ Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perba
 
 ## 12. Bersih-bersih
 
-- **Guard opname "kosong vs 0":** input kosong (`Number('')===0`) jangan diperlakukan sebagai opname nyata 0 — bedakan "tidak dihitung" vs "dihitung 0" (`PortionStockTab` ~baris 570).
+- **Guard opname "kosong vs 0":** input kosong (`Number('')===0`) jangan diperlakukan sebagai opname nyata 0 - bedakan "tidak dihitung" vs "dihitung 0" (`PortionStockTab` ~baris 570).
 - **Hapus ref mati REV 2.11:** komentar/label `RawMaterialsTab`, sumber "Pembelian #" di `StockFilterToolbar.tsx`, `useStockListControls.ts`, `StockHistorySheet.tsx`.
-- **Sinkron docs:** update `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` (§5.2 label orphan "tanpa induk", `buildParentMap` non-export) — atau tandai superseded oleh dokumen ini.
+- **Sinkron docs:** update `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` (§5.2 label orphan "tanpa induk", `buildParentMap` non-export) - atau tandai superseded oleh dokumen ini.
 
 ## 13. Berkas yang Terpengaruh (perkiraan)
 
@@ -161,6 +161,6 @@ Konsekuensi desain: karena ketiga "halaman" adalah view dari satu dataset, perba
 
 ## 16. Catatan Implementasi (untuk plan)
 
-- Pertahankan **berbagi cache** query key `['menus','admin',showInactive]` — kedua tab + modal sudah kompatibel.
+- Pertahankan **berbagi cache** query key `['menus','admin',showInactive]` - kedua tab + modal sudah kompatibel.
 - Pakai ulang `MenuFormModal` & `CostHistoryDrawer` (sudah dipakai bersama).
 - Ikuti incremental per-file + checkpoint review (preferensi Ezra). TDD-ringan untuk helper murni (`menuTree.ts`) bila memungkinkan; sisanya verifikasi via build/lint/e2e.

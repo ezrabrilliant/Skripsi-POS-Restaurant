@@ -385,7 +385,7 @@ export default function POSPage() {
     <div className="h-full flex flex-col md:flex-row w-full">
       {/* Menu grid */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {/* Header disamakan dgn token PageHeader (bar putih pinned) — tetap custom
+        {/* Header disamakan dgn token PageHeader (bar putih pinned) - tetap custom
             karena butuh leading back-button + layout 2 kolom kasir (bukan full-width). */}
         <header className="bg-white border-b border-neutral-200 px-3 sm:px-4 py-2.5 flex items-center gap-3 pt-safe md:pt-2.5">
           <IconButton

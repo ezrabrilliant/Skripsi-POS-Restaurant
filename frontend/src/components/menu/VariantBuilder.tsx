@@ -383,7 +383,7 @@ export function VariantBuilder({
   // Sumber SKU: SEMUA menu leaf (kind=simple), termasuk nonStock & tersembunyi
   // (posVisible=false). Owner hubungkan tiap jenis ke salah satu SKU ini; lacak-stok vs
   // cuma-modal ditentukan otomatis dari stockType SKU-nya (lihat skuLink.ts). Filter
-  // portion-only lama dibuang — itu yang bikin SKU nonStock (mis. modal Teh) invisible.
+  // portion-only lama dibuang - itu yang bikin SKU nonStock (mis. modal Teh) invisible.
   const { data: allMenus = [] } = useQuery({
     queryKey: ['menus', 'variant-sku-targets'],
     queryFn: () => menuService.list({ activeOnly: false, includeHidden: true }),
@@ -405,7 +405,7 @@ export function VariantBuilder({
       label: m.name,
       helper: m.stockType === 'portion' ? `${m.category} · lacak stok` : m.category,
     }))
-    return [{ value: '', label: '— tidak dihubungkan —' }, ...opts]
+    return [{ value: '', label: '- tidak dihubungkan -' }, ...opts]
   }, [skuMenus])
 
   const rows = useMemo(
@@ -550,7 +550,7 @@ export function VariantBuilder({
                     }}
                     options={skuOptions}
                     label="Hubungkan ke SKU"
-                    placeholder="— tidak dihubungkan —"
+                    placeholder="- tidak dihubungkan -"
                   />
                 </div>
                 {(() => {
@@ -559,7 +559,7 @@ export function VariantBuilder({
                   if (!sku)
                     return (
                       <p className="text-caption text-neutral-500">
-                        Belum terhubung — stok tidak dihitung, modal pakai harga menu ini.
+                        Belum terhubung - stok tidak dihitung, modal pakai harga menu ini.
                       </p>
                     )
                   return (
@@ -568,7 +568,7 @@ export function VariantBuilder({
                         ? `Stok: dikurangi dari ${sku.name}`
                         : 'Stok: tidak dihitung'}
                       {' · Modal: '}
-                      {sku.cost != null ? formatCurrency(sku.cost) : '—'}
+                      {sku.cost != null ? formatCurrency(sku.cost) : '-'}
                     </p>
                   )
                 })()}

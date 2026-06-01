@@ -1,6 +1,6 @@
-// MenuPage.tsx — host "Katalog Menu" (REV UX elevation).
+// MenuPage.tsx - host "Katalog Menu" (REV UX elevation).
 // PageHeader + Tabs (Menu Jual / Varian SKU). Memegang query bersama
-// (key ['menus','admin',showInactive] — SAMA dgn MenuFormModal supaya cache
+// (key ['menus','admin',showInactive] - SAMA dgn MenuFormModal supaya cache
 // konsisten) + showInactive + routing tab via ?tab + focusMenuId.
 import { useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'

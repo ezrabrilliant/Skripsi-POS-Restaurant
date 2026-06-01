@@ -662,7 +662,7 @@ export async function createTransaction(
   const window = await getShiftWindow();
   if (isShiftStale(shift.date, window)) {
     throw new AppError(
-      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup — tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
+      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup - tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
       409,
     );
   }
@@ -725,7 +725,7 @@ export async function addItems(
   const window = await getShiftWindow();
   if (isShiftStale(shiftOfTx.date, window)) {
     throw new AppError(
-      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup — tidak bisa menambah item ke order hari kemarin.`,
+      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup - tidak bisa menambah item ke order hari kemarin.`,
       409,
     );
   }

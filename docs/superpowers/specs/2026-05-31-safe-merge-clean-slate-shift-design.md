@@ -1,9 +1,9 @@
-# Design Spec — Merge Aman (Atomik) + Clean-Slate Shift Lintas-Hari (REV 2.12)
+# Design Spec - Merge Aman (Atomik) + Clean-Slate Shift Lintas-Hari (REV 2.12)
 
 - **Tanggal:** 2026-05-31
 - **Branch:** `feat/owner-self-service-rev212`
 - **Status:** DESIGN APPROVED (menunggu review tertulis user → lanjut writing-plans)
-- **Pemicu:** Bug kritis dilaporkan user — meja 7 menampilkan order Rp 40.000, tapi saat "Bayar" muncul Rp 90.000.
+- **Pemicu:** Bug kritis dilaporkan user - meja 7 menampilkan order Rp 40.000, tapi saat "Bayar" muncul Rp 90.000.
 
 ---
 
@@ -27,7 +27,7 @@ Dua transaksi (#223 dari 29 Mei, #442 dari 31 Mei) **ter-merge ke #221 tapi tida
 | Kode | Generator | Mekanisme |
 |---|---|---|
 | **G1** | [PaymentModal `handleSingleSubmit`/`handleAddSlice`](../../../frontend/src/components/PaymentModal.tsx) | `mergeMutation.mutateAsync()` **lalu** `addPayMutation.mutate()` = 2 panggilan API non-atomik. Merge sukses → bayar gagal/dibatalkan/tutup tab = merge permanen. **Penyebab langsung bug ini.** |
-| **G2** | [CombineTableModal `merge.mutate()`](../../../frontend/src/components/CombineTableModal.tsx) | "Gabung meja, bayar nanti" — merge berdiri sendiri; menggantung kalau ditinggal. |
+| **G2** | [CombineTableModal `merge.mutate()`](../../../frontend/src/components/CombineTableModal.tsx) | "Gabung meja, bayar nanti" - merge berdiri sendiri; menggantung kalau ditinggal. |
 | **G3** | [POSPage gate hanya cek `activeShifts.length===1`](../../../frontend/src/pages/POSPage.tsx) + [`resolveActiveShift`](../../../backend/src/modules/transactions/transactions.service.ts) | Tidak ada deteksi shift lintas-hari. Shift kemarin yang lupa ditutup tetap dianggap aktif; order hari ini menempel ke shift kemarin. **Itu sebabnya #442 (31 Mei) ada di shift 57 (dibuka 29 Mei).** |
 | **G4** | [`voidTransaction`](../../../backend/src/modules/transactions/transactions.service.ts) tidak cascade ke anak; [`closeShift` cek `mergedIntoId: null`](../../../backend/src/modules/shifts/shifts.service.ts) | Void parent meninggalkan anak open yang masih menunjuk parent void → anak tak terlihat & tak menghalangi tutup shift. |
 
@@ -38,10 +38,10 @@ Dua transaksi (#223 dari 29 Mei, #442 dari 31 Mei) **ter-merge ke #221 tapi tida
 ## 2. Tujuan & Non-Tujuan
 
 ### Tujuan
-1. **Stuck-merge mustahil terjadi** dari jalur bayar (G1) — secara struktural via atomicity DB.
+1. **Stuck-merge mustahil terjadi** dari jalur bayar (G1) - secara struktural via atomicity DB.
 2. **Clean-slate tiap pagi**: order baru tidak bisa menempel ke shift hari kemarin; kasir wajib menuntaskan + menutup + menyetor shift kemarin sebelum mulai hari baru (G3).
 3. **Void parent melepas anak** jadi order terpisah lagi, tidak menyisakan anak tersembunyi (G4).
-4. **Bereskan data nyata** (shift 57 / meja 7) lewat flow baru, bukan SQL manual — sekaligus uji nyata.
+4. **Bereskan data nyata** (shift 57 / meja 7) lewat flow baru, bukan SQL manual - sekaligus uji nyata.
 
 ### Non-Tujuan (YAGNI)
 - Refund/void setelah settlement (memang out-of-scope sistem; sudah diblok [voidTransaction:984-987](../../../backend/src/modules/transactions/transactions.service.ts)).
@@ -56,17 +56,17 @@ Dua transaksi (#223 dari 29 Mei, #442 dari 31 Mei) **ter-merge ke #221 tapi tida
 | # | Pertanyaan | Keputusan |
 |---|---|---|
 | D1 | Cegah stuck merge | **Merge+bayar jadi atomik di backend** (bukan endpoint baru, bukan kompensasi frontend) |
-| D2 | Kapan blok shift-lintas-hari aktif | **Saat sesi hari baru dimulai** (`now ≥ jam buka pagi` di hari business baru) — overtime tengah malam TIDAK diganggu |
+| D2 | Kapan blok shift-lintas-hari aktif | **Saat sesi hari baru dimulai** (`now ≥ jam buka pagi` di hari business baru) - overtime tengah malam TIDAK diganggu |
 | D3 | Alur tutup shift basi | **Wajib tutup-final + setor + meja kosong** ("harus kosong setiap pagi"); lebih ketat dari sekarang yang hanya mengingatkan saat menutup |
 | D4 | Otoritas tutup shift basi | **Kasir mana pun** yang masuk boleh menutup shift basi (longgarkan batasan "hanya pemilik/owner" khusus untuk kasus overdue) |
-| D5 | Void parent yang punya anak merge | **Lepas gabungan** — anak kembali jadi order terpisah (bukan ikut void) |
+| D5 | Void parent yang punya anak merge | **Lepas gabungan** - anak kembali jadi order terpisah (bukan ikut void) |
 | D6 | Bereskan data #221/#223/#442 | **Lewat flow baru** (bayar/void + tutup shift 57), bukan utak-atik DB manual |
 
 ---
 
 ## 4. Desain rinci
 
-### 4.1 Fix A — Merge + bayar atomik (G1)
+### 4.1 Fix A - Merge + bayar atomik (G1)
 
 **Schema** ([transactions.schema.ts](../../../backend/src/modules/transactions/transactions.schema.ts)):
 `addPaymentSchema` tambah field opsional:
@@ -85,11 +85,11 @@ mergeSourceIds: z.array(z.number().int().positive()).optional(),
 **Frontend** [`PaymentModal`](../../../frontend/src/components/PaymentModal.tsx):
 - Hapus pemanggilan `mergeMutation.mutateAsync()` terpisah di `handleSingleSubmit` + `handleAddSlice`.
 - Kirim `mergeSourceIds: selectedCandidateTxs.map(t => t.id)` di payload `addPayment` (hanya pada first slice; slice ke-2+ tidak mengirim karena agregat sudah terkunci).
-- `mergeMutation` lokal boleh dihapus (atau disisakan hanya untuk error display jika perlu — default: hapus).
+- `mergeMutation` lokal boleh dihapus (atau disisakan hanya untuk error display jika perlu - default: hapus).
 
 **Catatan G2 (Combine Tables):** CombineTableModal yang sengaja "gabung dulu, bayar nanti" **tetap** memakai `transactionService.merge` berdiri sendiri. Risiko menggantungnya ditutup oleh Fix B (tidak bisa lewat hari tanpa menuntaskan semua order open). Tidak diubah di pass ini.
 
-### 4.2 Fix B — Clean-slate gate lintas-hari (G3)
+### 4.2 Fix B - Clean-slate gate lintas-hari (G3)
 
 **Helper murni** (baru, di [shift-time.ts](../../../backend/src/modules/shifts/shift-time.ts) atau [shift-rules.ts](../../../backend/src/modules/shifts/shift-rules.ts), unit-tested):
 ```ts
@@ -102,8 +102,8 @@ isShiftStale(shiftDate: Date, window: ShiftWindowSettings, now = new Date()): bo
 **View shift** ([shifts.service.ts](../../../backend/src/modules/shifts/shifts.service.ts) `ShiftView` + `getActiveShifts`): tambah `businessDate: string` + `isOverdue: boolean` (dihitung via helper). Dipakai frontend untuk gate.
 
 **Backend enforcement (defense-in-depth):**
-- `createTransaction` (+`addItems`): setelah `resolveActiveShift`, kalau shift hasil resolve `isShiftStale` → throw `AppError(409, "Shift {tanggal} belum ditutup — tuntaskan & tutup shift kemarin dulu sebelum input order baru.")`.
-- **PENTING — jangan blok jalur pembersihan:** `addPayment` & `voidTransaction` **TIDAK** boleh kena cek stale. Justru perlu jalan supaya order sisa kemarin bisa dibayar/dibatalkan. Payment yang melunasi akan tetap re-stamp ke shift 57 (yesterday) lewat `resolveActiveShift('pembayaran')` — atribusi benar (revenue kemarin → hari kemarin). Karena itu cek stale ditempatkan **spesifik di `createTransaction`/`addItems`, BUKAN di `resolveActiveShift`** (yang dipakai bersama).
+- `createTransaction` (+`addItems`): setelah `resolveActiveShift`, kalau shift hasil resolve `isShiftStale` → throw `AppError(409, "Shift {tanggal} belum ditutup - tuntaskan & tutup shift kemarin dulu sebelum input order baru.")`.
+- **PENTING - jangan blok jalur pembersihan:** `addPayment` & `voidTransaction` **TIDAK** boleh kena cek stale. Justru perlu jalan supaya order sisa kemarin bisa dibayar/dibatalkan. Payment yang melunasi akan tetap re-stamp ke shift 57 (yesterday) lewat `resolveActiveShift('pembayaran')` - atribusi benar (revenue kemarin → hari kemarin). Karena itu cek stale ditempatkan **spesifik di `createTransaction`/`addItems`, BUKAN di `resolveActiveShift`** (yang dipakai bersama).
 
 **Frontend (UI blok):**
 - Komponen baru `OverdueShiftGate` (mirip pola `ShiftGate` di POSPage). Tampil saat ada active shift `isOverdue`.
@@ -114,7 +114,7 @@ isShiftStale(shiftDate: Date, window: ShiftWindowSettings, now = new Date()): bo
 - Saat `mode='final'` DAN shift `isShiftStale` → lewati batasan "hanya pemilik shift/owner" (kasir mana pun boleh). Tetap pertahankan cek "tidak ada order open" (justru ini inti D3).
 - Untuk shift non-stale, otoritas lama tetap berlaku.
 
-### 4.3 Fix C — Void parent melepas anak (G4, D5)
+### 4.3 Fix C - Void parent melepas anak (G4, D5)
 
 [`voidTransaction`](../../../backend/src/modules/transactions/transactions.service.ts): di dalam `$transaction`, sebelum/sesudah set status=void parent:
 ```ts
@@ -124,7 +124,7 @@ await tx.transaction.updateMany({
 });
 ```
 - Efek: anak (#223/#442) kembali jadi order standalone open → muncul lagi di `listByTable` meja-nya → bisa dibayar/dibatalkan sendiri.
-- **Kelengkapan close-check:** karena anak yang dilepas kembali `mergedIntoId=null`, mereka otomatis terhitung di cek "order open" saat tutup shift. (Opsional defensif: pertimbangkan apakah `closeShift` perlu juga menghitung anak `mergedIntoId != null` — dengan Fix C, tidak wajib, karena void selalu melepas anak. Putuskan saat plan.)
+- **Kelengkapan close-check:** karena anak yang dilepas kembali `mergedIntoId=null`, mereka otomatis terhitung di cek "order open" saat tutup shift. (Opsional defensif: pertimbangkan apakah `closeShift` perlu juga menghitung anak `mergedIntoId != null` - dengan Fix C, tidak wajib, karena void selalu melepas anak. Putuskan saat plan.)
 
 ### 4.4 Remediasi data (D6)
 
@@ -143,7 +143,7 @@ Ini sekaligus **bukti e2e** Fix B & C bekerja. Tidak ada `UPDATE` SQL manual.
 
 - **Overtime tengah malam:** `now < pagiStart` → tidak stale → kasir tetap melayani & menutup tagihan tadi malam tanpa gangguan. Cek stale baru menggigit ≥ pagiStart hari business baru.
 - **Deadlock pembersihan (dihindari):** kalau cek stale dipasang di `resolveActiveShift`, membayar order sisa kemarin akan ikut terblok → kasir tak bisa mengosongkan meja → tak bisa menutup shift. Karena itu cek stale HANYA di `createTransaction`/`addItems`.
-- **Atribusi revenue order sisa:** order kemarin yang dibayar pagi ini tetap masuk shift 57 (business day kemarin) via re-stamp pembayaran — benar secara fiskal.
+- **Atribusi revenue order sisa:** order kemarin yang dibayar pagi ini tetap masuk shift 57 (business day kemarin) via re-stamp pembayaran - benar secara fiskal.
 - **Kasir berbeda:** D4 memperbolehkan kasir pagi menutup shift 57 walau bukan yang membukanya.
 - **Double-merge saat retry:** dengan Fix A atomik, retry bayar tidak menemukan source "sudah merged" karena merge gagal ikut rollback bersama payment yang gagal.
 - **Combine Tables (G2):** tetap bisa "gabung lalu belum bayar" dalam hari yang sama; dijaga agar tidak lolos lewat hari oleh Fix B (tutup shift wajib kosong).
@@ -179,17 +179,17 @@ Ini sekaligus **bukti e2e** Fix B & C bekerja. Tidak ada `UPDATE` SQL manual.
 ## 8. Berkas yang akan disentuh (perkiraan, finalisasi di plan)
 
 **Backend:**
-- `modules/transactions/transactions.schema.ts` — `mergeSourceIds`
-- `modules/transactions/transactions.service.ts` — `addPayment` (merge atomik), `createTransaction`/`addItems` (cek stale), `voidTransaction` (lepas anak)
-- `modules/shifts/shift-time.ts` atau `shift-rules.ts` — `isShiftStale` (+ test)
-- `modules/shifts/shifts.service.ts` — `ShiftView`/`getActiveShifts` (isOverdue/businessDate), `closeShift` (otoritas stale)
+- `modules/transactions/transactions.schema.ts` - `mergeSourceIds`
+- `modules/transactions/transactions.service.ts` - `addPayment` (merge atomik), `createTransaction`/`addItems` (cek stale), `voidTransaction` (lepas anak)
+- `modules/shifts/shift-time.ts` atau `shift-rules.ts` - `isShiftStale` (+ test)
+- `modules/shifts/shifts.service.ts` - `ShiftView`/`getActiveShifts` (isOverdue/businessDate), `closeShift` (otoritas stale)
 - Test baru: `shift-rules.test.ts`/`shift-time.test.ts` + integration smoke transaksi
 
 **Frontend:**
-- `components/PaymentModal.tsx` — kirim `mergeSourceIds`, hapus merge terpisah
+- `components/PaymentModal.tsx` - kirim `mergeSourceIds`, hapus merge terpisah
 - `components/OverdueShiftGate.tsx` (baru)
-- `pages/POSPage.tsx` + `pages/CashierDashboard.tsx` — mount gate
-- `services/shiftService.ts` + `types` — field `isOverdue`/`businessDate`
+- `pages/POSPage.tsx` + `pages/CashierDashboard.tsx` - mount gate
+- `services/shiftService.ts` + `types` - field `isOverdue`/`businessDate`
 
 ---
 

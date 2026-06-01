@@ -4,9 +4,9 @@
 
 **Goal:** Pindahkan ~34 SKU tersembunyi (`posVisible=false`, pegang stok/modal di balik menu varian & paket) dari "Kelola Menu" ke halaman owner terpisah `/menu/sku-varian`, dan bersihkan "Kelola Menu" jadi cuma menu jual.
 
-**Architecture:** Frontend-only (nol backend/schema/migrasi). Backend `listMenus({includeHidden:true})` sudah mengembalikan `MenuDetail` lengkap (variants + paketComponents + cost + portionStock), jadi badge "induk" dihitung client-side via fungsi murni `buildParentMap`. Reuse `MenuFormModal` (edit modal/COGS + struktural) dan `CostHistoryDrawer` (riwayat) — `CostHistoryDrawer` diangkat dulu dari MenuPage jadi komponen sendiri (DRY).
+**Architecture:** Frontend-only (nol backend/schema/migrasi). Backend `listMenus({includeHidden:true})` sudah mengembalikan `MenuDetail` lengkap (variants + paketComponents + cost + portionStock), jadi badge "induk" dihitung client-side via fungsi murni `buildParentMap`. Reuse `MenuFormModal` (edit modal/COGS + struktural) dan `CostHistoryDrawer` (riwayat) - `CostHistoryDrawer` diangkat dulu dari MenuPage jadi komponen sendiri (DRY).
 
-**Tech Stack:** React 18 + TypeScript + Vite + React Query + React Router v7 + Tailwind + design-system primitives lokal. **Tidak ada test runner di frontend** — verifikasi = `tsc -b` + `vite build` + ESLint + manual e2e (pola frontend project).
+**Tech Stack:** React 18 + TypeScript + Vite + React Query + React Router v7 + Tailwind + design-system primitives lokal. **Tidak ada test runner di frontend** - verifikasi = `tsc -b` + `vite build` + ESLint + manual e2e (pola frontend project).
 
 **Spec:** [docs/superpowers/specs/2026-05-30-sku-varian-page-design.md](../specs/2026-05-30-sku-varian-page-design.md)
 
@@ -289,7 +289,7 @@ export default function SkuVarianPage() {
       cell: (m) => {
         const parents = parentMap.get(m.id) ?? []
         if (parents.length === 0)
-          return <span className="text-neutral-300">—</span>
+          return <span className="text-neutral-300">-</span>
         return (
           <span title={parents.join(', ')}>
             <Badge tone="primary" variant="outline" size="sm">
@@ -311,7 +311,7 @@ export default function SkuVarianPage() {
       align: 'right',
       cell: (m) => {
         if (m.stockType !== 'portion' || !m.portionStock)
-          return <span className="text-neutral-300">—</span>
+          return <span className="text-neutral-300">-</span>
         const { currentQty, minStock } = m.portionStock
         const low = currentQty <= minStock
         return (
@@ -336,7 +336,7 @@ export default function SkuVarianPage() {
       align: 'right',
       cell: (m) => (
         <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
+          {m.cost != null ? formatCurrency(m.cost) : '-'}
         </span>
       ),
     },
@@ -371,7 +371,7 @@ export default function SkuVarianPage() {
         <header>
           <h1 className="text-headline font-semibold text-neutral-900">SKU Varian</h1>
           <p className="text-body-sm text-neutral-600">
-            Item di balik menu varian &amp; paket — pegang stok dan/atau modal. Tidak
+            Item di balik menu varian &amp; paket - pegang stok dan/atau modal. Tidak
             tampil di kasir.
           </p>
         </header>
@@ -449,7 +449,7 @@ export default function SkuVarianPage() {
                       </div>
                     </div>
                     <p className="text-right shrink-0 text-body-sm text-neutral-700 tabular-nums">
-                      {m.cost != null ? formatCurrency(m.cost) : '—'}
+                      {m.cost != null ? formatCurrency(m.cost) : '-'}
                     </p>
                   </div>
                   <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
@@ -497,7 +497,7 @@ export default function SkuVarianPage() {
 - [ ] **Step 2: Typecheck**
 
 Run: `cd frontend && npx tsc -b`
-Expected: 0 error. (Halaman belum di-route, jadi belum kelihatan di app — itu Task 3.)
+Expected: 0 error. (Halaman belum di-route, jadi belum kelihatan di app - itu Task 3.)
 
 - [ ] **Step 3: Commit**
 
@@ -532,7 +532,7 @@ export { default as SkuVarianPage } from './SkuVarianPage'
 
 - [ ] **Step 2: Import + route di `App.tsx`**
 
-Ganti blok import (baris 5-19) — tambah `SkuVarianPage`:
+Ganti blok import (baris 5-19) - tambah `SkuVarianPage`:
 
 ```tsx
 import {
@@ -586,7 +586,7 @@ menjadi:
           <Route path="menu/sku-varian" element={<RoleRoute allow={['owner']}><SkuVarianPage /></RoleRoute>} />
 ```
 
-- [ ] **Step 3: Nav owner di `Layout.tsx` — tambah item + `Boxes` icon + dukung `end`**
+- [ ] **Step 3: Nav owner di `Layout.tsx` - tambah item + `Boxes` icon + dukung `end`**
 
 (a) Tambah `Boxes` ke import lucide (baris 6-21). Ganti:
 
@@ -667,7 +667,7 @@ menjadi:
     { to: '/menu/sku-varian', icon: Boxes,       label: 'SKU Varian' },
 ```
 
-(d) Teruskan `end` ke 3 NavLink. **Sidebar desktop** — ganti `<NavLink to={item.to} title={item.label}` (baris 113-115) jadi tambah `end`:
+(d) Teruskan `end` ke 3 NavLink. **Sidebar desktop** - ganti `<NavLink to={item.to} title={item.label}` (baris 113-115) jadi tambah `end`:
 
 ```tsx
                 <NavLink
@@ -676,13 +676,13 @@ menjadi:
                   title={item.label}
 ```
 
-**Bottom-nav mobile** — ganti `end={item.to === '/'}` (baris 199) jadi:
+**Bottom-nav mobile** - ganti `end={item.to === '/'}` (baris 199) jadi:
 
 ```tsx
               end={item.end ?? item.to === '/'}
 ```
 
-**Sheet "Lainnya" mobile** (moreItems) — ganti `<NavLink to={item.to} onClick={() => setMoreOpen(false)}` (baris 257-259) jadi tambah `end`:
+**Sheet "Lainnya" mobile** (moreItems) - ganti `<NavLink to={item.to} onClick={() => setMoreOpen(false)}` (baris 257-259) jadi tambah `end`:
 
 ```tsx
                     <NavLink
@@ -729,7 +729,7 @@ menjadi:
   const { data: menus = [], isLoading } = useQuery({
     // includeHidden TETAP true (owner token bikin backend kirim cost) supaya
     // cache konsisten dengan MenuFormModal & SkuVarianPage. SKU posVisible=false
-    // di-FILTER client-side (lihat visibleMenus) — dikelola di halaman SKU Varian.
+    // di-FILTER client-side (lihat visibleMenus) - dikelola di halaman SKU Varian.
     queryKey: ['menus', 'admin', showInactive],
     queryFn: () => menuService.list({ activeOnly: !showInactive, includeStock: true, includeHidden: true }),
   })
@@ -931,8 +931,8 @@ Expected: `tsc -b` 0 error, `vite build` sukses (bundle ter-emit), ESLint 0 erro
 Checklist:
 - [ ] Nav owner ada item **"SKU Varian"** (desktop sidebar / mobile sheet "Lainnya"). Klik → buka `/menu/sku-varian`.
 - [ ] Daftar SKU tersembunyi muncul (mis. Paha Ayam Bakar, Teh Tawar Biasa, Jeruk Nipis). Kolom **Induk** benar (Paha Ayam Bakar ← Ayam Potong; Teh Tawar Biasa ← Es Teh, dengan `+N` kalau juga dipakai paket).
-- [ ] Kolom **Stok**: SKU `portion` tampil angka (warna sesuai low/habis); SKU `nonStock` tampil `—`.
-- [ ] Kolom **Modal**: tampil `Rp …` / `—`.
+- [ ] Kolom **Stok**: SKU `portion` tampil angka (warna sesuai low/habis); SKU `nonStock` tampil `-`.
+- [ ] Kolom **Modal**: tampil `Rp …` / `-`.
 - [ ] Klik ✎ Edit → `MenuFormModal` terbuka; checkbox bawah berlabel **"SKU aktif (bisa dipakai stok/modal varian)"** (bukan "tampil di POS"). Ubah modal/COGS → Simpan → toast sukses; buka ⏱ Riwayat → perubahan tercatat.
 - [ ] Buka **"Kelola Menu"**: TIDAK ada lagi SKU tersembunyi, TIDAK ada badge "Tersembunyi dari POS". Hitungan "X dari Y menu" = jumlah menu jual saja. Filter "Tampilkan nonaktif" tetap jalan.
 - [ ] Buka **Kasir (POS)**: grid menu tidak berubah (SKU tersembunyi tetap tidak muncul; menu varian/paket tetap normal).
@@ -940,12 +940,12 @@ Checklist:
 
 - [ ] **Step 3: Verifikasi-before-completion**
 
-Gunakan skill `superpowers:verification-before-completion` — pastikan semua bukti (output build/lint + hasil checklist e2e) terkumpul SEBELUM klaim selesai. Bila ada langkah gagal, debug dulu (`superpowers:systematic-debugging`).
+Gunakan skill `superpowers:verification-before-completion` - pastikan semua bukti (output build/lint + hasil checklist e2e) terkumpul SEBELUM klaim selesai. Bila ada langkah gagal, debug dulu (`superpowers:systematic-debugging`).
 
 ---
 
 ## Self-Review (penulis plan)
 
-- **Spec coverage:** D1 halaman terpisah (Task 2-3) ✓ · D2 nama + subjudul (Task 2 header) ✓ · D3 kapabilitas: daftar+modal+riwayat (Task 2) + stok read-only (kolom Stok) + badge induk (`buildParentMap`) + edit struktural (reuse MenuFormModal) ✓ · D4 route `/menu/sku-varian` + nav setelah Menu (Task 3) ✓ · D5 reuse MenuFormModal + CostHistoryDrawer (Task 1+2) ✓ · D6 label kondisional (Task 5) ✓ · §5.4 bersihin MenuPage + cache konsisten (Task 4) ✓ · §6 edge cases (multi-induk `+N`, yatim `—`/`tanpa induk`, nonStock `—`, nonaktif via showInactive) ✓ · §7 verifikasi (Task 6) ✓.
+- **Spec coverage:** D1 halaman terpisah (Task 2-3) ✓ · D2 nama + subjudul (Task 2 header) ✓ · D3 kapabilitas: daftar+modal+riwayat (Task 2) + stok read-only (kolom Stok) + badge induk (`buildParentMap`) + edit struktural (reuse MenuFormModal) ✓ · D4 route `/menu/sku-varian` + nav setelah Menu (Task 3) ✓ · D5 reuse MenuFormModal + CostHistoryDrawer (Task 1+2) ✓ · D6 label kondisional (Task 5) ✓ · §5.4 bersihin MenuPage + cache konsisten (Task 4) ✓ · §6 edge cases (multi-induk `+N`, yatim `-`/`tanpa induk`, nonStock `-`, nonaktif via showInactive) ✓ · §7 verifikasi (Task 6) ✓.
 - **Placeholder scan:** tidak ada TBD/TODO; semua step punya kode/COMMAND eksak.
 - **Type consistency:** `buildParentMap(menus: Menu[]): Map<number,string[]>` dipakai konsisten; field `stockTargetMenuId`/`costSourceMenuId` (MenuVariant), `targetMenuId`/`choiceOptions[].targetMenuId` (PaketComponent/PaketChoiceOptionDetail), `portionStock.{currentQty,minStock}`, `cost`, `kind`, `posVisible` semua cocok dengan `frontend/src/types/index.ts`. `CostHistoryDrawer({menuId,onClose})` signature sama di Task 1 (definisi) & Task 2 (pemakaian).

@@ -22,7 +22,7 @@ import { Layers, Package, X } from 'lucide-react'
 import { Button, Dialog, Input, Checkbox, ComboboxFree } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { menuService } from '@/services/menuService'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, computeMargin } from '@/lib/utils'
 import type { Menu, MenuKind, MenuUpsertPayload, StockType } from '@/types'
 import { MenuImageUpload } from '@/components/menu/MenuImageUpload'
 import {
@@ -368,6 +368,9 @@ export function MenuFormModal({ existing, onClose, onSuccess, createSku = false 
 
   const switchToSimple = () => setState((prev) => ({ ...prev, mode: 'simple' }))
 
+  // Laba & margin% live-preview (sumber tunggal sama dengan kolom Laba di katalog).
+  const margin = computeMargin(state.price, state.cost)
+
   return (
     <Dialog
       open
@@ -456,10 +459,9 @@ export function MenuFormModal({ existing, onClose, onSuccess, createSku = false 
               min={0} step={1000} placeholder="0"
               helper="Modal per porsi (untuk laba). Boleh dikosongkan = 0."
             />
-            {state.cost > 0 && state.price > 0 && (
+            {margin && (
               <p className="text-caption text-neutral-500 mt-1">
-                Margin {formatCurrency(state.price - state.cost)} (
-                {(((state.price - state.cost) / state.price) * 100).toFixed(0)}%)
+                Margin {formatCurrency(margin.laba)} ({margin.pct}%)
               </p>
             )}
           </div>
@@ -477,8 +479,8 @@ export function MenuFormModal({ existing, onClose, onSuccess, createSku = false 
             />
             <p className="text-caption text-neutral-500 mt-1">
               {state.stockType === 'portion'
-                ? 'Stok dihitung per porsi & otomatis berkurang tiap terjual. Mulai dari 0 — restock dulu setelah disimpan.'
-                : 'Tidak dilacak — menu selalu bisa dijual (mis. minuman racik / item tanpa stok).'}
+                ? 'Stok dihitung per porsi & otomatis berkurang tiap terjual. Mulai dari 0 - restock dulu setelah disimpan.'
+                : 'Tidak dilacak - menu selalu bisa dijual (mis. minuman racik / item tanpa stok).'}
             </p>
           </div>
         )}
