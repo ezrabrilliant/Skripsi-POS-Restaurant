@@ -15,7 +15,7 @@ import { settlementService, type CreateSettlementPayload } from '@/services/sett
 import { useAuthStore } from '@/stores/authStore'
 import type { SettlementPreview, Settlement } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
-import { Button, Badge, Skeleton, Checkbox } from '@/design-system/primitives'
+import { Button, Badge, Skeleton, Checkbox, Page } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
 import CloseShiftBlockedModal, {
@@ -65,15 +65,11 @@ export default function SettlementPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header>
-          <h1 className="text-headline font-semibold text-neutral-900">Settlement Shift</h1>
-          <p className="text-body-sm text-neutral-600">
-            Rekap akhir shift - dinamis per metode pembayaran
-          </p>
-        </header>
-
+    <Page
+      title="Settlement Shift"
+      subtitle="Rekap akhir shift · dinamis per metode pembayaran"
+    >
+      <div className="max-w-3xl mx-auto space-y-3">
         {shiftsLoading && <Skeleton className="h-48" />}
 
         {!shiftsLoading && !targetShift && (
@@ -101,15 +97,15 @@ export default function SettlementPage() {
         {!shiftsLoading && targetShift && targetShift.closedAt && (
           <SettlementFlow businessDate={targetShift.date} />
         )}
-      </div>
 
-      {blockedGroups && (
-        <CloseShiftBlockedModal
-          groups={blockedGroups}
-          onClose={() => setBlockedGroups(null)}
-        />
-      )}
-    </div>
+        {blockedGroups && (
+          <CloseShiftBlockedModal
+            groups={blockedGroups}
+            onClose={() => setBlockedGroups(null)}
+          />
+        )}
+      </div>
+    </Page>
   )
 }
 

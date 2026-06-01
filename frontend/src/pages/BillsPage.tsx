@@ -16,6 +16,7 @@ import {
   Skeleton,
   DataTable,
   Dialog,
+  Page,
   type DataTableColumn,
   type ComboboxOption,
 } from '@/design-system/primitives'
@@ -117,37 +118,37 @@ export default function BillsPage() {
   ]
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-headline font-semibold text-neutral-900">Tagihan Operasional</h1>
-            <p className="text-body-sm text-neutral-600">
-              {bills.length} tagihan ·{' '}
-              <span className="font-medium text-neutral-900 tabular-nums">
-                {formatCurrency(totalMonth)}
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="month"
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className="h-10 px-3 bg-white border border-neutral-300 rounded-md text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
-              aria-label="Filter bulan"
-            />
-            <Button
-              variant="primary"
-              size="md"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => setShowCreate({ existing: null })}
-            >
-              Tagihan
-            </Button>
-          </div>
-        </header>
-
+    <Page
+      title="Tagihan Operasional"
+      subtitle={
+        <>
+          {bills.length} tagihan ·{' '}
+          <span className="font-medium text-neutral-900 tabular-nums">
+            {formatCurrency(totalMonth)}
+          </span>
+        </>
+      }
+      actions={
+        <>
+          <input
+            type="month"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="h-10 px-3 bg-white border border-neutral-300 rounded-md text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+            aria-label="Filter bulan"
+          />
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowCreate({ existing: null })}
+          >
+            Tagihan
+          </Button>
+        </>
+      }
+    >
+      <div className="max-w-3xl mx-auto space-y-3">
         {isLoading ? (
           <Skeleton className="h-64" />
         ) : (
@@ -205,7 +206,7 @@ export default function BillsPage() {
           />
         )}
       </div>
-    </div>
+    </Page>
   )
 }
 

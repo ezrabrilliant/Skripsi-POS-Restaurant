@@ -19,6 +19,7 @@ import {
   Checkbox,
   Combobox,
   EmptyState,
+  Page,
   type ComboboxOption,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -147,23 +148,21 @@ export default function UsersPage() {
   const isSelfEdit = editingUser?.id === currentUser?.id
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-5 pt-safe pb-safe">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-headline font-semibold text-neutral-900">Manajemen User</h1>
-            <p className="text-body-sm text-neutral-600">Kelola akun owner, kasir, dan waiter</p>
-          </div>
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={openCreateModal}
-          >
-            Tambah User
-          </Button>
-        </header>
-
+    <Page
+      title="Manajemen User"
+      subtitle="Kelola akun owner, kasir, dan waiter"
+      actions={
+        <Button
+          variant="primary"
+          size="md"
+          leftIcon={<Plus className="w-4 h-4" />}
+          onClick={openCreateModal}
+        >
+          Tambah User
+        </Button>
+      }
+    >
+      <div className="max-w-3xl mx-auto space-y-5">
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-20" />
@@ -259,7 +258,7 @@ export default function UsersPage() {
           </Dialog>
         )}
       </div>
-    </div>
+    </Page>
   )
 }
 
