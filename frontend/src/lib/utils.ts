@@ -31,6 +31,17 @@ export function computeMargin(
   return { laba, pct: Math.round((laba / price) * 100) }
 }
 
+/**
+ * Format laba bertanda eksplisit untuk kolom Laba katalog:
+ * untung -> "+Rp 8.000", rugi -> "-Rp 2.000", impas -> "Rp 0".
+ * Pakai nilai absolut + tanda manual supaya untung SELALU dapat "+", rugi dapat
+ * "-" tunggal (hindari "+-Rp" dari prefix "+" yang dipasang di depan angka negatif).
+ */
+export function formatLaba(laba: number): string {
+  const sign = laba > 0 ? '+' : laba < 0 ? '-' : ''
+  return `${sign}${formatCurrency(Math.abs(laba))}`
+}
+
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',

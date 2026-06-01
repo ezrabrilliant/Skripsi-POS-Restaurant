@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeMargin } from './utils'
+import { computeMargin, formatLaba } from './utils'
 
 describe('computeMargin', () => {
   it('menghitung laba & persen margin untuk menu simple', () => {
@@ -29,5 +29,26 @@ describe('computeMargin', () => {
 
   it('mengembalikan null saat harga 0 (hindari bagi nol)', () => {
     expect(computeMargin(0, 5000)).toBeNull()
+  })
+})
+
+describe('formatLaba', () => {
+  it('untung dapat prefix "+"', () => {
+    const s = formatLaba(8000)
+    expect(s.startsWith('+')).toBe(true)
+    expect(s).toContain('8.000')
+  })
+
+  it('rugi dapat prefix "-" tunggal (bukan "+-")', () => {
+    const s = formatLaba(-2000)
+    expect(s.startsWith('-')).toBe(true)
+    expect(s.startsWith('+')).toBe(false)
+    expect(s).toContain('2.000')
+  })
+
+  it('impas (0) tanpa tanda "+" atau "-"', () => {
+    const s = formatLaba(0)
+    expect(s.startsWith('+')).toBe(false)
+    expect(s.startsWith('-')).toBe(false)
   })
 })

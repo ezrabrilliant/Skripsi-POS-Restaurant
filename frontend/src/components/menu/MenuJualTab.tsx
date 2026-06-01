@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, RotateCcw, History, ArrowRight, UtensilsCrossed } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
-import { formatCurrency, cn, computeMargin } from '@/lib/utils'
+import { formatCurrency, cn, computeMargin, formatLaba } from '@/lib/utils'
 import {
   Button,
   IconButton,
@@ -307,7 +307,7 @@ export function MenuJualTab({
               : 'text-neutral-700'
         return (
           <span className={cn('font-medium tabular-nums', tone)}>
-            +{formatCurrency(mg.laba)}{' '}
+            {formatLaba(mg.laba)}{' '}
             <span className="text-caption font-normal text-neutral-500">· {mg.pct}%</span>
           </span>
         )
@@ -589,7 +589,7 @@ export function MenuJualTab({
                     </p>
                     {mg && (
                       <p className={cn('text-caption tabular-nums', labaTone)}>
-                        laba {formatCurrency(mg.laba)} · {mg.pct}%
+                        laba {formatLaba(mg.laba)} · {mg.pct}%
                       </p>
                     )}
                   </div>
