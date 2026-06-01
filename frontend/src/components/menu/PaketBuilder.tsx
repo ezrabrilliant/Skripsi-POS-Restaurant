@@ -36,6 +36,9 @@ export interface PaketFixedState {
 export interface PaketChoiceOptionState {
   label: string
   targetMenuId: number | null
+  /** REV: kalau opsi ini di-pin ke 1 varian spesifik (mis. "Teh Manis Jumbo"),
+   * isi varian-nya. null = opsi simple / menu varian yang bercabang saat order. */
+  targetVariantId: number | null
   upcharge: number
 }
 
@@ -101,7 +104,7 @@ export function buildPaketComponentsPayload(
       .map((o) => ({
         label: o.label.trim(),
         targetMenuId: o.targetMenuId,
-        targetVariantId: null,
+        targetVariantId: o.targetVariantId,
         upcharge: o.upcharge > 0 ? o.upcharge : 0,
       }))
     components.push({
@@ -135,6 +138,7 @@ export function menuToPaketBuilderState(menu: Menu): PaketBuilderValue {
       options: c.choiceOptions.map((o) => ({
         label: o.label,
         targetMenuId: o.targetMenuId,
+        targetVariantId: o.targetVariantId,
         upcharge: o.upcharge,
       })),
     }))
@@ -243,12 +247,14 @@ function ChoiceSlotEditor({
   onChange,
   onRemove,
   menuOptions,
+  variantMenus,
   slotIndex,
 }: {
   choice: PaketChoiceState
   onChange: (next: PaketChoiceState) => void
   onRemove: () => void
   menuOptions: ComboboxOption[]
+  variantMenus: { id: number; name: string; variants: { id: number; label: string }[] }[]
   slotIndex: number
 }) {
   const updateOption = (idx: number, patch: Partial<PaketChoiceOptionState>) => {
@@ -259,7 +265,10 @@ function ChoiceSlotEditor({
   const addOption = () => {
     onChange({
       ...choice,
-      options: [...choice.options, { label: '', targetMenuId: null, upcharge: 0 }],
+      options: [
+        ...choice.options,
+        { label: '', targetMenuId: null, targetVariantId: null, upcharge: 0 },
+      ],
     })
   }
 
@@ -268,6 +277,34 @@ function ChoiceSlotEditor({
       ...choice,
       options: choice.options.filter((_, i) => i !== idx),
     })
+  }
+
+  // Info varian (untuk render opsi yang di-pin ke 1 varian) + picker "muat varian".
+  const variantInfo = useMemo(() => {
+    const m = new Map<number, { menuName: string; variantLabel: string }>()
+    for (const vm of variantMenus) {
+      for (const v of vm.variants) m.set(v.id, { menuName: vm.name, variantLabel: v.label })
+    }
+    return m
+  }, [variantMenus])
+  const variantMenuOptions: ComboboxOption[] = variantMenus.map((m) => ({
+    value: String(m.id),
+    label: m.name,
+    helper: `${m.variants.length} varian`,
+  }))
+
+  // "Muat varian dari menu": tambah 1 opsi per varian (di-pin via targetVariantId),
+  // skip varian yang sudah ada di slot. Owner tinggal isi tambahan harga tiap varian.
+  const loadVariantsFrom = (menuId: number) => {
+    const m = variantMenus.find((x) => x.id === menuId)
+    if (!m) return
+    const existing = new Set(
+      choice.options.map((o) => o.targetVariantId).filter((x): x is number => x != null),
+    )
+    const newOpts: PaketChoiceOptionState[] = m.variants
+      .filter((v) => !existing.has(v.id))
+      .map((v) => ({ label: v.label, targetMenuId: m.id, targetVariantId: v.id, upcharge: 0 }))
+    if (newOpts.length > 0) onChange({ ...choice, options: [...choice.options, ...newOpts] })
   }
 
   return (
@@ -317,21 +354,28 @@ function ChoiceSlotEditor({
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Combobox
-                  label="Kurangi stok"
-                  hideLabel
-                  value={
-                    opt.targetMenuId !== null ? String(opt.targetMenuId) : ''
-                  }
-                  onValueChange={(v) =>
-                    updateOption(idx, { targetMenuId: v ? Number(v) : null })
-                  }
-                  options={menuOptions}
-                  placeholder="Kurangi stok... (kosong = info aja)"
-                  searchPlaceholder="Cari menu..."
-                  emptyText="Tidak ada menu"
-                  containerClassName="min-w-0"
-                />
+                {opt.targetVariantId != null ? (
+                  <div className="flex items-center min-w-0 text-caption text-neutral-600 rounded-md bg-white border border-neutral-200 px-2.5 py-2">
+                    Varian: {variantInfo.get(opt.targetVariantId)?.variantLabel ?? opt.label}
+                    {variantInfo.get(opt.targetVariantId)?.menuName
+                      ? ` · ${variantInfo.get(opt.targetVariantId)!.menuName}`
+                      : ''}
+                  </div>
+                ) : (
+                  <Combobox
+                    label="Kurangi stok"
+                    hideLabel
+                    value={opt.targetMenuId !== null ? String(opt.targetMenuId) : ''}
+                    onValueChange={(v) =>
+                      updateOption(idx, { targetMenuId: v ? Number(v) : null })
+                    }
+                    options={menuOptions}
+                    placeholder="Kurangi stok... (kosong = info aja)"
+                    searchPlaceholder="Cari menu..."
+                    emptyText="Belum ada SKU"
+                    containerClassName="min-w-0"
+                  />
+                )}
                 <Input
                   label="Tambahan harga"
                   hideLabel
@@ -352,16 +396,32 @@ function ChoiceSlotEditor({
         </ul>
       )}
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={addOption}
-        leftIcon={<Plus className="h-4 w-4" aria-hidden />}
-        className="self-start"
-      >
-        Tambah opsi
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={addOption}
+          leftIcon={<Plus className="h-4 w-4" aria-hidden />}
+        >
+          Tambah opsi
+        </Button>
+        {variantMenuOptions.length > 0 && (
+          <Combobox
+            hideLabel
+            label="Muat varian dari menu"
+            value=""
+            onValueChange={(v) => {
+              if (v) loadVariantsFrom(Number(v))
+            }}
+            options={variantMenuOptions}
+            placeholder="+ Muat varian dari menu…"
+            searchPlaceholder="Cari menu varian..."
+            emptyText="Tidak ada menu varian"
+            containerClassName="min-w-[15rem]"
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -384,6 +444,22 @@ export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderP
       menus
         .filter((m) => m.name !== excludeMenuName)
         .map((m) => ({ value: String(m.id), label: m.name, helper: m.category })),
+    [menus, excludeMenuName],
+  )
+
+  // Menu varian (+ varian aktifnya) untuk fitur "Muat varian dari menu" di slot pilihan.
+  const variantMenus = useMemo(
+    () =>
+      menus
+        .filter((m) => m.kind === 'variant' && m.name !== excludeMenuName)
+        .map((m) => ({
+          id: m.id,
+          name: m.name,
+          variants: (m.variants ?? [])
+            .filter((v) => v.isActive !== false)
+            .map((v) => ({ id: v.id, label: v.label })),
+        }))
+        .filter((m) => m.variants.length > 0),
     [menus, excludeMenuName],
   )
 
@@ -433,6 +509,7 @@ export function PaketBuilder({ value, onChange, excludeMenuName }: PaketBuilderP
             onChange={(next) => updateChoice(idx, next)}
             onRemove={() => removeChoice(idx)}
             menuOptions={menuOptions}
+            variantMenus={variantMenus}
             slotIndex={idx}
           />
         ))}

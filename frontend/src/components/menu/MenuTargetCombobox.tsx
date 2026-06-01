@@ -72,7 +72,7 @@ export function MenuTargetCombobox({
       hideLabel={hideLabel}
       placeholder={!controlled && isLoading ? 'Memuat...' : placeholder}
       searchPlaceholder="Cari nama menu..."
-      emptyText="Tidak ada menu porsi"
+      emptyText="Belum ada SKU"
       options={options}
       value={value}
       onValueChange={onChange}

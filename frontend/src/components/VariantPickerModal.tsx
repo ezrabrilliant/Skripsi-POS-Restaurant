@@ -384,10 +384,15 @@ function PaketPicker({
       string,
       { targetMenuId: number; variantId?: number | null; chosenLabel: string }
     > = {}
+    // REV: tambahan harga (upcharge) opsi terpilih masuk ke harga paket. Backend
+    // recompute angka yang sama dari graph (resolvePaketUpcharge) — ini biar tampilan
+    // cart/pembayaran cocok dengan yang ditagih.
+    let upcharge = 0
     for (const comp of choiceComponents) {
       const optId = selection[comp.id]
       const opt = comp.choiceOptions.find((o) => o.id === optId)
       if (!opt || opt.targetMenuId == null) continue
+      if (opt.upcharge) upcharge += opt.upcharge
       const sub = subPicks[comp.id]
       paketChoices[comp.label] = {
         targetMenuId: opt.targetMenuId,
@@ -397,7 +402,7 @@ function PaketPicker({
     }
     onConfirm({
       menuId: menu.id,
-      unitPrice: menu.price, // paket base; sub-picks tidak ubah harga paket.
+      unitPrice: menu.price + upcharge,
       displayLabel: menu.name,
       paketChoices: Object.keys(paketChoices).length > 0 ? paketChoices : undefined,
     })

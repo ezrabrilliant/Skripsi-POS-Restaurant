@@ -34,6 +34,7 @@ import type {
   OptionGroupUpsertPayload,
   MenuVariantUpsertPayload,
 } from '@/types'
+import { routeSkuLink, currentSkuId } from './skuLink'
 
 // ============================================================
 // Working state (round-trips ke MenuUpsertPayload)
@@ -379,24 +380,33 @@ export function VariantBuilder({
   basePrice,
   excludeMenuName,
 }: VariantBuilderProps) {
-  // Sumber stock target: SEMUA menu portion termasuk yang tersembunyi (posVisible=false)
-  // supaya owner bisa arahkan varian ke SKU stok granular existing.
-  const { data: portionMenus = [] } = useQuery({
-    queryKey: ['menus', 'variant-stock-targets'],
+  // Sumber SKU: SEMUA menu leaf (kind=simple), termasuk nonStock & tersembunyi
+  // (posVisible=false). Owner hubungkan tiap jenis ke salah satu SKU ini; lacak-stok vs
+  // cuma-modal ditentukan otomatis dari stockType SKU-nya (lihat skuLink.ts). Filter
+  // portion-only lama dibuang — itu yang bikin SKU nonStock (mis. modal Teh) invisible.
+  const { data: allMenus = [] } = useQuery({
+    queryKey: ['menus', 'variant-sku-targets'],
     queryFn: () => menuService.list({ activeOnly: false, includeHidden: true }),
     staleTime: 30_000,
   })
 
-  const stockTargetOptions = useMemo<ComboboxOption[]>(() => {
-    const opts = portionMenus
-      .filter((m) => m.stockType === 'portion' && m.name !== excludeMenuName)
-      .map((m) => ({
-        value: String(m.id),
-        label: m.name,
-        helper: m.category,
-      }))
-    return [{ value: '', label: '- tidak ada (nonStock) -' }, ...opts]
-  }, [portionMenus, excludeMenuName])
+  const skuMenus = useMemo(
+    () => allMenus.filter((m) => m.kind === 'simple' && m.name !== excludeMenuName),
+    [allMenus, excludeMenuName],
+  )
+  const skuById = useMemo(() => {
+    const map = new Map<number, Menu>()
+    for (const m of skuMenus) map.set(m.id, m)
+    return map
+  }, [skuMenus])
+  const skuOptions = useMemo<ComboboxOption[]>(() => {
+    const opts = skuMenus.map((m) => ({
+      value: String(m.id),
+      label: m.name,
+      helper: m.stockType === 'portion' ? `${m.category} · lacak stok` : m.category,
+    }))
+    return [{ value: '', label: '— tidak dihubungkan —' }, ...opts]
+  }, [skuMenus])
 
   const rows = useMemo(
     () => computeVariantRows(value, basePrice),
@@ -504,7 +514,7 @@ export function VariantBuilder({
                     {row.label}
                   </span>
                   <Checkbox
-                    label="Aktif"
+                    label="Dijual"
                     checked={row.isActive}
                     onCheckedChange={(c) =>
                       setOverride(row.signature, { isActive: c })
@@ -527,34 +537,41 @@ export function VariantBuilder({
                     placeholder={String(basePrice)}
                     helper={`Default ${formatCurrency(basePrice)}`}
                   />
+                  {/* 1 link ke SKU. stockType SKU nentuin otomatis: portion → stok
+                      dikurangi + modal ikut; nonStock → cuma modal ikut. Lihat skuLink.ts. */}
                   <MenuTargetCombobox
-                    value={
-                      row.stockTargetMenuId !== null
-                        ? String(row.stockTargetMenuId)
-                        : ''
-                    }
-                    onChange={(v) =>
-                      setOverride(row.signature, {
-                        stockTargetMenuId: v ? Number(v) : null,
-                      })
-                    }
-                    options={stockTargetOptions}
-                    label="Kurangi stok dari"
-                    placeholder="- tidak ada (nonStock) -"
+                    value={(() => {
+                      const id = currentSkuId(row)
+                      return id !== null ? String(id) : ''
+                    })()}
+                    onChange={(v) => {
+                      const sku = v ? skuById.get(Number(v)) ?? null : null
+                      setOverride(row.signature, routeSkuLink(sku))
+                    }}
+                    options={skuOptions}
+                    label="Hubungkan ke SKU"
+                    placeholder="— tidak dihubungkan —"
                   />
-                  {/* REV 2.11: untuk varian nonStock (tanpa stock leaf), owner pilih
-                      SKU tersembunyi sebagai sumber modal/COGS. Bila stockTarget ada,
-                      backend pakai itu sebagai sumber modal otomatis. */}
-                  {row.stockTargetMenuId === null && (
-                    <MenuTargetCombobox
-                      value={row.costSourceMenuId !== null ? String(row.costSourceMenuId) : ''}
-                      onChange={(v) => setOverride(row.signature, { costSourceMenuId: v ? Number(v) : null })}
-                      options={stockTargetOptions}
-                      label="Modal ikut menu (SKU tersembunyi)"
-                      placeholder="- pakai modal menu ini -"
-                    />
-                  )}
                 </div>
+                {(() => {
+                  const id = currentSkuId(row)
+                  const sku = id !== null ? skuById.get(id) : null
+                  if (!sku)
+                    return (
+                      <p className="text-caption text-neutral-500">
+                        Belum terhubung — stok tidak dihitung, modal pakai harga menu ini.
+                      </p>
+                    )
+                  return (
+                    <p className="text-caption text-neutral-600">
+                      {sku.stockType === 'portion'
+                        ? `Stok: dikurangi dari ${sku.name}`
+                        : 'Stok: tidak dihitung'}
+                      {' · Modal: '}
+                      {sku.cost != null ? formatCurrency(sku.cost) : '—'}
+                    </p>
+                  )
+                })()}
               </li>
             ))}
           </ul>
