@@ -11,10 +11,11 @@ import { useNavigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { Calculator, CheckCircle, AlertCircle, Wallet } from 'lucide-react'
 import { shiftService } from '@/services/shiftService'
+import { pickShiftToSettle } from '@/services/shiftFocus'
 import { settlementService, type CreateSettlementPayload } from '@/services/settlementService'
 import { useAuthStore } from '@/stores/authStore'
 import type { SettlementPreview, Settlement } from '@/types'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, formatShiftDate } from '@/lib/utils'
 import { Button, Badge, Skeleton, Checkbox, Page } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
@@ -29,13 +30,27 @@ export default function SettlementPage() {
   const toast = useToast()
   const confirm = useConfirm()
 
-  const { data: shifts = [], isLoading: shiftsLoading } = useQuery({
-    queryKey: ['shifts', 'my-recent', user?.id],
-    queryFn: () => shiftService.listShifts({ cashierId: user?.id }),
+  const isOwner = user?.role === 'owner'
+
+  // Sumber utama = shift open system-wide (key dipakai bersama POS gate &
+  // panel Dashboard → tak bisa kontradiksi). Owner pun melihat shift kasir yang
+  // masih terbuka di sini, bukan "Belum ada shift".
+  const { data: activeShifts = [], isLoading: activeLoading } = useQuery({
+    queryKey: ['shifts', 'active'],
+    queryFn: () => shiftService.getActiveShifts(),
+    refetchOnMount: 'always',
+  })
+
+  // Fallback (tak ada shift open) untuk menyetor hari yang sudah closed: owner
+  // lihat shift terakhir se-sistem, kasir lihat shift miliknya sendiri.
+  const { data: recentShifts = [], isLoading: recentLoading } = useQuery({
+    queryKey: ['shifts', 'recent', isOwner ? 'system' : user?.id],
+    queryFn: () => shiftService.listShifts(isOwner ? {} : { cashierId: user?.id }),
     enabled: !!user,
   })
 
-  const targetShift = shifts.length > 0 ? shifts[0] : null
+  const shiftsLoading = activeLoading || recentLoading
+  const targetShift = pickShiftToSettle(activeShifts, recentShifts)
 
   const [blockedGroups, setBlockedGroups] = useState<OpenOrdersGroup[] | null>(null)
 
@@ -55,7 +70,9 @@ export default function SettlementPage() {
   const handleCloseShift = async () => {
     if (!targetShift) return
     const ok = await confirm({
-      title: `Tutup shift ${targetShift.type}?`,
+      title: `Tutup shift ${targetShift.type ?? ''}${
+        targetShift.cashierName ? ` milik ${targetShift.cashierName}` : ''
+      }?`,
       description: 'Setelah ditutup tidak bisa terima transaksi baru. Lanjut ke settlement.',
       confirmText: 'Ya, Tutup',
       tone: 'danger',
@@ -75,8 +92,9 @@ export default function SettlementPage() {
         {!shiftsLoading && !targetShift && (
           <EmptyStateCard
             icon={Wallet}
-            title="Belum ada shift"
-            message="Buka kasir dulu di Dashboard sebelum settlement."
+            tone="neutral"
+            title="Tidak ada shift untuk disetor"
+            message="Belum ada shift yang dibuka. Buka kasir dulu di Dashboard."
             actionLabel="Ke Dashboard"
             onAction={() => navigate('/dashboard')}
           />
@@ -86,8 +104,16 @@ export default function SettlementPage() {
           <EmptyStateCard
             icon={AlertCircle}
             tone="warning"
-            title={`Shift ${targetShift.type} masih aktif`}
-            message="Tutup shift dulu sebelum settlement."
+            title={
+              targetShift.isOverdue
+                ? `Shift ${formatShiftDate(targetShift.date)} · kasir ${targetShift.cashierName ?? '-'} belum ditutup`
+                : `Shift ${targetShift.type ?? ''} masih aktif`
+            }
+            message={
+              targetShift.isOverdue
+                ? 'Tuntaskan semua pesanan yang belum dibayar, lalu tutup & setor shift ini sebelum mulai hari baru.'
+                : 'Tutup shift dulu sebelum settlement.'
+            }
             actionLabel="Tutup Shift"
             onAction={handleCloseShift}
             actionLoading={closeShiftMutation.isPending}

@@ -3,6 +3,7 @@
 import { AlertTriangle } from 'lucide-react'
 import type { Shift } from '@/types'
 import { Button } from '@/design-system/primitives'
+import { formatShiftDate } from '@/lib/utils'
 
 export default function OverdueShiftGate({
   shift,
@@ -21,9 +22,9 @@ export default function OverdueShiftGate({
           Shift kemarin belum ditutup
         </h2>
         <p className="text-body-sm text-neutral-600 mb-3 text-center">
-          Shift {shift.type ? `${shift.type} ` : ''}tanggal {shift.date} (kasir {shift.cashierName})
-          masih terbuka. Tuntaskan semua pesanan yang belum dibayar, lalu tutup &amp; setor shift
-          itu dulu sebelum mulai hari ini.
+          Shift {shift.type ? `${shift.type} ` : ''}{formatShiftDate(shift.date)} (kasir{' '}
+          {shift.cashierName}) masih terbuka. Tuntaskan semua pesanan yang belum dibayar, lalu
+          tutup &amp; setor shift itu dulu sebelum mulai hari ini.
         </p>
         <Button variant="primary" size="md" fullWidth onClick={onGoToSettlement}>
           Tutup &amp; Setor Shift Kemarin
