@@ -36,8 +36,9 @@ interface NavItem {
 }
 
 // REV 2.3: nav per role. Item pertama selalu Beranda (landing setelah login).
-// Waiter primary nav = Beranda + Stok (POS access fallback only, via link kecil
-// di WaiterDashboard).
+// Waiter = order intake co-equal: Beranda + Kasir + Meja + Stok. Pembayaran tetap
+// kasir-only (tombol Bayar disembunyikan di CartPanel + ditolak backend), jadi
+// memberi menu Kasir/Meja TIDAK mengubah permission - cuma penempatan menu.
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   owner: [
     { to: '/dashboard',  icon: Home,             label: 'Beranda' },
@@ -61,6 +62,8 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
   waiter: [
     { to: '/dashboard',  icon: Home,             label: 'Beranda' },
+    { to: '/pos',        icon: LayoutGrid,       label: 'Kasir' },
+    { to: '/tables',     icon: Grid3X3,          label: 'Meja' },
     { to: '/stock',      icon: Package,          label: 'Stok' },
   ],
 }

@@ -1,7 +1,7 @@
-// WaiterDashboard - REV 2.3
-// Primary: 2 big cards "Stok Porsi" + "Raw Materials Reminder" + quick action
-// Opname + Mark Habis. Secondary: link kecil "Input Order fallback" - desain
-// nudge supaya waiter tidak terbiasa pakai POS sebagai default workflow.
+// WaiterDashboard - REV 2.3 (+ order-intake co-equal)
+// Primary: kartu CTA "Input Order" (POS) di paling atas + kartu "Stok Porsi" +
+// quick action Opname/Mark Habis. Waiter kini input order sebagai alur normal;
+// pembayaran tetap diproses kasir (tombol Bayar disembunyikan + ditolak backend).
 
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -14,6 +14,7 @@ import {
   Moon,
   Users,
   CheckCircle2,
+  LayoutGrid,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService } from '@/services/dashboardService'
@@ -39,7 +40,30 @@ export default function WaiterDashboard() {
 
         {dashboard && (
           <>
-            {/* Primary action card - stok porsi */}
+            {/* Primary CTA: Input Order (POS). Alur utama waiter sekarang.
+                Pembayaran tetap kasir-only (Bayar disembunyikan + ditolak backend). */}
+            <Link
+              to="/pos"
+              className="block bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-6 sm:p-8 text-white shadow-md hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <LayoutGrid className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-title sm:text-headline font-semibold mb-1">Input Order</h2>
+                  <p className="text-primary-50/90 text-body-sm sm:text-body mb-3">
+                    Buat pesanan baru untuk meja atau takeaway. Pembayaran diproses kasir.
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-primary-700 rounded-md font-medium text-body-sm hover:bg-primary-50 transition-colors">
+                    Buka Halaman POS
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            {/* Stok porsi */}
             <div className="grid grid-cols-1 gap-3">
               <PortionStockCard data={dashboard.portionStocks} />
             </div>
@@ -85,16 +109,6 @@ export default function WaiterDashboard() {
               </div>
             )}
 
-            {/* Secondary: link kecil fallback input order */}
-            <div className="text-center pt-2">
-              <Link
-                to="/pos"
-                className="inline-flex items-center gap-1 text-caption text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline"
-              >
-                Input Order (fallback - kalau kasir tidak available)
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
           </>
         )}
     </Page>

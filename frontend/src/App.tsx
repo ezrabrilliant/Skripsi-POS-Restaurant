@@ -69,10 +69,12 @@ function App() {
           {/* Dashboard - semua role authenticated (branch per role di komponen) */}
           <Route path="dashboard" element={<Dashboard />} />
 
-          {/* Operasional kasir - owner + cashier (waiter via fallback link kecil di WaiterDashboard) */}
+          {/* Order intake: pos + tables = owner/cashier/waiter (waiter input order
+              sebagai alur normal; pembayaran tetap kasir-only via gate Bayar di UI
+              + requireRole di backend). history/settlement tetap owner+cashier. */}
           <Route path="pos" element={<RoleRoute allow={['owner', 'cashier', 'waiter']}><POSPage /></RoleRoute>} />
           <Route path="pos/:tableNumber" element={<RoleRoute allow={['owner', 'cashier', 'waiter']}><POSPage /></RoleRoute>} />
-          <Route path="tables" element={<RoleRoute allow={['owner', 'cashier']}><TablesPage /></RoleRoute>} />
+          <Route path="tables" element={<RoleRoute allow={['owner', 'cashier', 'waiter']}><TablesPage /></RoleRoute>} />
           <Route path="history" element={<RoleRoute allow={['owner', 'cashier']}><HistoryPage /></RoleRoute>} />
           <Route path="settlement" element={<RoleRoute allow={['owner', 'cashier']}><SettlementPage /></RoleRoute>} />
 
