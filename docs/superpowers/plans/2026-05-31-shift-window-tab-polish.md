@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the "Jam Shift" settings tab consistent with its sibling tabs and visually clean — centered card, vertically stacked time inputs (no misalignment), timezone dropdown, plain-language labels.
+**Goal:** Make the "Jam Shift" settings tab consistent with its sibling tabs and visually clean - centered card, vertically stacked time inputs (no misalignment), timezone dropdown, plain-language labels.
 
-**Architecture:** Frontend-only, presentational. Rewrite `ShiftWindowTab.tsx` (same state, same `settingsService.update`, same validation — only markup/labels/controls change) and apply one centering change to the sibling `TaxSettingsTab.tsx` so both form-tabs match. No backend/schema/behavior change.
+**Architecture:** Frontend-only, presentational. Rewrite `ShiftWindowTab.tsx` (same state, same `settingsService.update`, same validation - only markup/labels/controls change) and apply one centering change to the sibling `TaxSettingsTab.tsx` so both form-tabs match. No backend/schema/behavior change.
 
 **Tech Stack:** React 18 + TypeScript + Tailwind, React Query, `@/design-system/primitives` (`Input`, `Select`, `Button`, `Skeleton`).
 
@@ -16,7 +16,7 @@
 
 ### Task 1: Center the Pajak tab (sibling consistency, do first)
 
-Centering `TaxSettingsTab` first means that when we center `ShiftWindowTab` in Task 2, switching between the two tabs already lines up — easy visual diff.
+Centering `TaxSettingsTab` first means that when we center `ShiftWindowTab` in Task 2, switching between the two tabs already lines up - easy visual diff.
 
 **Files:**
 - Modify: `frontend/src/components/payment-methods/TaxSettingsTab.tsx`
@@ -232,7 +232,7 @@ Expected: 0 errors, 0 warnings.
 
 ```bash
 git add frontend/src/components/payment-methods/ShiftWindowTab.tsx
-git commit -m "style(settings): polish Jam Shift tab — center card, stack time inputs, timezone dropdown, plain labels"
+git commit -m "style(settings): polish Jam Shift tab - center card, stack time inputs, timezone dropdown, plain labels"
 ```
 
 ---
@@ -251,7 +251,7 @@ Expected: `tsc -b` passes + `vite build` SUCCESS (no new errors).
 Start dev (`npm run dev` from repo root) if not already running. Login as Owner (PIN 123456) → sidebar **Pembayaran** → tab **Jam Shift**. Verify each:
 
 - [ ] Card is **centered** in the content area (not hugging the left).
-- [ ] Switch to tab **Pajak** and back — both cards sit at the same centered position (no horizontal jump).
+- [ ] Switch to tab **Pajak** and back - both cards sit at the same centered position (no horizontal jump).
 - [ ] The three time inputs are **vertically stacked and left-aligned** (no "mencong"/misalignment).
 - [ ] **Zona waktu** is a dropdown showing `WIB · Asia/Jakarta`, `WITA · Asia/Makassar`, `WIT · Asia/Jayapura`; the saved value (Asia/Jakarta) is preselected.
 - [ ] Set **Jam Pergantian Shift** earlier than **Jam Buka Shift Pagi** (e.g. pergantian 06:00, pagi 07:00) → red error "Jam mulai pagi harus sebelum jam pergantian." appears and **Simpan** is disabled. Revert.
@@ -278,4 +278,4 @@ If all checks pass, the branch is ready for code review (superpowers:requesting-
 
 **Placeholder scan:** No TBD/TODO; full file content given verbatim. ✅
 
-**Type consistency:** `settingsService.update({ timezone, shiftPagiStart, shiftChangeover, shiftMalamEnd })` matches existing usage; `q.data` fields (`timezone`, `shiftPagiStart`, `shiftChangeover`, `shiftMalamEnd`) match existing reads; `Select` `options` prop is `SelectOption[]` (`{value,label}`) — inline array matches; `crossMidnight`/`contiguousOk`/`toMin` names consistent throughout. ✅
+**Type consistency:** `settingsService.update({ timezone, shiftPagiStart, shiftChangeover, shiftMalamEnd })` matches existing usage; `q.data` fields (`timezone`, `shiftPagiStart`, `shiftChangeover`, `shiftMalamEnd`) match existing reads; `Select` `options` prop is `SelectOption[]` (`{value,label}`) - inline array matches; `crossMidnight`/`contiguousOk`/`toMin` names consistent throughout. ✅

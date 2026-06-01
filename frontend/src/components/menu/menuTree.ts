@@ -52,7 +52,7 @@ export interface CostRange {
 
 /**
  * COGS terhitung untuk menu varian/paket dari modal SKU komponennya (untuk DISPLAY
- * di katalog — induk variant/paket nyimpan cost=0, modal hidup di SKU/komponen).
+ * di katalog - induk variant/paket nyimpan cost=0, modal hidup di SKU/komponen).
  * - simple → null (pakai `m.cost` langsung).
  * - variant → rentang min..max modal antar jenis aktif. Sumber tiap jenis:
  *   `costSourceMenuId ?? stockTargetMenuId`, fallback modal induk kalau tak tertaut.

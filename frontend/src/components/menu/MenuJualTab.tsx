@@ -1,14 +1,14 @@
-// MenuJualTab.tsx — tab "Menu Jual" untuk Katalog Menu (REV UX elevation).
+// MenuJualTab.tsx - tab "Menu Jual" untuk Katalog Menu (REV UX elevation).
 // Pohon expandable: baris menu jual (posVisible=true); kind variant/paket bisa
 // di-expand → anak SKU (nama, stok, modal) resolved client-side via buildChildrenMap.
 // Query + showInactive dimiliki host (MenuPage); tab ini menerima props.
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, RotateCcw, History, ArrowRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, History, ArrowRight, UtensilsCrossed } from 'lucide-react'
 import { menuService } from '@/services/menuService'
 import type { Menu, StockType } from '@/types'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, computeMargin } from '@/lib/utils'
 import {
   Button,
   IconButton,
@@ -44,6 +44,34 @@ const STOCK_TYPE_LABEL: Record<StockType, string> = {
   linked: 'Ikut menu lain',
   nonStock: 'Tidak di-track',
 }
+
+/** Thumbnail foto menu 44px untuk sel Nama. Pola sama dengan MenuGrid POS:
+ * object-cover + fallback ikon garpu saat menu belum berfoto. */
+function MenuThumb({ menu }: { menu: Menu }) {
+  return (
+    <div className="h-11 w-11 shrink-0 rounded-lg overflow-hidden bg-neutral-100">
+      {menu.imageUrl ? (
+        // alt="" disengaja (dekoratif): nama menu sudah jadi teks di sel yang sama,
+        // jadi screen reader tak perlu mengumumkannya dua kali. (Beda dari MenuGrid
+        // yang pakai alt={name} karena di sana gambar = elemen utama kartu.)
+        <img
+          src={menu.imageUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-neutral-300">
+          <UtensilsCrossed className="h-5 w-5" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Induk varian/paket: harga & modal beragam per-jenis → laba dilihat per-SKU dan
+ * modal ditampilkan sebagai rentang. Pembeda dari menu simple (harga+modal tunggal). */
+const isParentMenu = (m: Menu) => m.kind === 'variant' || m.kind === 'paket'
 
 interface MenuJualTabProps {
   menus: Menu[]
@@ -175,22 +203,25 @@ export function MenuJualTab({
         />
       ),
       cell: (m) => (
-        <div className={cn(!m.isActive && 'opacity-60')}>
-          <div className="font-medium text-neutral-900">{m.name}</div>
-          <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {/* REV 2.10: badge berbasis kind (variant/paket) gantikan subOptions JSON. */}
-            {m.kind === 'variant' && (
-              <Badge tone="primary" size="sm">
-                {m.variants?.length ?? 0} varian
-              </Badge>
-            )}
-            {m.kind === 'paket' && (
-              <Badge tone="primary" size="sm">
-                Paket
-              </Badge>
-            )}
-            {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+        <div className="flex items-center gap-3">
+          <MenuThumb menu={m} />
+          <div className={cn('min-w-0', !m.isActive && 'opacity-60')}>
+            <div className="font-medium text-neutral-900">{m.name}</div>
+            <div className="text-caption text-neutral-500 md:hidden">{m.category}</div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {/* REV 2.10: badge berbasis kind (variant/paket) gantikan subOptions JSON. */}
+              {m.kind === 'variant' && (
+                <Badge tone="primary" size="sm">
+                  {m.variants?.length ?? 0} varian
+                </Badge>
+              )}
+              {m.kind === 'paket' && (
+                <Badge tone="primary" size="sm">
+                  Paket
+                </Badge>
+              )}
+              {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+            </div>
           </div>
         </div>
       ),
@@ -221,7 +252,7 @@ export function MenuJualTab({
       ),
       align: 'right',
       cell: (m) => (
-        <span className="font-medium text-neutral-900 tabular-nums">
+        <span className="font-semibold text-neutral-900 tabular-nums">
           {formatCurrency(m.price)}
         </span>
       ),
@@ -233,12 +264,13 @@ export function MenuJualTab({
       header: 'Modal',
       align: 'right',
       hideMobile: true,
+      // Modal diredam (neutral-500) jadi metadata pendukung - fokus visual ke Harga & Laba.
       cell: (m) => {
-        if (m.kind === 'variant' || m.kind === 'paket') {
+        if (isParentMenu(m)) {
           const r = computeMenuCost(m, menusById)
-          if (!r) return <span className="text-neutral-300">—</span>
+          if (!r) return <span className="text-neutral-300">-</span>
           return (
-            <span className="text-neutral-700 tabular-nums">
+            <span className="text-neutral-500 tabular-nums">
               {r.min === r.max
                 ? formatCurrency(r.min)
                 : `${formatCurrency(r.min)}–${formatCurrency(r.max)}`}
@@ -246,8 +278,37 @@ export function MenuJualTab({
           )
         }
         return (
-          <span className="text-neutral-700 tabular-nums">
-            {m.cost != null ? formatCurrency(m.cost) : '—'}
+          <span className="text-neutral-500 tabular-nums">
+            {m.cost != null && m.cost > 0 ? formatCurrency(m.cost) : '-'}
+          </span>
+        )
+      },
+    },
+    {
+      // Kolom Laba: untung (Rp) + margin% - warna by tanda (untung hijau / rugi merah).
+      // Hanya untuk menu simple (harga & modal tunggal). Variant/paket: harga & modal
+      // beragam per-jenis → "-" (laba dilihat per-SKU). Sumber hitung = computeMargin,
+      // identik dengan caption di modal input COGS supaya angka tak pernah beda.
+      key: 'margin',
+      header: 'Laba',
+      align: 'right',
+      hideMobile: true,
+      cell: (m) => {
+        if (isParentMenu(m)) {
+          return <span className="text-neutral-300">-</span>
+        }
+        const mg = computeMargin(m.price, m.cost)
+        if (!mg) return <span className="text-neutral-300">-</span>
+        const tone =
+          mg.laba > 0
+            ? 'text-success-700'
+            : mg.laba < 0
+              ? 'text-danger-700'
+              : 'text-neutral-700'
+        return (
+          <span className={cn('font-medium tabular-nums', tone)}>
+            +{formatCurrency(mg.laba)}{' '}
+            <span className="text-caption font-normal text-neutral-500">· {mg.pct}%</span>
           </span>
         )
       },
@@ -363,11 +424,11 @@ export function MenuJualTab({
                     {ps.currentQty}
                   </span>
                 ) : (
-                  <span className="text-neutral-300">—</span>
+                  <span className="text-neutral-300">-</span>
                 )}
               </div>
               <div className="text-right shrink-0 text-caption text-neutral-700 tabular-nums w-16">
-                {c.cost != null ? formatCurrency(c.cost) : '—'}
+                {c.cost != null ? formatCurrency(c.cost) : '-'}
               </div>
               <div className="inline-flex items-center gap-1 shrink-0">
                 {c.stockType === 'portion' && (
@@ -396,7 +457,7 @@ export function MenuJualTab({
   }
 
   // Effect 1: when a focus target arrives that isn't in the current filtered view, clear local
-  // filters so it becomes visible. Deps intentionally only [focusMenuId] — we read filter state
+  // filters so it becomes visible. Deps intentionally only [focusMenuId] - we read filter state
   // lazily here; adding filtered/types as deps would re-fire and wipe filters as the user types.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -413,11 +474,11 @@ export function MenuJualTab({
 
   // Effect 2: once the focused row is actually in the DOM, scroll to it and clear the param after
   // 2s. Re-runs when `filtered` changes (filters still resetting) until the row appears.
-  // clearTimeout cleanup is correctly returned from the effect — NOT swallowed inside setTimeout.
+  // clearTimeout cleanup is correctly returned from the effect - NOT swallowed inside setTimeout.
   useEffect(() => {
     if (focusMenuId == null) return
     const el = document.getElementById('katalog-row-' + focusMenuId)
-    if (!el) return // not yet rendered (filters still resetting) — re-runs when `filtered` changes
+    if (!el) return // not yet rendered (filters still resetting) - re-runs when `filtered` changes
     el.scrollIntoView({ block: 'center' })
     const t = setTimeout(clearFocus, 2000)
     return () => clearTimeout(t)
@@ -489,67 +550,87 @@ export function MenuJualTab({
             ? 'Tidak ada menu cocok dengan filter.'
             : 'Tambah menu jual lewat tombol Menu.'
         }
-        mobileCard={(m) => (
-          <div className={cn(!m.isActive && 'opacity-60', 'space-y-1.5')}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-neutral-900">{m.name}</p>
-                <p className="text-caption text-neutral-500">{m.category}</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {/* REV 2.10: badge berbasis kind. */}
-                  {m.kind === 'variant' && (
-                    <Badge tone="primary" size="sm">{m.variants?.length ?? 0} varian</Badge>
-                  )}
-                  {m.kind === 'paket' && (
-                    <Badge tone="primary" size="sm">Paket</Badge>
-                  )}
-                  {m.stockType === 'portion' && (
-                    <Badge tone="neutral" size="sm">
-                      {m.portionStock?.currentQty ?? 0}/{m.minStock ?? 0}
-                    </Badge>
-                  )}
-                  {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+        mobileCard={(m) => {
+          const mg = isParentMenu(m) ? null : computeMargin(m.price, m.cost)
+          const labaTone = mg
+            ? mg.laba > 0
+              ? 'text-success-700'
+              : mg.laba < 0
+                ? 'text-danger-700'
+                : 'text-neutral-600'
+            : ''
+          return (
+            <div className={cn(!m.isActive && 'opacity-60', 'space-y-1.5')}>
+              <div className="flex items-start gap-2.5">
+                <MenuThumb menu={m} />
+                <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-neutral-900">{m.name}</p>
+                    <p className="text-caption text-neutral-500">{m.category}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {/* REV 2.10: badge berbasis kind. */}
+                      {m.kind === 'variant' && (
+                        <Badge tone="primary" size="sm">{m.variants?.length ?? 0} varian</Badge>
+                      )}
+                      {m.kind === 'paket' && (
+                        <Badge tone="primary" size="sm">Paket</Badge>
+                      )}
+                      {m.stockType === 'portion' && (
+                        <Badge tone="neutral" size="sm">
+                          {m.portionStock?.currentQty ?? 0}/{m.minStock ?? 0}
+                        </Badge>
+                      )}
+                      {!m.isActive && <Badge tone="neutral" variant="outline" size="sm">Nonaktif</Badge>}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-neutral-900 tabular-nums">
+                      {formatCurrency(m.price)}
+                    </p>
+                    {mg && (
+                      <p className={cn('text-caption tabular-nums', labaTone)}>
+                        laba {formatCurrency(mg.laba)} · {mg.pct}%
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-              <p className="font-semibold text-neutral-900 tabular-nums shrink-0">
-                {formatCurrency(m.price)}
-              </p>
+              <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
+                {m.stockType === 'portion' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    rightIcon={<ArrowRight className="w-4 h-4" />}
+                    onClick={() => navigate('/stock?focusMenuId=' + m.id)}
+                  >
+                    Stok
+                  </Button>
+                )}
+                <IconButton label="Riwayat modal" icon={<History />} variant="ghost" size="sm" onClick={() => setHistoryMenuId(m.id)} />
+                <IconButton label="Edit" icon={<Pencil />} variant="ghost" size="sm" onClick={() => setEditingMenu(m)} />
+                {m.isActive ? (
+                  <IconButton
+                    label="Nonaktifkan"
+                    icon={<Trash2 />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeactivate(m)}
+                    className="text-danger-700"
+                  />
+                ) : (
+                  <IconButton
+                    label="Aktifkan"
+                    icon={<RotateCcw />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => reactivate.mutate(m.id)}
+                    className="text-success-700"
+                  />
+                )}
+              </div>
             </div>
-            <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
-              {m.stockType === 'portion' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  rightIcon={<ArrowRight className="w-4 h-4" />}
-                  onClick={() => navigate('/stock?focusMenuId=' + m.id)}
-                >
-                  Stok
-                </Button>
-              )}
-              <IconButton label="Riwayat modal" icon={<History />} variant="ghost" size="sm" onClick={() => setHistoryMenuId(m.id)} />
-              <IconButton label="Edit" icon={<Pencil />} variant="ghost" size="sm" onClick={() => setEditingMenu(m)} />
-              {m.isActive ? (
-                <IconButton
-                  label="Nonaktifkan"
-                  icon={<Trash2 />}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeactivate(m)}
-                  className="text-danger-700"
-                />
-              ) : (
-                <IconButton
-                  label="Aktifkan"
-                  icon={<RotateCcw />}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => reactivate.mutate(m.id)}
-                  className="text-success-700"
-                />
-              )}
-            </div>
-          </div>
-        )}
+          )
+        }}
       />
 
       {(creatingNew || editingMenu) && (

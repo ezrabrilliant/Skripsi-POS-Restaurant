@@ -1,4 +1,4 @@
-# Design Spec — Perkaya Laporan Dashboard Owner & Kasir (REV 2.13)
+# Design Spec - Perkaya Laporan Dashboard Owner & Kasir (REV 2.13)
 
 **Tanggal:** 2026-05-31
 **Status:** Approved (brainstorming → spec)
@@ -12,7 +12,7 @@ minta kartu tambahan di dashboard owner (utama) & kasir (minimum).
 
 Dashboard owner sekarang ([OwnerDashboard.tsx](../../../frontend/src/pages/OwnerDashboard.tsx))
 hanya menampilkan: 3 KPI (Pendapatan/COGS/Laba), 1 bar chart "Pendapatan per Metode",
-1 tabel "Breakdown per Bank", reminder stok, quick links — dengan period switcher
+1 tabel "Breakdown per Bank", reminder stok, quick links - dengan period switcher
 today/month/year.
 
 Data model sudah kaya tapi belum dimanfaatkan untuk pelaporan:
@@ -30,12 +30,12 @@ Backend `getOwnerReport` sudah punya `resolvePeriod()` yang mendukung `today/mon
 **Goals**
 - Owner: analitik **Performa Menu**, **Tren Waktu**, **Performa Shift/Kasir** disusun **tab**.
 - Owner: kontrol periode **custom date-range** + quick **Kemarin / Minggu ini** (today/month/year tetap).
-- Kasir (minimum): 2 kartu ringan — **Menu terlaris hari ini** + **Statistik order hari ini**.
+- Kasir (minimum): 2 kartu ringan - **Menu terlaris hari ini** + **Statistik order hari ini**.
 - Tanpa skema/migrasi DB baru. Semua dari kolom existing.
 
 **Non-goals (out of scope)**
-- Section "Pola Order" khusus owner (dine-in/takeaway/void) — tidak dipilih owner.
-- Perbandingan vs periode lalu (% naik/turun) — eksplisit tidak dipilih.
+- Section "Pola Order" khusus owner (dine-in/takeaway/void) - tidak dipilih owner.
+- Perbandingan vs periode lalu (% naik/turun) - eksplisit tidak dipilih.
 - TZ jam-ramai presisi tinggi (cukup offset window resto).
 - Backend period type `week`/`yesterday` (pakai `custom` dari FE).
 - Remediasi data stuck-merge shift 57/meja 7 (alur terpisah, sudah ada).
@@ -89,13 +89,13 @@ cashierPerformance: group paid tx by `shift.cashierId`. settlementHistory:
 `settlement.findMany({ where:{ date:{ gte, lt } }, include:{ cashier, methodCounts }, orderBy:{ date:'desc' } })`,
 variance via helper `settlementVariance()` = Σ(counted − system).
 
-### Cashier — extend `getCashierDashboard().today`
+### Cashier - extend `getCashierDashboard().today`
 Tambah (reuse range `[today,tomorrow)`): `topMenus:{menuId,name,qty,revenue}[]` (limit 5, **tanpa unitCost**),
 `itemCount` (Σ qty), `atv` (revenue/txCount, guard 0), `orderTypeSplit:{dineIn:{count,revenue},takeaway:{count,revenue}}`.
 
-### Pure helpers (TDD — `dashboard.helpers.ts`)
+### Pure helpers (TDD - `dashboard.helpers.ts`)
 `bucketGranularityFor`, `bucketRevenueRows`, `hourOfDayDistribution`, `settlementVariance`,
-`groupMenuPerformance` — di-unit-test tanpa DB (`dashboard.helpers.test.ts`).
+`groupMenuPerformance` - di-unit-test tanpa DB (`dashboard.helpers.test.ts`).
 
 ## 5. Frontend architecture
 
@@ -108,11 +108,11 @@ Tambah (reuse range `[today,tomorrow)`): `topMenus:{menuId,name,qty,revenue}[]` 
   Quick range → `period='custom'` dengan tanggal kalender (aproksimasi; label periode dari backend).
 - **Tabs**: `RingkasanTab` (konten existing + KPI **Margin% baru** = profit/revenue), `MenuPerformanceTab`,
   `TrendTab` (LineChart tren + BarChart jam ramai), `StaffTab` (2 DataTable).
-- **CashierDashboard**: 2 kartu baru saat `myActiveShift` — `TodayTopMenusCard` + `TodayOrderStatsCard`.
+- **CashierDashboard**: 2 kartu baru saat `myActiveShift` - `TodayTopMenusCard` + `TodayOrderStatsCard`.
 
 ## 6. Permission
 
-3 endpoint owner-only (`requireRole(UserRole.owner)`) — laba/modal tidak bocor ke kasir/waiter.
+3 endpoint owner-only (`requireRole(UserRole.owner)`) - laba/modal tidak bocor ke kasir/waiter.
 Cashier endpoint tetap owner+kasir; field cashier baru tidak mengandung cost/laba.
 
 ## 7. Verification

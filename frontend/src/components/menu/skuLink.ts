@@ -1,4 +1,4 @@
-// skuLink.ts — pure helpers untuk "Hubungkan ke SKU".
+// skuLink.ts - pure helpers untuk "Hubungkan ke SKU".
 //
 // Owner cuma milih SATU SKU per jenis. Di belakang layar kita petakan ke dua kolom
 // backend yang sudah ada (tanpa migrasi):

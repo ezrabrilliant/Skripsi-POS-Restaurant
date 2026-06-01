@@ -9,7 +9,7 @@ interface PageProps {
   actions?: ReactNode
   tabs?: { items: TabItem[]; value: string; onValueChange: (value: string) => void }
   tabsScrollable?: boolean
-  /** Bila true, children TIDAK dibungkus PageContainer — dipakai saat body adalah
+  /** Bila true, children TIDAK dibungkus PageContainer - dipakai saat body adalah
    *  child tab-swapped yang sudah punya PageContainer sendiri (pola Menu/Stock/Setting). */
   bare?: boolean
   /** Override class kolom konten (diteruskan ke PageContainer; diabaikan bila bare). */

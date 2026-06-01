@@ -1,10 +1,10 @@
-# Katalog Menu + Stok UX Elevation — Implementation Plan
+# Katalog Menu + Stok UX Elevation - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Satukan Menu + SKU Varian jadi satu halaman ber-tab "Katalog Menu", jadikan relasi induk & navigasi Menu↔Stok sebagai elemen klikable nyata, dan seragamkan header + filter-toolbar antara Katalog Menu & Stok — semua frontend-only.
+**Goal:** Satukan Menu + SKU Varian jadi satu halaman ber-tab "Katalog Menu", jadikan relasi induk & navigasi Menu↔Stok sebagai elemen klikable nyata, dan seragamkan header + filter-toolbar antara Katalog Menu & Stok - semua frontend-only.
 
-**Architecture:** Satu halaman host (`MenuPage` → judul "Katalog Menu") dengan segmented `Tabs`: tab **"Menu Jual"** (pohon expandable) + tab **"Varian SKU"** (daftar datar) — keduanya view ter-filter dari satu query bersama `['menus','admin',showInactive]`. Primitive bersama baru: `PageHeader` + `FilterToolbar` + perluasan `DataTable` (`expandable`/`rowId`/`rowClassName`). Stok tetap halaman terpisah, terhubung via deep-link `?focusMenuId` (dua arah; Stok→Menu owner-only) pakai `useSearchParams`. Tidak ada perubahan backend/skema/endpoint.
+**Architecture:** Satu halaman host (`MenuPage` → judul "Katalog Menu") dengan segmented `Tabs`: tab **"Menu Jual"** (pohon expandable) + tab **"Varian SKU"** (daftar datar) - keduanya view ter-filter dari satu query bersama `['menus','admin',showInactive]`. Primitive bersama baru: `PageHeader` + `FilterToolbar` + perluasan `DataTable` (`expandable`/`rowId`/`rowClassName`). Stok tetap halaman terpisah, terhubung via deep-link `?focusMenuId` (dua arah; Stok→Menu owner-only) pakai `useSearchParams`. Tidak ada perubahan backend/skema/endpoint.
 
 **Tech Stack:** React 18 + TypeScript + Vite + Tailwind, @tanstack/react-query v5, react-router-dom v7.10.1, primitive design-system berbasis Radix (`@/design-system/primitives`). Tidak ada unit-test runner di frontend.
 
@@ -15,9 +15,9 @@
 - **Spec:** [docs/superpowers/specs/2026-05-30-katalog-menu-stok-ux-elevation-design.md](../specs/2026-05-30-katalog-menu-stok-ux-elevation-design.md)
 - **Branch:** `feat/katalog-menu-ux` (sudah dibuat dari `main`; fitur SKU Varian sudah lebih dulu di-merge ke `main`).
 - **Urutan fase (WAJIB):** **Phase 1 (Tasks 1-4, primitive fondasi) HARUS landing sebelum Phase 2-4.** Tasks 5-18 meng-import `PageHeader`/`FilterToolbar`/`menuTree` + props `DataTable` baru; `tsc` gagal kalau belum ada.
-- **Realita verifikasi:** frontend **tidak punya unit-test runner** (tak ada vitest). Tiap task diverifikasi dengan `cd frontend && npx tsc -b` (0 error) dan/atau `npm run build` + `npm run lint`. Perilaku end-to-end diverifikasi Playwright di akhir (Task 21). Warning lint pre-existing `react-refresh/only-export-components` pada `*Builder`/`MenuTypeFilter` boleh diabaikan — yang penting **0 error BARU**.
+- **Realita verifikasi:** frontend **tidak punya unit-test runner** (tak ada vitest). Tiap task diverifikasi dengan `cd frontend && npx tsc -b` (0 error) dan/atau `npm run build` + `npm run lint`. Perilaku end-to-end diverifikasi Playwright di akhir (Task 21). Warning lint pre-existing `react-refresh/only-export-components` pada `*Builder`/`MenuTypeFilter` boleh diabaikan - yang penting **0 error BARU**.
 - **Peta Task → Phase:** Phase 1 = Tasks 1-4 (primitive). Phase 2 = Tasks 5-11 (Katalog Menu). Phase 3 = Tasks 12-15 (koneksi Stok). Phase 4 = Tasks 16-18 (bersih-bersih). Phase 5 = Tasks 19-21 (docs + verifikasi). Sebutan "Author A/B/C/D" di prosa task = grup fase ini.
-- **REFINEMENT LINTAS-TASK — visibilitas fokus (terapkan di Tasks 5, 6, 14):** Saat sebuah tab/halaman menerima `?focusMenuId` dan baris itu **tidak ada di view ter-filter** (ada filter kategori/tipe/search aktif, atau "Tampilkan nonaktif" menyembunyikannya), efek fokus **HARUS lebih dulu mengosongkan filter lokal** surface itu agar target terlihat **sebelum** `scrollIntoView` — kalau tidak, highlight tak menemukan baris. Konkret: di `useEffect` fokus, bila `!filteredView.some(r => r.id === focusMenuId)`, reset `search=''`, `categoryFilter='all'`, dan (Menu Jual) pastikan `stockType` baris fokus ada di `types` / (Stok) panggil `controls.resetFilters()`; baru scroll. Ini disengaja karena user navigasi ke sini secara eksplisit. (Menutup soft-gap yang ditemukan saat penyusunan plan.)
+- **REFINEMENT LINTAS-TASK - visibilitas fokus (terapkan di Tasks 5, 6, 14):** Saat sebuah tab/halaman menerima `?focusMenuId` dan baris itu **tidak ada di view ter-filter** (ada filter kategori/tipe/search aktif, atau "Tampilkan nonaktif" menyembunyikannya), efek fokus **HARUS lebih dulu mengosongkan filter lokal** surface itu agar target terlihat **sebelum** `scrollIntoView` - kalau tidak, highlight tak menemukan baris. Konkret: di `useEffect` fokus, bila `!filteredView.some(r => r.id === focusMenuId)`, reset `search=''`, `categoryFilter='all'`, dan (Menu Jual) pastikan `stockType` baris fokus ada di `types` / (Stok) panggil `controls.resetFilters()`; baru scroll. Ini disengaja karena user navigasi ke sini secara eksplisit. (Menutup soft-gap yang ditemukan saat penyusunan plan.)
 - **Commit:** tiap task diakhiri commit; pesan diakhiri `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ---
@@ -27,9 +27,9 @@
 
 ---
 
-## Phase 1 — Foundation primitives (shared)
+## Phase 1 - Foundation primitives (shared)
 
-> This phase extracts the shared building blocks the rest of the plan depends on: two new design-system primitives (`PageHeader`, `FilterToolbar`), a non-breaking extension to `DataTable` (expandable rows + `rowClassName` + `rowId`), and the pure `menuTree` helper module. Authors B and C only **consume** these contracts — do not change their signatures.
+> This phase extracts the shared building blocks the rest of the plan depends on: two new design-system primitives (`PageHeader`, `FilterToolbar`), a non-breaking extension to `DataTable` (expandable rows + `rowClassName` + `rowId`), and the pure `menuTree` helper module. Authors B and C only **consume** these contracts - do not change their signatures.
 >
 > **Verification reality:** this frontend has **no unit-test runner** (no vitest). Per-task verification is `cd frontend && npx tsc -b` (0 errors) plus `npm run lint`/`npm run build` where noted. Pure helpers (`menuTree.ts`) are verified by `tsc` + their downstream e2e (Author D), not by a unit test.
 
@@ -237,7 +237,7 @@ The Katalog Menu "Menu Jual" tab (Author B) needs expandable parent rows; the fo
 **Behavior contract (locked):**
 - New props: `expandable?: { canExpand(row): boolean; renderExpanded(row): ReactNode }`, `rowClassName?: (row, index) => string | undefined`, `rowId?: (row, index) => string | undefined`.
 - Internal `useState<Set<string|number>>` `expanded`, keyed by `rowKey(row, idx)`.
-- **Desktop:** when `expandable` is set, prepend a leading chevron column — a `<th className="w-8" aria-hidden />` and a leading `<td>` per row containing a chevron toggle button shown only when `canExpand(row)`. After each row's `<tr>`, if `expanded.has(key)` render a second `<tr>` with a single `<td colSpan={visibleCols.length + 1}>` wrapping `renderExpanded(row)`.
+- **Desktop:** when `expandable` is set, prepend a leading chevron column - a `<th className="w-8" aria-hidden />` and a leading `<td>` per row containing a chevron toggle button shown only when `canExpand(row)`. After each row's `<tr>`, if `expanded.has(key)` render a second `<tr>` with a single `<td colSpan={visibleCols.length + 1}>` wrapping `renderExpanded(row)`.
 - **Mobile:** the card wrapper renders a chevron toggle (when `canExpand`) and `renderExpanded(row)` below the `mobileCard` output when expanded.
 - Chevron `onClick` calls `e.stopPropagation()` so it coexists with `onRowClick`.
 - `rowClassName(row, idx)` is applied to the desktop `<tr>` and the mobile card wrapper. `rowId(row, idx)` is applied as the `id` attribute on the desktop `<tr>` and the mobile card wrapper.
@@ -529,7 +529,7 @@ export function DataTable<T>({
 
 > Implementation note: the desktop `<tbody>` builds the row `<tr>` nodes via `.map(...)` then `.reduce(...)` to interleave each expanded `<tr>` immediately after its parent (a `<tbody>` can hold the extra rows directly; this keeps each parent+panel adjacent). The expanded `<td colSpan={totalCols}>` spans the chevron column plus all visible columns. The chevron buttons call `e.stopPropagation()` so they never trigger `onRowClick`.
 
-- [ ] **Step 3.2: Verify (tsc + build — touches a shared primitive)**
+- [ ] **Step 3.2: Verify (tsc + build - touches a shared primitive)**
 
 ```
 cd frontend && npx tsc -b && npm run build
@@ -550,7 +550,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ### Task 4: Create `components/menu/menuTree.ts` (shared FK helpers)
 
-`menuTree.ts` holds the pure client-side helpers that invert the menu FK relations into parent/child maps, plus a label formatter for multi-parent badges. `buildParentMap` is the canonical version that **supersedes the inline `buildParentMap` currently embedded in `SkuVarianPage.tsx`** (Author B removes that inline copy when collapsing the page into `VarianSkuTab`). `buildChildrenMap` is new and powers the "Menu Jual" expandable tree (Author B). These are pure functions — verified by `tsc` and by the downstream Playwright e2e (Author D), not by a unit test (no vitest in this repo).
+`menuTree.ts` holds the pure client-side helpers that invert the menu FK relations into parent/child maps, plus a label formatter for multi-parent badges. `buildParentMap` is the canonical version that **supersedes the inline `buildParentMap` currently embedded in `SkuVarianPage.tsx`** (Author B removes that inline copy when collapsing the page into `VarianSkuTab`). `buildChildrenMap` is new and powers the "Menu Jual" expandable tree (Author B). These are pure functions - verified by `tsc` and by the downstream Playwright e2e (Author D), not by a unit test (no vitest in this repo).
 
 - [ ] **Step 4.1: Create `menuTree.ts`**
 
@@ -612,7 +612,7 @@ export function parentBadgeLabel(parents: ParentRef[]): string {
 cd frontend && npx tsc -b
 ```
 
-Expected: 0 errors. (Relies on the existing `Menu` type exposing `kind`, `variants[].stockTargetMenuId`, `variants[].costSourceMenuId`, `paketComponents[].targetMenuId`, and `paketComponents[].choiceOptions[].targetMenuId` — the same fields the current inline `buildParentMap` in `SkuVarianPage.tsx` already reads. If `tsc` flags a field name mismatch, reconcile against `@/types` before committing; do not invent fields.)
+Expected: 0 errors. (Relies on the existing `Menu` type exposing `kind`, `variants[].stockTargetMenuId`, `variants[].costSourceMenuId`, `paketComponents[].targetMenuId`, and `paketComponents[].choiceOptions[].targetMenuId` - the same fields the current inline `buildParentMap` in `SkuVarianPage.tsx` already reads. If `tsc` flags a field name mismatch, reconcile against `@/types` before committing; do not invent fields.)
 
 - [ ] **Step 4.3: Commit**
 
@@ -626,7 +626,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 2 — Katalog Menu unification (Tasks 5-11)
+## Phase 2 - Katalog Menu unification (Tasks 5-11)
 
 > **Depends on Phase 1 (Author A):** `PageHeader`, `FilterToolbar`, and the `DataTable` expandable/`rowId`/`rowClassName` additions, plus `buildParentMap` / `buildChildrenMap` / `parentBadgeLabel` in `frontend/src/components/menu/menuTree.ts`. Do not start Phase 2 until those are merged/available; tsc will fail otherwise.
 >
@@ -634,20 +634,20 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 > - `import { PageHeader, FilterToolbar, ... } from '@/design-system/primitives'`
 > - `DataTable` props: `expandable?`, `rowClassName?`, `rowId?` (signatures per Phase 1 Task 3).
 > - `import { buildParentMap, buildChildrenMap, parentBadgeLabel, type ParentRef } from '@/components/menu/menuTree'`
-> - Auth store (verified): `import { useAuthStore } from '@/stores/authStore'`, used as `const { user } = useAuthStore()`. (Not needed in Phase 2 — Menu route is owner-only — but noted for consistency with Phase 3.)
+> - Auth store (verified): `import { useAuthStore } from '@/stores/authStore'`, used as `const { user } = useAuthStore()`. (Not needed in Phase 2 - Menu route is owner-only - but noted for consistency with Phase 3.)
 > - `react-router-dom` is v7.10.1; `useSearchParams` / `useNavigate` are valid hooks (currently unused anywhere in `frontend/src`, so this phase introduces them).
 
 ---
 
 - [ ] **Step 5: Create `MenuJualTab.tsx` (expandable tree of menu jual)**
 
-This is the largest task. The tab hosts: the menu-jual table (filtered `posVisible=true`), the shared `FilterToolbar`, the expandable child-SKU sub-rows, and BOTH modals (`MenuFormModal` for create+edit, `CostHistoryDrawer` for cost history). It receives `menus` / `isLoading` / `showInactive` / `onShowInactiveChange` / `focusMenuId` / `clearFocus` from the host (Task 7) — it does **not** own the query.
+This is the largest task. The tab hosts: the menu-jual table (filtered `posVisible=true`), the shared `FilterToolbar`, the expandable child-SKU sub-rows, and BOTH modals (`MenuFormModal` for create+edit, `CostHistoryDrawer` for cost history). It receives `menus` / `isLoading` / `showInactive` / `onShowInactiveChange` / `focusMenuId` / `clearFocus` from the host (Task 7) - it does **not** own the query.
 
 **Files:**
 - Create: `frontend/src/components/menu/MenuJualTab.tsx`
 
 ```tsx
-// MenuJualTab.tsx — tab "Menu Jual" untuk Katalog Menu (REV UX elevation).
+// MenuJualTab.tsx - tab "Menu Jual" untuk Katalog Menu (REV UX elevation).
 // Pohon expandable: baris menu jual (posVisible=true); kind variant/paket bisa
 // di-expand → anak SKU (nama, stok, modal) resolved client-side via buildChildrenMap.
 // Query + showInactive dimiliki host (MenuPage); tab ini menerima props.
@@ -876,14 +876,14 @@ export function MenuJualTab({
       ),
     },
     {
-      // REV 2.11: modal/COGS per menu. Parent variant/paket → cost null → "—".
+      // REV 2.11: modal/COGS per menu. Parent variant/paket → cost null → "-".
       key: 'cost',
       header: 'Modal',
       align: 'right',
       hideMobile: true,
       cell: (m) => (
         <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
+          {m.cost != null ? formatCurrency(m.cost) : '-'}
         </span>
       ),
     },
@@ -998,11 +998,11 @@ export function MenuJualTab({
                     {ps.currentQty}
                   </span>
                 ) : (
-                  <span className="text-neutral-300">—</span>
+                  <span className="text-neutral-300">-</span>
                 )}
               </div>
               <div className="text-right shrink-0 text-caption text-neutral-700 tabular-nums w-16">
-                {c.cost != null ? formatCurrency(c.cost) : '—'}
+                {c.cost != null ? formatCurrency(c.cost) : '-'}
               </div>
               <div className="inline-flex items-center gap-1 shrink-0">
                 {c.stockType === 'portion' && (
@@ -1192,7 +1192,7 @@ export function MenuJualTab({
 
 > **Notes on fidelity to extraction:**
 > - Columns/`mobileCard`/mutations/`handleDeactivate`/`filtered`/`setSort`/`toggleType`/`STOCK_TYPE_LABEL`/`MENU_SORT_OPTIONS`/`categoryOptions` are transcribed verbatim from `MenuPage.tsx` (extraction §3–§9). The only additions are the `"Stok"` Button (D5, portion-only) and the expandable `renderExpanded`.
-> - The page-shell `<div className="h-full overflow-y-auto">` + `<header>Kelola Menu</header>` from MenuPage are intentionally REMOVED — those move to the host (Task 7) as `PageHeader`. This tab keeps the inner `max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3` wrapper for the toolbar+table.
+> - The page-shell `<div className="h-full overflow-y-auto">` + `<header>Kelola Menu</header>` from MenuPage are intentionally REMOVED - those move to the host (Task 7) as `PageHeader`. This tab keeps the inner `max-w-6xl mx-auto px-3 sm:px-4 py-4 space-y-3` wrapper for the toolbar+table.
 > - `MenuFormModal` (extraction "MenuFormModal" §) and `CostHistoryDrawer` (extraction "CostHistoryDrawer" §) are wired identically to MenuPage; `existing={editingMenu}` (`null` = create when `creatingNew`).
 > - `DataTable` receives `data={isLoading ? undefined : filtered}` + `isLoading={isLoading}` so the primitive's own skeleton branch handles loading (no local Skeleton needed; the host no longer renders one).
 
@@ -1214,7 +1214,7 @@ Moves `SkuVarianPage` logic verbatim (filter `!posVisible`, categories from hidd
 - Create: `frontend/src/components/menu/VarianSkuTab.tsx`
 
 ```tsx
-// VarianSkuTab.tsx — tab "Varian SKU" untuk Katalog Menu (REV UX elevation).
+// VarianSkuTab.tsx - tab "Varian SKU" untuk Katalog Menu (REV UX elevation).
 // Daftar datar semua SKU posVisible=false (termasuk yatim & multi-induk).
 // Induk = LINK teks klikable (D4) → tab Menu Jual + focusMenuId. Yatim = badge warning.
 // Query + showInactive dimiliki host (MenuPage); tab ini menerima props.
@@ -1344,7 +1344,7 @@ export function VarianSkuTab({
       align: 'right',
       cell: (m) => {
         if (m.stockType !== 'portion' || !m.portionStock)
-          return <span className="text-neutral-300">—</span>
+          return <span className="text-neutral-300">-</span>
         const { currentQty, minStock } = m.portionStock
         const low = currentQty <= minStock
         return (
@@ -1369,7 +1369,7 @@ export function VarianSkuTab({
       align: 'right',
       cell: (m) => (
         <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
+          {m.cost != null ? formatCurrency(m.cost) : '-'}
         </span>
       ),
     },
@@ -1493,7 +1493,7 @@ export function VarianSkuTab({
                   </div>
                 </div>
                 <p className="text-right shrink-0 text-body-sm text-neutral-700 tabular-nums">
-                  {m.cost != null ? formatCurrency(m.cost) : '—'}
+                  {m.cost != null ? formatCurrency(m.cost) : '-'}
                 </p>
               </div>
               <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-neutral-100">
@@ -1552,7 +1552,7 @@ export function VarianSkuTab({
 >   2. The Induk cell is a `<button>` link (D4) replacing the old `<Badge tone="primary" variant="outline">`. Orphan badge tone is now **`warning`** (D4, was `neutral` in extraction).
 >   3. Added `"Stok"` Button on portion rows (D5) in both desktop `actions` and `mobileCard`.
 > - Page shell (`h-full overflow-y-auto` + `<header>SKU Varian</header>` + local `Skeleton`) is removed; host owns `PageHeader`, and `DataTable`'s `isLoading` handles the skeleton.
-> - This tab has **no create flow** (edit-only, matching SkuVarianPage) — `MenuFormModal` gated on `editingMenu &&`.
+> - This tab has **no create flow** (edit-only, matching SkuVarianPage) - `MenuFormModal` gated on `editingMenu &&`.
 
 **Verification:**
 - [ ] Run `cd frontend && npx tsc -b` → 0 errors.
@@ -1574,9 +1574,9 @@ The host owns: the shared `useQuery` (key `['menus','admin',showInactive]`, para
 Replace the ENTIRE file contents with:
 
 ```tsx
-// MenuPage.tsx — host "Katalog Menu" (REV UX elevation).
+// MenuPage.tsx - host "Katalog Menu" (REV UX elevation).
 // PageHeader + Tabs (Menu Jual / Varian SKU). Memegang query bersama
-// (key ['menus','admin',showInactive] — SAMA dgn MenuFormModal supaya cache
+// (key ['menus','admin',showInactive] - SAMA dgn MenuFormModal supaya cache
 // konsisten) + showInactive + routing tab via ?tab + focusMenuId.
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -1637,7 +1637,7 @@ export default function MenuPage() {
   const varianCount = useMemo(() => menus.filter((m) => !m.posVisible).length, [menus])
 
   // Bila focusMenuId resolve ke SKU tersembunyi tapi tab default 'jual', resolvedTab
-  // sudah pindah ke 'varian' di atas — tak perlu efek tambahan di sini.
+  // sudah pindah ke 'varian' di atas - tak perlu efek tambahan di sini.
   useEffect(() => {
     // no-op placeholder; tab-aktif yang menangani scrollIntoView + clearFocus.
   }, [focusMenuId])
@@ -1687,7 +1687,7 @@ export default function MenuPage() {
 > - Default export stays `MenuPage` → `App.tsx` route + `pages/index.ts` line 9 (`export { default as MenuPage } from './MenuPage'`) remain valid (no change to either for this task; the route element is touched in Task 8 only to swap the sku-varian redirect).
 > - The shared query key + params are byte-identical to the old MenuPage/SkuVarianPage (extraction MenuPage §2, SkuVarian §4) → cache sharing with `MenuFormModal` preserved.
 > - `resolvedTab` + `setTab` + `clearFocus` + counts are transcribed verbatim from the locked Routing/URL-scheme contract. Per contract: `setTab` deletes `focusMenuId`; switching tab while a row is focused clears the highlight (acceptable).
-> - The empty `useEffect` is a documented no-op (the active tab owns `scrollIntoView`+`clearFocus` per Step 5/6). If lint flags an empty effect, delete it — it carries no logic.
+> - The empty `useEffect` is a documented no-op (the active tab owns `scrollIntoView`+`clearFocus` per Step 5/6). If lint flags an empty effect, delete it - it carries no logic.
 
 **Verification:**
 - [ ] Run `cd frontend && npx tsc -b` → 0 errors.
@@ -1700,12 +1700,12 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 8: Modify `App.tsx` — redirect `/menu/sku-varian` + drop `SkuVarianPage` import**
+- [ ] **Step 8: Modify `App.tsx` - redirect `/menu/sku-varian` + drop `SkuVarianPage` import**
 
 **Files:**
 - Modify: `frontend/src/App.tsx`
 
-Edit 1 — remove `SkuVarianPage` from the `from './pages'` import block (it is no longer referenced after Edit 2). Current (extraction / verified, lines 5-20):
+Edit 1 - remove `SkuVarianPage` from the `from './pages'` import block (it is no longer referenced after Edit 2). Current (extraction / verified, lines 5-20):
 
 ```tsx
 import {
@@ -1746,7 +1746,7 @@ import {
 } from './pages'
 ```
 
-Edit 2 — replace the `/menu/sku-varian` route element with a redirect. Current (extraction, App.tsx:84-85):
+Edit 2 - replace the `/menu/sku-varian` route element with a redirect. Current (extraction, App.tsx:84-85):
 
 ```tsx
           <Route path="menu" element={<RoleRoute allow={['owner']}><MenuPage /></RoleRoute>} />
@@ -1772,7 +1772,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 9: Modify `pages/index.ts` — remove `SkuVarianPage` export**
+- [ ] **Step 9: Modify `pages/index.ts` - remove `SkuVarianPage` export**
 
 **Files:**
 - Modify: `frontend/src/pages/index.ts`
@@ -1808,12 +1808,12 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 10: Modify `Layout.tsx` — delete SKU Varian nav item + `Boxes` import**
+- [ ] **Step 10: Modify `Layout.tsx` - delete SKU Varian nav item + `Boxes` import**
 
 **Files:**
 - Modify: `frontend/src/components/Layout.tsx`
 
-Edit 1 — delete the SKU Varian nav line from the `owner` array. Current (extraction, Layout.tsx owner block, lines 49-50):
+Edit 1 - delete the SKU Varian nav line from the `owner` array. Current (extraction, Layout.tsx owner block, lines 49-50):
 
 ```tsx
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
@@ -1821,14 +1821,14 @@ Edit 1 — delete the SKU Varian nav line from the `owner` array. Current (extra
     { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
 ```
 
-becomes (remove the `/menu/sku-varian` line; keep `end: true` on Menu — `/menu` is now the only `/menu*` route so exact-match is still correct):
+becomes (remove the `/menu/sku-varian` line; keep `end: true` on Menu - `/menu` is now the only `/menu*` route so exact-match is still correct):
 
 ```tsx
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
     { to: '/payment-methods', icon: CreditCard,  label: 'Pembayaran' },
 ```
 
-Edit 2 — remove `Boxes` from the lucide-react import (it has no other use, per extraction note). Locate the lucide-react import line at `Layout.tsx:21` (verified it contains `Boxes`) and delete the `Boxes` token from the destructured list (leave all other icons intact). For example, if the line reads `import { ..., Boxes, CreditCard, ... } from 'lucide-react'`, remove only `Boxes,`.
+Edit 2 - remove `Boxes` from the lucide-react import (it has no other use, per extraction note). Locate the lucide-react import line at `Layout.tsx:21` (verified it contains `Boxes`) and delete the `Boxes` token from the destructured list (leave all other icons intact). For example, if the line reads `import { ..., Boxes, CreditCard, ... } from 'lucide-react'`, remove only `Boxes,`.
 
 > Use Grep to confirm the exact lucide-react import line first: `Grep pattern "Boxes" path "frontend/src/components/Layout.tsx"`. Remove `Boxes` from that single import statement. Do NOT touch the `end?` interface field or the three `end={...}` render sites (they stay harmless per extraction). Owner `items.length` goes 11 → 10; `bottomItems = items.slice(0,4)` (Beranda/Kasir/Meja/Riwayat) unaffected; `moreItems = items.slice(4)` now has 6 entries (was 7).
 
@@ -1875,7 +1875,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-## Phase 3 — Stock connection + consistency
+## Phase 3 - Stock connection + consistency
 
 > Tasks 12–15. Adopt the shared `PageHeader` + `FilterToolbar` primitives (built by Author A in Tasks 1–2) on the Stock page, then wire two-way deep-links (`?focusMenuId`, `?action=opname`) and the owner-only "Menu →" cross-link. The auth store import path is `@/stores/authStore`, and existing call sites (`CartPanel.tsx:104`, `POSPage.tsx`) destructure it as `const { user } = useAuthStore()`; `user: User | null` and `User.role` is `'owner' | 'cashier' | 'waiter'`. `react-router-dom` is v7.10.1, so `useSearchParams` / `useNavigate` are available; neither is currently imported anywhere in the Stock area (confirmed in extraction). `ArrowUpRight` from `lucide-react` is the "Menu →" icon.
 
@@ -1907,7 +1907,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   }
   ```
 
-  Replace the WHOLE file with (StockPage has no `lowCount` data — the list lives inside `PortionStockTab` — so `PageHeader` is rendered with no `subtitle` and no `tabs`; the page shell archetype `h-full flex flex-col` + `flex-1 min-h-0 overflow-y-auto` body is preserved exactly per the documented usage pattern):
+  Replace the WHOLE file with (StockPage has no `lowCount` data - the list lives inside `PortionStockTab` - so `PageHeader` is rendered with no `subtitle` and no `tabs`; the page shell archetype `h-full flex flex-col` + `flex-1 min-h-0 overflow-y-auto` body is preserved exactly per the documented usage pattern):
   ```tsx
   // REV 2.11 StockPage - Stok Porsi saja (raw-materials subsystem dihapus).
   // Akses semua role (per matrix REV 2.3: view + opname + mark-habis terbuka).
@@ -1957,7 +1957,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   **Files:**
   - Modify: `frontend/src/components/stock/StockFilterToolbar.tsx` (full rewrite)
 
-  Goal: `StockFilterToolbar` keeps its existing public contract (the `ToolbarControls` interface + the props PortionStockTab already passes: `controls`, `children`, `rightBadge`, `extraFilters`, `searchPlaceholder`) but internally delegates layout to the shared `FilterToolbar` primitive. The dead `ownerSlot` prop (never passed by any caller — extraction §C3) is REMOVED, and the RawMaterialsTab / "Tambah Bahan" / `~25/~13` dead comments are stripped.
+  Goal: `StockFilterToolbar` keeps its existing public contract (the `ToolbarControls` interface + the props PortionStockTab already passes: `controls`, `children`, `rightBadge`, `extraFilters`, `searchPlaceholder`) but internally delegates layout to the shared `FilterToolbar` primitive. The dead `ownerSlot` prop (never passed by any caller - extraction §C3) is REMOVED, and the RawMaterialsTab / "Tambah Bahan" / `~25/~13` dead comments are stripped.
 
   The current file builds three Comboboxes (category / status / opname) into a `filterFields` block, an always-visible search Input, a mobile-only sort Combobox, and a desktop-inline vs mobile-Sheet fork (extraction §C). We map those to `FilterToolbar` slots exactly:
   - `search={{ value: c.search, onChange: c.setSearch, placeholder: searchPlaceholder }}`
@@ -1969,7 +1969,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   - `onReset={c.resetFilters}`
   - `activeFilterCount={c.activeFilterCount}`
 
-  `FilterToolbar` (Author A, Task 2) already owns the desktop-inline / mobile-`Sheet` fork, the search Input, the mobile sort + Filter-button placement, and the Reset/Terapkan footer — so this file shrinks to: type defs, the `ToolbarControls` interface, building `filterFields` + the sort Combobox, and one `<FilterToolbar>` call.
+  `FilterToolbar` (Author A, Task 2) already owns the desktop-inline / mobile-`Sheet` fork, the search Input, the mobile sort + Filter-button placement, and the Reset/Terapkan footer - so this file shrinks to: type defs, the `ToolbarControls` interface, building `filterFields` + the sort Combobox, and one `<FilterToolbar>` call.
 
   Replace the WHOLE file with:
   ```tsx
@@ -2104,7 +2104,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   - `FilterToolbar` is imported from the barrel `@/design-system/primitives` (Author A, Task 2 adds the export).
   - The `Combobox` option arrays (`SORT_OPTIONS`, `STATUS_OPTIONS`, `OPNAME_OPTIONS`) reproduce the labels the original `filterFields` rendered for the same `StockStatusFilter` / `OpnameStatusFilter` / `StockSortKey` unions (defined in `useStockListControls.ts`). The `value` strings are the exact union members, so `onValueChange` casts are sound.
   - `ToolbarControls` interface is KEPT (callers still type their `controls`). The dead `ownerSlot` prop is REMOVED from `StockFilterToolbarProps`. PortionStockTab never passes `ownerSlot` (extraction §B4), so this is non-breaking.
-  - PortionStockTab's existing `<StockFilterToolbar controls=... searchPlaceholder=... extraFilters=... rightBadge=...>{buttons}</StockFilterToolbar>` call (extraction §B4) compiles unchanged — same prop names, minus the never-used `ownerSlot`.
+  - PortionStockTab's existing `<StockFilterToolbar controls=... searchPlaceholder=... extraFilters=... rightBadge=...>{buttons}</StockFilterToolbar>` call (extraction §B4) compiles unchanged - same prop names, minus the never-used `ownerSlot`.
 
 - [ ] **Step 13-verify: tsc + lint**
   ```
@@ -2126,12 +2126,12 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 14: PortionStockTab — `?action=opname` auto-open + `?focusMenuId` highlight/scroll**
+- [ ] **Step 14: PortionStockTab - `?action=opname` auto-open + `?focusMenuId` highlight/scroll**
 
   **Files:**
   - Modify: `frontend/src/components/stock/PortionStockTab.tsx`
 
-  **14a — add router imports.** The current import block (verbatim, `PortionStockTab.tsx:8-31`) starts with `import { useState, useMemo } from 'react'`. Change that single line and add a `react-router-dom` import right after it:
+  **14a - add router imports.** The current import block (verbatim, `PortionStockTab.tsx:8-31`) starts with `import { useState, useMemo } from 'react'`. Change that single line and add a `react-router-dom` import right after it:
 
   Before (line 8):
   ```tsx
@@ -2143,7 +2143,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   import { useSearchParams } from 'react-router-dom'
   ```
 
-  **14b — read params + add highlight state.** The current parent state block (verbatim, `PortionStockTab.tsx:34-42`):
+  **14b - read params + add highlight state.** The current parent state block (verbatim, `PortionStockTab.tsx:34-42`):
   ```tsx
   const qc = useQueryClient()
     const toast = useToast()
@@ -2174,7 +2174,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
     const [types, setTypes] = useState<Set<StockType>>(() => new Set<StockType>(['portion']))
   ```
 
-  **14c — effects: open Opname from `?action=opname` (once) + scroll/clear focus.** Insert this block immediately AFTER the `useStockListControls` `controls` call (extraction §B2, `PortionStockTab.tsx:93-108`, which ends with the closing `})` of `useStockListControls<PortionStockView>({ ... })`). Add:
+  **14c - effects: open Opname from `?action=opname` (once) + scroll/clear focus.** Insert this block immediately AFTER the `useStockListControls` `controls` call (extraction §B2, `PortionStockTab.tsx:93-108`, which ends with the closing `})` of `useStockListControls<PortionStockView>({ ... })`). Add:
   ```tsx
     // REV 2.11 deep-link: ?action=opname → buka modal Opname sekali, lalu strip param.
     useEffect(() => {
@@ -2212,7 +2212,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   ```
   Note: the `?action=opname` effect runs once on mount (empty dep array + eslint-disable, matching the locked shared-contract spec for Author C). The `?focusMenuId` effect fires `scrollIntoView` against the DataTable row whose `id` is `stock-row-<menuId>` (added in 14d), then clears both the highlight ring state and the URL param after ~2s.
 
-  **14d — wire `rowId` + `rowClassName` on the `<DataTable>`.** The current DataTable element opening (verbatim, `PortionStockTab.tsx:302-311`):
+  **14d - wire `rowId` + `rowClassName` on the `<DataTable>`.** The current DataTable element opening (verbatim, `PortionStockTab.tsx:302-311`):
   ```tsx
   <DataTable
             columns={columns}
@@ -2242,7 +2242,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
                 : 'Stok porsi belum ada.'
             }
   ```
-  Leave the rest of the `<DataTable>` (columns, `mobileCard`, closing) unchanged — Steps 15 edits the columns/mobileCard separately.
+  Leave the rest of the `<DataTable>` (columns, `mobileCard`, closing) unchanged - Steps 15 edits the columns/mobileCard separately.
 
 - [ ] **Step 14-verify: tsc + build**
   ```
@@ -2252,7 +2252,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   ```
   cd frontend && npm run build
   ```
-  Expected: `vite build` SUCCESS. (`rowId`/`rowClassName` resolve against the DataTable additions from Author A Task 3; if tsc errors with "no overload matches", that means Task 3 has not been merged yet — Task 14 depends on it.)
+  Expected: `vite build` SUCCESS. (`rowId`/`rowClassName` resolve against the DataTable additions from Author A Task 3; if tsc errors with "no overload matches", that means Task 3 has not been merged yet - Task 14 depends on it.)
 
 - [ ] **Step 14-commit:**
   ```
@@ -2264,16 +2264,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 15: PortionStockTab — owner-only "Menu →" row action (all rows, outside the portion gate)**
+- [ ] **Step 15: PortionStockTab - owner-only "Menu →" row action (all rows, outside the portion gate)**
 
   **Files:**
   - Modify: `frontend/src/components/stock/PortionStockTab.tsx`
 
-  The "Menu →" link must render for EVERY row (each stock row maps to a menu), not only `stockType==='portion'` rows. The existing desktop `actions` cell and the mobile card both early-return / gate stock-mutating buttons behind `stockType !== 'portion'`; we restructure so "Menu →" sits OUTSIDE that gate while the existing stock buttons stay gated. Shown only when `isOwner` (Menu is owner-only — extraction confirms `/menu` is `RoleRoute allow={['owner']}`).
+  The "Menu →" link must render for EVERY row (each stock row maps to a menu), not only `stockType==='portion'` rows. The existing desktop `actions` cell and the mobile card both early-return / gate stock-mutating buttons behind `stockType !== 'portion'`; we restructure so "Menu →" sits OUTSIDE that gate while the existing stock buttons stay gated. Shown only when `isOwner` (Menu is owner-only - extraction confirms `/menu` is `RoleRoute allow={['owner']}`).
 
-  **15a — imports.** Add `useNavigate` to the `react-router-dom` import added in Step 14a, add `ArrowUpRight` to the existing `lucide-react` import (verbatim current: `import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'`, `PortionStockTab.tsx:10`), and add the auth store import.
+  **15a - imports.** Add `useNavigate` to the `react-router-dom` import added in Step 14a, add `ArrowUpRight` to the existing `lucide-react` import (verbatim current: `import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'`, `PortionStockTab.tsx:10`), and add the auth store import.
 
-  Change the `react-router-dom` line (from Step 14a) — Before:
+  Change the `react-router-dom` line (from Step 14a) - Before:
   ```tsx
   import { useSearchParams } from 'react-router-dom'
   ```
@@ -2282,7 +2282,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   import { useNavigate, useSearchParams } from 'react-router-dom'
   ```
 
-  Change the lucide line — Before:
+  Change the lucide line - Before:
   ```tsx
   import { Plus, ClipboardCheck, XCircle, Truck, History } from 'lucide-react'
   ```
@@ -2297,14 +2297,14 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   ```
   (Import path confirmed via grep: every consumer uses `@/stores/authStore`; selector style is destructuring `const { user } = useAuthStore()`.)
 
-  **15b — `navigate` + `isOwner` in the component body.** Right after the `searchParams`/`setSearchParams` line added in Step 14b, add:
+  **15b - `navigate` + `isOwner` in the component body.** Right after the `searchParams`/`setSearchParams` line added in Step 14b, add:
   ```tsx
     const navigate = useNavigate()
     const { user } = useAuthStore()
     const isOwner = user?.role === 'owner'
   ```
 
-  **15c — desktop `actions` cell.** The current cell (verbatim, `PortionStockTab.tsx:228-263`):
+  **15c - desktop `actions` cell.** The current cell (verbatim, `PortionStockTab.tsx:228-263`):
   ```tsx
   {
         key: 'actions',
@@ -2397,7 +2397,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
       },
   ```
 
-  **15d — mobile card.** The current mobile action row sits inside the `tracked` block (extraction §B3, `PortionStockTab.tsx:356-390`); it only renders when `tracked` (`stockType==='portion'`). We must surface "Menu →" even for non-portion rows on mobile, so add an owner-only action row OUTSIDE the `tracked` conditional. The current mobile card tail (verbatim, the `{tracked && ( ... )}` action block at `PortionStockTab.tsx:356-390`, ending the card) is:
+  **15d - mobile card.** The current mobile action row sits inside the `tracked` block (extraction §B3, `PortionStockTab.tsx:356-390`); it only renders when `tracked` (`stockType==='portion'`). We must surface "Menu →" even for non-portion rows on mobile, so add an owner-only action row OUTSIDE the `tracked` conditional. The current mobile card tail (verbatim, the `{tracked && ( ... )}` action block at `PortionStockTab.tsx:356-390`, ending the card) is:
   ```tsx
   {tracked && (
                     <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100">
@@ -2516,18 +2516,18 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-## Phase 4 — Cleanups
+## Phase 4 - Cleanups
 
 > Tasks 16–18. Fix the Opname blank-vs-0 footgun, strip remaining dead REV 2.11 raw-materials/purchases references in the stock helpers, and repoint the WaiterDashboard quick-action links so they land on Author C's now-honored `?action=opname` (Task 14) and a plain `/stock`.
 
-- [ ] **Step 16: PortionStockTab OpnameModal — fix blank-vs-0 footgun**
+- [ ] **Step 16: PortionStockTab OpnameModal - fix blank-vs-0 footgun**
 
   **Files:**
   - Modify: `frontend/src/components/stock/PortionStockTab.tsx`
 
   Problem (extraction §B5): `OpnameModal` state is `Record<number, number>` (`PortionStockTab.tsx:557`). When the user clears the input, `Number('') === 0`, so a blank field becomes a deliberate `qtyFisik: 0` opname → spurious selisih + audit log. Fix: store `number | ''` so blank is distinguishable from a real 0, and filter blanks out on submit (mirroring `EmergencyInModal`'s string pattern, extraction §B6).
 
-  **16a — state declaration.** The current declaration (verbatim, `PortionStockTab.tsx:557`):
+  **16a - state declaration.** The current declaration (verbatim, `PortionStockTab.tsx:557`):
   ```tsx
   const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number>>({})
   ```
@@ -2536,7 +2536,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   const [qtyFisikByMenu, setQtyFisikByMenu] = useState<Record<number, number | ''>>({})
   ```
 
-  **16b — onChange handler.** The current `onChange` (verbatim, `PortionStockTab.tsx:615-617`, inside the Opname `<Input>`):
+  **16b - onChange handler.** The current `onChange` (verbatim, `PortionStockTab.tsx:615-617`, inside the Opname `<Input>`):
   ```tsx
   onChange={(e) =>
                   setQtyFisikByMenu((prev) => ({ ...prev, [s.menuId]: Number(e.target.value) }))
@@ -2551,9 +2551,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
                   }))
                 }
   ```
-  Note: the `value={qtyFisikByMenu[s.menuId] ?? ''}` on the same `<Input>` (`PortionStockTab.tsx:614`) already coalesces `undefined`/`''` to a blank display, and now correctly round-trips a stored `''` — no change needed there.
+  Note: the `value={qtyFisikByMenu[s.menuId] ?? ''}` on the same `<Input>` (`PortionStockTab.tsx:614`) already coalesces `undefined`/`''` to a blank display, and now correctly round-trips a stored `''` - no change needed there.
 
-  **16c — submit filter.** The current `handleSubmit` (verbatim, `PortionStockTab.tsx:568-577`):
+  **16c - submit filter.** The current `handleSubmit` (verbatim, `PortionStockTab.tsx:568-577`):
   ```tsx
   const handleSubmit = () => {
       const items = Object.entries(qtyFisikByMenu)
@@ -2607,7 +2607,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   - Modify: `frontend/src/components/stock/useStockListControls.ts`
   - Modify: `frontend/src/components/stock/StockHistorySheet.tsx`
 
-  **17a — `useStockListControls.ts` header comment.** Current (verbatim, `useStockListControls.ts:1-3`):
+  **17a - `useStockListControls.ts` header comment.** Current (verbatim, `useStockListControls.ts:1-3`):
   ```ts
   // REV 2.8: hook kontrol daftar stok (search + kategori + status stok + status
   // opname hari ini + sort). Generic via accessor agar dipakai PortionStockTab &
@@ -2620,7 +2620,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   // Semua client-side (dataset kecil ~25 item porsi).
   ```
 
-  **17b — remove the never-used `categoryOptions?` override param + its branch + eslint-disable.** The config interface field (verbatim, `useStockListControls.ts:24-25`):
+  **17b - remove the never-used `categoryOptions?` override param + its branch + eslint-disable.** The config interface field (verbatim, `useStockListControls.ts:24-25`):
   ```ts
   /** Override daftar kategori (mis. enum tetap raw material). Default: derive dari rows. */
     categoryOptions?: { value: string; label: string }[]
@@ -2638,7 +2638,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
   ```
   Note: `deriveCategoryOptions` is the existing local that builds `{ value, label }[]` from `rows` via `getCategoryValue`/`getCategoryLabel`. If the original wrapped derivation in a `useMemo` rather than a `deriveCategoryOptions()` call, keep the original derivation expression verbatim and only delete the `config.categoryOptions ??` prefix + the `// eslint-disable-next-line` comment line directly above it. The goal is: `categoryOptions` is computed purely from `rows`, with no `config.categoryOptions` reference and no orphaned eslint-disable.
 
-  **17c — `StockHistorySheet.tsx` dead refs (3 doc lines).** Current header comment (verbatim, `StockHistorySheet.tsx:4`, part of the top file comment):
+  **17c - `StockHistorySheet.tsx` dead refs (3 doc lines).** Current header comment (verbatim, `StockHistorySheet.tsx:4`, part of the top file comment):
   ```tsx
   // generic untuk porsi & raw material
   ```
@@ -2686,7 +2686,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-- [ ] **Step 18: WaiterDashboard — repoint dead quick-action links**
+- [ ] **Step 18: WaiterDashboard - repoint dead quick-action links**
 
   **Files:**
   - Modify: `frontend/src/pages/WaiterDashboard.tsx`
@@ -2754,7 +2754,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`
 
 ---
 
-## Phase 5 — Documentation sync + verification
+## Phase 5 - Documentation sync + verification
 
 This phase runs LAST, after Phases 1–4 (Tasks 1–18) are merged into the branch. It synchronizes the now-superseded SKU Varian spec, performs the full static gate (tsc + build + lint), and runs the Playwright e2e checklist derived verbatim from SPEC §14.
 
@@ -2770,11 +2770,11 @@ The spec `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` described
   The current file begins with these exact first 8 lines:
 
   ```markdown
-  # Halaman "SKU Varian" — pisahkan SKU tersembunyi dari "Kelola Menu"
+  # Halaman "SKU Varian" - pisahkan SKU tersembunyi dari "Kelola Menu"
 
   - **Tanggal:** 2026-05-30
-  - **Status:** Disetujui (brainstorming) — siap planning
-  - **Scope:** **Frontend-only** — nol perubahan backend / schema / migrasi.
+  - **Status:** Disetujui (brainstorming) - siap planning
+  - **Scope:** **Frontend-only** - nol perubahan backend / schema / migrasi.
   - **Spec terkait:** [2026-05-30-menu-variants-stock-linkage-design.md](2026-05-30-menu-variants-stock-linkage-design.md) (REV 2.10), [2026-05-30-cogs-per-menu-remove-belanja-design.md](2026-05-30-cogs-per-menu-remove-belanja-design.md) (REV 2.11)
 
   ---
@@ -2783,7 +2783,7 @@ The spec `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` described
   Edit: change the title line and the `**Status:**` line, and insert a blockquote banner immediately after the `**Spec terkait:**` line (before the `---`). Replace the block above with exactly:
 
   ```markdown
-  # Halaman "SKU Varian" — pisahkan SKU tersembunyi dari "Kelola Menu"
+  # Halaman "SKU Varian" - pisahkan SKU tersembunyi dari "Kelola Menu"
 
   > **⚠️ SUPERSEDED (2026-05-30).** Dokumen ini digantikan oleh
   > [2026-05-30-katalog-menu-stok-ux-elevation-design.md](2026-05-30-katalog-menu-stok-ux-elevation-design.md).
@@ -2795,7 +2795,7 @@ The spec `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` described
 
   - **Tanggal:** 2026-05-30
   - **Status:** ❌ SUPERSEDED oleh 2026-05-30-katalog-menu-stok-ux-elevation-design.md
-  - **Scope:** **Frontend-only** — nol perubahan backend / schema / migrasi.
+  - **Scope:** **Frontend-only** - nol perubahan backend / schema / migrasi.
   - **Spec terkait:** [2026-05-30-menu-variants-stock-linkage-design.md](2026-05-30-menu-variants-stock-linkage-design.md) (REV 2.10), [2026-05-30-cogs-per-menu-remove-belanja-design.md](2026-05-30-cogs-per-menu-remove-belanja-design.md) (REV 2.11)
 
   ---
@@ -2829,7 +2829,7 @@ The spec `docs/superpowers/specs/2026-05-30-sku-varian-page-design.md` described
 
 ### Task 20: Full static verification gate
 
-This is the pre-claim static gate. It MUST pass before the Playwright e2e (Task 21). No commit unless a fix is required (if a fix is needed, fix in the relevant author's file, re-run, then commit that fix separately — do not change behavior in this task).
+This is the pre-claim static gate. It MUST pass before the Playwright e2e (Task 21). No commit unless a fix is required (if a fix is needed, fix in the relevant author's file, re-run, then commit that fix separately - do not change behavior in this task).
 
 - [ ] **Step 20.1: TypeScript project build (type-check, no emit failures).**
 
@@ -2841,7 +2841,7 @@ This is the pre-claim static gate. It MUST pass before the Playwright e2e (Task 
   cd frontend; npx tsc -b
   ```
 
-  Expected: command exits 0 with **no output** (clean). Any `error TS…` line is a failure — locate the owning task (1–18), fix the type error in that file, and re-run. Common suspects: `menuTree.ts` (Task 4) generic Map types; `DataTable.tsx` (Task 3) new `expandable`/`rowClassName`/`rowId` props vs consumers; `PageHeader.tsx`/`FilterToolbar.tsx` (Tasks 1–2) imports of `Tabs`/`TabItem`, `Input`, `Button`, `Sheet`, `useIsMobile`.
+  Expected: command exits 0 with **no output** (clean). Any `error TS…` line is a failure - locate the owning task (1–18), fix the type error in that file, and re-run. Common suspects: `menuTree.ts` (Task 4) generic Map types; `DataTable.tsx` (Task 3) new `expandable`/`rowClassName`/`rowId` props vs consumers; `PageHeader.tsx`/`FilterToolbar.tsx` (Tasks 1–2) imports of `Tabs`/`TabItem`, `Input`, `Button`, `Sheet`, `useIsMobile`.
 
 - [ ] **Step 20.2: Production build (tsc -b + vite build).**
 
@@ -2879,7 +2879,7 @@ This is the pre-claim static gate. It MUST pass before the Playwright e2e (Task 
 
 ### Task 21: Manual e2e via Playwright MCP
 
-Drives the real app. Prereqs: dev servers running — backend on `:8000`, frontend on `:3000` (`npm run dev` from repo root starts both). Login as **owner**: name `"Owner"`, PIN `123456`. Use the `mcp__plugin_playwright_playwright__*` tools (`browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_resize`, `browser_take_screenshot`, `browser_wait_for`, `browser_console_messages`). No commit — this task records observations only.
+Drives the real app. Prereqs: dev servers running - backend on `:8000`, frontend on `:3000` (`npm run dev` from repo root starts both). Login as **owner**: name `"Owner"`, PIN `123456`. Use the `mcp__plugin_playwright_playwright__*` tools (`browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_resize`, `browser_take_screenshot`, `browser_wait_for`, `browser_console_messages`). No commit - this task records observations only.
 
 The checklist below enumerates the EXACT scenarios from SPEC §14 (8 e2e scenarios + the consistency check + a regression check). Each is: concrete user action → expected observable result.
 
@@ -2889,7 +2889,7 @@ The checklist below enumerates the EXACT scenarios from SPEC §14 (8 e2e scenari
   - Action: `browser_navigate` to `http://localhost:3000/login`; type name `Owner`; type PIN `123456`; submit.
   - Expected: redirect to `/dashboard` (owner dashboard). `browser_console_messages` shows no uncaught errors.
 
-- [ ] **Step 21.2: SPEC §14.1 — `/menu` defaults to tab "Menu Jual"; expand a parent shows children with stock + modal; collapse.**
+- [ ] **Step 21.2: SPEC §14.1 - `/menu` defaults to tab "Menu Jual"; expand a parent shows children with stock + modal; collapse.**
 
   - Action: `browser_navigate` to `http://localhost:3000/menu`. Snapshot.
   - Expected: `PageHeader` title **"Katalog Menu"**, subtitle in the form `"<N> menu jual · <M> varian SKU"`; segmented tabs **"Menu Jual"** (active) + **"Varian SKU"**. Table shows only `posVisible=true` rows.
@@ -2898,56 +2898,56 @@ The checklist below enumerates the EXACT scenarios from SPEC §14 (8 e2e scenari
   - Action: click the chevron again.
   - Expected: row collapses; child block removed. `onRowClick` (if any) did NOT fire on chevron click (stopPropagation works).
 
-- [ ] **Step 21.3: SPEC §14.2 — Tab "Varian SKU"; click a parent (induk) link → switches to "Menu Jual" with parent highlighted.**
+- [ ] **Step 21.3: SPEC §14.2 - Tab "Varian SKU"; click a parent (induk) link → switches to "Menu Jual" with parent highlighted.**
 
   - Action: click the **"Varian SKU"** tab. Snapshot.
   - Expected: URL becomes `/menu?tab=varian`; flat list of `posVisible=false` SKUs with columns **Nama SKU | Induk | Kategori | Stok | Modal | Aksi**. The "Induk" cell renders a **text link** (primary color, "↑" prefix), NOT a static badge.
   - Action: click an "↑ <parent name>" induk link on a row that has a parent.
   - Expected: tab switches to **"Menu Jual"** (URL `/menu?tab=jual` or focus-resolved); the parent row scrolls into center view and shows a temporary `ring-2 ring-primary-400` highlight that clears after ~2s; if the parent is itself a variant/paket it is auto-expanded.
 
-- [ ] **Step 21.4: SPEC §14.3 — Orphan SKU shows warning badge "tanpa induk"; multi-parent shows "+N".**
+- [ ] **Step 21.4: SPEC §14.3 - Orphan SKU shows warning badge "tanpa induk"; multi-parent shows "+N".**
 
   - Action: return to **"Varian SKU"** tab. Snapshot the Induk column across rows.
   - Expected: at least one SKU with no parent shows a **warning-tone Badge "tanpa induk"** (status, non-clickable). A multi-parent SKU shows a link label like `"↑ <first> +N"` (e.g. `"↑ Es Teh +1"`); on desktop the remaining parents are in a `title=` tooltip AND there is a small secondary line on mobile (verified in Step 21.8).
 
-- [ ] **Step 21.5: SPEC §14.4 — "Stok →" on a portion SKU → `/stock` row highlighted; owner "Menu →" back → `/menu` highlighted.**
+- [ ] **Step 21.5: SPEC §14.4 - "Stok →" on a portion SKU → `/stock` row highlighted; owner "Menu →" back → `/menu` highlighted.**
 
   - Action: on a SKU/menu row whose `stockType==='portion'`, click the **"Stok →"** button (outline, sm, right-arrow icon).
   - Expected: navigates to `/stock?focusMenuId=<id>`; the matching stock row (`id="stock-row-<id>"`) scrolls into center and shows a temporary ring highlight that clears after ~2s.
   - Action: on that highlighted stock row, click the owner-only **"Menu →"** action (IconButton, `ArrowUpRight`, label "Buka di Menu").
   - Expected: navigates to `/menu?focusMenuId=<id>`; tab is resolved from the menu's `posVisible` (jual vs varian); the matching menu row (`id="katalog-row-<id>"`) scrolls into center + temporary ring highlight ~2s.
-  - Action (negative, optional): note that "Menu →" must render for **every** stock row when owner (outside the `stockType!=='portion'` gate) — confirm a non-portion row (if any) still shows "Menu →" but NOT the stock-mutating buttons.
+  - Action (negative, optional): note that "Menu →" must render for **every** stock row when owner (outside the `stockType!=='portion'` gate) - confirm a non-portion row (if any) still shows "Menu →" but NOT the stock-mutating buttons.
 
-- [ ] **Step 21.6: SPEC §14.5 — WaiterDashboard quick actions land correctly (opname modal opens; mark-habis lands on low-stock filter).**
+- [ ] **Step 21.6: SPEC §14.5 - WaiterDashboard quick actions land correctly (opname modal opens; mark-habis lands on low-stock filter).**
 
   - Action: log out, log in as a waiter (name `Amel`, PIN `222222`); land on WaiterDashboard. Click the quick action that targets `/stock?action=opname`.
   - Expected: navigates to `/stock`; the **Opname modal opens automatically** (driven by `?action=opname` → `setShowOpname(true)`); the `action` param is stripped from the URL afterward.
   - Action: from WaiterDashboard click the **mark-habis** quick action.
-  - Expected: navigates to `/stock` with the **low-stock / habis filter active** (per SPEC §9 — mark-habis is a per-row confirmation, so the quick action lands on the filtered list, not a global modal). No dead/ignored param.
+  - Expected: navigates to `/stock` with the **low-stock / habis filter active** (per SPEC §9 - mark-habis is a per-row confirmation, so the quick action lands on the filtered list, not a global modal). No dead/ignored param.
 
-- [ ] **Step 21.7: SPEC §14.6 — `/menu/sku-varian` redirects to `/menu?tab=varian`.**
+- [ ] **Step 21.7: SPEC §14.6 - `/menu/sku-varian` redirects to `/menu?tab=varian`.**
 
   - Action: (back as owner) `browser_navigate` directly to `http://localhost:3000/menu/sku-varian`.
-  - Expected: URL replaced with `/menu?tab=varian` (no history loop — `browser_navigate_back` once returns to the prior page, not back into `/menu/sku-varian`); the "Varian SKU" tab is active and the nav highlight on "Menu" is correct.
+  - Expected: URL replaced with `/menu?tab=varian` (no history loop - `browser_navigate_back` once returns to the prior page, not back into `/menu/sku-varian`); the "Varian SKU" tab is active and the nav highlight on "Menu" is correct.
 
-- [ ] **Step 21.8: SPEC §14.7 — Mobile viewport: accordion, labelled buttons, ⋯ overflow, target ≥44px.**
+- [ ] **Step 21.8: SPEC §14.7 - Mobile viewport: accordion, labelled buttons, ⋯ overflow, target ≥44px.**
 
   - Action: `browser_resize` to a phone viewport (e.g. 390×844). `browser_navigate` to `/menu`.
   - Expected: tab "Menu Jual" renders as **mobile cards**; expanding a parent card reveals child cards rendered **below** the card (accordion), indented/nested.
   - Expected: secondary row actions (Riwayat, Nonaktifkan/Aktifkan) are collapsed into a **⋯ overflow (DropdownMenu)**; "Stok →" and "Edit" remain visible as **labelled buttons** (no reliance on hover tooltip).
-  - Expected: tap targets (`IconButton sm` / `Button`) are **≥44px** in the smaller dimension — verify via `browser_evaluate` measuring `getBoundingClientRect()` on a sample button, or visually via screenshot.
+  - Expected: tap targets (`IconButton sm` / `Button`) are **≥44px** in the smaller dimension - verify via `browser_evaluate` measuring `getBoundingClientRect()` on a sample button, or visually via screenshot.
   - Expected (multi-parent on mobile, ties to §14.3): the extra parents appear on a **small secondary line** in the card (not only in a desktop `title=` tooltip).
 
-- [ ] **Step 21.9: SPEC §14.8 — Owner nav shows a single "Menu" item (no "SKU Varian").**
+- [ ] **Step 21.9: SPEC §14.8 - Owner nav shows a single "Menu" item (no "SKU Varian").**
 
   - Action: as owner, open the main nav (and the mobile "Lainnya"/overflow if applicable). Snapshot.
   - Expected: exactly **one** "Menu" nav item; the old **"SKU Varian"** nav item is **gone** from both the primary nav and the mobile overflow.
 
-- [ ] **Step 21.10: SPEC §14 consistency + regression — other DataTable consumers still render.**
+- [ ] **Step 21.10: SPEC §14 consistency + regression - other DataTable consumers still render.**
 
   - Action (consistency): visually compare the `PageHeader` + `FilterToolbar` on **Katalog Menu** vs **Stok** vs the archetype pages **BillsPage** and **PaymentMethodsPage**. Expected: same header altitude/typography (`text-title` title + caption subtitle) and same toolbar shape (search + filter sheet on mobile).
   - Action (regression): `browser_navigate` to **HistoryPage** (`/history` or its route) and **BillsPage** (`/bills`), as owner.
-  - Expected: both pages render their `DataTable` normally — rows, mobile cards, existing row actions all intact. Because `expandable`/`rowClassName`/`rowId` are **opt-in** props (Task 3), these non-expandable consumers must show **no leading chevron column** and behave exactly as before. `browser_console_messages` shows no new errors on either page.
+  - Expected: both pages render their `DataTable` normally - rows, mobile cards, existing row actions all intact. Because `expandable`/`rowClassName`/`rowId` are **opt-in** props (Task 3), these non-expandable consumers must show **no leading chevron column** and behave exactly as before. `browser_console_messages` shows no new errors on either page.
 
 - [ ] **Step 21.11: Record the e2e result.**
 

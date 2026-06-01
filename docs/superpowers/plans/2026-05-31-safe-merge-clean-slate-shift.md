@@ -1,4 +1,4 @@
-# Merge Aman (Atomik) + Clean-Slate Shift Lintas-Hari — Implementation Plan
+# Merge Aman (Atomik) + Clean-Slate Shift Lintas-Hari - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,31 +17,31 @@
 ## File Structure
 
 **Backend (modify):**
-- `src/modules/shifts/shift-time.ts` — tambah helper murni `isShiftStale` (depends: `restoNow`, `businessDateFor` yang sudah ada).
-- `src/modules/shifts/shift-time.test.ts` — unit test `isShiftStale`.
-- `src/modules/shifts/shifts.service.ts` — `ShiftView.isOverdue`, enrich `getActiveShifts`/`getShiftById`/`listShifts`, longgarkan otoritas `closeShift` untuk shift basi.
-- `src/modules/transactions/transactions.schema.ts` — `mergeSourceIds` di `addPaymentSchema`.
-- `src/modules/transactions/transactions.service.ts` — `addPayment` (merge atomik di dalam `$transaction`), `createTransaction`+`addItems` (blok shift basi), `voidTransaction` (lepas anak).
+- `src/modules/shifts/shift-time.ts` - tambah helper murni `isShiftStale` (depends: `restoNow`, `businessDateFor` yang sudah ada).
+- `src/modules/shifts/shift-time.test.ts` - unit test `isShiftStale`.
+- `src/modules/shifts/shifts.service.ts` - `ShiftView.isOverdue`, enrich `getActiveShifts`/`getShiftById`/`listShifts`, longgarkan otoritas `closeShift` untuk shift basi.
+- `src/modules/transactions/transactions.schema.ts` - `mergeSourceIds` di `addPaymentSchema`.
+- `src/modules/transactions/transactions.service.ts` - `addPayment` (merge atomik di dalam `$transaction`), `createTransaction`+`addItems` (blok shift basi), `voidTransaction` (lepas anak).
 
-**Backend (create — smoke tests):**
-- `scripts/smoke-merge-atomic.ts` — Fix A rollback + sukses.
-- `scripts/smoke-shift-stale.ts` — Fix B blok create + izinkan pay + otoritas tutup.
-- `scripts/smoke-void-unmerge.ts` — Fix C lepas anak.
+**Backend (create - smoke tests):**
+- `scripts/smoke-merge-atomic.ts` - Fix A rollback + sukses.
+- `scripts/smoke-shift-stale.ts` - Fix B blok create + izinkan pay + otoritas tutup.
+- `scripts/smoke-void-unmerge.ts` - Fix C lepas anak.
 
 **Frontend (modify):**
-- `src/types/index.ts` — `Shift.isOverdue?`.
-- `src/services/shiftService.ts` — map `isOverdue`.
-- `src/services/transactionService.ts` — `AddPaymentPayload.mergeSourceIds?`.
-- `src/components/PaymentModal.tsx` — kirim `mergeSourceIds`, hapus `mergeMutation` terpisah.
-- `src/pages/POSPage.tsx` — mount gate baru.
-- `src/pages/CashierDashboard.tsx` — mount gate baru.
+- `src/types/index.ts` - `Shift.isOverdue?`.
+- `src/services/shiftService.ts` - map `isOverdue`.
+- `src/services/transactionService.ts` - `AddPaymentPayload.mergeSourceIds?`.
+- `src/components/PaymentModal.tsx` - kirim `mergeSourceIds`, hapus `mergeMutation` terpisah.
+- `src/pages/POSPage.tsx` - mount gate baru.
+- `src/pages/CashierDashboard.tsx` - mount gate baru.
 
 **Frontend (create):**
-- `src/components/OverdueShiftGate.tsx` — layar blokir "shift kemarin belum ditutup".
+- `src/components/OverdueShiftGate.tsx` - layar blokir "shift kemarin belum ditutup".
 
 ---
 
-## PHASE 1 — Fix B core: helper `isShiftStale` (pure, TDD)
+## PHASE 1 - Fix B core: helper `isShiftStale` (pure, TDD)
 
 ### Task 1: Helper `isShiftStale`
 
@@ -49,7 +49,7 @@
 - Modify: `backend/src/modules/shifts/shift-time.ts`
 - Test: `backend/src/modules/shifts/shift-time.test.ts`
 
-- [ ] **Step 1: Tulis test gagal** — tambahkan di akhir `shift-time.test.ts`:
+- [ ] **Step 1: Tulis test gagal** - tambahkan di akhir `shift-time.test.ts`:
 
 ```ts
 import { isShiftStale } from './shift-time';
@@ -79,9 +79,9 @@ describe('isShiftStale', () => {
 - [ ] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `cd backend && npx vitest run src/modules/shifts/shift-time.test.ts`
-Expected: FAIL — `isShiftStale is not a function` / import error.
+Expected: FAIL - `isShiftStale is not a function` / import error.
 
-- [ ] **Step 3: Implementasi** — tambahkan di akhir `shift-time.ts` (di bawah `businessDateFor`):
+- [ ] **Step 3: Implementasi** - tambahkan di akhir `shift-time.ts` (di bawah `businessDateFor`):
 
 ```ts
 /// REV 2.12: shift "basi/overdue" = sudah masuk business day baru DAN sesi hari baru
@@ -113,7 +113,7 @@ git commit -m "feat(shift): helper isShiftStale (deteksi shift lintas-hari) + un
 
 ---
 
-## PHASE 2 — Fix B backend: view flag, enforcement, otoritas
+## PHASE 2 - Fix B backend: view flag, enforcement, otoritas
 
 ### Task 2: `ShiftView.isOverdue` + enrich getters
 
@@ -130,7 +130,7 @@ git commit -m "feat(shift): helper isShiftStale (deteksi shift lintas-hari) + un
   isOverdue: boolean;
 ```
 
-- [ ] **Step 2: Import helper + ubah `toShiftView` jadi window-aware** — tambah import (gabung dengan import shift-time yang ada di baris 18):
+- [ ] **Step 2: Import helper + ubah `toShiftView` jadi window-aware** - tambah import (gabung dengan import shift-time yang ada di baris 18):
 
 ```ts
 import { restoNow, businessDateFor, isShiftStale } from './shift-time';
@@ -156,7 +156,7 @@ function toShiftView(shift: ShiftWithCashier, window?: ShiftWindowSettings): Shi
 }
 ```
 
-> Catatan: `restoNow`/`businessDateFor` sudah diimpor sebelumnya — pastikan tidak ada duplikasi import. Kalau import lama hanya `{ restoNow, businessDateFor }`, ganti jadi baris di Step 2.
+> Catatan: `restoNow`/`businessDateFor` sudah diimpor sebelumnya - pastikan tidak ada duplikasi import. Kalau import lama hanya `{ restoNow, businessDateFor }`, ganti jadi baris di Step 2.
 
 - [ ] **Step 3: Enrich `getActiveShifts`** (sekitar baris 182) supaya hitung window sekali:
 
@@ -193,7 +193,7 @@ git commit -m "feat(shift): ShiftView.isOverdue + getActiveShifts window-aware"
 - Modify: `backend/src/modules/transactions/transactions.service.ts`
 - Test: `backend/scripts/smoke-shift-stale.ts` (create di Task ini, dipakai lagi di Task 4)
 
-- [ ] **Step 1: Tulis smoke test gagal** — buat `backend/scripts/smoke-shift-stale.ts`:
+- [ ] **Step 1: Tulis smoke test gagal** - buat `backend/scripts/smoke-shift-stale.ts`:
 
 ```ts
 // Integration smoke Fix B clean-slate. WAJIB DB *_test.
@@ -244,7 +244,7 @@ async function main() {
     const closed = await closeShift(shift.id, cashier2.id, UserRole.cashier, 'final');
     ok(closed.closedAt !== null, `kasir lain (#${cashier2.id}) boleh tutup shift basi #${shift.id}`);
   } else {
-    console.log('  (skip — hanya 1 cashier di seed)');
+    console.log('  (skip - hanya 1 cashier di seed)');
   }
 
   console.log(`\n[smoke-shift-stale] HASIL: ${pass} pass, ${fail} fail`);
@@ -257,7 +257,7 @@ main().catch(async (e) => { console.error('[smoke-shift-stale] ERROR', e); await
 - [ ] **Step 2: Jalankan, pastikan GAGAL** (block belum ada + otoritas belum dilonggarkan)
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-shift-stale.ts`
-Expected: FAIL pada `[1]` (createTransaction ke shift basi TIDAK ditolak) — `pass < total`, exit 1.
+Expected: FAIL pada `[1]` (createTransaction ke shift basi TIDAK ditolak) - `pass < total`, exit 1.
 
 - [ ] **Step 3: Tambah import di `transactions.service.ts`** (dekat import lain, sekitar baris 40-43):
 
@@ -266,7 +266,7 @@ import { getShiftWindow } from '../settings/settings.service';
 import { isShiftStale } from '../shifts/shift-time';
 ```
 
-- [ ] **Step 4: Blok di `createTransaction`** — setelah `const shift = await resolveActiveShift('order baru');` (baris 641), sisipkan:
+- [ ] **Step 4: Blok di `createTransaction`** - setelah `const shift = await resolveActiveShift('order baru');` (baris 641), sisipkan:
 
 ```ts
   // REV 2.12 clean-slate: tolak order baru kalau shift aktif sudah lewat business day-nya.
@@ -274,20 +274,20 @@ import { isShiftStale } from '../shifts/shift-time';
   const window = await getShiftWindow();
   if (isShiftStale(shift.date, window)) {
     throw new AppError(
-      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup — tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
+      `Shift ${shift.date.toISOString().substring(0, 10)} belum ditutup - tuntaskan & tutup shift kemarin dulu sebelum input order baru.`,
       409,
     );
   }
 ```
 
-- [ ] **Step 5: Blok di `addItems`** — setelah cek status open (baris 691-693), sisipkan:
+- [ ] **Step 5: Blok di `addItems`** - setelah cek status open (baris 691-693), sisipkan:
 
 ```ts
   const shiftOfTx = await prisma.shift.findUnique({ where: { id: existing.shiftId } });
   const window = await getShiftWindow();
   if (shiftOfTx && isShiftStale(shiftOfTx.date, window)) {
     throw new AppError(
-      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup — tidak bisa menambah item ke order hari kemarin.`,
+      `Shift ${shiftOfTx.date.toISOString().substring(0, 10)} belum ditutup - tidak bisa menambah item ke order hari kemarin.`,
       409,
     );
   }
@@ -296,7 +296,7 @@ import { isShiftStale } from '../shifts/shift-time';
 - [ ] **Step 6: Jalankan smoke `[1]`, pastikan bagian create LULUS** (bagian `[2]` masih bisa gagal sampai Task 4)
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-shift-stale.ts`
-Expected: baris `[1]` semua ✓ (create ditolak 409 + pay sukses). Baris `[2]` mungkin masih ✗ (otoritas) — itu Task 4.
+Expected: baris `[1]` semua ✓ (create ditolak 409 + pay sukses). Baris `[2]` mungkin masih ✗ (otoritas) - itu Task 4.
 
 - [ ] **Step 7: Commit**
 
@@ -315,12 +315,12 @@ git commit -m "feat(tx): blok order baru/addItems ke shift basi (clean-slate gat
 - [ ] **Step 1: Pastikan smoke `[2]` masih GAGAL** (kalau seed punya 2 cashier)
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-shift-stale.ts`
-Expected: `[2]` ✗ — kasir lain ditolak (`forbidden`).
+Expected: `[2]` ✗ - kasir lain ditolak (`forbidden`).
 
-- [ ] **Step 2: Ubah `closeShift`** — ganti blok otoritas (baris 136-138) supaya melewati batasan kalau shift basi:
+- [ ] **Step 2: Ubah `closeShift`** - ganti blok otoritas (baris 136-138) supaya melewati batasan kalau shift basi:
 
 ```ts
-  // final close requires owner or the shift's own cashier — KECUALI shift sudah basi
+  // final close requires owner or the shift's own cashier - KECUALI shift sudah basi
   // (lewat business day). Untuk shift basi, kasir mana pun yang masuk pagi boleh
   // menutup supaya hari baru bisa dimulai tanpa menunggu pemilik shift (REV 2.12).
   if (mode === 'final' && byRole !== UserRole.owner && shift.cashierId !== byUserId) {
@@ -347,7 +347,7 @@ git commit -m "feat(shift): kasir mana pun boleh tutup-final shift basi (Fix B, 
 
 ---
 
-## PHASE 3 — Fix A: merge + bayar atomik
+## PHASE 3 - Fix A: merge + bayar atomik
 
 ### Task 5: Schema `mergeSourceIds`
 
@@ -378,13 +378,13 @@ git commit -m "feat(tx): addPaymentSchema terima mergeSourceIds (Fix A)"
 
 ---
 
-### Task 6: `addPayment` — merge di dalam `$transaction`
+### Task 6: `addPayment` - merge di dalam `$transaction`
 
 **Files:**
 - Modify: `backend/src/modules/transactions/transactions.service.ts`
 - Test: `backend/scripts/smoke-merge-atomic.ts`
 
-- [ ] **Step 1: Tulis smoke test gagal** — buat `backend/scripts/smoke-merge-atomic.ts`:
+- [ ] **Step 1: Tulis smoke test gagal** - buat `backend/scripts/smoke-merge-atomic.ts`:
 
 ```ts
 // Integration smoke Fix A: merge+bayar atomik. WAJIB DB *_test.
@@ -453,9 +453,9 @@ main().catch(async (e) => { console.error('[smoke-merge-atomic] ERROR', e); awai
 - [ ] **Step 2: Jalankan, pastikan GAGAL** (mergeSourceIds belum diproses → B tidak ter-merge di `[2]`)
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-merge-atomic.ts`
-Expected: FAIL — `[2]` B2 tidak ter-merge ke A2, exit 1.
+Expected: FAIL - `[2]` B2 tidak ter-merge ke A2, exit 1.
 
-- [ ] **Step 3: Restrukturisasi `addPayment`** — ganti blok dari **setelah** validasi `discountInput` (baris 809-816) sampai **akhir** `$transaction` (baris 924) dengan versi berikut. Logika merge + agregat + effective pindah KE DALAM `$transaction`:
+- [ ] **Step 3: Restrukturisasi `addPayment`** - ganti blok dari **setelah** validasi `discountInput` (baris 809-816) sampai **akhir** `$transaction` (baris 924) dengan versi berikut. Logika merge + agregat + effective pindah KE DALAM `$transaction`:
 
 ```ts
   const isFirstSlice = existing.payments.length === 0;
@@ -569,14 +569,14 @@ Expected: FAIL — `[2]` B2 tidak ter-merge ke A2, exit 1.
   return getTransactionById(transactionId);
 ```
 
-> **Penting:** hapus blok lama "Aggregate subtotal" (baris 818-826), "Resolve effective discount/tax/total" (baris 831-862), dan `$transaction` lama (baris 869-924) — semuanya digantikan oleh versi di atas. Sisakan validasi sebelum baris 809 (lookup payment_methods, bank rules) apa adanya.
+> **Penting:** hapus blok lama "Aggregate subtotal" (baris 818-826), "Resolve effective discount/tax/total" (baris 831-862), dan `$transaction` lama (baris 869-924) - semuanya digantikan oleh versi di atas. Sisakan validasi sebelum baris 809 (lookup payment_methods, bank rules) apa adanya.
 
 - [ ] **Step 4: Jalankan smoke, pastikan LULUS**
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-merge-atomic.ts`
 Expected: `HASIL: 7 pass, 0 fail`, exit 0.
 
-- [ ] **Step 5: Regресi — smoke-tx lama tetap hijau**
+- [ ] **Step 5: Regресi - smoke-tx lama tetap hijau**
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-tx.ts`
 Expected: tetap PASS (re-stamp, overpay, split tender tidak berubah).
@@ -595,7 +595,7 @@ git commit -m "feat(tx): merge intra-meja atomik di dalam addPayment $transactio
 
 ---
 
-## PHASE 4 — Fix C: void parent melepas anak
+## PHASE 4 - Fix C: void parent melepas anak
 
 ### Task 7: `voidTransaction` lepas anak yang ter-merge
 
@@ -603,7 +603,7 @@ git commit -m "feat(tx): merge intra-meja atomik di dalam addPayment $transactio
 - Modify: `backend/src/modules/transactions/transactions.service.ts`
 - Test: `backend/scripts/smoke-void-unmerge.ts`
 
-- [ ] **Step 1: Tulis smoke test gagal** — buat `backend/scripts/smoke-void-unmerge.ts`:
+- [ ] **Step 1: Tulis smoke test gagal** - buat `backend/scripts/smoke-void-unmerge.ts`:
 
 ```ts
 // Integration smoke Fix C: void parent melepas anak. WAJIB DB *_test.
@@ -659,9 +659,9 @@ main().catch(async (e) => { console.error('[smoke-void-unmerge] ERROR', e); awai
 - [ ] **Step 2: Jalankan, pastikan GAGAL** (anak belum dilepas saat void)
 
 Run: `cd backend && npx tsx --env-file=.env.test scripts/smoke-void-unmerge.ts`
-Expected: FAIL — B/C `mergedIntoId` masih = A.id, exit 1.
+Expected: FAIL - B/C `mergedIntoId` masih = A.id, exit 1.
 
-- [ ] **Step 3: Implementasi** — di `voidTransaction`, di dalam `$transaction` (sekitar baris 989-1023), sebelum `await tx.transaction.update({...status:void})`, sisipkan pelepasan anak:
+- [ ] **Step 3: Implementasi** - di `voidTransaction`, di dalam `$transaction` (sekitar baris 989-1023), sebelum `await tx.transaction.update({...status:void})`, sisipkan pelepasan anak:
 
 ```ts
     // REV 2.12 Fix C: lepas anak yang ter-merge ke transaksi ini supaya tidak jadi
@@ -690,7 +690,7 @@ git commit -m "feat(tx): void parent melepas anak ter-merge jadi order terpisah 
 
 ---
 
-## PHASE 5 — Frontend
+## PHASE 5 - Frontend
 
 ### Task 8: Tipe + service `isOverdue` + `mergeSourceIds`
 
@@ -699,16 +699,16 @@ git commit -m "feat(tx): void parent melepas anak ter-merge jadi order terpisah 
 - Modify: `frontend/src/services/shiftService.ts`
 - Modify: `frontend/src/services/transactionService.ts`
 
-- [ ] **Step 1: `Shift` type** — di `frontend/src/types/index.ts`, cari interface/type `Shift` dan tambah field:
+- [ ] **Step 1: `Shift` type** - di `frontend/src/types/index.ts`, cari interface/type `Shift` dan tambah field:
 
 ```ts
   /** REV 2.12: true kalau shift masih open tapi sudah lewat business day-nya. */
   isOverdue?: boolean;
 ```
 
-- [ ] **Step 2: shiftService map** — di `frontend/src/services/shiftService.ts`, pastikan response shift membawa `isOverdue` (kalau mapping manual, tambahkan `isOverdue: raw.isOverdue`; kalau passthrough JSON langsung, tidak perlu ubah selain tipe). Verifikasi field tidak di-strip.
+- [ ] **Step 2: shiftService map** - di `frontend/src/services/shiftService.ts`, pastikan response shift membawa `isOverdue` (kalau mapping manual, tambahkan `isOverdue: raw.isOverdue`; kalau passthrough JSON langsung, tidak perlu ubah selain tipe). Verifikasi field tidak di-strip.
 
-- [ ] **Step 3: `AddPaymentPayload`** — di `frontend/src/services/transactionService.ts`, cari `AddPaymentPayload` dan tambah:
+- [ ] **Step 3: `AddPaymentPayload`** - di `frontend/src/services/transactionService.ts`, cari `AddPaymentPayload` dan tambah:
 
 ```ts
   /** REV 2.12: id pesanan intra-meja yang digabung saat bayar (atomik di backend). */
@@ -734,7 +734,7 @@ git commit -m "feat(fe): tipe Shift.isOverdue + AddPaymentPayload.mergeSourceIds
 **Files:**
 - Modify: `frontend/src/components/PaymentModal.tsx`
 
-- [ ] **Step 1: `handleSingleSubmit`** — ganti blok merge+pay (baris 388-408) jadi satu addPayment ber-mergeSourceIds:
+- [ ] **Step 1: `handleSingleSubmit`** - ganti blok merge+pay (baris 388-408) jadi satu addPayment ber-mergeSourceIds:
 
 ```ts
     if (!ok) return
@@ -750,7 +750,7 @@ git commit -m "feat(fe): tipe Shift.isOverdue + AddPaymentPayload.mergeSourceIds
   }
 ```
 
-- [ ] **Step 2: `handleAddSlice`** — ganti blok merge (baris 455-474) jadi:
+- [ ] **Step 2: `handleAddSlice`** - ganti blok merge (baris 455-474) jadi:
 
 ```ts
     if (!ok) return
@@ -765,7 +765,7 @@ git commit -m "feat(fe): tipe Shift.isOverdue + AddPaymentPayload.mergeSourceIds
   }
 ```
 
-- [ ] **Step 3: Hapus `mergeMutation`** — hapus definisi `mergeMutation` (baris 320-329) yang tidak lagi dipakai. Update `submitting` (baris 509):
+- [ ] **Step 3: Hapus `mergeMutation`** - hapus definisi `mergeMutation` (baris 320-329) yang tidak lagi dipakai. Update `submitting` (baris 509):
 
 ```ts
   const submitting = addPayMutation.isPending
@@ -773,12 +773,12 @@ git commit -m "feat(fe): tipe Shift.isOverdue + AddPaymentPayload.mergeSourceIds
 
 > `unmergeMutation` TETAP (dipakai MergedSourcesPanel untuk lepas source yang sudah ter-merge dari flow lama / Combine). Jangan dihapus.
 
-- [ ] **Step 4: Invalidate open-today setelah bayar** — di `addPayMutation.onSuccess` (sekitar baris 290-297), pastikan ada invalidate `['transactions','open-today']` (sudah ada di baris 293) supaya source yang baru di-merge hilang dari picker meja lain. Tidak perlu ubah kalau sudah ada.
+- [ ] **Step 4: Invalidate open-today setelah bayar** - di `addPayMutation.onSuccess` (sekitar baris 290-297), pastikan ada invalidate `['transactions','open-today']` (sudah ada di baris 293) supaya source yang baru di-merge hilang dari picker meja lain. Tidak perlu ubah kalau sudah ada.
 
 - [ ] **Step 5: Verifikasi tsc + lint**
 
 Run: `cd frontend && npx tsc --noEmit && npm run lint`
-Expected: 0 error (pastikan tidak ada unused var `mergeMutation`/`MergePayload` — hapus import `MergePayload` kalau jadi unused).
+Expected: 0 error (pastikan tidak ada unused var `mergeMutation`/`MergePayload` - hapus import `MergePayload` kalau jadi unused).
 
 - [ ] **Step 6: Commit**
 
@@ -796,7 +796,7 @@ git commit -m "feat(fe): PaymentModal kirim mergeSourceIds ke addPayment, hapus 
 - Modify: `frontend/src/pages/POSPage.tsx`
 - Modify: `frontend/src/pages/CashierDashboard.tsx`
 
-- [ ] **Step 1: Buat komponen** — `frontend/src/components/OverdueShiftGate.tsx`:
+- [ ] **Step 1: Buat komponen** - `frontend/src/components/OverdueShiftGate.tsx`:
 
 ```tsx
 // REV 2.12: layar blokir saat shift aktif sudah lewat business day-nya (isOverdue).
@@ -835,7 +835,7 @@ export default function OverdueShiftGate({
 }
 ```
 
-- [ ] **Step 2: Mount di POSPage** — di `frontend/src/pages/POSPage.tsx`, import + sisipkan cek SETELAH blok `activeShifts.length !== 1` (sekitar baris 355-375). Tambah import:
+- [ ] **Step 2: Mount di POSPage** - di `frontend/src/pages/POSPage.tsx`, import + sisipkan cek SETELAH blok `activeShifts.length !== 1` (sekitar baris 355-375). Tambah import:
 
 ```ts
 import OverdueShiftGate from '@/components/OverdueShiftGate'
@@ -851,7 +851,7 @@ Sisipkan setelah blok ShiftGate (sebelum `return (` utama, baris 377):
   }
 ```
 
-- [ ] **Step 3: Mount di CashierDashboard** — di `frontend/src/pages/CashierDashboard.tsx`, render `OverdueShiftGate` di atas konten saat ada active shift `isOverdue`. Import komponen + `useNavigate` (kalau belum), lalu di awal `return` (sebelum konten dashboard utama):
+- [ ] **Step 3: Mount di CashierDashboard** - di `frontend/src/pages/CashierDashboard.tsx`, render `OverdueShiftGate` di atas konten saat ada active shift `isOverdue`. Import komponen + `useNavigate` (kalau belum), lalu di awal `return` (sebelum konten dashboard utama):
 
 ```tsx
   const overdueShift = activeShifts.find((s) => s.isOverdue) ?? null
@@ -876,7 +876,7 @@ git commit -m "feat(fe): OverdueShiftGate blokir input saat shift kemarin belum 
 
 ---
 
-## PHASE 6 — Verifikasi menyeluruh + remediasi data
+## PHASE 6 - Verifikasi menyeluruh + remediasi data
 
 ### Task 11: Verifikasi penuh (verification-before-completion)
 
@@ -904,7 +904,7 @@ Expected: semua `0 fail`, exit 0.
 Run: `cd frontend && npx tsc --noEmit && npm run lint && npm run build`
 Expected: 0 error, build SUCCESS.
 
-- [ ] **Step 4: Commit (kalau ada perbaikan kecil)** — kalau verifikasi memunculkan fix, commit terpisah dengan pesan deskriptif.
+- [ ] **Step 4: Commit (kalau ada perbaikan kecil)** - kalau verifikasi memunculkan fix, commit terpisah dengan pesan deskriptif.
 
 ---
 
@@ -914,17 +914,17 @@ Expected: 0 error, build SUCCESS.
 
 > **PRASYARAT:** Task 1-11 selesai + hijau. Jalankan `npm run dev` (root) → backend :8000 + frontend :3000.
 
-- [ ] **Step 1: Konfirmasi state awal** — buka app sebagai kasir. Karena shift 57 (29 Mei) kini terdeteksi basi, POSPage/Dashboard harus menampilkan **OverdueShiftGate**. Catat bahwa gate muncul (bukti Fix B jalan).
+- [ ] **Step 1: Konfirmasi state awal** - buka app sebagai kasir. Karena shift 57 (29 Mei) kini terdeteksi basi, POSPage/Dashboard harus menampilkan **OverdueShiftGate**. Catat bahwa gate muncul (bukti Fix B jalan).
 
-- [ ] **Step 2: Ke Settlement / tuntaskan meja 7** — klik "Tutup & Setor Shift Kemarin" → `/settlement`. Untuk meja 7:
+- [ ] **Step 2: Ke Settlement / tuntaskan meja 7** - klik "Tutup & Setor Shift Kemarin" → `/settlement`. Untuk meja 7:
   - Jika #221/#223/#442 data uji → **void** (#221 dulu; Fix C otomatis melepas #223/#442 → tampil terpisah → void masing-masing), ATAU
   - Jika ingin tetap tercatat → **bayar** lewat PaymentModal (sekarang merge atomik; pastikan angka benar 40rb / sesuai item).
-- [ ] **Step 3: Pastikan meja kosong** — `listByTable` meja 7 harus 0 order open.
-- [ ] **Step 4: Tutup-final + setor shift 57** — isi settlement, submit. Shift 57 `closedAt` terisi, `activeMarker` lepas.
-- [ ] **Step 5: Buka shift hari ini** — OverdueShiftGate hilang; buka shift baru → POS normal, clean slate.
-- [ ] **Step 6: Verifikasi anti-regресi bug awal** — buat 2 pesanan di satu meja, "Bayar" → pastikan angka = jumlah benar, dan kalau dibatalkan di tengah, tidak ada merge nyangkut (cek via DB: tidak ada `mergedIntoId` open menggantung).
+- [ ] **Step 3: Pastikan meja kosong** - `listByTable` meja 7 harus 0 order open.
+- [ ] **Step 4: Tutup-final + setor shift 57** - isi settlement, submit. Shift 57 `closedAt` terisi, `activeMarker` lepas.
+- [ ] **Step 5: Buka shift hari ini** - OverdueShiftGate hilang; buka shift baru → POS normal, clean slate.
+- [ ] **Step 6: Verifikasi anti-regресi bug awal** - buat 2 pesanan di satu meja, "Bayar" → pastikan angka = jumlah benar, dan kalau dibatalkan di tengah, tidak ada merge nyangkut (cek via DB: tidak ada `mergedIntoId` open menggantung).
 
-- [ ] **Step 7: Catat hasil** — update memory `project_owner_self_service_rev212.md` + CLAUDE.md status REV 2.12: bug stuck-merge FIXED (Fix A/B/C), remediasi shift 57/meja 7 DONE, PROD pending.
+- [ ] **Step 7: Catat hasil** - update memory `project_owner_self_service_rev212.md` + CLAUDE.md status REV 2.12: bug stuck-merge FIXED (Fix A/B/C), remediasi shift 57/meja 7 DONE, PROD pending.
 
 ---
 
@@ -937,7 +937,7 @@ Expected: 0 error, build SUCCESS.
 - Spec §4.4 Remediasi → Task 12 ✓
 - Spec §6 Testing: unit isShiftStale (Task 1) ✓; merge validasi/rollback (Task 6) ✓; clean-slate create block + payment allowed (Task 3) ✓; void releases children (Task 7) ✓; otoritas tutup stale (Task 4) ✓
 
-**2. Placeholder scan:** Tidak ada TBD/"handle edge cases" tanpa kode. Semua step implementasi membawa kode konkret. Langkah "sesuaikan nama variabel" di Task 8 Step 2 & Task 10 Step 3 adalah instruksi integrasi ke kode existing yang namanya bisa berbeda — bukan placeholder logika.
+**2. Placeholder scan:** Tidak ada TBD/"handle edge cases" tanpa kode. Semua step implementasi membawa kode konkret. Langkah "sesuaikan nama variabel" di Task 8 Step 2 & Task 10 Step 3 adalah instruksi integrasi ke kode existing yang namanya bisa berbeda - bukan placeholder logika.
 
 **3. Type consistency:**
 - `isShiftStale(shiftDate: Date, s: ShiftWindowSettings, now?: Date)` konsisten dipakai di Task 1/2/3/4.

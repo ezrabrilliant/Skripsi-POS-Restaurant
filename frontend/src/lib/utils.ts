@@ -16,6 +16,21 @@ export function formatCurrency(amount: number): string {
 
 export const formatRupiah = formatCurrency
 
+/**
+ * Laba (Rp) & margin% sebuah menu simple. `null` = tak bisa/tak relevan dihitung:
+ * modal belum diisi (`cost` null / ≤ 0) atau harga ≤ 0. Guard `cost > 0` meniru
+ * caption margin di modal input COGS (MenuFormModal) supaya angka tabel = angka modal.
+ * pct = laba/harga × 100 dibulatkan (bisa negatif bila modal > harga = rugi).
+ */
+export function computeMargin(
+  price: number,
+  cost: number | null | undefined,
+): { laba: number; pct: number } | null {
+  if (cost == null || cost <= 0 || price <= 0) return null
+  const laba = price - cost
+  return { laba, pct: Math.round((laba / price) * 100) }
+}
+
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',

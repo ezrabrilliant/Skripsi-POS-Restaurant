@@ -138,7 +138,7 @@ export async function closeShift(
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw notFound('Shift');
   if (shift.closedAt) throw new AppError('Shift sudah ditutup sebelumnya', 400);
-  // final close requires owner or the shift's own cashier — KECUALI shift sudah basi
+  // final close requires owner or the shift's own cashier - KECUALI shift sudah basi
   // (lewat business day). Untuk shift basi, kasir mana pun yang masuk pagi boleh
   // menutup supaya hari baru bisa dimulai tanpa menunggu pemilik shift (REV 2.12).
   if (mode === 'final' && byRole !== UserRole.owner && shift.cashierId !== byUserId) {

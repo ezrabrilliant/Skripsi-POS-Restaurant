@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Tutup gap konfigurasi yang membuat owner "terdampar" setelah live — agar semua setelan krusial bisa diubah owner lewat UI tanpa edit kode/database.
+**Goal:** Tutup gap konfigurasi yang membuat owner "terdampar" setelah live - agar semua setelan krusial bisa diubah owner lewat UI tanpa edit kode/database.
 
 **Architecture:** 4 workstream berurutan (A→B→C→D), satu file plan yang **ditumbuhkan per fase**: Phase 1 (WS-A) detail penuh & siap eksekusi; Phase 2-4 (WS-B/C/D) sebagai roadmap, di-expand jadi task bite-sized di checkpoint masing-masing fase. Spec: [docs/superpowers/specs/2026-05-31-owner-self-service-go-live-readiness-design.md](../specs/2026-05-31-owner-self-service-go-live-readiness-design.md).
 
@@ -33,19 +33,19 @@ Branch saat ini `feat/katalog-menu-ux` masih ada kerjaan katalog menu berjalan (
 
 ---
 
-## File Structure — Phase 1 (WS-A, frontend-only)
+## File Structure - Phase 1 (WS-A, frontend-only)
 
 | File | Tanggung jawab | Aksi |
 |---|---|---|
-| `frontend/src/components/MenuFormModal.tsx` | Form tambah/edit menu owner | Modify — tambah toggle "Lacak stok porsi?" |
-| `frontend/src/components/payment-methods/PaymentMethodsTab.tsx` | List + aksi metode bayar | Modify — tambah tombol reorder ↑/↓ |
-| `frontend/src/pages/UsersPage.tsx` | Manajemen staff owner | Modify — toggle Aktif (reaktivasi) + badge Nonaktif + fix PIN 6 digit |
+| `frontend/src/components/MenuFormModal.tsx` | Form tambah/edit menu owner | Modify - tambah toggle "Lacak stok porsi?" |
+| `frontend/src/components/payment-methods/PaymentMethodsTab.tsx` | List + aksi metode bayar | Modify - tambah tombol reorder ↑/↓ |
+| `frontend/src/pages/UsersPage.tsx` | Manajemen staff owner | Modify - toggle Aktif (reaktivasi) + badge Nonaktif + fix PIN 6 digit |
 
 **TIDAK disentuh** (sudah berfungsi): owner edit nama/PIN sendiri (Edit button di kartu sendiri sudah jalan, `setUser` di-handle). Hanya **verifikasi** di e2e.
 
 ---
 
-## Phase 1 — WS-A: Quick-Win Self-Service
+## Phase 1 - WS-A: Quick-Win Self-Service
 
 ### Task A1: Toggle stok menu (`portion ↔ nonStock`) di MenuFormModal
 
@@ -71,8 +71,8 @@ Di `MenuFormModal.tsx`, tepat **sebelum** blok `{state.mode === 'simple' && stat
     />
     <p className="text-caption text-neutral-500 mt-1">
       {state.stockType === 'portion'
-        ? 'Stok dihitung per porsi & otomatis berkurang tiap terjual. Mulai dari 0 — restock dulu setelah disimpan.'
-        : 'Tidak dilacak — menu selalu bisa dijual (mis. minuman racik / item tanpa stok).'}
+        ? 'Stok dihitung per porsi & otomatis berkurang tiap terjual. Mulai dari 0 - restock dulu setelah disimpan.'
+        : 'Tidak dilacak - menu selalu bisa dijual (mis. minuman racik / item tanpa stok).'}
     </p>
   </div>
 )}
@@ -104,7 +104,7 @@ git commit -m "feat(menu): toggle lacak stok porsi (portion<->nonStock) di form 
 **Files:**
 - Modify: `frontend/src/components/payment-methods/PaymentMethodsTab.tsx`
 
-**Konteks:** `paymentMethodService.reorder(ordered)` sudah ada ([:106](../../frontend/src/services/paymentMethodService.ts)). `methods` prop ditampilkan urut `displayOrder` (list dari parent). PaymentModal kasir menyortir by `displayOrder` ASC — jadi reorder = kontrol urutan tombol bayar. Tambah aksi ↑/↓ di kolom `actions`.
+**Konteks:** `paymentMethodService.reorder(ordered)` sudah ada ([:106](../../frontend/src/services/paymentMethodService.ts)). `methods` prop ditampilkan urut `displayOrder` (list dari parent). PaymentModal kasir menyortir by `displayOrder` ASC - jadi reorder = kontrol urutan tombol bayar. Tambah aksi ↑/↓ di kolom `actions`.
 
 - [ ] **Step 1: Tambah mutation reorder**
 
@@ -133,7 +133,7 @@ const move = (from: number, dir: -1 | 1) => {
 
 - [ ] **Step 2: Tambah tombol ↑/↓ di kolom actions (desktop) + mobileCard**
 
-Ganti cell kolom `actions` (line ~140-148) jadi (gunakan `index` dari `DataTable` cell — bila signature `cell` tidak memberi index, cari index via `methods.findIndex((x) => x.id === m.id)`):
+Ganti cell kolom `actions` (line ~140-148) jadi (gunakan `index` dari `DataTable` cell - bila signature `cell` tidak memberi index, cari index via `methods.findIndex((x) => x.id === m.id)`):
 
 ```tsx
 cell: (m) => {
@@ -170,12 +170,12 @@ git commit -m "feat(payment-methods): tombol reorder naik/turun displayOrder"
 
 ---
 
-### Task A3: UsersPage — reaktivasi staff + badge Nonaktif + fix PIN 6 digit
+### Task A3: UsersPage - reaktivasi staff + badge Nonaktif + fix PIN 6 digit
 
 **Files:**
 - Modify: `frontend/src/pages/UsersPage.tsx`
 
-**Konteks:** Backend `updateUserSchema` terima `isActive`; `userService.updateUser` mengirimnya. Form edit sekarang cuma name/PIN/role — tak ada kontrol `isActive`, sehingga staff yang di-"hapus" (soft-delete `isActive=false`) tidak bisa diaktifkan & tidak terlihat statusnya. PIN: validasi+label salah ("4-6") padahal backend wajib `^\d{6}$`.
+**Konteks:** Backend `updateUserSchema` terima `isActive`; `userService.updateUser` mengirimnya. Form edit sekarang cuma name/PIN/role - tak ada kontrol `isActive`, sehingga staff yang di-"hapus" (soft-delete `isActive=false`) tidak bisa diaktifkan & tidak terlihat statusnya. PIN: validasi+label salah ("4-6") padahal backend wajib `^\d{6}$`.
 
 - [ ] **Step 1: Tambah `isActive` ke form state**
 
@@ -265,7 +265,7 @@ Ubah `UserCard` (line 295-348): tambahkan badge saat `!user.isActive`. Setelah b
 )}
 ```
 
-Dan beri opacity pada container kartu saat nonaktif — ubah `className` div root (line 307):
+Dan beri opacity pada container kartu saat nonaktif - ubah `className` div root (line 307):
 
 ```tsx
 className={cn(
@@ -300,14 +300,14 @@ git commit -m "feat(users): reaktivasi staff (toggle aktif) + badge nonaktif + f
 
 ---
 
-## Phase 2 — WS-B: Settings & Money-Math (ROADMAP — detail di-expand saat checkpoint)
+## Phase 2 - WS-B: Settings & Money-Math (ROADMAP - detail di-expand saat checkpoint)
 
 > Di-expand jadi task bite-sized + TDD backend setelah Phase 1 di-approve. Ringkasan target:
 
 **Backend (TDD: Zod + service test dulu):**
 - `schema.prisma`: `AppSetting` +`taxChargedToCustomer Boolean @default(false)`, `restaurantName/Address/openingHours/restaurantPhone/restaurantLogoUrl` (String/nullable), `restockMultiple Int @default(5)`, `lowStockThreshold Int @default(5)`. `Transaction` +`taxBorneAmount Decimal @default(0) @db.Decimal(12,2)`. Migrasi aditif (`prisma migrate dev`), verifikasi count before/after.
 - `settings.schema.ts` + `settings.service.ts` + `SettingView`: expose field baru.
-- `transactions.service.ts` (addPayment first-slice, ~line 838-844): logika 2-sumbu — `pb1 = taxEnabled ? base×rate/100 : 0`; `charged → taxAmount=pb1, total=base+pb1`; `borne → taxBorneAmount=pb1, total=base`. `TransactionView` +`taxBorneAmount`. **Test:** 3 kombinasi (off/charged/borne) → assert taxAmount/taxBorneAmount/total.
+- `transactions.service.ts` (addPayment first-slice, ~line 838-844): logika 2-sumbu - `pb1 = taxEnabled ? base×rate/100 : 0`; `charged → taxAmount=pb1, total=base+pb1`; `borne → taxBorneAmount=pb1, total=base`. `TransactionView` +`taxBorneAmount`. **Test:** 3 kombinasi (off/charged/borne) → assert taxAmount/taxBorneAmount/total.
 - `dashboard.service.ts`: `laba = pendapatan − cogs − Σ taxBorneAmount` (filter periode identik). **Test:** dashboard kurangi borne.
 - Generalisasi upload (`menus.upload.ts`) untuk logo (endpoint/folder branding) → return url.
 
@@ -322,7 +322,7 @@ git commit -m "feat(users): reaktivasi staff (toggle aktif) + badge nonaktif + f
 
 ---
 
-## Phase 3 — WS-C: Struk PDF + UX Pasca-Bayar (ROADMAP — depend Phase 2)
+## Phase 3 - WS-C: Struk PDF + UX Pasca-Bayar (ROADMAP - depend Phase 2)
 
 > Di-expand setelah Phase 2. **Task pertama WS-C = desain layout struk**: riset format struk POS standar via firecrawl → mockup ASCII → approve user, baru implementasi.
 
@@ -333,7 +333,7 @@ git commit -m "feat(users): reaktivasi staff (toggle aktif) + badge nonaktif + f
 
 ---
 
-## Phase 4 — WS-D: Master-Table Dinamis (ROADMAP — paling berat, terakhir)
+## Phase 4 - WS-D: Master-Table Dinamis (ROADMAP - paling berat, terakhir)
 
 > Di-expand setelah Phase 3. Migrasi aditif dulu; drop enum lama = langkah destruktif terpisah, PROD hard-gated.
 
