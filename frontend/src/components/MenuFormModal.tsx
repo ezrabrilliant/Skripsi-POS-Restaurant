@@ -46,6 +46,9 @@ interface MenuFormModalProps {
   existing: Menu | null
   onClose: () => void
   onSuccess: () => void
+  /** Mode "Tambah SKU" dari tab Varian SKU: bikin item stok tersembunyi
+   * (posVisible=false, kind=simple, tanpa builder varian/paket). */
+  createSku?: boolean
 }
 
 // ============================================================
@@ -73,7 +76,7 @@ interface FormState {
   paketState: PaketBuilderValue
 }
 
-function initFromExisting(existing: Menu | null): FormState {
+function initFromExisting(existing: Menu | null, createSku = false): FormState {
   if (!existing) {
     return {
       name: '',
@@ -82,7 +85,7 @@ function initFromExisting(existing: Menu | null): FormState {
       cost: 0,
       imageUrl: null,
       isActive: true,
-      posVisible: true,
+      posVisible: !createSku,
       stockType: 'portion',
       minStock: 5,
       mode: 'simple',
@@ -281,7 +284,7 @@ function buildPayload(
 // Main component
 // ============================================================
 
-export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalProps) {
+export function MenuFormModal({ existing, onClose, onSuccess, createSku = false }: MenuFormModalProps) {
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -296,13 +299,13 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
 
   const seed = existing ? detail ?? existing : null
 
-  const [state, setState] = useState<FormState>(() => initFromExisting(existing))
+  const [state, setState] = useState<FormState>(() => initFromExisting(existing, createSku))
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [submitted, setSubmitted] = useState(false)
 
   // Re-seed saat detail tiba (edit) atau saat existing berubah.
   useEffect(() => {
-    setState(initFromExisting(seed))
+    setState(initFromExisting(seed, createSku))
     setErrors({})
     setSubmitted(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -369,7 +372,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
     <Dialog
       open
       onOpenChange={(o) => !o && !mutation.isPending && onClose()}
-      title={existing ? `Edit: ${existing.name}` : 'Tambah Menu Baru'}
+      title={existing ? `Edit: ${existing.name}` : createSku ? 'Tambah SKU (item stok)' : 'Tambah Menu Baru'}
       size="lg"
       preventOutsideClose={mutation.isPending}
       footer={
@@ -495,7 +498,9 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
 
         {/* ============================================================
             Progressive disclosure - "Menu ini punya pilihan?"
+            Disembunyikan di mode createSku (SKU = leaf, tak punya varian/paket).
             ============================================================ */}
+        {!createSku && (
         <div className="flex flex-col gap-2 pt-1 border-t border-neutral-200">
           <div className="pt-2">
             <h3 className="text-body-sm font-semibold text-neutral-900">
@@ -600,6 +605,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
             </div>
           )}
         </div>
+        )}
 
         {/* Status aktif (edit only) */}
         {existing && (
@@ -608,7 +614,7 @@ export function MenuFormModal({ existing, onClose, onSuccess }: MenuFormModalPro
               label={
                 existing.posVisible
                   ? 'Menu aktif (tampil di POS)'
-                  : 'SKU aktif (bisa dipakai stok/modal varian)'
+                  : 'Item stok aktif (bisa dipakai jenis menu lain)'
               }
               checked={state.isActive}
               onCheckedChange={(c) => update('isActive', c)}

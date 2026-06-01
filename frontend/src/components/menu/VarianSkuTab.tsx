@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, History, ArrowRight } from 'lucide-react'
+import { Plus, Pencil, History, ArrowRight } from 'lucide-react'
 import type { Menu } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
@@ -47,6 +47,7 @@ export function VarianSkuTab({
   const [search, setSearch] = useState('')
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
   const [historyMenuId, setHistoryMenuId] = useState<number | null>(null)
+  const [creatingSku, setCreatingSku] = useState(false)
 
   // parentMap dari SELURUH menu (induk = menu visible), lalu tampilkan yang hidden.
   const parentMap = useMemo(() => buildParentMap(menus), [menus])
@@ -240,6 +241,16 @@ export function VarianSkuTab({
             />
           </>
         }
+        actions={
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => setCreatingSku(true)}
+          >
+            SKU
+          </Button>
+        }
       />
 
       <DataTable
@@ -333,6 +344,18 @@ export function VarianSkuTab({
           onClose={() => setEditingMenu(null)}
           onSuccess={() => {
             setEditingMenu(null)
+            qc.invalidateQueries({ queryKey: ['menus'] })
+          }}
+        />
+      )}
+
+      {creatingSku && (
+        <MenuFormModal
+          existing={null}
+          createSku
+          onClose={() => setCreatingSku(false)}
+          onSuccess={() => {
+            setCreatingSku(false)
             qc.invalidateQueries({ queryKey: ['menus'] })
           }}
         />

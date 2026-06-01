@@ -28,7 +28,7 @@ import { MenuFormModal } from '@/components/MenuFormModal'
 import { CostHistoryDrawer } from '@/components/menu/CostHistoryDrawer'
 import { SortableHeader } from '@/components/stock/SortableHeader'
 import { MenuTypeFilter, toggleStockType } from '@/components/stock/MenuTypeFilter'
-import { buildChildrenMap } from '@/components/menu/menuTree'
+import { buildChildrenMap, computeMenuCost } from '@/components/menu/menuTree'
 
 type MenuSortKey = 'name' | 'price' | 'category'
 type SortDir = 'asc' | 'desc'
@@ -227,16 +227,30 @@ export function MenuJualTab({
       ),
     },
     {
-      // REV 2.11: modal/COGS per menu. Parent variant/paket → cost null → "—".
+      // REV 2.11: modal/COGS per menu. Simple → m.cost. Variant/paket → cost induk=0,
+      // jadi hitung dari SKU komponen (rentang min–max) lewat computeMenuCost.
       key: 'cost',
       header: 'Modal',
       align: 'right',
       hideMobile: true,
-      cell: (m) => (
-        <span className="text-neutral-700 tabular-nums">
-          {m.cost != null ? formatCurrency(m.cost) : '—'}
-        </span>
-      ),
+      cell: (m) => {
+        if (m.kind === 'variant' || m.kind === 'paket') {
+          const r = computeMenuCost(m, menusById)
+          if (!r) return <span className="text-neutral-300">—</span>
+          return (
+            <span className="text-neutral-700 tabular-nums">
+              {r.min === r.max
+                ? formatCurrency(r.min)
+                : `${formatCurrency(r.min)}–${formatCurrency(r.max)}`}
+            </span>
+          )
+        }
+        return (
+          <span className="text-neutral-700 tabular-nums">
+            {m.cost != null ? formatCurrency(m.cost) : '—'}
+          </span>
+        )
+      },
     },
     {
       key: 'stock',
