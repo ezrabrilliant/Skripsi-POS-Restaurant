@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { LayoutDashboard, UtensilsCrossed, TrendingUp, Users } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
-import { Tabs } from '@/design-system/primitives'
+import { Page } from '@/design-system/primitives'
 import { formatDate } from '@/lib/utils'
 import type { OwnerReportQuery } from '@/services/dashboardService'
 import { PeriodControl } from './owner-dashboard/PeriodControl'
@@ -41,32 +41,24 @@ export default function OwnerDashboard() {
   const [period, setPeriod] = useState<OwnerReportQuery>({ period: 'today' })
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 pt-safe pb-safe">
-        {/* Header */}
-        <header>
-          <h1 className="text-headline font-semibold text-neutral-900">Halo, {user?.name}</h1>
-          <p className="text-body-sm text-neutral-600">Dashboard Pemilik · {periodLabel(period)}</p>
-        </header>
+    <Page
+      title={`Halo, ${user?.name ?? ''}`}
+      subtitle={`Dashboard Pemilik · ${periodLabel(period)}`}
+      tabsScrollable
+      tabs={{
+        value: section,
+        onValueChange: (v) => setSection(v as Section),
+        items: SECTION_ITEMS,
+      }}
+    >
+      {/* Period control (berlaku ke semua tab) */}
+      <PeriodControl onChange={setPeriod} />
 
-        {/* Period control (berlaku ke semua tab) */}
-        <PeriodControl onChange={setPeriod} />
-
-        {/* Section tabs */}
-        <Tabs
-          value={section}
-          onValueChange={(v) => setSection(v as Section)}
-          items={SECTION_ITEMS}
-          variant="underline"
-          scrollable
-        />
-
-        {/* Lazy: hanya tab aktif yang mount + fetch */}
-        {section === 'ringkasan' && <RingkasanTab period={period} />}
-        {section === 'menu' && <MenuPerformanceTab period={period} />}
-        {section === 'tren' && <TrendTab period={period} />}
-        {section === 'kasir' && <StaffTab period={period} />}
-      </div>
-    </div>
+      {/* Lazy: hanya tab aktif yang mount + fetch */}
+      {section === 'ringkasan' && <RingkasanTab period={period} />}
+      {section === 'menu' && <MenuPerformanceTab period={period} />}
+      {section === 'tren' && <TrendTab period={period} />}
+      {section === 'kasir' && <StaffTab period={period} />}
+    </Page>
   )
 }

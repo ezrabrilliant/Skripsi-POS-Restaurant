@@ -18,7 +18,7 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService } from '@/services/dashboardService'
 import { cn } from '@/lib/utils'
-import { Skeleton, Badge } from '@/design-system/primitives'
+import { Skeleton, Badge, Page } from '@/design-system/primitives'
 
 export default function WaiterDashboard() {
   const { user } = useAuthStore()
@@ -29,14 +29,7 @@ export default function WaiterDashboard() {
   })
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 pt-safe">
-        {/* Header */}
-        <header>
-          <h1 className="text-headline font-semibold text-neutral-900">Halo, {user?.name}</h1>
-          <p className="text-body-sm text-neutral-600">Dashboard Pelayan</p>
-        </header>
-
+    <Page title={`Halo, ${user?.name ?? ''}`} subtitle="Dashboard Pelayan">
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Skeleton className="h-64" />
@@ -93,7 +86,7 @@ export default function WaiterDashboard() {
             )}
 
             {/* Secondary: link kecil fallback input order */}
-            <div className="text-center pt-2 pb-safe">
+            <div className="text-center pt-2">
               <Link
                 to="/pos"
                 className="inline-flex items-center gap-1 text-caption text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline"
@@ -104,8 +97,7 @@ export default function WaiterDashboard() {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Page>
   )
 }
 

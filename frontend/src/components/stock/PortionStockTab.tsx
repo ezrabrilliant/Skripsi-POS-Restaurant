@@ -22,6 +22,7 @@ import {
   Dialog,
   Input,
   DataTable,
+  PageContainer,
   type DataTableColumn,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -337,7 +338,7 @@ export default function PortionStockTab() {
   ]
 
   return (
-    <div className="p-3 sm:p-4 space-y-3">
+    <PageContainer>
       <StockFilterToolbar
         controls={controls}
         searchPlaceholder="Cari menu…"
@@ -539,7 +540,7 @@ export default function PortionStockTab() {
         movements={historyMovements}
         unitSuffix="porsi"
       />
-    </div>
+    </PageContainer>
   )
 }
 

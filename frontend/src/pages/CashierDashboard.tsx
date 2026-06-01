@@ -31,7 +31,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { dashboardService } from '@/services/dashboardService'
 import type { ShiftType, MethodTotalEntry } from '@/types'
 import { formatCurrency, formatTime, cn } from '@/lib/utils'
-import { Button, Badge, Skeleton } from '@/design-system/primitives'
+import { Button, Badge, Skeleton, Page } from '@/design-system/primitives'
 import OpenShiftDialog from '@/components/OpenShiftDialog'
 
 // REV 2.6: METHOD_LABEL hardcoded dihapus. Label datang dari `entry.methodLabel`
@@ -64,14 +64,7 @@ export default function CashierDashboard() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 pt-safe">
-        {/* Header */}
-        <header>
-          <h1 className="text-headline font-semibold text-neutral-900">Halo, {user?.name}</h1>
-          <p className="text-body-sm text-neutral-600">Dashboard Kasir</p>
-        </header>
-
+    <Page title={`Halo, ${user?.name ?? ''}`} subtitle="Dashboard Kasir">
         {isLoading && (
           <>
             <Skeleton className="h-32" />
@@ -116,7 +109,7 @@ export default function CashierDashboard() {
         )}
 
         {dashboard && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-safe">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <ReminderCard reminders={dashboard.reminders} />
             <SecondaryActionsCard />
           </div>
@@ -132,8 +125,7 @@ export default function CashierDashboard() {
             activeShifts={activeShifts}
           />
         )}
-      </div>
-    </div>
+    </Page>
   )
 }
 

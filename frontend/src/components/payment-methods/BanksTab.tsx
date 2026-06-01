@@ -17,6 +17,7 @@ import {
   Badge,
   Skeleton,
   DataTable,
+  PageContainer,
   type DataTableColumn,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -120,7 +121,7 @@ export default function BanksTab({ banks, loading }: Props) {
   ]
 
   return (
-    <div className="p-3 sm:p-4 space-y-3">
+    <PageContainer>
       {/* Toolbar */}
       <div className="bg-white rounded-xl p-3 border border-neutral-200/60 flex flex-wrap gap-2 items-center">
         <div className="text-body-sm text-neutral-700">
@@ -215,6 +216,6 @@ export default function BanksTab({ banks, loading }: Props) {
           }}
         />
       )}
-    </div>
+    </PageContainer>
   )
 }

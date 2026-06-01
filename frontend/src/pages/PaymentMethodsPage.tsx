@@ -13,7 +13,7 @@ import BanksTab from '@/components/payment-methods/BanksTab'
 import TaxSettingsTab from '@/components/payment-methods/TaxSettingsTab'
 import ShiftWindowTab from '@/components/payment-methods/ShiftWindowTab'
 import RestaurantIdentityTab from '@/components/payment-methods/RestaurantIdentityTab'
-import { Tabs } from '@/design-system/primitives'
+import { PageHeader } from '@/design-system/primitives'
 
 type Tab = 'methods' | 'banks' | 'tax' | 'shift' | 'identity'
 
@@ -33,46 +33,22 @@ export default function PaymentMethodsPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <header className="bg-white border-b border-neutral-200 px-3 sm:px-4 py-2.5 flex items-center gap-3 flex-wrap pt-safe md:pt-2.5">
-        <div className="min-w-0">
-          <h1 className="text-title font-semibold text-neutral-900">Pembayaran</h1>
-          <p className="text-caption text-neutral-500">Metode bayar, bank, pajak, shift &amp; identitas resto</p>
-        </div>
-        <div className="ml-auto">
-          <Tabs
-            value={tab}
-            onValueChange={(v) => setTab(v as Tab)}
-            items={[
-              {
-                value: 'methods',
-                label: `Metode (${methodsQuery.data?.length ?? 0})`,
-                icon: <CreditCard className="w-4 h-4" />,
-              },
-              {
-                value: 'banks',
-                label: `Bank (${banksQuery.data?.length ?? 0})`,
-                icon: <Building2 className="w-4 h-4" />,
-              },
-              {
-                value: 'tax',
-                label: 'Pajak',
-                icon: <Receipt className="w-4 h-4" />,
-              },
-              {
-                value: 'shift',
-                label: 'Jam Shift',
-                icon: <Clock className="w-4 h-4" />,
-              },
-              {
-                value: 'identity',
-                label: 'Identitas',
-                icon: <Store className="w-4 h-4" />,
-              },
-            ]}
-            variant="segmented"
-          />
-        </div>
-      </header>
+      <PageHeader
+        title="Pembayaran"
+        subtitle="Metode bayar, bank, pajak, shift & identitas resto"
+        tabsScrollable
+        tabs={{
+          value: tab,
+          onValueChange: (v) => setTab(v as Tab),
+          items: [
+            { value: 'methods', label: `Metode (${methodsQuery.data?.length ?? 0})`, icon: <CreditCard className="w-4 h-4" /> },
+            { value: 'banks', label: `Bank (${banksQuery.data?.length ?? 0})`, icon: <Building2 className="w-4 h-4" /> },
+            { value: 'tax', label: 'Pajak', icon: <Receipt className="w-4 h-4" /> },
+            { value: 'shift', label: 'Jam Shift', icon: <Clock className="w-4 h-4" /> },
+            { value: 'identity', label: 'Identitas', icon: <Store className="w-4 h-4" /> },
+          ],
+        }}
+      />
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {tab === 'methods' && (
