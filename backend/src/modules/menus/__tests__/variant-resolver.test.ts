@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildVariantLabel, cartesian, resolveStockTargets, resolveCostComponents, type MenuNode } from '../variant-resolver'
+import { buildVariantLabel, cartesian, resolveStockTargets, resolveCostComponents, resolvePaketUpcharge, type MenuNode } from '../variant-resolver'
 
 describe('buildVariantLabel', () => {
   it('joins option labels in group order with " / "', () => {
@@ -97,5 +97,44 @@ describe('resolveCostComponents', () => {
     })
     expect(out).toEqual(expect.arrayContaining([{ menuId: 2, qty: 2 }, { menuId: 1, qty: 1 }]))
     expect(out).toHaveLength(2)
+  })
+})
+
+describe('resolvePaketUpcharge', () => {
+  // Paket slot "Minuman" menawarkan 2 varian Teh (per-varian upcharge) + 1 nested option.
+  const graph: Record<number, MenuNode> = {
+    60: { id: 60, kind: 'variant', stockType: 'nonStock', variants: {
+      601: { id: 601, stockTargetMenuId: null, costSourceMenuId: 40 },
+      602: { id: 602, stockTargetMenuId: null, costSourceMenuId: 43 },
+    } },
+    70: { id: 70, kind: 'paket', stockType: 'nonStock', paket: {
+      fixed: [],
+      choices: [{ label: 'Minuman', options: [
+        { targetMenuId: 60, targetVariantId: 601, upcharge: 0 },
+        { targetMenuId: 60, targetVariantId: 602, upcharge: 5000 },
+      ] }],
+    } },
+    // Paket dengan opsi nested (targetVariantId null, upcharge flat per opsi).
+    71: { id: 71, kind: 'paket', stockType: 'nonStock', paket: {
+      fixed: [],
+      choices: [{ label: 'Drink', options: [{ targetMenuId: 60, targetVariantId: null, upcharge: 2000 }] }],
+    } },
+    80: { id: 80, kind: 'simple', stockType: 'portion' },
+  }
+
+  it('per-variant option → returns that option upcharge', () => {
+    expect(resolvePaketUpcharge(graph, { menuId: 70, paketChoices: { Minuman: { targetMenuId: 60, variantId: 602 } } })).toBe(5000)
+  })
+  it('base (+0) variant option → 0', () => {
+    expect(resolvePaketUpcharge(graph, { menuId: 70, paketChoices: { Minuman: { targetMenuId: 60, variantId: 601 } } })).toBe(0)
+  })
+  it('nested option (targetVariantId null) → matches by menu, returns flat upcharge', () => {
+    expect(resolvePaketUpcharge(graph, { menuId: 71, paketChoices: { Drink: { targetMenuId: 60, variantId: 999 } } })).toBe(2000)
+  })
+  it('non-paket menu → 0', () => {
+    expect(resolvePaketUpcharge(graph, { menuId: 80 })).toBe(0)
+  })
+  it('paket without choices selected → 0', () => {
+    expect(resolvePaketUpcharge(graph, { menuId: 70 })).toBe(0)
   })
 })

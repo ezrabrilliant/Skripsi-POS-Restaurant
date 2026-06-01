@@ -46,6 +46,7 @@ import { isShiftStale } from '../shifts/shift-time';
 import {
   resolveStockTargets,
   resolveCostComponents,
+  resolvePaketUpcharge,
   type MenuNode,
   type StockDeduction,
 } from '../menus/variant-resolver';
@@ -278,7 +279,7 @@ async function buildMenuGraph(
           targetMenuId: true,
           targetVariantId: true,
           choiceOptions: {
-            select: { label: true, targetMenuId: true, targetVariantId: true },
+            select: { label: true, targetMenuId: true, targetVariantId: true, upcharge: true },
           },
         },
       },
@@ -329,7 +330,10 @@ async function buildMenuGraph(
           .filter((c) => c.kind === 'choice')
           .map((c) => ({
             label: c.label,
-            options: c.choiceOptions.map((co) => resolveTarget(co.targetMenuId, co.targetVariantId)),
+            options: c.choiceOptions.map((co) => ({
+              ...resolveTarget(co.targetMenuId, co.targetVariantId),
+              upcharge: co.upcharge.toNumber(),
+            })),
           })),
       };
     }
@@ -441,6 +445,17 @@ async function resolveItems(
         throw new AppError(`Varian id=${variantId} bukan milik menu "${menu.name}"`, 400);
       }
       unitPrice = variant.price;
+    }
+
+    // REV: tambahan harga (upcharge) opsi paket terpilih → masuk ke unitPrice paket.
+    // Server-side recompute dari graph; jangan percaya harga dari client.
+    const paketUpcharge = resolvePaketUpcharge(graph, {
+      menuId: input.menuId,
+      variantId,
+      paketChoices: input.paketChoices,
+    });
+    if (paketUpcharge > 0) {
+      unitPrice = unitPrice.add(new Prisma.Decimal(paketUpcharge));
     }
 
     // REV 2.10 P3: validasi slot paket SEBELUM resolve stok (resolveStockTargets

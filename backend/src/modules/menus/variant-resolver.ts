@@ -24,7 +24,7 @@ export interface MenuNode {
     fixed: { qty: number; targetMenuId?: number | null; targetVariantId?: number | null }[]
     choices: {
       label: string
-      options: { targetMenuId?: number | null; targetVariantId?: number | null }[]
+      options: { targetMenuId?: number | null; targetVariantId?: number | null; upcharge?: number }[]
     }[]
   }
 }
@@ -133,4 +133,29 @@ function mergeDeductions(d: StockDeduction[]): StockDeduction[] {
   const m = new Map<number, number>()
   for (const x of d) m.set(x.menuId, (m.get(x.menuId) ?? 0) + x.qty)
   return [...m].map(([menuId, qty]) => ({ menuId, qty }))
+}
+
+// Total upcharge dari opsi paket yang dipilih (REV: tambahan harga manual per opsi).
+// Cocokkan opsi by (targetMenuId, targetVariantId); fallback by targetMenuId saja untuk
+// opsi nested (targetVariantId null, upcharge flat). Caller tambahkan ke unitPrice paket.
+export function resolvePaketUpcharge(
+  graph: Record<number, MenuNode>,
+  item: ChosenItem,
+): number {
+  const node = graph[item.menuId]
+  if (!node || node.kind !== 'paket' || !node.paket) return 0
+  let sum = 0
+  for (const c of node.paket.choices) {
+    const chosen = item.paketChoices?.[c.label]
+    if (chosen?.targetMenuId == null) continue
+    const exact = c.options.find(
+      (o) =>
+        (o.targetMenuId ?? null) === (chosen.targetMenuId ?? null) &&
+        (o.targetVariantId ?? null) === (chosen.variantId ?? null),
+    )
+    const opt =
+      exact ?? c.options.find((o) => (o.targetMenuId ?? null) === (chosen.targetMenuId ?? null))
+    if (opt?.upcharge) sum += opt.upcharge
+  }
+  return sum
 }
