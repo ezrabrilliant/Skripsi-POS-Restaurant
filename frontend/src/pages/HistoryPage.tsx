@@ -39,6 +39,7 @@ import {
   EmptyState,
   Sheet,
   DropdownMenu,
+  Page,
   type ComboboxOption,
   type DropdownItem,
 } from '@/design-system/primitives'
@@ -209,30 +210,29 @@ export default function HistoryPage() {
   )
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header className="flex items-start justify-between gap-2">
-          <div>
-            <h1 className="text-headline font-semibold text-neutral-900">Riwayat Transaksi</h1>
-            <p className="text-body-sm text-neutral-600">
-              {transactions.length} transaksi · total dibayar{' '}
-              <span className="font-medium text-neutral-900 tabular-nums">
-                {formatCurrency(totalRevenue)}
-              </span>
-            </p>
-          </div>
-          {isMobile && (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Filter className="w-4 h-4" />}
-              onClick={() => setFilterSheetOpen(true)}
-            >
-              Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </Button>
-          )}
-        </header>
-
+    <Page
+      title="Riwayat Transaksi"
+      subtitle={
+        <>
+          {transactions.length} transaksi · total dibayar{' '}
+          <span className="font-medium text-neutral-900 tabular-nums">
+            {formatCurrency(totalRevenue)}
+          </span>
+        </>
+      }
+      actions={
+        isMobile ? (
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<Filter className="w-4 h-4" />}
+            onClick={() => setFilterSheetOpen(true)}
+          >
+            Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </Button>
+        ) : undefined
+      }
+    >
         {/* Filter desktop inline */}
         {!isMobile && (
           <div className="bg-white rounded-xl p-3 border border-neutral-200/60 grid grid-cols-3 gap-3">
@@ -298,8 +298,7 @@ export default function HistoryPage() {
             </div>
           </div>
         </Sheet>
-      </div>
-    </div>
+    </Page>
   )
 }
 

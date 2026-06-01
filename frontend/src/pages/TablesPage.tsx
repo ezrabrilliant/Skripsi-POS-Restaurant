@@ -25,6 +25,7 @@ import {
   Skeleton,
   Badge,
   DropdownMenu,
+  Page,
   type DropdownItem,
 } from '@/design-system/primitives'
 import CombineTableModal from '@/components/CombineTableModal'
@@ -89,17 +90,16 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 space-y-3 pt-safe pb-safe">
-        <header>
-          <h1 className="text-headline font-semibold text-neutral-900">Status Meja</h1>
-          <p className="text-body-sm text-neutral-600">
-            {TABLES.length} meja ·{' '}
-            <span className="text-warning-700 font-medium">{occupiedCount} terisi</span> ·{' '}
-            <span className="text-success-700 font-medium">{emptyCount} kosong</span>
-          </p>
-        </header>
-
+    <Page
+      title="Status Meja"
+      subtitle={
+        <>
+          {TABLES.length} meja ·{' '}
+          <span className="text-warning-700 font-medium">{occupiedCount} terisi</span> ·{' '}
+          <span className="text-success-700 font-medium">{emptyCount} kosong</span>
+        </>
+      }
+    >
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {Array.from({ length: 9 }).map((_, i) => (
@@ -199,7 +199,6 @@ export default function TablesPage() {
             })}
           </div>
         )}
-      </div>
 
       {/* REV 2.5: Combine Tables modal - source mode (caller meja yang dipilih) */}
       {combineSourceTable !== null && (
@@ -209,6 +208,6 @@ export default function TablesPage() {
           onSuccess={handleCombineSuccess}
         />
       )}
-    </div>
+    </Page>
   )
 }
