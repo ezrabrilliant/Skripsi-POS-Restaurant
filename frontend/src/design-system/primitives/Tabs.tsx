@@ -40,7 +40,7 @@ export function Tabs({
           variant === 'segmented' &&
             'inline-flex p-1 rounded-lg bg-neutral-100 border border-neutral-200 gap-1',
           variant === 'underline' && 'flex border-b border-neutral-200 gap-1',
-          scrollable && 'flex-nowrap overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-fade-right'
+          scrollable && 'flex-nowrap overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-fade-right max-w-full'
         )}
       >
         {items.map((item) => (
