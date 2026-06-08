@@ -17,7 +17,7 @@ const LINE_H = 3.6 // mm per baris
 const FONT_PT = 8
 const CHARS = 30 // perkiraan karakter per baris (courier 8pt di ~52mm)
 
-type Row =
+export type Row =
   | { t: 'center'; s: string; bold?: boolean }
   | { t: 'left'; s: string }
   | { t: 'lr'; l: string; r: string; bold?: boolean }
@@ -58,11 +58,19 @@ export interface ReceiptOptions {
   paymentLabel?: (method: string) => string
 }
 
-/** Bangun + unduh struk PDF untuk transaksi yang sudah dibayar. */
-export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void {
+/** Bangun daftar baris struk (pure - tanpa side effect). Diuji di receipt.test.ts.
+ * REV 2.13: agregasi item + subtotal dari transaksi gabungan (mergedSources). */
+export function buildReceiptRows(tx: Transaction, opts: ReceiptOptions): Row[] {
   const id = opts.identity
   const labelOf = opts.paymentLabel ?? ((m) => m)
   const rows: Row[] = []
+
+  // REV 2.13: gabungkan item parent + semua anak yang ter-merge. aggregateSubtotal
+  // = subtotal parent + Σ subtotal anak (== Σ semua item) supaya baris Subtotal
+  // rekonsiliasi dengan TOTAL (yang sudah agregat dari backend).
+  const sources = tx.mergedSources ?? []
+  const allItems = [...tx.items, ...sources.flatMap((s) => s.items)]
+  const aggregateSubtotal = tx.subtotal + sources.reduce((s, m) => s + m.subtotal, 0)
 
   // --- Header (identitas resto) ---
   if (id?.restaurantName) rows.push({ t: 'center', s: id.restaurantName, bold: true })
@@ -78,10 +86,12 @@ export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void 
     t: 'left',
     s: tx.orderType === 'dineIn' ? `Meja ${tx.tableNumber} · Dine-in` : 'Takeaway',
   })
+  // REV 2.13: tandai struk gabungan (parent + N anak).
+  if (sources.length > 0) rows.push({ t: 'left', s: `Gabungan ${sources.length + 1} pesanan` })
   rows.push({ t: 'sep', c: '-' })
 
-  // --- Item ---
-  for (const it of tx.items) {
+  // --- Item (parent + anak) ---
+  for (const it of allItems) {
     const amt = money(it.subtotal)
     const headLines = wrap(`${it.qty}x ${it.menuName}`, CHARS - amt.length - 1)
     headLines.forEach((s, i) =>
@@ -96,7 +106,7 @@ export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void 
   rows.push({ t: 'sep', c: '-' })
 
   // --- Totals ---
-  rows.push({ t: 'lr', l: 'Subtotal', r: money(tx.subtotal) })
+  rows.push({ t: 'lr', l: 'Subtotal', r: money(aggregateSubtotal) })
   if (tx.discountAmount > 0) rows.push({ t: 'lr', l: 'Diskon', r: `-${money(tx.discountAmount)}` })
   if (tx.taxAmount > 0) rows.push({ t: 'lr', l: `PB1 ${opts.taxRate ?? 10}%`, r: money(tx.taxAmount) })
   rows.push({ t: 'sep', c: '-' })
@@ -115,6 +125,13 @@ export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void 
   if (tx.taxBorneAmount > 0) rows.push({ t: 'center', s: 'Harga sudah termasuk PB1' })
   rows.push({ t: 'center', s: '~ Terima kasih ~' })
   rows.push({ t: 'center', s: 'Simpan sebagai bukti bayar' })
+
+  return rows
+}
+
+/** Bangun + unduh struk PDF untuk transaksi yang sudah dibayar. */
+export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void {
+  const rows = buildReceiptRows(tx, opts)
 
   // --- Render ---
   const height = MARGIN_MM * 2 + rows.length * LINE_H
