@@ -320,6 +320,15 @@ export interface TransactionItem {
   createdAt: string
 }
 
+/** REV 2.13: ringkasan transaksi anak yang ter-merge (mergedFrom), untuk struk
+ * gabungan. Hanya diisi oleh endpoint detail (GET /transactions/:id). */
+export interface TransactionMergedSource {
+  id: number
+  tableNumber: number | null
+  subtotal: number
+  items: TransactionItem[]
+}
+
 export interface Transaction {
   id: number
   shiftId: number
@@ -346,6 +355,9 @@ export interface Transaction {
   /** REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
    * sum(payments.amount) === total saat status=paid. */
   payments: TransactionPayment[]
+  /** REV 2.13: anak-anak yang ter-merge ke transaksi ini (lengkap dengan item).
+   * Hanya hadir dari GET /transactions/:id (byId), bukan dari list. */
+  mergedSources?: TransactionMergedSource[]
   createdAt: string
   paidAt: string | null
   voidedAt: string | null
