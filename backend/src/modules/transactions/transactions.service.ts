@@ -109,6 +109,16 @@ export interface TransactionPaymentView {
   recordedByName: string;
 }
 
+/// REV 2.13: ringkasan satu transaksi anak yang ter-merge ke parent (mergedFrom).
+/// Dipakai untuk struk + detail agar item gabungan tidak hilang. Anak menyimpan
+/// items + subtotal-nya sendiri (cascade payment hanya nol-kan total/tax/discount).
+export interface TransactionMergedSource {
+  id: number;
+  tableNumber: number | null;
+  subtotal: number;
+  items: TransactionItemView[];
+}
+
 export interface TransactionView {
   id: number;
   shiftId: number;
@@ -133,6 +143,9 @@ export interface TransactionView {
   /// REV 2.5: payment slices (1 untuk single tender, N untuk split tender).
   /// sum(payments.amount) === total saat status=paid.
   payments: TransactionPaymentView[];
+  /// REV 2.13: hanya diisi oleh getTransactionById (bukan list). Anak-anak yang
+  /// ter-merge ke transaksi ini, lengkap dengan item-nya. undefined kalau tidak ada.
+  mergedSources?: TransactionMergedSource[];
   createdAt: string;
   paidAt: string | null;
   voidedAt: string | null;
@@ -1066,7 +1079,26 @@ export async function getTransactionById(id: number): Promise<TransactionView> {
     include: transactionInclude,
   });
   if (!t) throw notFound('Transaction');
-  return toTransactionView(t);
+  const view = toTransactionView(t);
+
+  // REV 2.13: sertakan item dari anak yang ter-merge (mergedFrom) supaya struk +
+  // detail menampilkan SEMUA item gabungan. HANYA di getById (bukan list) agar
+  // endpoint daftar tetap ringan. Reuse toTransactionView untuk mapping item anak
+  // (variantLabel/selections/notes identik). Anak menyimpan items + subtotal sendiri.
+  const children = await prisma.transaction.findMany({
+    where: { mergedIntoId: id },
+    include: transactionInclude,
+    orderBy: { createdAt: 'asc' },
+  });
+  if (children.length > 0) {
+    view.mergedSources = children.map((c) => ({
+      id: c.id,
+      tableNumber: c.tableNumber,
+      subtotal: c.subtotal.toNumber(),
+      items: toTransactionView(c).items,
+    }));
+  }
+  return view;
 }
 
 /// REV 2.4: update single item - qty dan/atau notes. Open Tx only.
