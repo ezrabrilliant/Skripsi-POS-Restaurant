@@ -19,7 +19,7 @@
 // REV 2.3 shift-decoupling preserved: gate 3-case (0/1/2+ active shifts),
 // payload TIDAK kirim shiftId - backend auto-resolve.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShoppingCart, Wallet, ArrowLeft, Info, AlertTriangle } from 'lucide-react'
@@ -119,6 +119,24 @@ export default function POSPage() {
     queryFn: () => transactionService.list({ status: 'open', orderType: 'takeaway' }),
     enabled: cart.orderType === 'takeaway',
   })
+
+  // REV 2.13: okupansi meja sistem-wide untuk marker di picker CartPanel.
+  // Reuse cache key + filter TablesPage (['transactions','open-today']) agar
+  // tidak ada fetch ganda. Hanya butuh dine-in open hari ini.
+  const today = new Date().toISOString().substring(0, 10)
+  const { data: openDineInToday = [] } = useQuery({
+    queryKey: ['transactions', 'open-today'],
+    queryFn: () =>
+      transactionService.list({ status: 'open', orderType: 'dineIn', date: today }),
+    refetchInterval: 30_000,
+  })
+  const occupiedTables = useMemo(() => {
+    const s = new Set<number>()
+    for (const t of openDineInToday) {
+      if (t.tableNumber !== null && t.mergedIntoId === null) s.add(t.tableNumber)
+    }
+    return s
+  }, [openDineInToday])
 
   // Derived mode: viewMode true → CartPanel render ActiveOrdersView (dineIn) atau
   // ActiveTakeawaysView (takeaway).
@@ -428,6 +446,7 @@ export default function POSPage() {
           onUpdateItemNotes={handleUpdateItemNotes}
           isDeleting={deleteItemMutation.isPending}
           isUpdatingItem={updateItemMutation.isPending}
+          occupiedTables={occupiedTables}
         />
       </div>
 
@@ -473,6 +492,7 @@ export default function POSPage() {
             onUpdateItemNotes={handleUpdateItemNotes}
             isDeleting={deleteItemMutation.isPending}
             isUpdatingItem={updateItemMutation.isPending}
+            occupiedTables={occupiedTables}
           />
         </div>
       </Sheet>

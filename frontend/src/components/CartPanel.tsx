@@ -70,6 +70,9 @@ interface Props {
   /// Disable mutate buttons selama mutation berjalan.
   isDeleting?: boolean
   isUpdatingItem?: boolean
+  /// REV 2.13: nomor meja yang sedang terisi (open dine-in). Untuk marker amber +
+  /// titik di picker meja. undefined = tidak ada info (semua tampak kosong).
+  occupiedTables?: Set<number>
 }
 
 export default function CartPanel({
@@ -90,6 +93,7 @@ export default function CartPanel({
   onUpdateItemNotes,
   isDeleting,
   isUpdatingItem,
+  occupiedTables,
 }: Props) {
   const {
     items,
@@ -179,20 +183,30 @@ export default function CartPanel({
             <div className="grid grid-cols-5 gap-2">
               {Array.from({ length: TABLE_COUNT }, (_, i) => i + 1).map((n) => {
                 const selected = tableNumber === n
+                const occupied = occupiedTables?.has(n) ?? false
                 return (
                   <button
                     key={n}
                     onClick={() => setTableNumber(n)}
                     aria-pressed={selected}
+                    aria-label={occupied ? `Meja ${n} (terisi)` : `Meja ${n}`}
                     className={cn(
-                      'h-12 md:h-14 rounded-lg font-semibold text-body tabular-nums transition-colors',
+                      'relative h-12 md:h-14 rounded-lg font-semibold text-body tabular-nums transition-colors',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
                       selected
                         ? 'bg-primary-600 text-white shadow-sm'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 active:bg-neutral-300',
+                        : occupied
+                          ? 'bg-warning-50 text-warning-800 ring-1 ring-warning-200 hover:bg-warning-100'
+                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 active:bg-neutral-300',
                     )}
                   >
                     {n}
+                    {occupied && !selected && (
+                      <span
+                        className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-warning-500"
+                        aria-hidden
+                      />
+                    )}
                   </button>
                 )
               })}
