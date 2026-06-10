@@ -7,7 +7,7 @@
 // "Tambah Pesanan" (bikin Tx baru) atau payment endpoint (untuk Bayar).
 
 import { useState } from 'react'
-import { ClipboardList, Trash2, Minus, Plus, Pencil, Check, Receipt } from 'lucide-react'
+import { ClipboardList, Trash2, Minus, Plus, Pencil, Check, Receipt, Replace } from 'lucide-react'
 import type { Transaction, TransactionItem } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { Badge, Button, IconButton, Input } from '@/design-system/primitives'
@@ -20,6 +20,8 @@ interface Props {
   onUpdateQty?: (txId: number, itemId: number, newQty: number) => void
   /// REV 2.4: callback update notes item.
   onUpdateNotes?: (txId: number, itemId: number, newNotes: string) => void
+  /// REV 2.14: callback ubah varian/paket item. POSPage buka VariantPickerModal pre-filled.
+  onEditVariant?: (txId: number, itemId: number) => void
   /// REV 2.5: per-Pesanan pay handler. Customer bisa pilih bayar 1 Pesanan saja
   /// (mis. customer A bayar Pesanan #1 saja, B bayar Pesanan #2). Render-conditional:
   /// only kalau callback ada + canPay=true.
@@ -44,6 +46,7 @@ export default function ActiveOrdersView({
   onDeleteItem,
   onUpdateQty,
   onUpdateNotes,
+  onEditVariant,
   onPayOrder,
   canPay,
   isDeleting,
@@ -60,6 +63,7 @@ export default function ActiveOrdersView({
           onDeleteItem={onDeleteItem}
           onUpdateQty={onUpdateQty}
           onUpdateNotes={onUpdateNotes}
+          onEditVariant={onEditVariant}
           onPayOrder={onPayOrder}
           canPay={canPay}
           isDeleting={isDeleting}
@@ -77,6 +81,7 @@ function PesananGroup({
   onDeleteItem,
   onUpdateQty,
   onUpdateNotes,
+  onEditVariant,
   onPayOrder,
   canPay,
   isDeleting,
@@ -88,6 +93,7 @@ function PesananGroup({
   onDeleteItem?: (txId: number, itemId: number, itemLabel: string) => void
   onUpdateQty?: (txId: number, itemId: number, newQty: number) => void
   onUpdateNotes?: (txId: number, itemId: number, newNotes: string) => void
+  onEditVariant?: (txId: number, itemId: number) => void
   onPayOrder?: (tx: Transaction) => void
   canPay?: boolean
   isDeleting?: boolean
@@ -98,7 +104,7 @@ function PesananGroup({
   const orderSubtotal = order.items.reduce((s, it) => s + it.subtotal, 0)
   const [editing, setEditing] = useState(false)
   // Edit hanya bisa dilakukan kalau handler tersedia (parent pass-in)
-  const canEdit = !!(onDeleteItem || onUpdateQty || onUpdateNotes)
+  const canEdit = !!(onDeleteItem || onUpdateQty || onUpdateNotes || onEditVariant)
 
   return (
     <section className="bg-neutral-50/80 border border-neutral-200/60 rounded-lg overflow-hidden">
@@ -158,6 +164,9 @@ function PesananGroup({
               onUpdateNotes={
                 onUpdateNotes ? (newNotes) => onUpdateNotes(order.id, item.id, newNotes) : undefined
               }
+              onEditVariant={
+                onEditVariant ? () => onEditVariant(order.id, item.id) : undefined
+              }
               isDeleting={isDeleting}
               isUpdating={isUpdating}
             />
@@ -199,6 +208,7 @@ function PesananItem({
   onDelete,
   onUpdateQty,
   onUpdateNotes,
+  onEditVariant,
   isDeleting,
   isUpdating,
 }: {
@@ -209,11 +219,16 @@ function PesananItem({
   onDelete?: () => void
   onUpdateQty?: (newQty: number) => void
   onUpdateNotes?: (newNotes: string) => void
+  onEditVariant?: () => void
   isDeleting?: boolean
   isUpdating?: boolean
 }) {
   const [editingNotes, setEditingNotes] = useState(false)
   const busy = isDeleting || isUpdating
+  // REV 2.14: item punya sesuatu untuk diubah variannya = menu varian (variantId)
+  // ATAU paket dengan slot choice (selections non-preference). Menu simpel → tak ada.
+  const canEditVariant =
+    item.variantId != null || (item.selections?.some((s) => !s.isPreference) ?? false)
 
   return (
     <div className="px-3 py-2.5">
@@ -255,6 +270,18 @@ function PesananItem({
                 ))}
               </div>
             )
+          )}
+          {/* REV 2.14: ubah varian/paket - hanya saat edit mode + item punya varian/paket */}
+          {editing && onEditVariant && canEditVariant && (
+            <button
+              type="button"
+              onClick={onEditVariant}
+              disabled={busy}
+              className="text-caption text-primary-700 hover:text-primary-900 mt-1.5 inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <Replace className="w-3 h-3" />
+              Ubah varian
+            </button>
           )}
           {/* Notes: read mode tampil 📝 saja kalau ada; edit mode munculin Pencil button + inline editor */}
           {editing && editingNotes && onUpdateNotes ? (
