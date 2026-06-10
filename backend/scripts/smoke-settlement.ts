@@ -84,6 +84,13 @@ async function main() {
   const report = await getOwnerReport({ period: 'today' } as Parameters<typeof getOwnerReport>[0]);
   ok(report.revenue.total === expectedWholeDay, `owner revenue.total = ${report.revenue.total} (expect ${expectedWholeDay})`);
 
+  console.log('\n[8] Seal: buka shift lagi di hari yang sudah disetor → 409:');
+  await expectErr(
+    () => openShift(jason.id, { type: ShiftType.pagi, openingCash: 0 }),
+    409,
+    'openShift di businessDate yang sudah disetor',
+  );
+
   console.log(`\n[smoke-settlement] HASIL: ${pass} pass, ${fail} fail`);
   await prisma.$disconnect();
   if (fail > 0) process.exit(1);
