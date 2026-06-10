@@ -56,6 +56,7 @@ import {
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import CombineTableModal from './CombineTableModal'
+import ReceiptPreview from './ReceiptPreview'
 
 /** Resolve nama icon lucide ke komponen React. Fallback CreditCard kalau
  * iconName tidak terdaftar (defensive - backend whitelist tapi data lama
@@ -184,6 +185,8 @@ export default function PaymentModal({
   const [step, setStep] = useState<'input' | 'review'>('input')
   // REV 2.15: uang tunai diterima (ephemeral). Hanya relevan saat method.code === 'cash'.
   const [cashReceived, setCashReceived] = useState(0)
+  // REV 2.15: uang diterima & kembalian dari pembayaran penutup, untuk fase SUKSES + struk.
+  const [paidCashReceived, setPaidCashReceived] = useState<number | null>(null)
 
   // Sync mode: kalau payments sudah ada → force 'split'.
   useEffect(() => {
@@ -363,6 +366,7 @@ export default function PaymentModal({
   const doSubmitSingle = () => {
     if (!transaction || isPaid || !selectedMethod) return
     const finalBank = needsBank ? bank.trim() : undefined
+    setPaidCashReceived(isCashMethod ? cashReceived : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -381,6 +385,7 @@ export default function PaymentModal({
   const doSubmitSlice = () => {
     if (!transaction || isPaid || !selectedMethod) return
     const finalBank = needsBank ? bank.trim() : undefined
+    setPaidCashReceived(isCashMethod ? cashReceived : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -404,9 +409,9 @@ export default function PaymentModal({
 
   // REV 2.12: generate + unduh struk PDF dari transaksi yang sudah dibayar.
   // Identitas + tarif dari appSettings; label metode dari master payment_methods.
-  const handlePrintReceipt = () => {
-    if (!transaction) return
-    generateReceiptPdf(transaction, {
+  // REV 2.15: opsi struk bersama (layar + PDF). cashReceived ephemeral dari pembayaran penutup.
+  const receiptOptions = useMemo(
+    () => ({
       identity: appSettings
         ? {
             restaurantName: appSettings.restaurantName,
@@ -417,8 +422,15 @@ export default function PaymentModal({
           }
         : null,
       taxRate: appSettings?.taxRate ?? 10,
-      paymentLabel: (code) => allMethods.find((m) => m.code === code)?.label ?? code,
-    })
+      paymentLabel: (code: string) => allMethods.find((m) => m.code === code)?.label ?? code,
+      cashReceived: paidCashReceived ?? undefined,
+    }),
+    [appSettings, allMethods, paidCashReceived],
+  )
+
+  const handlePrintReceipt = () => {
+    if (!transaction) return
+    generateReceiptPdf(transaction, receiptOptions)
   }
 
   // Submit disable conditions
@@ -481,7 +493,6 @@ export default function PaymentModal({
 
   // REV 2.12: layar sukses pasca-bayar (TIDAK auto-close). Simpan struk / Selesai.
   if (isPaid) {
-    const change = sumPayments - transaction.total
     return (
       <Dialog
         open
@@ -521,22 +532,25 @@ export default function PaymentModal({
           </div>
         }
       >
-        <div className="py-4 text-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-success-100 flex items-center justify-center mx-auto">
-            <Check className="w-8 h-8 text-success-600" />
-          </div>
-          <div>
-            <p className="text-caption text-neutral-500">Total dibayar</p>
-            <p className="text-headline font-bold text-neutral-900 tabular-nums">
-              {formatCurrency(transaction.total)}
+        <div className="py-2 space-y-3">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="w-12 h-12 rounded-full bg-success-100 flex items-center justify-center">
+              <Check className="w-7 h-7 text-success-600" />
+            </div>
+            <p className="text-body-sm text-neutral-600">
+              Total dibayar{' '}
+              <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(transaction.total)}</span>
+              {paidCashReceived != null && paidCashReceived - transaction.total > 0 && (
+                <>
+                  {' · '}Kembalian{' '}
+                  <span className="font-bold text-success-700 tabular-nums">
+                    {formatCurrency(paidCashReceived - transaction.total)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
-          {change > 0 && (
-            <p className="text-body-sm text-neutral-600">Kembalian {formatCurrency(change)}</p>
-          )}
-          <p className="text-caption text-neutral-500">
-            Simpan struk PDF ke perangkat lewat tombol di bawah.
-          </p>
+          <ReceiptPreview tx={transaction} options={receiptOptions} />
         </div>
       </Dialog>
     )
