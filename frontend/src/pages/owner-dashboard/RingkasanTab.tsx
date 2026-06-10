@@ -81,6 +81,11 @@ export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
   if (!report) return null
 
   const marginPct = report.revenue.total > 0 ? (report.profit / report.revenue.total) * 100 : 0
+  // Laba Bersih = Laba Kotor − Tagihan. Hanya bermakna pada periode bulan/tahun karena
+  // tagihan (beban operasional) bersifat tetap bulanan. (lihat docs/flow/OWNER_REPORT_FLOW.md)
+  const showNetProfit = report.period.type === 'month' || report.period.type === 'year'
+  const netProfit = report.profit - report.expense.billTotal
+  const netMarginPct = report.revenue.total > 0 ? (netProfit / report.revenue.total) * 100 : 0
 
   return (
     <div className="space-y-4">
@@ -121,13 +126,48 @@ export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
           }
         />
         <Stat
-          label="Margin Laba"
+          label="Margin Kotor"
           value={marginPct}
           format="percent"
           icon={<Percent className="w-4 h-4" />}
-          hint="Laba ÷ Pendapatan"
+          hint="Laba Kotor ÷ Pendapatan"
         />
       </div>
+
+      {/* Laba-Rugi bulanan: Laba Bersih = Laba Kotor − Tagihan (hanya periode bulan/tahun) */}
+      {showNetProfit && (
+        <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
+          <div className="flex items-center gap-2 mb-3">
+            <Receipt className="w-5 h-5 text-neutral-500" />
+            <h3 className="text-title font-semibold text-neutral-900">
+              Laba Bersih · {report.period.label}
+            </h3>
+          </div>
+          <dl className="space-y-1.5 text-body-sm tabular-nums">
+            <div className="flex justify-between gap-3">
+              <dt className="text-neutral-600">Laba Kotor</dt>
+              <dd className="font-medium text-neutral-900">{formatCurrency(report.profit)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-neutral-600">− Tagihan (beban operasional)</dt>
+              <dd className="font-medium text-warning-700">−{formatCurrency(report.expense.billTotal)}</dd>
+            </div>
+            <div className="flex justify-between gap-3 border-t border-neutral-100 pt-2 mt-1">
+              <dt className="font-semibold text-neutral-900">= Laba Bersih</dt>
+              <dd className={netProfit < 0 ? 'font-bold text-danger-700' : 'font-bold text-success-700'}>
+                {formatCurrency(netProfit)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-caption text-neutral-500">Margin Bersih</dt>
+              <dd className="text-caption text-neutral-500">{netMarginPct.toFixed(1)}%</dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-caption text-neutral-500">
+            Tagihan (listrik/air/sewa) bersifat bulanan, jadi laba bersih dihitung per bulan/tahun — bukan harian.
+          </p>
+        </div>
+      )}
 
       <ShiftPanel shifts={activeShifts} />
 
