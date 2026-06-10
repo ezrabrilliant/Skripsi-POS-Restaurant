@@ -55,8 +55,8 @@ import {
   Badge,
 } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
-import { useConfirm } from '@/design-system/hooks/useConfirm'
 import CombineTableModal from './CombineTableModal'
+import ReceiptPreview from './ReceiptPreview'
 
 /** Resolve nama icon lucide ke komponen React. Fallback CreditCard kalau
  * iconName tidak terdaftar (defensive - backend whitelist tapi data lama
@@ -92,7 +92,6 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const toast = useToast()
   const qc = useQueryClient()
-  const confirm = useConfirm()
 
   // REV 2.6: payment methods fetched from /payment-methods master (owner-configurable).
   // Drop hardcoded PAYMENT_METHODS const. List terbatas (~6-8 entries) + jarang berubah
@@ -182,6 +181,16 @@ export default function PaymentModal({
   const [discountAmount, setDiscountAmount] = useState(0)
   const [amount, setAmount] = useState(0)
   const [combineOpen, setCombineOpen] = useState(false)
+  // REV 2.15: 2-langkah sebelum submit — 'input' lalu 'review' (rincian read-only).
+  const [step, setStep] = useState<'input' | 'review'>('input')
+  // REV 2.15: uang tunai diterima (ephemeral). Hanya relevan saat method.code === 'cash'.
+  const [cashReceived, setCashReceived] = useState(0)
+  // REV 2.15: uang diterima & kembalian dari pembayaran penutup, untuk fase SUKSES + struk.
+  // paidChangeDue di-snapshot dari changeDue saat submit — JANGAN re-derive dari total di
+  // header sukses (pada split dengan slice non-cash sebelumnya, kembalian dihitung atas
+  // sisa tunai = total − Σ non-cash, bukan total penuh; konsisten dengan buildReceiptRows).
+  const [paidCashReceived, setPaidCashReceived] = useState<number | null>(null)
+  const [paidChangeDue, setPaidChangeDue] = useState<number | null>(null)
 
   // Sync mode: kalau payments sudah ada → force 'split'.
   useEffect(() => {
@@ -189,6 +198,11 @@ export default function PaymentModal({
       setMode('split')
     }
   }, [transaction, mode])
+
+  // Kembali ke input kalau mode berganti (mis. single↔split) supaya tak nyangkut di review.
+  useEffect(() => {
+    setStep('input')
+  }, [mode])
 
   // Hitung aggregate subtotal + sisa.
   // REV 2.5: aggregate = target + already-merged sources (mergedFromOpen) +
@@ -266,6 +280,17 @@ export default function PaymentModal({
     [filteredMethods, methodCode],
   )
   const needsBank = selectedMethod?.requiresBank ?? false
+  // REV 2.15: kembalian hanya untuk uang fisik. Diskriminator: code === 'cash' (seed stabil).
+  const isCashMethod = selectedMethod?.code === 'cash'
+  // Nominal yang sedang ditagih di langkah ini (single=total, split=slice).
+  const amountToCharge = mode === 'single' ? total : amount
+  const changeDue = isCashMethod ? Math.max(0, cashReceived - amountToCharge) : 0
+  const cashShort = isCashMethod && cashReceived < amountToCharge
+
+  // Reset uang diterima kalau pindah dari/ke cash atau nominal tagihan berubah.
+  useEffect(() => {
+    setCashReceived(0)
+  }, [methodCode, amountToCharge])
 
   // REV 2.6: bank options = closed list dari selectedMethod.banks (filter active).
   // Drop free-text input + localStorage recent-banks. Bank master controlled by owner.
@@ -334,45 +359,19 @@ export default function PaymentModal({
   // kasir saat input cepat. Pesan kontekstual: include method + bank + diskon (single)
   // atau sisa-after + lunas hint (split). Sekali user click "Ya", payment ter-record
   // permanently di backend (cuma bisa di-remove via Trash button per slice di split mode).
-  const handleSingleSubmit = async (e: FormEvent) => {
+  // REV 2.15: tombol "Lanjut" di INPUT — validasi lalu pindah ke REVIEW (tidak mutate).
+  const handleSingleNext = (e: FormEvent) => {
     e.preventDefault()
+    if (singleSubmitDisabled) return
+    setStep('review')
+  }
+
+  // Submit nyata dari layar REVIEW.
+  const doSubmitSingle = () => {
     if (!transaction || isPaid || !selectedMethod) return
-    if (needsBank && !bank.trim()) return
-    if (discountAmount > aggregateSubtotal) return
     const finalBank = needsBank ? bank.trim() : undefined
-    const methodDisplay = `${selectedMethod.label}${finalBank ? ` · ${finalBank}` : ''}`
-    const pesananCount = 1 + selectedCandidates.size
-    const ok = await confirm({
-      title: `Konfirmasi bayar ${formatCurrency(total)}?`,
-      description: (
-        <span>
-          Metode: <strong>{methodDisplay}</strong>
-          {discountAmount > 0 && (
-            <>
-              <br />
-              Diskon: <strong>{formatCurrency(discountAmount)}</strong>
-            </>
-          )}
-          {pesananCount > 1 && (
-            <>
-              <br />
-              <strong>{pesananCount} pesanan</strong> akan digabung & ditandai lunas.
-            </>
-          )}
-          {pesananCount === 1 && (
-            <>
-              <br />
-              Transaksi akan ditandai <strong>lunas</strong> setelah dikonfirmasi.
-            </>
-          )}
-        </span>
-      ),
-      confirmText: 'Ya, Bayar',
-      cancelText: 'Cek Lagi',
-    })
-    if (!ok) return
-    // REV 2.12 Fix A: merge candidate dikirim bersama payment (atomik di backend).
-    // Tidak ada lagi mergeMutation terpisah → tidak ada stuck merge kalau bayar gagal.
+    setPaidCashReceived(isCashMethod ? cashReceived : null)
+    setPaidChangeDue(isCashMethod ? changeDue : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -382,51 +381,17 @@ export default function PaymentModal({
     })
   }
 
-  const handleAddSlice = async (e: FormEvent) => {
+  const handleSliceNext = (e: FormEvent) => {
     e.preventDefault()
+    if (sliceSubmitDisabled) return
+    setStep('review')
+  }
+
+  const doSubmitSlice = () => {
     if (!transaction || isPaid || !selectedMethod) return
-    if (amount <= 0 || amount > sisa) return
-    if (needsBank && !bank.trim()) return
-    if (isFirstSlice && discountAmount > aggregateSubtotal) return
     const finalBank = needsBank ? bank.trim() : undefined
-    const methodDisplay = `${selectedMethod.label}${finalBank ? ` · ${finalBank}` : ''}`
-    const willCloseTx = amount >= sisa
-    const sisaAfter = Math.max(0, sisa - amount)
-    const pesananCount = 1 + selectedCandidates.size
-    const ok = await confirm({
-      title: `Tambah pembayaran ${formatCurrency(amount)}?`,
-      description: (
-        <span>
-          Metode: <strong>{methodDisplay}</strong>
-          {isFirstSlice && discountAmount > 0 && (
-            <>
-              <br />
-              Diskon: <strong>{formatCurrency(discountAmount)}</strong>
-            </>
-          )}
-          {isFirstSlice && pesananCount > 1 && (
-            <>
-              <br />
-              <strong>{pesananCount} pesanan</strong> akan digabung saat slice pertama ini.
-            </>
-          )}
-          <br />
-          {willCloseTx ? (
-            <>
-              Slice ini menutup sisa - transaksi akan menjadi <strong>lunas</strong>.
-            </>
-          ) : (
-            <>
-              Sisa setelah ini: <strong>{formatCurrency(sisaAfter)}</strong>
-            </>
-          )}
-        </span>
-      ),
-      confirmText: willCloseTx ? 'Ya, Selesaikan' : 'Ya, Tambah',
-      cancelText: 'Cek Lagi',
-    })
-    if (!ok) return
-    // REV 2.12 Fix A: first slice kirim mergeSourceIds (atomik). Slice ke-2+ tidak.
+    setPaidCashReceived(isCashMethod ? cashReceived : null)
+    setPaidChangeDue(isCashMethod ? changeDue : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -450,9 +415,9 @@ export default function PaymentModal({
 
   // REV 2.12: generate + unduh struk PDF dari transaksi yang sudah dibayar.
   // Identitas + tarif dari appSettings; label metode dari master payment_methods.
-  const handlePrintReceipt = () => {
-    if (!transaction) return
-    generateReceiptPdf(transaction, {
+  // REV 2.15: opsi struk bersama (layar + PDF). cashReceived ephemeral dari pembayaran penutup.
+  const receiptOptions = useMemo(
+    () => ({
       identity: appSettings
         ? {
             restaurantName: appSettings.restaurantName,
@@ -463,8 +428,15 @@ export default function PaymentModal({
           }
         : null,
       taxRate: appSettings?.taxRate ?? 10,
-      paymentLabel: (code) => allMethods.find((m) => m.code === code)?.label ?? code,
-    })
+      paymentLabel: (code: string) => allMethods.find((m) => m.code === code)?.label ?? code,
+      cashReceived: paidCashReceived ?? undefined,
+    }),
+    [appSettings, allMethods, paidCashReceived],
+  )
+
+  const handlePrintReceipt = () => {
+    if (!transaction) return
+    generateReceiptPdf(transaction, receiptOptions)
   }
 
   // Submit disable conditions
@@ -481,7 +453,8 @@ export default function PaymentModal({
     !selectedMethod ||
     (needsBank && !bank.trim()) ||
     discountAmount > aggregateSubtotal ||
-    aggregateSubtotal <= 0
+    aggregateSubtotal <= 0 ||
+    cashShort
 
   const sliceSubmitDisabled =
     submitting ||
@@ -490,7 +463,8 @@ export default function PaymentModal({
     amount <= 0 ||
     amount > sisa ||
     (needsBank && !bank.trim()) ||
-    (isFirstSlice && discountAmount > aggregateSubtotal)
+    (isFirstSlice && discountAmount > aggregateSubtotal) ||
+    cashShort
 
   // Render
   if (txLoading || !transaction || methodsQuery.isLoading) {
@@ -525,7 +499,6 @@ export default function PaymentModal({
 
   // REV 2.12: layar sukses pasca-bayar (TIDAK auto-close). Simpan struk / Selesai.
   if (isPaid) {
-    const change = sumPayments - transaction.total
     return (
       <Dialog
         open
@@ -565,22 +538,25 @@ export default function PaymentModal({
           </div>
         }
       >
-        <div className="py-4 text-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-success-100 flex items-center justify-center mx-auto">
-            <Check className="w-8 h-8 text-success-600" />
-          </div>
-          <div>
-            <p className="text-caption text-neutral-500">Total dibayar</p>
-            <p className="text-headline font-bold text-neutral-900 tabular-nums">
-              {formatCurrency(transaction.total)}
+        <div className="py-2 space-y-3">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="w-12 h-12 rounded-full bg-success-100 flex items-center justify-center">
+              <Check className="w-7 h-7 text-success-600" />
+            </div>
+            <p className="text-body-sm text-neutral-600">
+              Total dibayar{' '}
+              <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(transaction.total)}</span>
+              {paidChangeDue != null && paidChangeDue > 0 && (
+                <>
+                  {' · '}Kembalian{' '}
+                  <span className="font-bold text-success-700 tabular-nums">
+                    {formatCurrency(paidChangeDue)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
-          {change > 0 && (
-            <p className="text-body-sm text-neutral-600">Kembalian {formatCurrency(change)}</p>
-          )}
-          <p className="text-caption text-neutral-500">
-            Simpan struk PDF ke perangkat lewat tombol di bawah.
-          </p>
+          <ReceiptPreview tx={transaction} options={receiptOptions} />
         </div>
       </Dialog>
     )
@@ -628,37 +604,38 @@ export default function PaymentModal({
         size="md"
         preventOutsideClose={submitting || removePayMutation.isPending}
         footer={
-          mode === 'single' ? (
+          step === 'review' ? (
+            <div className="flex gap-2 w-full">
+              <Button variant="secondary" size="lg" onClick={() => setStep('input')} disabled={submitting}>
+                ← Ubah
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={submitting}
+                disabled={submitting}
+                onClick={() => (mode === 'single' ? doSubmitSingle() : doSubmitSlice())}
+              >
+                {submitting ? 'Memproses…' : `Konfirmasi & Bayar · ${formatCurrency(mode === 'single' ? total : amount)}`}
+              </Button>
+            </div>
+          ) : mode === 'single' ? (
             <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              form="payment-single-form"
-              type="submit"
-              loading={submitting}
+              variant="primary" size="lg" fullWidth
+              form="payment-single-form" type="submit"
               disabled={singleSubmitDisabled}
             >
-              {submitting
-                ? 'Memproses…'
-                : `Konfirmasi · ${formatCurrency(total)}`}
-            </Button>
-          ) : isPaid ? (
-            <Button variant="primary" size="lg" fullWidth onClick={onSuccess}>
-              <Check className="w-5 h-5" />
-              Selesai
+              {`Lanjut · ${formatCurrency(total)}`}
             </Button>
           ) : (
             <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              form="payment-slice-form"
-              type="submit"
-              loading={submitting}
+              variant="primary" size="lg" fullWidth
+              form="payment-slice-form" type="submit"
               disabled={sliceSubmitDisabled}
             >
               <Plus className="w-5 h-5" />
-              Tambah Pembayaran · {formatCurrency(amount)}
+              Lanjut · {formatCurrency(amount)}
             </Button>
           )
         }
@@ -762,10 +739,10 @@ export default function PaymentModal({
           )}
 
           {/* Form submit area - hidden saat sudah paid */}
-          {!isPaid && (
+          {!isPaid && step === 'input' && (
             <>
               {mode === 'single' ? (
-                <form id="payment-single-form" onSubmit={handleSingleSubmit} className="space-y-4">
+                <form id="payment-single-form" onSubmit={handleSingleNext} className="space-y-4">
                   <MethodGrid
                     methods={filteredMethods}
                     selectedCode={methodCode}
@@ -791,6 +768,15 @@ export default function PaymentModal({
                         }
                       />
                     </div>
+                  )}
+                  {isCashMethod && (
+                    <CashTenderInput
+                      amountToCharge={total}
+                      value={cashReceived}
+                      onChange={setCashReceived}
+                      shortError={cashShort}
+                      changeDue={changeDue}
+                    />
                   )}
                   <Input
                     label="Diskon (opsional)"
@@ -822,7 +808,7 @@ export default function PaymentModal({
                   />
                 </form>
               ) : (
-                <form id="payment-slice-form" onSubmit={handleAddSlice} className="space-y-4">
+                <form id="payment-slice-form" onSubmit={handleSliceNext} className="space-y-4">
                   <MethodGrid
                     methods={filteredMethods}
                     selectedCode={methodCode}
@@ -884,6 +870,15 @@ export default function PaymentModal({
                       </button>
                     )}
                   </div>
+                  {isCashMethod && (
+                    <CashTenderInput
+                      amountToCharge={amount}
+                      value={cashReceived}
+                      onChange={setCashReceived}
+                      shortError={cashShort}
+                      changeDue={changeDue}
+                    />
+                  )}
                   <Input
                     label="Diskon (opsional)"
                     type="number"
@@ -920,6 +915,24 @@ export default function PaymentModal({
                 </form>
               )}
             </>
+          )}
+
+          {!isPaid && step === 'review' && (
+            <PaymentReview
+              mode={mode}
+              items={[...transaction.items, ...mergedFromOpen.flatMap((s) => s.items), ...selectedCandidateTxs.flatMap((s) => s.items)]}
+              subtotal={aggregateSubtotal}
+              discount={effectiveDiscount}
+              base={base}
+              tax={tax}
+              total={total}
+              taxRatePercent={appSettings?.taxEnabled && appSettings.taxChargedToCustomer ? appSettings.taxRate : 0}
+              methodLabel={`${selectedMethod?.label ?? ''}${needsBank && bank ? ` · ${bank}` : ''}`}
+              sliceAmount={mode === 'split' ? amount : total}
+              sisaAfter={mode === 'split' ? Math.max(0, sisa - amount) : 0}
+              cashReceived={isCashMethod ? cashReceived : null}
+              changeDue={changeDue}
+            />
           )}
         </div>
       </Dialog>
@@ -1371,6 +1384,146 @@ function PaymentSlicesList({
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+function CashTenderInput({
+  amountToCharge,
+  value,
+  onChange,
+  shortError,
+  changeDue,
+}: {
+  amountToCharge: number
+  value: number
+  onChange: (n: number) => void
+  shortError: boolean
+  changeDue: number
+}) {
+  // Saran cepat: uang pas + pembulatan ke atas (5k/10k/20k/50k/100k) yang > tagihan.
+  const presets = Array.from(
+    new Set(
+      [amountToCharge, ...[5000, 10000, 20000, 50000, 100000].map((stepv) => Math.ceil(amountToCharge / stepv) * stepv)]
+        .filter((v) => v >= amountToCharge),
+    ),
+  )
+    .sort((a, b) => a - b)
+    .slice(0, 4)
+  return (
+    <div className="space-y-2">
+      <Input
+        label="Uang Diterima"
+        type="number"
+        inputMode="numeric"
+        value={value || ''}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        min={0}
+        step={100}
+        placeholder="0"
+        error={shortError ? `Kurang dari tagihan (${formatCurrency(amountToCharge)})` : undefined}
+      />
+      <div className="flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            className={cn(
+              'min-h-[36px] px-3 rounded-lg border text-body-sm font-medium tabular-nums transition-colors',
+              value === p
+                ? 'border-primary-500 bg-primary-50 text-primary-800'
+                : 'border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50',
+            )}
+          >
+            {p === amountToCharge ? 'Uang pas' : formatCurrency(p)}
+          </button>
+        ))}
+      </div>
+      {changeDue > 0 && (
+        <div className="flex items-baseline justify-between rounded-lg bg-success-50 border border-success-200 px-3 py-2">
+          <span className="text-body-sm text-success-800">Kembalian</span>
+          <span className="text-title font-bold text-success-700 tabular-nums">{formatCurrency(changeDue)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PaymentReview({
+  mode,
+  items,
+  subtotal,
+  discount,
+  base,
+  tax,
+  total,
+  taxRatePercent,
+  methodLabel,
+  sliceAmount,
+  sisaAfter,
+  cashReceived,
+  changeDue,
+}: {
+  mode: Mode
+  items: { menuName: string; qty: number; subtotal: number; variantLabel?: string | null }[]
+  subtotal: number
+  discount: number
+  base: number
+  tax: number
+  total: number
+  taxRatePercent: number
+  methodLabel: string
+  sliceAmount: number
+  sisaAfter: number
+  cashReceived: number | null
+  changeDue: number
+}) {
+  const taxActive = taxRatePercent > 0
+  return (
+    <div className="space-y-3">
+      <p className="text-label text-neutral-700">Periksa rincian sebelum konfirmasi</p>
+      <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
+        <ul className="p-3 space-y-1.5 max-h-44 overflow-y-auto">
+          {items.map((it, i) => (
+            <li key={i} className="flex items-baseline justify-between gap-2 text-body-sm tabular-nums">
+              <span className="min-w-0 truncate">
+                {it.qty}× {it.menuName}
+                {it.variantLabel ? <span className="text-neutral-500"> · {it.variantLabel}</span> : null}
+              </span>
+              <span className="whitespace-nowrap text-neutral-700">{formatCurrency(it.subtotal)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="p-3 space-y-1.5 tabular-nums">
+          <Row label="Subtotal" value={formatCurrency(subtotal)} muted />
+          {discount > 0 && <Row label="Diskon" value={`− ${formatCurrency(discount)}`} muted />}
+          {taxActive && (
+            <>
+              <Row label="Setelah diskon" value={formatCurrency(base)} muted />
+              <Row label={`PB1 ${taxRatePercent}%`} value={formatCurrency(tax)} muted />
+            </>
+          )}
+          <div className="pt-2 mt-1 border-t border-neutral-200">
+            <Row label="Total Tagihan" value={formatCurrency(total)} bold />
+          </div>
+        </div>
+        <div className="p-3 space-y-1.5 tabular-nums">
+          <Row label="Metode" value={methodLabel} muted />
+          {cashReceived != null && (
+            <>
+              <Row label="Uang Diterima" value={formatCurrency(cashReceived)} muted />
+              <Row label="Kembalian" value={formatCurrency(changeDue)} bold />
+            </>
+          )}
+          {mode === 'split' && (
+            <>
+              <Row label="Dibayar sekarang" value={formatCurrency(sliceAmount)} bold />
+              <Row label={sisaAfter > 0 ? 'Sisa setelah ini' : 'Status'} value={sisaAfter > 0 ? formatCurrency(sisaAfter) : 'Lunas'} muted />
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

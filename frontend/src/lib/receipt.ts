@@ -56,6 +56,13 @@ export interface ReceiptOptions {
   taxRate?: number
   /** resolusi label metode bayar dari code (mis. cash -> Tunai). Default: code apa adanya. */
   paymentLabel?: (method: string) => string
+  /** REV 2.15: uang tunai diterima (ephemeral, frontend-only). Jika ada → baris
+   *  Tunai memakai nilai ini & Kembali = cashReceived − sisa tunai (total − Σ non-cash).
+   *  Tidak disertakan saat cetak ulang dari Riwayat → kembalian tak tampil (perilaku lama).
+   *  Kontrak pemanggil: hanya kirim saat pembayaran memuat komponen tunai, dan pastikan
+   *  cashReceived ≥ sisa tunai (PaymentModal sudah memblokir submit jika kurang). Kembalian
+   *  pas (0) sengaja tidak memunculkan baris "Kembali". */
+  cashReceived?: number
 }
 
 /** Bangun daftar baris struk (pure - tanpa side effect). Diuji di receipt.test.ts.
@@ -113,12 +120,28 @@ export function buildReceiptRows(tx: Transaction, opts: ReceiptOptions): Row[] {
   rows.push({ t: 'lr', l: 'TOTAL', r: money(tx.total), bold: true })
 
   // --- Pembayaran + kembalian ---
-  const paid = tx.payments.reduce((s, p) => s + p.amount, 0)
-  for (const p of tx.payments) {
-    rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+  if (opts.cashReceived != null) {
+    // REV 2.15: mode at-payment. Tampilkan slice non-cash apa adanya, lalu satu baris
+    // Tunai = uang diterima, dan Kembali = diterima − sisa tunai (total − Σ non-cash).
+    const nonCash = tx.payments.filter((p) => p.method !== 'cash')
+    let sumNonCash = 0
+    for (const p of nonCash) {
+      sumNonCash += p.amount
+      rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+    }
+    rows.push({ t: 'lr', l: labelOf('cash'), r: money(opts.cashReceived) })
+    const change = opts.cashReceived - (tx.total - sumNonCash)
+    // bold: Kembali ditonjolkan setara TOTAL (renderer key ke row.bold, bukan label).
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change), bold: true })
+  } else {
+    // Perilaku lama (cetak ulang dari Riwayat): kembalian dari payments (praktis 0).
+    const paid = tx.payments.reduce((s, p) => s + p.amount, 0)
+    for (const p of tx.payments) {
+      rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+    }
+    const change = paid - tx.total
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change), bold: true })
   }
-  const change = paid - tx.total
-  if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
   rows.push({ t: 'sep', c: '=' })
 
   // --- Footer ---
@@ -147,17 +170,27 @@ export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void 
   for (const row of rows) {
     if (row.t === 'sep') {
       doc.setFont('courier', 'normal')
+      doc.setFontSize(FONT_PT)
       doc.text(row.c.repeat(CHARS), left, y)
     } else if (row.t === 'center') {
+      // Nama resto (center+bold pertama) lebih besar.
+      const big = row.bold
       doc.setFont('courier', row.bold ? 'bold' : 'normal')
+      doc.setFontSize(big ? FONT_PT + 2 : FONT_PT)
       doc.text(row.s, center, y, { align: 'center' })
+      doc.setFontSize(FONT_PT)
     } else if (row.t === 'left') {
       doc.setFont('courier', 'normal')
+      doc.setFontSize(FONT_PT)
       doc.text(row.s, left, y)
     } else {
-      doc.setFont('courier', row.bold ? 'bold' : 'normal')
+      // lr: TOTAL & Kembali (row.bold) ditonjolkan — lebih besar + bold.
+      const emphasize = row.bold
+      doc.setFont('courier', emphasize ? 'bold' : 'normal')
+      doc.setFontSize(emphasize ? FONT_PT + 1 : FONT_PT)
       doc.text(row.l, left, y)
       doc.text(row.r, right, y, { align: 'right' })
+      doc.setFontSize(FONT_PT)
     }
     y += LINE_H
   }
