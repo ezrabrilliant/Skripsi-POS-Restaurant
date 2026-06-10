@@ -27,6 +27,7 @@ import {
 } from 'recharts'
 import {
   dashboardService,
+  type OwnerReport,
   type OwnerReportQuery,
   type ReminderCounts,
 } from '@/services/dashboardService'
@@ -34,10 +35,26 @@ import { shiftService } from '@/services/shiftService'
 import { formatCurrency, formatShiftDate } from '@/lib/utils'
 import { Stat, Badge, Skeleton, EmptyState, Button } from '@/design-system/primitives'
 
-export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
+export default function RingkasanTab({
+  period,
+  preview = false,
+  headerAction,
+}: {
+  period: OwnerReportQuery
+  preview?: boolean
+  headerAction?: React.ReactNode
+}) {
   const { data: report, isLoading, error } = useQuery({
     queryKey: ['ownerReport', period],
     queryFn: () => dashboardService.getOwnerReport(period),
+  })
+
+  // Preview beranda: Laba Bersih bersifat bulanan (tagihan = beban tetap bulanan),
+  // jadi KPI pakai periode terpilih (7 hari) tapi panel Laba Bersih pakai "Bulan Ini".
+  const { data: monthReport } = useQuery({
+    queryKey: ['ownerReport', { period: 'month' }],
+    queryFn: () => dashboardService.getOwnerReport({ period: 'month' }),
+    enabled: preview,
   })
 
   const { data: activeShifts = [] } = useQuery({
@@ -65,7 +82,7 @@ export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-        <Skeleton className="h-64" />
+        {!preview && <Skeleton className="h-64" />}
       </div>
     )
   }
@@ -81,92 +98,60 @@ export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
   if (!report) return null
 
   const marginPct = report.revenue.total > 0 ? (report.profit / report.revenue.total) * 100 : 0
+
+  // ── Mode ringkas (beranda): KPI (periode terpilih) + Estimasi Laba Bersih prorata ──
+  // Laba kotor = aktual window. Tagihan = alokasi rata harian dari tagihan bulan ini
+  // (billTotal ÷ jumlah hari bulan × jumlah hari window). Ditandai "estimasi".
+  if (preview) {
+    const windowDays =
+      period.fromDate && period.toDate
+        ? Math.round(
+            (new Date(period.toDate).getTime() - new Date(period.fromDate).getTime()) / 86_400_000,
+          ) + 1
+        : 7
+    const now = new Date()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const monthlyBill = monthReport?.expense.billTotal ?? 0
+    const estBills = (monthlyBill / daysInMonth) * windowDays
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-title font-semibold text-neutral-900">Ringkasan</h3>
+          {headerAction}
+        </div>
+        <KpiGrid report={report} marginPct={marginPct} />
+        {monthReport && (
+          <NetProfitPanel
+            label={`${windowDays} hari terakhir`}
+            grossProfit={report.profit}
+            billAmount={estBills}
+            revenue={report.revenue.total}
+            billLabel={`− Tagihan (alokasi ${windowDays} hari)`}
+            estimate
+            footnote={`Estimasi: tagihan bulan ini (${formatCurrency(monthlyBill)}) dibagi rata ${daysInMonth} hari × ${windowDays} hari. Angka aktual ada di Laporan (Bulan Ini).`}
+          />
+        )}
+      </div>
+    )
+  }
+
   // Laba Bersih = Laba Kotor − Tagihan. Hanya bermakna pada periode bulan/tahun karena
   // tagihan (beban operasional) bersifat tetap bulanan. (lihat docs/flow/OWNER_REPORT_FLOW.md)
   const showNetProfit = report.period.type === 'month' || report.period.type === 'year'
-  const netProfit = report.profit - report.expense.billTotal
-  const netMarginPct = report.revenue.total > 0 ? (netProfit / report.revenue.total) * 100 : 0
 
   return (
     <div className="space-y-4">
       {/* KPI: Pendapatan / COGS / Laba / Margin% */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat
-          label="Pendapatan"
-          value={report.revenue.total}
-          format="rupiah"
-          icon={<Wallet className="w-4 h-4" />}
-          hint={`${report.revenue.transactionCount} transaksi`}
-        />
-        <Stat
-          label="Beban Pokok (COGS)"
-          value={report.expense.cogsTotal}
-          format="rupiah"
-          icon={<TrendingDown className="w-4 h-4" />}
-          hint={
-            report.expense.pb1BorneTotal > 0
-              ? `PB1 ditanggung ${formatCurrency(report.expense.pb1BorneTotal)} · Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
-              : `Tagihan ${formatCurrency(report.expense.billTotal)} (terpisah)`
-          }
-        />
-        <Stat
-          label="Laba Kotor"
-          value={report.profit}
-          format="rupiah"
-          icon={<TrendingUp className="w-4 h-4" />}
-          hint={
-            report.expense.pb1BorneTotal > 0
-              ? 'Pendapatan − COGS − PB1 ditanggung'
-              : 'Pendapatan − COGS'
-          }
-          className={
-            report.profit < 0
-              ? '!border-danger-200 !bg-danger-50/30'
-              : '!border-success-200 !bg-success-50/30'
-          }
-        />
-        <Stat
-          label="Margin Kotor"
-          value={marginPct}
-          format="percent"
-          icon={<Percent className="w-4 h-4" />}
-          hint="Laba Kotor ÷ Pendapatan"
-        />
-      </div>
+      <KpiGrid report={report} marginPct={marginPct} />
 
       {/* Laba-Rugi bulanan: Laba Bersih = Laba Kotor − Tagihan (hanya periode bulan/tahun) */}
       {showNetProfit && (
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-          <div className="flex items-center gap-2 mb-3">
-            <Receipt className="w-5 h-5 text-neutral-500" />
-            <h3 className="text-title font-semibold text-neutral-900">
-              Laba Bersih · {report.period.label}
-            </h3>
-          </div>
-          <dl className="space-y-1.5 text-body-sm tabular-nums">
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Laba Kotor</dt>
-              <dd className="font-medium text-neutral-900">{formatCurrency(report.profit)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">− Tagihan (beban operasional)</dt>
-              <dd className="font-medium text-warning-700">−{formatCurrency(report.expense.billTotal)}</dd>
-            </div>
-            <div className="flex justify-between gap-3 border-t border-neutral-100 pt-2 mt-1">
-              <dt className="font-semibold text-neutral-900">= Laba Bersih</dt>
-              <dd className={netProfit < 0 ? 'font-bold text-danger-700' : 'font-bold text-success-700'}>
-                {formatCurrency(netProfit)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-caption text-neutral-500">Margin Bersih</dt>
-              <dd className="text-caption text-neutral-500">{netMarginPct.toFixed(1)}%</dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-caption text-neutral-500">
-            Tagihan (listrik/air/sewa) bersifat bulanan, jadi laba bersih dihitung per bulan/tahun — bukan harian.
-          </p>
-        </div>
+        <NetProfitPanel
+          label={report.period.label}
+          grossProfit={report.profit}
+          billAmount={report.expense.billTotal}
+          revenue={report.revenue.total}
+        />
       )}
 
       <ShiftPanel shifts={activeShifts} />
@@ -241,6 +226,109 @@ export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
         <ReminderCard reminders={report.reminders} />
         <QuickLinks />
       </div>
+    </div>
+  )
+}
+
+// KPI cards: Pendapatan / COGS / Laba Kotor / Margin Kotor. Dipakai full + preview.
+function KpiGrid({ report, marginPct }: { report: OwnerReport; marginPct: number }) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <Stat
+        label="Pendapatan"
+        value={report.revenue.total}
+        format="rupiah"
+        icon={<Wallet className="w-4 h-4" />}
+        hint={`${report.revenue.transactionCount} transaksi`}
+      />
+      <Stat
+        label="Beban Pokok (COGS)"
+        value={report.expense.cogsTotal}
+        format="rupiah"
+        icon={<TrendingDown className="w-4 h-4" />}
+        hint={report.expense.pb1BorneTotal > 0 ? `+ PB1 ${formatCurrency(report.expense.pb1BorneTotal)}` : ``}
+      />
+      <Stat
+        label="Laba Kotor"
+        value={report.profit}
+        format="rupiah"
+        icon={<TrendingUp className="w-4 h-4" />}
+        hint={report.expense.pb1BorneTotal > 0 ? 'Pendapatan − COGS − PB1' : 'Pendapatan − COGS'}
+        className={
+          report.profit < 0 ? '!border-danger-200 !bg-danger-50/30' : '!border-success-200 !bg-success-50/30'
+        }
+      />
+      <Stat
+        label="Margin Kotor"
+        value={marginPct}
+        format="percent"
+        icon={<Percent className="w-4 h-4" />}
+        hint="Laba Kotor ÷ Pendapatan"
+      />
+    </div>
+  )
+}
+
+// Panel Laba Bersih = Laba Kotor − Tagihan. Menerima nilai eksplisit supaya bisa
+// dipakai dua mode: (1) aktual per periode (laba & tagihan dari report yang sama),
+// (2) estimasi prorata beranda (laba kotor aktual window + tagihan dialokasikan
+// rata harian dari rata-rata bulanan). `estimate` menandai angka non-aktual.
+function NetProfitPanel({
+  label,
+  grossProfit,
+  billAmount,
+  revenue,
+  billLabel = '− Tagihan (beban operasional)',
+  estimate = false,
+  footnote,
+}: {
+  label: string
+  grossProfit: number
+  billAmount: number
+  revenue: number
+  billLabel?: string
+  estimate?: boolean
+  footnote?: string
+}) {
+  const netProfit = grossProfit - billAmount
+  const netMarginPct = revenue > 0 ? (netProfit / revenue) * 100 : 0
+  return (
+    <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
+      <div className="flex items-center gap-2 mb-3">
+        <Receipt className="w-5 h-5 text-neutral-500" />
+        <h3 className="text-title font-semibold text-neutral-900">
+          {estimate ? 'Estimasi Laba Bersih' : 'Laba Bersih'} · {label}
+        </h3>
+        {estimate && (
+          <Badge tone="warning" variant="soft" size="sm" className="ml-auto">
+            ≈ estimasi
+          </Badge>
+        )}
+      </div>
+      <dl className="space-y-1.5 text-body-sm tabular-nums">
+        <div className="flex justify-between gap-3">
+          <dt className="text-neutral-600">Laba Kotor</dt>
+          <dd className="font-medium text-neutral-900">{formatCurrency(grossProfit)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-neutral-600">{billLabel}</dt>
+          <dd className="font-medium text-warning-700">−{formatCurrency(billAmount)}</dd>
+        </div>
+        <div className="flex justify-between gap-3 border-t border-neutral-100 pt-2 mt-1">
+          <dt className="font-semibold text-neutral-900">= {estimate ? 'Estimasi ' : ''}Laba Bersih</dt>
+          <dd className={netProfit < 0 ? 'font-bold text-danger-700' : 'font-bold text-success-700'}>
+            {formatCurrency(netProfit)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-caption text-neutral-500">Margin Bersih</dt>
+          <dd className="text-caption text-neutral-500">{netMarginPct.toFixed(1)}%</dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-caption text-neutral-500">
+        {footnote ??
+          'Tagihan (listrik/air/sewa) bersifat bulanan, jadi laba bersih dihitung per bulan/tahun — bukan harian.'}
+      </p>
     </div>
   )
 }

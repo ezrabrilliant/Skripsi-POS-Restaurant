@@ -13,6 +13,7 @@ import {
   UsersPage,
   BillsPage,
   PaymentMethodsPage,
+  LaporanPage,
   OwnerDashboard,
   CashierDashboard,
   WaiterDashboard,
@@ -82,6 +83,7 @@ function App() {
           <Route path="stock" element={<RoleRoute allow={['owner', 'cashier', 'waiter']}><StockPage /></RoleRoute>} />
 
           {/* Owner-only */}
+          <Route path="laporan" element={<RoleRoute allow={['owner']}><LaporanPage /></RoleRoute>} />
           <Route path="menu" element={<RoleRoute allow={['owner']}><MenuPage /></RoleRoute>} />
           <Route path="menu/sku-varian" element={<Navigate to="/menu?tab=varian" replace />} />
           <Route path="users" element={<RoleRoute allow={['owner']}><UsersPage /></RoleRoute>} />

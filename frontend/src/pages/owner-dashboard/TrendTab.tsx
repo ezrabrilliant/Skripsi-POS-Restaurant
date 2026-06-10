@@ -36,7 +36,15 @@ const tooltipStyle = { borderRadius: '8px', border: '1px solid #d1d8d3', fontSiz
 const compactRupiah = (v: number) =>
   v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}jt` : v >= 1000 ? `${Math.round(v / 1000)}rb` : String(v)
 
-export default function TrendTab({ period }: { period: OwnerReportQuery }) {
+export default function TrendTab({
+  period,
+  preview = false,
+  headerAction,
+}: {
+  period: OwnerReportQuery
+  preview?: boolean
+  headerAction?: React.ReactNode
+}) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['ownerTrend', period],
     queryFn: () => dashboardService.getOwnerTrend(period),
@@ -57,22 +65,26 @@ export default function TrendTab({ period }: { period: OwnerReportQuery }) {
     tx: b.txCount,
   }))
   const peakData = (data?.peakHours ?? []).map((h) => ({ label: `${h.hour}:00`, omzet: h.revenue, tx: h.txCount }))
-  const showPeak = gran !== 'hour'
+  // Jam Ramai disembunyikan saat granularity='hour' (redundan) atau di preview beranda.
+  const showPeak = gran !== 'hour' && !preview
 
   return (
     <div className="space-y-4">
       {/* Tren Omzet */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-        <h3 className="text-title font-semibold text-neutral-900 mb-1">Tren Omzet</h3>
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h3 className="text-title font-semibold text-neutral-900">Tren Omzet</h3>
+          {headerAction}
+        </div>
         <p className="text-caption text-neutral-500 mb-3">
           Per {gran === 'hour' ? 'jam' : gran === 'month' ? 'bulan' : 'hari'}
         </p>
         {isLoading ? (
-          <Skeleton className="h-64" />
+          <Skeleton className={preview ? 'h-48' : 'h-64'} />
         ) : trendData.length === 0 ? (
           <EmptyState title="Belum ada transaksi" description="Data muncul setelah ada transaksi dibayar." compact />
         ) : (
-          <div className="h-64">
+          <div className={preview ? 'h-48' : 'h-64'}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ left: 0, right: 8, top: 4 }}>
                 <defs>
