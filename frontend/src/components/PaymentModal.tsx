@@ -182,6 +182,8 @@ export default function PaymentModal({
   const [combineOpen, setCombineOpen] = useState(false)
   // REV 2.15: 2-langkah sebelum submit — 'input' lalu 'review' (rincian read-only).
   const [step, setStep] = useState<'input' | 'review'>('input')
+  // REV 2.15: uang tunai diterima (ephemeral). Hanya relevan saat method.code === 'cash'.
+  const [cashReceived, setCashReceived] = useState(0)
 
   // Sync mode: kalau payments sudah ada → force 'split'.
   useEffect(() => {
@@ -271,6 +273,17 @@ export default function PaymentModal({
     [filteredMethods, methodCode],
   )
   const needsBank = selectedMethod?.requiresBank ?? false
+  // REV 2.15: kembalian hanya untuk uang fisik. Diskriminator: code === 'cash' (seed stabil).
+  const isCashMethod = selectedMethod?.code === 'cash'
+  // Nominal yang sedang ditagih di langkah ini (single=total, split=slice).
+  const amountToCharge = mode === 'single' ? total : amount
+  const changeDue = isCashMethod ? Math.max(0, cashReceived - amountToCharge) : 0
+  const cashShort = isCashMethod && cashReceived < amountToCharge
+
+  // Reset uang diterima kalau pindah dari/ke cash atau nominal tagihan berubah.
+  useEffect(() => {
+    setCashReceived(0)
+  }, [methodCode, amountToCharge])
 
   // REV 2.6: bank options = closed list dari selectedMethod.banks (filter active).
   // Drop free-text input + localStorage recent-banks. Bank master controlled by owner.
@@ -422,7 +435,8 @@ export default function PaymentModal({
     !selectedMethod ||
     (needsBank && !bank.trim()) ||
     discountAmount > aggregateSubtotal ||
-    aggregateSubtotal <= 0
+    aggregateSubtotal <= 0 ||
+    cashShort
 
   const sliceSubmitDisabled =
     submitting ||
@@ -431,7 +445,8 @@ export default function PaymentModal({
     amount <= 0 ||
     amount > sisa ||
     (needsBank && !bank.trim()) ||
-    (isFirstSlice && discountAmount > aggregateSubtotal)
+    (isFirstSlice && discountAmount > aggregateSubtotal) ||
+    cashShort
 
   // Render
   if (txLoading || !transaction || methodsQuery.isLoading) {
@@ -734,6 +749,15 @@ export default function PaymentModal({
                       />
                     </div>
                   )}
+                  {isCashMethod && (
+                    <CashTenderInput
+                      amountToCharge={total}
+                      value={cashReceived}
+                      onChange={setCashReceived}
+                      shortError={cashShort}
+                      changeDue={changeDue}
+                    />
+                  )}
                   <Input
                     label="Diskon (opsional)"
                     type="number"
@@ -826,6 +850,15 @@ export default function PaymentModal({
                       </button>
                     )}
                   </div>
+                  {isCashMethod && (
+                    <CashTenderInput
+                      amountToCharge={amount}
+                      value={cashReceived}
+                      onChange={setCashReceived}
+                      shortError={cashShort}
+                      changeDue={changeDue}
+                    />
+                  )}
                   <Input
                     label="Diskon (opsional)"
                     type="number"
@@ -877,6 +910,8 @@ export default function PaymentModal({
               methodLabel={`${selectedMethod?.label ?? ''}${needsBank && bank ? ` · ${bank}` : ''}`}
               sliceAmount={mode === 'split' ? amount : total}
               sisaAfter={mode === 'split' ? Math.max(0, sisa - amount) : 0}
+              cashReceived={isCashMethod ? cashReceived : null}
+              changeDue={changeDue}
             />
           )}
         </div>
@@ -1334,6 +1369,68 @@ function PaymentSlicesList({
   )
 }
 
+function CashTenderInput({
+  amountToCharge,
+  value,
+  onChange,
+  shortError,
+  changeDue,
+}: {
+  amountToCharge: number
+  value: number
+  onChange: (n: number) => void
+  shortError: boolean
+  changeDue: number
+}) {
+  // Saran cepat: uang pas + pembulatan ke atas (5k/10k/20k/50k/100k) yang > tagihan.
+  const presets = Array.from(
+    new Set(
+      [amountToCharge, ...[5000, 10000, 20000, 50000, 100000].map((stepv) => Math.ceil(amountToCharge / stepv) * stepv)]
+        .filter((v) => v >= amountToCharge),
+    ),
+  )
+    .sort((a, b) => a - b)
+    .slice(0, 4)
+  return (
+    <div className="space-y-2">
+      <Input
+        label="Uang Diterima"
+        type="number"
+        inputMode="numeric"
+        value={value || ''}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        min={0}
+        step={100}
+        placeholder="0"
+        error={shortError ? `Kurang dari tagihan (${formatCurrency(amountToCharge)})` : undefined}
+      />
+      <div className="flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            className={cn(
+              'min-h-[36px] px-3 rounded-lg border text-body-sm font-medium tabular-nums transition-colors',
+              value === p
+                ? 'border-primary-500 bg-primary-50 text-primary-800'
+                : 'border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50',
+            )}
+          >
+            {p === amountToCharge ? 'Uang pas' : formatCurrency(p)}
+          </button>
+        ))}
+      </div>
+      {changeDue > 0 && (
+        <div className="flex items-baseline justify-between rounded-lg bg-success-50 border border-success-200 px-3 py-2">
+          <span className="text-body-sm text-success-800">Kembalian</span>
+          <span className="text-title font-bold text-success-700 tabular-nums">{formatCurrency(changeDue)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PaymentReview({
   mode,
   items,
@@ -1346,6 +1443,8 @@ function PaymentReview({
   methodLabel,
   sliceAmount,
   sisaAfter,
+  cashReceived,
+  changeDue,
 }: {
   mode: Mode
   items: { menuName: string; qty: number; subtotal: number; variantLabel?: string | null }[]
@@ -1358,6 +1457,8 @@ function PaymentReview({
   methodLabel: string
   sliceAmount: number
   sisaAfter: number
+  cashReceived: number | null
+  changeDue: number
 }) {
   const taxActive = taxRatePercent > 0
   return (
@@ -1390,6 +1491,12 @@ function PaymentReview({
         </div>
         <div className="p-3 space-y-1.5 tabular-nums">
           <Row label="Metode" value={methodLabel} muted />
+          {cashReceived != null && (
+            <>
+              <Row label="Uang Diterima" value={formatCurrency(cashReceived)} muted />
+              <Row label="Kembalian" value={formatCurrency(changeDue)} bold />
+            </>
+          )}
           {mode === 'split' && (
             <>
               <Row label="Dibayar sekarang" value={formatCurrency(sliceAmount)} bold />
