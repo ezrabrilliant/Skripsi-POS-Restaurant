@@ -765,7 +765,7 @@ function EmergencyInModal({
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Barang Masuk: ${stock.menuName}`}
-      description="Restock darurat tengah hari. Qty bebas (tidak wajib kelipatan 5)."
+      description="Restock darurat tengah hari."
       size="sm"
       footer={
         <Button

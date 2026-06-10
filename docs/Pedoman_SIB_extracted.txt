@@ -1,0 +1,353 @@
+Format Proposal Tugas Akhir (Proyek)
+
+Sistem Informasi Bisnis
+
+1. Latar Belakang (Kontekstual Bisnis)
+Fokus: masalah bisnis dan manajemen informasi, bukan masalah teknis semata.
+Berisi:
+
+    1. Profile Perusahaan klien
+    2. Masalah bisnis dan informasi yang terjadi
+    3. Related work / previous study (minimal 2 referensi studi kasus sejenis) yang menjelaskan case
+
+         nya apa, solusinya apa dan hasil nya bagaimana.
+    4. Solusi yang diajukan
+    5. Dapat ditambahkan juga seperti seperti misalnya:
+
+         · Struktur organisasi
+         · Deskripsi detail posisi/jabatan
+         · Sejarah, visi, misi dan lain-lain
+         · Dokumen organisasi seperti misalnya SOP, Form manual, Laporan internal, contoh file
+
+              excel
+         · Hasil wawancara atau survey awal
+
+2. Rumusan Masalah
+Ringkasan masalah (mengacu pada latar belakang) dan perlu dipikirkan cara menjawabnya secara
+realistis saat pengerjaan tugas akhir.
+
+3. Tujuan Proyek
+Solusi yang ditawarkan (mengacu pada latar belakang), dituliskan dalam 1 paragraf.
+
+4. Ruang Lingkup
+Berisi:
+
+    1. Aktor atau siapa saja yang menggunakan aplikasi
+    2. Data apa saja yang digunakan. Contoh: data pesanan pelanggan, data armada, data rute, data
+
+         pengemudi dan data realisasi pengiriman.
+    3. Proses dan atau metodologi yang digunakan. Proses bisnis apa saja yang dibuat. Contoh:
+
+         perencanaan pengiriman, penjadwalan armada, pemantauan realisasi pengiriman, pelaporan
+         kinerja distribusi.
+    4. Informasi apa saja yang dihasilkan dari aplikasi.
+    5. Rencana pengujian aplikasi.
+    6. Teknologi yang digunakan (database, programming language, framework, API, dll)
+    7. Batasan ruang lingkup. Contoh: digunakan di kantor pusat, tidak di kantor cabang.
+
+5. Manfaat
+Menjelaskan secara rinci manfaat bagi masyarakat. Baik masyarakat luas ataupun terbatas. Sejauh
+mana hasil penelitian bisa dimanfaatkan/ keuntungan yang didapatkan oleh kelompok masyarakat
+yang menjadi sasaran.
+
+                                                             1
+6. Landasan Teori (0ptional)
+Penjelasan teori, konsep, algoritma, definisi, dan model fundamental yang mendukung penelitian,
+sesuatu yang perlu dijelaskan dari judul
+7. Penelitian Terdahulu/ State-of-the-Art (optional)
+
+    · Ulasan mendalam dan kritis terhadap penelitian-penelitian sebelumnya. Menganalisis
+         metode, hasil, kelebihan, dan kekurangan masing-masing.
+
+    · Untuk tugas akhir berisi penjelasan sistem/regulasi/ proses bisnis dari pihak mitra/ kelompok
+         masyarakat yang menjadi target.
+
+8. Metodologi Penelitian (Blueprint/Resep Penelitian)
+   Penjelasan bagaimana proyek dilakukan dari awal sampai sistem siap diuji (tahapan proyek).
+
+9. Jadwal Kegiatan
+10. Daftar Pustaka (minimal 5, diutamakan 5 tahun terakhir)
+
+                                                             2
+Format Buku Laporan Tugas Akhir (Proyek)
+
+Sistem Informasi Bisnis
+
+Disclaimer:
+    · Struktur di bawah ini hanya menunjukkan struktur penulisan laporan proyek akhir SIB,
+         namun tidak mengatur tata tulis.
+    · Tata tulis buku Tugas Akhir telah ditetapkan mengacu pada
+         https://library.petra.ac.id/using-the-library/
+    · Ini bukan perubahan struktur dari sebelumnya, melainkan penajaman redaksi dan dapat
+         dikembangkan sendiri sesuai dengan topik masing-masing.
+
+BAB 1 PENDAHULUAN
+1.1 Latar Belakang (Kontekstual Bisnis)
+Fokus: masalah bisnis dan manajemen informasi, bukan masalah teknis semata.
+Berisi:
+
+    1. Profile Perusahaan klien
+    2. Masalah bisnis dan informasi yang terjadi
+    3. Related work / previous study (minimal 2 referensi studi kasus sejenis) yang menjelaskan
+
+         case nya apa, solusinya apa dan hasil nya bagaimana.
+    4. Solusi yang diajukan
+    5. Jika terdapat informasi detil lainnya, dapat dimasukkan ke dalam lampiran (opsional sesuai
+
+         dengan konteks Proyek Akhir), seperti misalnya:
+         · Struktur organisasi
+         · Deskripsi detail posisi/jabatan
+         · Sejarah, visi, misi dan lain-lain
+         · Dokumen organisasi seperti misalnya SOP, Form manual, Laporan internal, contoh file
+
+              excel
+         · Hasil wawancara atau survey
+
+ Contoh:
+           PT Nusantara Logistik Sejahtera merupakan perusahaan yang bergerak di bidang jasa
+
+ distribusi dan pergudangan produk makanan dan minuman untuk wilayah Jawa Timur. Unit kerja
+ yang menjadi fokus Proyek Akhir ini adalah Divisi Operasional dan Perencanaan Distribusi, yang
+ bertanggung jawab dalam perencanaan pengiriman, pengelolaan armada, serta pemantauan
+ realisasi pengiriman dari gudang pusat ke seluruh cabang dan pelanggan utama. Dalam
+ pelaksanaannya, divisi ini mengelola data pesanan pelanggan, data rute pengiriman, data armada,
+ data pengemudi, serta data realisasi waktu dan biaya distribusi yang saat ini masih tersimpan pada
+ beberapa file terpisah dan aplikasi yang tidak saling terintegrasi. Proses perencanaan pengiriman
+ dilakukan secara semi-manual dengan menggabungkan data pesanan harian dari sistem penjualan,
+ catatan gudang, serta laporan ketersediaan armada yang dikirimkan melalui spreadsheet oleh
+ masing-masing koordinator lapangan. Kondisi tersebut menyebabkan sering terjadinya perbedaan
+
+                                                             3
+ data antara rencana pengiriman dan realisasi di lapangan, keterlambatan penyusunan jadwal
+ distribusi, serta kesulitan bagi manajer operasional dalam memantau kinerja pengiriman secara
+ menyeluruh dan tepat waktu. Selain itu, pihak manajemen juga mengalami kendala dalam
+ memperoleh informasi kinerja distribusi, seperti tingkat ketepatan waktu pengiriman, utilisasi
+ armada, dan biaya distribusi per rute, karena laporan harus direkap secara manual di akhir periode.
+ Dampak dari permasalahan tersebut adalah meningkatnya risiko keterlambatan pengiriman ke
+ pelanggan, rendahnya akurasi perencanaan distribusi, serta terbatasnya dukungan informasi bagi
+ manajemen dalam melakukan evaluasi dan pengambilan keputusan strategis. Oleh karena itu,
+ diperlukan sebuah sistem informasi terintegrasi yang mampu mendukung proses perencanaan,
+ pemantauan, dan evaluasi distribusi berbasis data yang konsisten, real-time, dan mudah dianalisis
+ oleh pihak operasional maupun manajemen.
+
+           Permasalahan utama yang dihadapi oleh Divisi Operasional dan Perencanaan Distribusi
+ tidak hanya berkaitan dengan keterbatasan sistem, tetapi juga berdampak langsung pada kinerja
+ bisnis perusahaan. Ketidakterpaduan data pesanan, data armada, dan data realisasi pengiriman
+ menyebabkan proses perencanaan distribusi sering dilakukan berdasarkan informasi yang tidak
+ mutakhir dan tidak konsisten antar sumber. Akibatnya, penentuan rute dan penjadwalan
+ pengiriman kurang optimal, utilisasi armada tidak merata, serta sering terjadi perubahan jadwal
+ pengiriman secara mendadak. Dari sisi informasi manajerial, manajemen kesulitan memperoleh
+ laporan kinerja distribusi yang akurat dan tepat waktu, seperti tingkat ketepatan waktu pengiriman,
+ tingkat pemanfaatan armada, serta biaya distribusi per wilayah. Informasi tersebut sangat
+ dibutuhkan sebagai dasar evaluasi kinerja operasional, pengendalian biaya logistik, serta
+ perencanaan kapasitas armada ke depan. Kondisi ini mengakibatkan proses pengambilan
+ keputusan strategis terkait distribusi masih banyak bergantung pada perkiraan dan pengalaman,
+ bukan pada analisis data yang terstruktur dan terintegrasi. Dengan demikian, permasalahan yang
+ terjadi tidak hanya bersifat teknis, tetapi telah menjadi permasalahan bisnis dan informasi yang
+ menghambat efektivitas pengelolaan distribusi serta pencapaian target layanan perusahaan kepada
+ pelanggan.
+
+           Dan seterusnya.......
+
+1.2 Rumusan Masalah
+Ringkasan masalah (mengacu pada latar belakang) dan perlu dipikirkan cara menjawabnya secara
+realistis saat pengerjaan tugas akhir.
+
+1.3 Tujuan Proyek
+Solusi yang ditawarkan (mengacu pada latar belakang), dituliskan dalam 1 paragraf.
+
+1.4 Ruang Lingkup
+Berisi:
+
+    1. Aktor atau siapa saja yang menggunakan aplikasi
+    2. Data apa saja yang digunakan. Contoh: data pesanan pelanggan, data armada, data rute,
+
+         data pengemudi dan data realisasi pengiriman.
+    3. Proses dan atau metodologi yang digunakan. Proses bisnis apa saja yang dibuat. Contoh:
+
+         perencanaan pengiriman, penjadwalan armada, pemantauan realisasi pengiriman,
+         pelaporan kinerja distribusi.
+
+                                                             4
+    4. Informasi apa saja yang dihasilkan dari aplikasi.
+    5. Rencana pengujian aplikasi.
+    6. Teknologi yang digunakan (database, programming language, framework, API, dll)
+    7. Batasan ruang lingkup. Contoh: digunakan di kantor pusat, tidak di kantor cabang.
+
+ Contoh
+      · Perencanaan pengiriman
+           Proses ini digunakan untuk menyusun rencana pengiriman berdasarkan data pesanan
+           pelanggan, wilayah tujuan, dan ketersediaan armada.
+           Aktor yang terlibat adalah staf operasional.
+           Output dari proses ini berupa daftar rencana pengiriman per hari.
+      · Penjadwalan armada
+           Proses ini digunakan untuk menentukan alokasi armada dan pengemudi pada setiap
+           rencana pengiriman.
+           Aktor yang terlibat adalah koordinator lapangan.
+           Output dari proses ini berupa jadwal armada dan pengemudi.
+      · Pemantauan realisasi pengiriman
+           Proses ini digunakan untuk mencatat dan memantau status realisasi pengiriman di
+           lapangan.
+           Aktor yang terlibat adalah staf operasional dan koordinator lapangan.
+           Output dari proses ini berupa status pengiriman dan waktu realisasi.
+      · Metode peramalan penjualan digunakan pada proses perencanaan pengiriman untuk
+           memperkirakan volume pengiriman periode berikutnya dengan menggunakan xxx.
+           Input yang digunakan adalah data historis jumlah pengiriman per periode.
+           Aktor yang terlibat adalah manajer operasional
+           Output yang dihasilkan adalah nilai prediksi volume pengiriman.
+
+BAB 2 ­ METODOLOGI PROYEK
+Bab ini bukan menjelaskan alur program, tetapi menjelaskan bagaimana proyek dilakukan dari awal
+sampai sistem siap diuji (tahapan proyek). Kemudian dilanjutkan dengan sub bab yang menjelaskan
+masing-masing tahapan.
+2.1 Tahapan 1
+2.2 Tahapan 2
+dst
+Dipastikan dalam tahapan proyek telah mencakup studi literatur dan ulasan software sejenis.
+
+BAB 3 ­ ANALISIS DAN DESAIN
+3.1 Analisis
+3.1.1 Analisis Permasalahan
+Berisi tentang:
+
+    · ringkasan masalah utama di organisasi
+    · dampak masalah terhadap proses bisnis
+    · ringkasan alur proses saat ini (as-is)
+
+                                                             5
+Contoh
+         Divisi Operasional dan Perencanaan Distribusi menghadapi permasalahan utama berupa
+
+keterlambatan penyusunan rencana pengiriman dan ketidaksesuaian antara rencana dan realisasi
+pengiriman. Permasalahan tersebut terjadi karena data pesanan pelanggan, data armada, dan data
+realisasi pengiriman masih tersimpan pada beberapa media yang berbeda dan belum terintegrasi.
+
+         Proses bisnis yang berjalan saat ini dimulai dari pengambilan data pesanan pelanggan dari
+sistem penjualan. Data armada dan ketersediaan pengemudi diperoleh dari laporan koordinator
+lapangan dalam bentuk file spreadsheet. Staf perencanaan kemudian menyusun rencana
+pengiriman secara manual dan mendistribusikan jadwal kepada koordinator lapangan. Selanjutnya,
+data realisasi pengiriman dicatat terpisah dan direkap pada akhir periode untuk keperluan
+pelaporan.
+
+         Kondisi tersebut menyebabkan manajer operasional tidak dapat memperoleh informasi
+kinerja distribusi secara cepat dan akurat, sehingga proses evaluasi dan pengambilan keputusan
+menjadi kurang optimal.
+
+         Dan seterusnya...
+
+3.1.2 Analisis Kebutuhan Informasi
+Berisi:
+
+    · siapa aktornya
+    · membutuhkan informasi apa
+    · untuk aktivitas atau Keputusan apa
+
+Contoh (dalam bentuk tabel, bisa dituliskan dalam bentuk paragraf atau poin)
+
+Peran pengguna        Informasi yang dibutuhkan   Tujuan penggunaan
+
+Staf perencanaan distribusi prediksi volume pengiriman menyusun rencana
+
+                      per wilayah                 pengiriman
+
+Koordinator lapangan  jadwal armada dan           mengatur pelaksanaan
+
+                      pengemudi                   pengiriman
+
+Manajer operasional   tingkat ketepatan waktu     evaluasi kinerja distribusi
+
+                      pengiriman
+
+Note: tabel harus dijelaskan dalam kalimat. Di atas hanya contoh saja, pedoman tata tulis tetap
+
+mengacu pada pedoman dari perpustakaan UK Petra.
+
+3.1.3 Analisis Kebutuhan Sistem
+Berisi:
+
+    · Kebutuhan fungsional sistem (diturunkan dari subbab 3.1.1 dan 3.1.2)
+    · Kebutuhan non fungsional sistem (opsional)
+
+                                          6
+3.2 Desain Sistem
+3.2.1 Blok Diagram Desain Sistem
+Menunjukkan:
+
+    · sumber data
+    · modul utama
+    · pengguna
+    · output
+
+ Contoh :
+ Blok diagram sistem terdiri atas:
+
+      · sumber data berupa data pesanan, data armada, dan data realisasi pengiriman
+      · modul utama sistem yaitu modul perencanaan pengiriman, modul penjadwalan armada,
+
+           modul monitoring pengiriman, dan modul pelaporan kinerja
+      · pengguna sistem yaitu staf perencanaan distribusi, koordinator lapangan, dan manajer
+
+           operasional
+      · output berupa laporan dan dashboard kinerja distribusi
+ Contoh:
+
+3.2.2 Desain Aplikasi
+Berisi:
+
+    1. Proses bisnis yang diusulkan (to be), selaras dengan ruang lingkup atau penambahan.
+    2. Use case (atau menggunakan DFD)
+    3. Activity diagram (boleh diletakkan di lampiran)
+    4. ERD / class diagram
+
+ Contoh:
+           Sistem yang diusulkan terdiri atas modul perencanaan pengiriman, modul penjadwalan
+
+ armada, modul pemantauan realisasi pengiriman, dan modul pelaporan kinerja. Sumber data
+ sistem berasal dari data pesanan, data armada, dan data realisasi pengiriman. Pengguna sistem
+ terdiri atas staf perencanaan distribusi, koordinator lapangan, dan manajer operasional.
+
+                                                             7
+           Proses bisnis yang dikomputerisasi meliputi perencanaan pengiriman, penjadwalan
+ armada, pemantauan realisasi pengiriman, dan pelaporan kinerja distribusi. Interaksi antara aktor
+ dan sistem digambarkan menggunakan use case diagram seperti pada Gambar 3.x
+
+           Dan seterusnya.
+
+3.2.3 Pengolahan data dan Metode yang Digunakan (jika ada)
+Subbab 3.2.3 wajib ada jika TA menggunakan metode atau algoritma. Contoh:
+
+    · forecasting
+    · rekomendasi
+    · perankingan
+    · klasifikasi
+    · clustering
+    · atau perhitungan analitik lainnya.
+
+Untuk setiap metode/algoritma harus dituliskan:
+    · digunakan pada proses bisnis yang mana, misal Perencanaan pengiriman dan diberi
+         penjelasan
+    · tujuan pengolahan, contoh memperkirakan volume pengiriman pada periode berikutnya
+         sebagai dasar penyusunan rencana pengiriman dan seterusnya
+    · metode yang digunakan, contoh Moving average dan diberi penjelasan.
+    · data input, contoh diambil dari jumlah pengiriman periode ....dan seterusnya
+    · output yang dihasilkan, contoh volume pengiriman untuk periode .....dan seterusnya
+    · informasi apa yang didukung dengan metode tersebut, contoh infomasi volume pengiriman
+         digunakan oelh staf perencanaan distribusi untuk....dan seterusnya
+
+BAB 4 ­ PENGUJIAN SISTEM
+    · Bab ini bertujuan untuk membuktikan bahwa sistem yang dikembangkan telah memenuhi
+         kebutuhan proses bisnis dan kebutuhan informasi organisasi.
+    · Test case scenario, UAT, SUS dan lain-lain
+    · Pengujian sistem tidak berisi user manual.
+
+BAB 5 ­ KESIMPULAN DAN SARAN
+Kesimpulan harus secara eksplisit:
+
+    · menjawab setiap rumusan masalah di Bab 1
+    · berdasarkan hasil pengujian di Bab 4
+Saran berisi:
+    · keterbatasan sistem
+    · peluang pengembangan lanjutan
+
+                                                             8
+

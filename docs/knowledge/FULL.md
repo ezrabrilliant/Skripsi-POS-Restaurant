@@ -1,23 +1,27 @@
-# Full Knowledge - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.11)
+# Full Knowledge - Sistem POS Ayam Bakar Banjar Monosuko (REV 2.13)
 
 Kompilasi lengkap pengetahuan tentang **3 design sistem** yang dipakai di skripsi: Use Case Diagram, Activity Diagram, dan Entity Relationship Diagram. Dokumen ini **self-contained** - reviewer, dosen pembimbing, atau future agent bisa baca satu file ini dan memahami seluruh design.
 
-> ⚠️ **Versi REV 2.11 (2026-05-30).** Selaras balik ke proposal: **drop** subsistem belanja/vendor/raw-materials, **tambah** COGS/modal per menu + Laporan Laba Rugi Harian (Laba Kotor = Pendapatan − COGS, tagihan terpisah). Entitas baseline 14 → **10**, relasi 23 → **17**, UC 20 → **19**, activity diagram 11 → **9**.
+> ⚠️ **Versi REV 2.13 (2026-06-02).** Diselaraskan ke kode/skema nyata (`backend/prisma/schema.prisma`). Banyak referensi doc lama sudah BASI dan dikoreksi: split-bill/`party_id` → **split-tender** (`transaction_payments`); enum `PaymentMethod` → **master table extensible** (`payment_methods` + `banks` + junction); subsistem belanja/raw-materials/vendor **sudah dihapus** (REV 2.11); settlement = **whole business day** (`@@unique(date)` + child `settlement_method_counts`, BUKAN "kasir malam only" / 12 kolom fixed); shift = business-day **window owner-configurable** + `active_marker` single-OPEN guard + atribusi re-stamp `shift_id` saat bayar; PB1 owner-configurable 2-sumbu (default OFF). Baseline: **23 entitas, ~39 relasi, 11 enum, 23 UC bubble, 11 activity diagram**.
 >
 > Riwayat versi:
+> - **REV 2.13 (2026-06-02)** - selaras kode nyata: catalog layer (variant/paket) + split-tender + payment-methods/banks master + settlement whole-day + shift window/atribusi-by-payment + COGS + app_settings/branding/PB1 2-sumbu masuk hitungan resmi. 23 entitas / 23 UC bubble / 11 activity. StarUML Skripsi.mdj sudah di-rebuild REV 2.13.
 > - **REV 2.11 (2026-05-30)** - drop belanja/vendor/raw-materials; tambah `menu_cost_movements` + `menus.cost` + `transaction_items.unit_cost` + `menu_variants.cost_source_menu_id`; laba kotor = pendapatan − COGS (selaras proposal)
-> - **REV 2.3 (2026-05-24)** - permission matrix + waiter fallback clarification + login fix (no schema change)
-> - **REV 2.2 (2026-05-24)** - audit log raw materials (`raw_material_movements` BARU + rename `stock_movements` → `portion_movements`), 13 → 14 entitas, 17 → 19 relasi
-> - **REV 2.1 (2026-05-23)** - order type 2 enum, raw_materials fleksibel, vendor opsional, purchase_items normalized
+> - **REV 2.10 (2026-05-30)** - catalog layer: `menu_option_groups`, `menu_options`, `menu_variants`, `menu_variant_options`, `paket_components`, `paket_choice_options`, `transaction_item_selections` (varian per-kombinasi + komposisi paket)
+> - **REV 2.7 (2026-05-29)** - shift redesign: business-day window owner-configurable + `active_marker` single-OPEN guard + atribusi revenue re-stamp `shift_id` saat bayar + settlement whole-business-day
+> - **REV 2.6 (2026-05-27)** - payment method + bank jadi master table extensible (`payment_methods`/`banks`/`payment_method_banks`); settlement dinamis via `settlement_method_counts`; `app_settings` PB1 owner-configurable
+> - **REV 2.5 (2026-05-26)** - split-tender (`transaction_payments`); drop `Transaction.paymentMethod`/`paymentBank` + drop `TransactionItem.partyId` (split-bill multi-party dibatalkan)
+> - **REV 2.4 (2026-05-26)** - waiter & kasir input order via HP (membatalkan framing "waiter fallback" REV 2.3)
+> - **REV 2.3 (2026-05-24)** - permission matrix + login fix (no schema change)
 >
 > 3 design utama:
-> - Use Case Diagram → [USE-CASE.md](USE-CASE.md) (REV 2.11, **19 UC**, 3 actor - drop pembelian/opname-raw + tambah Kelola Modal/COGS)
-> - Activity Diagram → [ACTIVITY.md](ACTIVITY.md) (REV 2.11, **9 diagram** - drop opname-raw + mencatat-pembelian)
-> - Entity Relationship Diagram → [ERD.md](ERD.md) (REV 2.11, **10 entitas, 17 relasi**)
+> - Use Case Diagram → [USE-CASE.md](USE-CASE.md) (REV 2.13, **23 UC bubble** = 21 dasar + 2 «extend», 3 actor)
+> - Activity Diagram → [ACTIVITY.md](ACTIVITY.md) (REV 2.13, **11 diagram**, masing-masing 1 initial + 1 final node)
+> - Entity Relationship Diagram → [ERD.md](ERD.md) (REV 2.13, **23 entitas, ~39 relasi**)
 >
 > Diagram lain (Block Diagram Deployment, Sequence Diagram, Class Diagram, Flowchart Force Order) **tidak dipakai di Bab 3 skripsi** - lihat §10 untuk detail dan alasan.
 >
-> **Sumber kebenaran tertinggi:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.11. Design spec turunan: [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md). Naskah Bab 3 paste-ready: [BAB-3-DRAFT.md](BAB-3-DRAFT.md).
+> **Sumber kebenaran tertinggi:** [`backend/prisma/schema.prisma`](../../backend/prisma/schema.prisma) + kode backend/frontend nyata, lalu [`docs/operasional-resto.md`](../operasional-resto.md). Naskah Bab 3 paste-ready: [BAB-3-DRAFT.md](BAB-3-DRAFT.md).
 
 ---
 
@@ -36,9 +40,9 @@ Kompilasi lengkap pengetahuan tentang **3 design sistem** yang dipakai di skrips
 ### 1.2. Batasan Penelitian (Bab 1.2)
 
 - **HPP berbasis bahan / Bill of Materials tidak dihitung** karena masak batch tanpa penimbangan baku, komposisi bumbu tidak terdokumentasi. Sebagai gantinya, modal/COGS dinyatakan langsung per menu oleh owner (`menus.cost`). Lihat sub-bab 3.1.4 di [BAB-3-DRAFT.md](BAB-3-DRAFT.md) untuk justifikasi paste-ready.
-- **Bahan baku mentah tidak ditrack di sistem** - inventori dibatasi pada barang siap jual satuan porsi; konversi bahan mentah → stok porsi terjadi manual di rumah owner, di luar lingkup. Tidak ada entitas raw materials/vendor/pembelian.
-- **Laporan Laba Rugi Harian**: Laba Kotor = Pendapatan − COGS (Σ `unit_cost` × qty dari transaksi paid). Tagihan operasional (bills) ditampilkan terpisah, tidak dikurangkan ke laba kotor.
-- **Cetak struk pesanan untuk dapur tidak ada** - dapur produksi di rumah owner, bukan di resto, sehingga komunikasi tetap verbal/kertas.
+- **Bahan baku mentah tidak ditrack di sistem** - inventori dibatasi pada barang siap jual satuan porsi; konversi bahan mentah → stok porsi terjadi manual di rumah owner, di luar lingkup. **Tidak ada entitas raw materials / vendor / pembelian** (dihapus REV 2.11).
+- **Laporan Laba Rugi Harian**: Laba Kotor = Pendapatan − COGS (Σ `unit_cost` × qty dari transaksi paid) − PB1 yang ditanggung resto (`tax_borne_amount`). Tagihan operasional (`bills`) ditampilkan **terpisah**, tidak dikurangkan ke laba kotor.
+- **Cetak struk pesanan untuk dapur tidak ada** - dapur produksi di rumah owner, bukan di resto, sehingga komunikasi tetap verbal/kertas. Struk pembayaran (kuitansi pelanggan) opsional dicetak/PDF dari sisi kasir.
 - **PWA Level A** (installable, butuh internet) - resto tidak punya WiFi internal sehingga pegawai pakai paket data masing-masing HP.
 
 ### 1.3. Stack Teknis (implementasi)
@@ -50,15 +54,21 @@ Kompilasi lengkap pengetahuan tentang **3 design sistem** yang dipakai di skrips
 
 ---
 
-## 2. Tiga Aktor Sistem (REV 2.3)
+## 2. Tiga Aktor Sistem (REV 2.13)
 
 | Aktor | Role DB | Tanggung Jawab |
 |---|---|---|
-| **Pemilik (Owner)** | `owner` | Master data (menu, pengguna), set & ubah modal/COGS menu (+ riwayat modal), input tagihan bulanan, review settlement, monitoring dashboard & laporan laba rugi dari mana saja |
-| **Kasir** | `cashier` | Operasional POS shift (Jason, Bryant, Chen Hong). **Primary input order ke POS** (dari kertas waiter). Buka kasir, kelola pesanan, proses bayar dengan bank picker untuk EDC/transfer, split/merge bill, void bebas, tutup kasir (malam), restock pagi, barang masuk darurat, opname stok porsi |
-| **Waiter** | `waiter` | Pelayan + helper (Amel, Yanti). **Primary workflow di kertas** (tulis order verbal ke kertas, kasih kasir). Ambil order ke meja, antar makanan, buat & antar minuman, cuci piring, restock pagi, opname stok porsi pagi, mark item habis. **Input order ke POS hanya sebagai fallback** bila kasir tidak available - bukan tugas rutin |
+| **Pemilik (Owner)** | `owner` | Master data (menu, pengguna), set & ubah modal/COGS menu (+ riwayat modal), konfigurasi metode pembayaran & bank, pengaturan aplikasi (PB1, identitas/branding resto, window shift, aturan stok), input tagihan bulanan, review settlement, monitoring dashboard & laporan laba rugi dari mana saja. Boleh melakukan semua aksi operasional/pembayaran (bypass) |
+| **Kasir** | `cashier` | Operasional POS shift (Jason, Bryant, Chen Hong). Input order ke POS (dengan waiter). Buka kasir, kelola pesanan, proses bayar **split-tender** dengan bank picker untuk EDC/transfer, gabung pesanan/meja (merge), batalkan pesanan (void), tutup kasir (2-mode), setoran akhir hari (whole business day), restock pagi, barang masuk darurat, opname stok porsi |
+| **Waiter** | `waiter` | Pelayan + helper (Amel, Yanti). Input order ke POS via HP (**dengan kasir**), antar makanan, buat & antar minuman, cuci piring, restock pagi, opname stok porsi, mark item habis, pantau status meja. **TIDAK boleh** bayar/void/merge/tutup-shift/settlement. Workflow kertas opsional (tulis lalu kasih kasir) bukan keharusan |
 
-Permission matrix lengkap per role per aksi ada di [`docs/operasional-resto.md`](../operasional-resto.md) seksi "Permission Matrix" REV 2.3. Catatan: Lisa (masak only) tidak punya akun sistem karena masak dilakukan di luar lingkup sistem.
+Permission matrix lengkap per role per aksi ada di [`docs/operasional-resto.md`](../operasional-resto.md) seksi "Permission Matrix". Catatan: Lisa (masak only) tidak punya akun sistem karena masak dilakukan di luar lingkup sistem.
+
+**Permission nyata (dari kode):**
+- Input order + stok (restock/barang-masuk/opname/mark-habis) + pantau meja + dashboard = **semua 3 role** (waiter input order).
+- Pembayaran / void / merge / unmerge / tutup-shift / settlement = **owner + kasir** (waiter TIDAK boleh bayar).
+- Buka kasir = **kasir-only**.
+- Review settlement + kelola menu / kelola modal-COGS / kelola pengguna / tagihan bulanan / metode pembayaran-bank / pengaturan aplikasi = **owner-only**.
 
 ---
 
@@ -66,82 +76,130 @@ Permission matrix lengkap per role per aksi ada di [`docs/operasional-resto.md`]
 
 - **System Boundary:** `Sistem POS Restoran Ayam Bakar Banjar Monosuko`
 - **3 Actor** (Pemilik, Kasir, Waiter)
-- **19 Use Case** terbagi 4 domain:
-  1. **Autentikasi**: `Login` (shared 3 actor - form 2 field input nama + PIN, ketik manual setiap login, no list picker, no localStorage)
-  2. **Operasional transaksi**: `Buka Kasir` (kasir-only), `Mengelola Pesanan Meja` (kasir primary + waiter fallback), `Memilih Sub-Pilihan Paket` (kasir primary + waiter fallback), `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran` (kasir-only, dengan input bank untuk EDC/transfer), `Mencetak Struk`, `Tutup Kasir` (kasir malam)
-  3. **Manajemen stok** (shared kasir+waiter): `Restock Stok Porsi`, `Mencatat Barang Masuk`, `Melakukan Opname Stok Porsi`
-  4. **Administrasi & laporan**: `Mengelola Menu` (owner), `Kelola Modal/COGS Menu` (owner-only), `Mengelola Pengguna` (owner), `Mencatat Tagihan Bulanan` (owner-only), `Mereview Settlement` (owner), `Melihat Dashboard dan Laporan`
-- **Dependencies:** 18× `<<include>>` (semua UC ke `Login`), 3× `<<extend>>` (Mencetak Struk → Pembayaran, Sub-Pilihan → Pesanan, Split Bill → Pembayaran)
+- **23 Use Case bubble** = **21 use case dasar + 2 «extend»**, terbagi 5 domain:
+  1. **Autentikasi**: `Login` (shared 3 actor - form 2 field input nama + PIN)
+  2. **Operasional transaksi**: `Mengelola Pesanan` (kasir + waiter ) + «extend» `Memilih Varian/Paket`; `Memproses Pembayaran` (owner+kasir, split-tender) + «extend» `Mencetak Struk`; `Menggabungkan Pesanan/Meja`; `Membatalkan Pesanan`; `Memantau Status Meja`
+  3. **Shift & setoran**: `Buka Kasir` (kasir-only), `Tutup Kasir` (owner+kasir, 2-mode), `Setoran Akhir Hari` (owner+kasir, whole business day), `Mereview Settlement` (owner)
+  4. **Manajemen stok** (semua role): `Restock Stok Porsi`, `Mencatat Barang Masuk`, `Opname Stok Porsi`, `Menandai Item Habis`
+  5. **Administrasi & konfigurasi owner**: `Mengelola Menu`, `Kelola Modal/COGS Menu`, `Mengelola Pengguna`, `Mencatat Tagihan Bulanan`, `Melihat Dashboard dan Laporan`, `Kelola Metode Pembayaran dan Bank`, `Mengatur Pengaturan Aplikasi`
+- **Dependencies:** **20× `<<include>>`** (semua UC operasional kecuali Login menyertakan `Login`), **2× `<<extend>>`** (`Memilih Varian/Paket` → `Mengelola Pesanan`; `Mencetak Struk` → `Memproses Pembayaran`).
 
-> REV 2.11: UC `Mencatat Pembelian` + `Melakukan Opname Raw Materials` dihapus (subsistem belanja/raw-materials keluar dari sistem); UC `Kelola Modal/COGS Menu` ditambah (owner-only).
+> REV 2.13 koreksi dari doc lama: `Mencatat Pembelian` + `Opname Raw Materials` sudah dihapus (REV 2.11); `Memecah Tagihan` (split bill per `party_id`) **dihapus** dan diganti `Memproses Pembayaran [Split Tender]` (banyak metode bayar dalam 1 transaksi). UC config owner baru: `Kelola Metode Pembayaran dan Bank` + `Mengatur Pengaturan Aplikasi`. UC `Memantau Status Meja` + `Menandai Item Habis` dieksplisitkan.
 
 ![Use Case](../diagrams/use-case-diagram-sistem-pos-restoran.png)
 
 ---
 
-## 4. Activity Diagrams (ringkasan 9 diagram - detail di [ACTIVITY.md](ACTIVITY.md))
+## 4. Activity Diagrams (ringkasan 11 diagram - detail di [ACTIVITY.md](ACTIVITY.md))
+
+Setiap diagram memiliki **tepat 1 initial node + 1 activity-final node** (single-final).
 
 | # | Nama | Swimlane | Tujuan |
 |---|---|---|---|
-| A.1 | Login | User \| Sistem | Autentikasi form 2 field: input nama + PIN 6 digit, ketik manual setiap login (no list picker, no localStorage) |
-| A.2 | Order Flow | Waiter \| Kasir \| Sistem | Workflow primary: waiter tulis kertas → kasir input ke POS. Pilih tipe order (2 enum), pilih meja jika dineIn, tambah item, sub-options modal jika paket, decrement stok saat submit (boleh minus). Waiter dapat fallback input langsung saat kasir tidak available |
-| A.3 | Pay Flow | Kasir \| Sistem | PB1 10% auto + diskon manual + 6 metode + input bank untuk EDC/transfer + opsi cetak struk PDF |
-| A.4 | Restock Stok Porsi Pagi | Waiter/Kasir \| Sistem | Restock kelipatan 5 dengan suggested formula, log audit reason `restock_morning` |
-| A.5 | Mencatat Barang Masuk | Kasir/Waiter \| Sistem | Restock darurat tengah hari, stok minus kembali positif, log reason `restock_emergency` |
-| A.6 | Opname Stok Porsi | Kasir/Waiter \| Sistem | Cek fisik & koreksi nilai sistem (analog rekonsiliasi cash), log reason `manual_adjust` |
-| A.7 | Tutup Kasir | Kasir Malam \| Sistem | Rekap 6 totals + breakdown bank, variance per metode auto-hitung, bukan blind count |
-| A.8 | Mencatat Tagihan Bulanan | Owner \| Sistem | Owner-only input tagihan operasional bulanan |
-| A.9 | Split & Merge Bill | Kasir \| Sistem | Split per item via party_id, merge antar transaksi meja via self-ref merged_into_id |
+| A.1 | Login | User \| Sistem | Autentikasi form 2 field: input nama + PIN 6 digit |
+| A.2 | Mengelola Pesanan | Waiter \| Kasir \| Sistem | Input order kasir & waiter via HP. Pilih tipe order (dineIn/takeaway), pilih meja jika dineIn, tambah item (loop multi-item), pilih varian/paket bila ada, kurangi stok porsi saat submit (boleh minus) |
+| A.3 | Memproses Pembayaran | Kasir \| Sistem | PB1 (jika aktif) + diskon + **split-tender** (loop tambah metode hingga lunas) + bank picker EDC/transfer + finalize/cascade merge + opsi cetak struk |
+| A.4 | Buka Kasir | Kasir \| Sistem | Window-aware (belum lewat jam-akhir window) + single-OPEN guard (`active_marker`) + serah-terima (handover) |
+| A.5 | Tutup Kasir | Kasir \| Sistem | 2-mode: final (blok tx open, 409 daftar per-meja) / handover (carry) |
+| A.6 | Setoran Akhir Hari | Kasir/Owner \| Sistem | Whole business day (`@@unique(date)`) + blind count per metode + variance + review owner |
+| A.7 | Restock Stok Porsi Pagi | Waiter/Kasir \| Sistem | Restock kelipatan (default 5), log audit reason `restock_morning` |
+| A.8 | Mencatat Barang Masuk | Kasir/Waiter \| Sistem | Restock darurat tengah hari, stok minus kembali positif, log reason `restock_emergency` |
+| A.9 | Opname Stok Porsi | Kasir/Waiter \| Sistem | Cek fisik & koreksi nilai sistem, log reason `manual_adjust` |
+| A.10 | Mencatat Tagihan Bulanan | Owner \| Sistem | Owner-only input tagihan operasional bulanan |
+| A.11 | Kelola Menu dan Modal/COGS | Owner \| Sistem | CRUD menu + set/ubah modal (`menus.cost`), log `menu_cost_movements` |
 
-> REV 2.11 DROP: Opname Raw Materials + Mencatat Pembelian. `Kelola Modal/COGS Menu` (owner) = CRUD form sederhana, tidak butuh activity diagram terpisah.
+> REV 2.13 koreksi dari doc lama: DROP `Opname Raw Materials` + `Mencatat Pembelian` (fitur dihapus REV 2.11), dan **DROP "Split Bill"** (diganti split-tender di A.3 Memproses Pembayaran). **Tutup Kasir (A.5) & Setoran Akhir Hari (A.6) kini DIPISAH** (dulu tergabung). Merge bill jadi bagian alur pembayaran (cascade ke `merged_from`), bukan diagram terpisah.
 
-### Konvensi Activity (REV 2.3)
+### Konvensi Activity
 
 - **Action names**: Title Case Indonesia, business language - bukan SQL, field name, atau pseudocode
-- **Decision diamond**: wajib punya nama pertanyaan (mis. "Tipe order dine-in?", "Payment EDC atau transfer?", "Pelanggan minta struk?")
+- **Decision diamond**: wajib punya nama pertanyaan (mis. "Tipe order dine-in?", "Pembayaran sudah lunas?", "Metode butuh bank?")
 - **Guards**: plain text tanpa bracket, Title Case (`Ya`, `Tidak`, `Cash`, `EDC`, ...)
 - **Single in/out rule**: percabangan/konvergensi via Decision/Merge, bukan dari action langsung
+- **Single-final**: tepat 1 initial node + 1 activity-final node per diagram
 - **Swimlane**: vertikal, satu lane per aktor + lane untuk Sistem
 
 ---
 
 ## 5. Entity Relationship Diagram (ringkasan - detail di [ERD.md](ERD.md))
 
-- **10 Entitas:** `users`, `menus` (+ `cost`), `portion_stocks`, `portion_movements` (rename dari `stock_movements`), **`menu_cost_movements`** (REV 2.11 BARU), `shifts`, `transactions`, `transaction_items` (+ `unit_cost`), `settlements`, `bills`
-- **17 Relasi**: dominasi 1:N + 1× 1:1 (shifts ↔ settlements) + 1× self-reference (transactions.merged_into_id untuk merge bill) + 1× M:N via junction (transaction_items). REV 2.11 menambah 2 relasi cost-movement (`menus → menu_cost_movements`, `users → menu_cost_movements`) dan menghapus 8 relasi belanja/raw-materials.
+**23 Entitas** (urut kelompok):
+
+| Kelompok | Entitas |
+|---|---|
+| Core operasional (7) | `users`, `shifts`, `transactions`, `transaction_items`, `transaction_payments`, `settlements`, `settlement_method_counts` |
+| Katalog & varian (8) | `menus`, `menu_option_groups`, `menu_options`, `menu_variants`, `menu_variant_options`, `paket_components`, `paket_choice_options`, `transaction_item_selections` |
+| Stok porsi (2) | `portion_stocks`, `portion_movements` |
+| Konfigurasi pembayaran (3) | `payment_methods`, `banks`, `payment_method_banks` |
+| Admin / config / audit (3) | `bills`, `app_settings`, `menu_cost_movements` |
+
+- **~39 Relasi (FK)**: dominasi 1:N, ditambah:
+  - **Self-reference** `transactions.merged_into_id → transactions` (merge bill; transaksi sumber menunjuk parent gabungan).
+  - **Junction M:N** `payment_method_banks` (`payment_methods` × `banks`) dan `menu_variant_options` (`menu_variants` × `menu_options`).
+  - **1:N split-tender** `transactions → transaction_payments` (1 transaksi banyak slice pembayaran).
+  - **1:N settlement** `settlements → settlement_method_counts`, dengan `settlement_method_counts.payment_method_code → payment_methods.code` (FK ke kolom unik `code`, bukan id).
+  - `portion_movements` FK **opsional** ke `transactions` + `transaction_items` (`onDelete: SetNull`) untuk audit ledger.
 - **Notasi**: crow's-foot (bukan Chen)
+
+> **Catatan FK penting (jangan salah gambar):**
+> - `menu_variants.cost_source_menu_id` adalah kolom `Int?` **TANPA relasi FK terdeklarasi** (soft reference) — JANGAN gambar/anggap sebagai relasi FK.
+> - `portion_movements` & `portion_stocks` TIDAK punya FK langsung satu sama lain; keduanya FK ke `menus` (pola snapshot + ledger).
 
 ![ERD](../diagrams/erd-sistem-pos-restoran.png)
 
-### Enum Utama (REV 2.2)
+### 11 Enum
 
 | Enum | Values |
 |---|---|
 | `UserRole` | `owner`, `cashier`, `waiter` |
-| `OrderType` | `dineIn`, `takeaway` (disederhanakan dari 5) |
-| `PaymentMethod` | `cash`, `edc`, `qris`, `gojek`, `grab`, `transfer` (EDC & transfer + `payment_bank` String? nullable) |
-| `PortionMovementReason` | `order`, `restock_morning`, `restock_emergency`, `manual_adjust`, `refund_void` (REV 2.2: rename dari StockMovementReason) |
-| `MenuCostChangeReason` | `initialSet`, `manualEdit` (REV 2.11: BARU - log perubahan modal/COGS) |
+| `TransactionStatus` | `open`, `paid`, `void` |
+| `OrderType` | `dineIn`, `takeaway` |
+| `SettlementStatus` | `submitted`, `reviewed` |
 | `ShiftType` | `pagi`, `malam` |
 | `StockType` | `portion`, `linked`, `nonStock` |
-| `SettlementStatus` | `submitted`, `reviewed` |
+| `MenuKind` | `simple`, `variant`, `paket` |
+| `PaketComponentKind` | `fixed`, `choice` |
+| `PortionMovementReason` | `order`, `restockMorning`, `restockEmergency`, `manualAdjust`, `refundVoid` |
+| `MenuCostChangeReason` | `initialSet`, `manualEdit` |
 | `BillCategory` | `kebersihan`, `listrik`, `air`, `parkir`, `sewa` |
-| `TransactionStatus` | `open`, `paid`, `void` |
 
-### Keputusan Struktural Penting (REV 2.2)
+> ⚠️ **Enum `PaymentMethod` SUDAH DIHAPUS** (REV 2.6). Metode pembayaran kini master table `payment_methods` (extensible owner-configurable), bank master `banks`, relasi M:N via `payment_method_banks`. Transaksi **tidak** punya kolom `payment_method`/`payment_bank` — pembayaran ada di `transaction_payments` (method denormalize string + bank via junction).
 
-- **`portion_stocks.opening_qty_today`** → auto-snapshot saat user pertama login pagi, untuk metric "terjual hari ini"
-- **`transactions.payment_bank`** → nullable, terisi hanya untuk EDC/transfer agar laporan rekonsiliasi per bank dapat dilakukan
-- **`transactions.merged_into_id`** → self-reference nullable untuk merge bill (transaksi sumber → parent gabungan)
-- **`menus.cost` (REV 2.11)** → modal/COGS per unit, owner-only, tidak dibocorkan ke katalog publik (POS). Diisi di SKU leaf + menu simple.
-- **`transaction_items.unit_cost` (REV 2.11)** → snapshot modal per unit saat order (mirror `unit_price`), sehingga laba kotor periode lampau tidak berubah saat owner memperbarui modal.
-- **`menu_variants.cost_source_menu_id` (REV 2.11)** → SKU leaf wakil modal untuk varian nonStock (Es Teh per-ukuran, Es Jeruk, Tahu Tempe).
-- **TIDAK ada raw materials / Bill of Materials / resep** - inventori = finished-goods porsi saja; modal dinyatakan langsung per menu (HPP berbasis bahan out of scope). Konversi bahan mentah → stok porsi manual di rumah owner.
+### Kolom Penting (delta vs doc lama)
+
+- **`menus.cost`** → modal/COGS per unit, owner-only, **TIDAK dibocorkan** ke GET publik POS. null = belum di-set (dihitung 0 saat laba).
+- **`menus.kind`** (`MenuKind`) + **`menus.pos_visible`** → katalog: jenis menu (simple/variant/paket) + apakah tampil di grid POS (SKU stok granular bisa disembunyikan).
+- **`transaction_items.unit_cost`** → snapshot modal per unit saat order (mirror `unit_price`), sehingga laba periode lampau tidak berubah saat owner memperbarui modal.
+- **`transaction_items.variant_id`** → varian yang terjual (null untuk simple/paket).
+- **`transactions.tax_borne_amount`** → PB1 yang DITANGGUNG resto (TIDAK masuk total pelanggan; dikurangkan ke laba di dashboard). 0 saat PB1 dibebankan ke pelanggan / PB1 nonaktif.
+- **`transactions.merged_into_id`** → self-ref nullable untuk merge bill; transaksi sumber menunjuk parent gabungan. **TIDAK ADA** kolom `payment_method`/`payment_bank` di transaksi.
+- **`shifts.active_marker`** → unique key untuk **single-OPEN guard** sistem-wide. **TIDAK ada** `@@unique([date, cashier, type])` (di-drop, terlalu strict).
+- **`settlements`** → keyed `@@unique([date])` (**whole business day**) + child `settlement_method_counts` (system/counted per metode dinamis). **TIDAK ada** 12 kolom `system_*`/`actual_*` legacy.
+- **`app_settings`** (singleton id=1) → `tax_enabled` / `tax_rate` / `tax_charged_to_customer` (PB1 default OFF) + `restaurant_name` / `restaurant_address` / `restaurant_logo_url` / `restaurant_phone` / `opening_hours` (identitas & branding) + `restock_multiple` / `low_stock_threshold` (aturan stok parametrik) + `timezone` / `shift_pagi_start` / `shift_changeover` / `shift_malam_end` (window shift owner-configurable).
+
+### Keputusan Struktural Penting
+
+- **`portion_stocks.opening_qty_today`** → auto-snapshot saat user pertama login pagi, untuk metric "terjual hari ini".
+- **Inventori = finished-goods porsi saja** (`portion_stocks`). **TIDAK ada** raw materials / Bill of Materials / resep / vendor / pembelian; modal dinyatakan langsung per menu (HPP berbasis bahan out of scope). Konversi bahan mentah → stok porsi manual di rumah owner.
+- **`menu_variants.cost_source_menu_id`** → SKU leaf wakil modal untuk varian nonStock. Resolusi modal varian = `cost_source_menu_id ?? stock_target_menu_id`. (Soft reference, bukan FK terdeklarasi.)
 - **Audit log dipisah per domain**:
-  - `portion_movements` (rename dari `stock_movements`) → audit stok porsi, FK ke `menus` + `users` (+ REV 2.8 FK ke transaksi sumber)
-  - `menu_cost_movements` (REV 2.11 BARU) → audit perubahan modal/COGS menu, FK ke `menus` + `users`; auto-insert saat `upsertMenu` mengubah `cost`
+  - `portion_movements` → audit stok porsi, FK ke `menus` + `users` + (opsional, `onDelete: SetNull`) `transactions` / `transaction_items` (REV 2.8 ledger integrity: `qty_before`/`qty_after` + tautan dokumen sumber).
+  - `menu_cost_movements` → audit perubahan modal/COGS menu (`cost_before`/`cost_after`), FK ke `menus` + `users`; auto-insert saat owner mengubah `cost` (reason `initialSet`/`manualEdit`).
 
-Data dictionary lengkap (10 tabel × Field/Tipe/Keterangan) ada di [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) REV 2.11.
+Data dictionary lengkap (23 tabel × Field/Tipe/Keterangan) ada di [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) REV 2.13.
+
+---
+
+## 5b. Delapan Koreksi Kode Wajib (rangkuman terhadap doc lama)
+
+1. **Split-TENDER, bukan split-bill.** Banyak metode bayar untuk 1 transaksi via `transaction_payments` (1:N). `party_id` sudah **DIHAPUS** (split-bill multi-party dibatalkan). Merge bill tetap ada via pointer `transactions.merged_into_id`.
+2. **`payment_methods` = master table extensible** (BUKAN enum). Transaksi TANPA kolom `payment_method`/`payment_bank`; pembayaran di `transaction_payments`; bank via junction `payment_method_banks`.
+3. **Tidak ada raw_materials / purchases / vendors** (dihapus REV 2.11). Inventori = `portion_stocks` (finished-goods) saja.
+4. **PB1 owner-configurable 2-sumbu** (`tax_enabled` / `tax_rate` / `tax_charged_to_customer`; DEFAULT OFF di resto ini). Jika `charged=false` → PB1 ditanggung resto = `tax_borne_amount`, tidak masuk total pelanggan.
+5. **Settlement = WHOLE BUSINESS DAY** (`@@unique(date)`), per-metode dinamis (`settlement_method_counts`). Penyetor = kasir penutup shift terakhir hari itu / owner (BUKAN "kasir malam only").
+6. **Shift REV 2.7**: business-day window owner-configurable (`timezone` + `shift_pagi_start`/`shift_changeover`/`shift_malam_end`); `shifts.active_marker` single-OPEN guard sistem-wide; order auto-resolve shift aktif; atribusi RE-STAMP `shift_id` saat bayar; `closeShift` 2-mode (final/handover).
+7. **Merge** = set `source.merged_into_id` (pointer); TIDAK migrasi `shift_id`; semua query revenue/settlement **exclude** `merged_into_id IS NOT NULL` (hindari double-count).
+8. **COGS**: `menus.cost` owner-only (tak bocor GET publik), snapshot ke `transaction_items.unit_cost` saat order, log `menu_cost_movements` (initialSet/manualEdit), endpoint `GET /menus/:id/cost-history` owner-only. **Laba Kotor owner = Pendapatan − COGS − PB1-borne**; Bills (tagihan) ditampilkan **TERPISAH**, tidak dikurangkan ke laba kotor.
 
 ---
 
@@ -149,36 +207,28 @@ Data dictionary lengkap (10 tabel × Field/Tipe/Keterangan) ada di [`docs/DATA-D
 
 | Rumusan Masalah (Bab 1.2) | Use Case yang menjawab | Activity Diagram | Entitas ERD |
 |---|---|---|---|
-| A. Percepat durasi transaksi | `Mengelola Pesanan Meja` (2 tipe sederhana) + `Memilih Sub-Pilihan Paket` + `Memproses Pembayaran` (bank picker autocomplete) | A.2 Order Flow + A.3 Pay Flow | `transactions`, `transaction_items`, `menus` |
-| B. Percepat rekonsiliasi + kurangi mismatch | `Tutup Kasir` (rekap 6 totals + breakdown bank, variance per metode) | A.8 Tutup Kasir | `settlements`, `shifts`, `transactions` (dengan payment_bank) |
-| C. Manajemen stok harian + restock darurat | `Restock Stok Porsi` + `Mencatat Barang Masuk` + `Opname Stok Porsi` | A.4, A.5, A.6 | `portion_stocks`, `portion_movements` |
-| #4 Owner tahu laba & pengeluaran | `Kelola Modal/COGS Menu` + `Mencatat Tagihan Bulanan` + `Melihat Dashboard dan Laporan` (laba = pendapatan − COGS, tagihan terpisah) | A.8 | `menus.cost`, `transaction_items.unit_cost`, `menu_cost_movements`, `bills` |
+| A. Percepat durasi transaksi | `Mengelola Pesanan` (2 tipe sederhana) + «extend» `Memilih Varian/Paket` + `Memproses Pembayaran` (split-tender + bank picker) | A.2 + A.3 | `transactions`, `transaction_items`, `transaction_payments`, `menus`, `menu_variants` |
+| B. Percepat rekonsiliasi + kurangi mismatch + per-bank | `Setoran Akhir Hari` (rekap dinamis per metode + breakdown bank, variance per metode) + `Mereview Settlement` | A.6 Setoran Akhir Hari | `settlements`, `settlement_method_counts`, `shifts`, `transaction_payments` |
+| C. Manajemen stok harian + restock darurat (cegah stockout → ongkir) | `Restock Stok Porsi` + `Mencatat Barang Masuk` + `Opname Stok Porsi` + `Menandai Item Habis` | A.7, A.8, A.9 | `portion_stocks`, `portion_movements` |
+| #4 Owner tahu laba & pengeluaran | `Kelola Modal/COGS Menu` + `Mencatat Tagihan Bulanan` + `Melihat Dashboard dan Laporan` (laba = pendapatan − COGS − PB1-borne; tagihan terpisah) | A.11 + A.10 | `menus.cost`, `transaction_items.unit_cost`, `menu_cost_movements`, `bills` |
 
 ---
 
-## 7. Status Build (REV 2.3, per 2026-05-24)
+## 7. Status Build (REV 2.13, per 2026-06-02)
 
 | Komponen | Status |
 |---|---|
-| `docs/operasional-resto.md` (ground truth) | ✅ Final REV 2.3 (tambah seksi Permission Matrix) |
-| `docs/superpowers/specs/2026-05-24-permission-matrix-design.md` | ✅ NEW REV 2.3 (design spec brainstorming) |
-| `CLAUDE.md` (handoff state) | ✅ REV 2.3 |
-| `~/.claude/plans/...` (plan refactor 11 phases) | ⏳ Masih REV 2.1 (perlu sync ke REV 2.3 saat mulai eksekusi - tambah permission middleware granular di Phase 4 backend) |
-| `docs/knowledge/ERD.md` | ✅ REV 2.3 (schema identik REV 2.2 - 14 entitas, 19 relasi) |
-| `docs/knowledge/USE-CASE.md` | ✅ REV 2.3 (20 UC, 3 actor + waiter fallback clarification + Login fix) |
-| `docs/knowledge/ACTIVITY.md` | ✅ REV 2.3 (11 activity diagrams + A.2 fallback note, no visual change) |
-| `docs/knowledge/BAB-3-DRAFT.md` | ⏳ REV 2.2 (kalau dipakai untuk skripsi, perlu sync ke REV 2.3 untuk Login narration + workflow waiter) |
-| `docs/knowledge/FULL.md` | ✅ REV 2.3 (this file) |
-| `Skripsi.mdj` (StarUML - ERD) | ✅ REV 2.2 (14 entitas via Mermaid, REV 2.3 tidak butuh rebuild) |
-| `Skripsi.mdj` (StarUML - 11 Activity Diagrams) | ✅ REV 2.2 (REV 2.3 tidak butuh rebuild, no step change) |
-| `Skripsi.mdj` (StarUML - Use Case) | ⏳ Pending rebuild untuk REV 2.3 annotation update |
-| `docs/DATA-DICTIONARY.md` | ⏳ Masih REV 1 - perlu update ke 14 entitas REV 2.2/2.3 |
-| `backend/prisma/schema.prisma` | ⏳ Masih REV 2 - perlu rewrite ke 14 entitas REV 2.2 (REV 2.3 tidak menambah schema, hanya middleware permission granular) |
-| `backend/prisma/menu-catalog.ts` + `seed.ts` | ⏳ Masih REV 2 |
-| Backend code (services/controllers/middleware) | ⏳ Masih REV 2 - REV 2.3 perlu granular permission middleware per-aksi |
-| Frontend code (LoginPage form input nama+PIN, POSPage 2-tab, 3 dashboard per role) | ⏳ Masih REV 2 |
-
-Plan eksekusi step-by-step ada di [`~/.claude/plans/ubah-backend-dari-laravel-crystalline-wilkes.md`](~/.claude/plans/ubah-backend-dari-laravel-crystalline-wilkes.md).
+| `backend/prisma/schema.prisma` | ✅ Sumber kebenaran (23 entitas, 11 enum, ~39 relasi) - catalog layer + split-tender + payment-methods/banks + settlement whole-day + shift window + COGS + app_settings |
+| Backend code (modules + services + controllers + middleware) | ✅ Implemented & smoke-tested (lihat CLAUDE.md tabel status) |
+| Frontend code (3 dashboard per role, POS split-tender, payment-methods/banks config, settings owner) | ✅ Implemented (`vite build` SUCCESS) |
+| `docs/operasional-resto.md` (ground truth) | ✅ diselaraskan |
+| `docs/knowledge/ERD.md` | ✅ REV 2.13 (23 entitas, ~39 relasi) |
+| `docs/knowledge/USE-CASE.md` | ✅ REV 2.13 (23 UC bubble, 3 actor) |
+| `docs/knowledge/ACTIVITY.md` | ✅ REV 2.13 (11 activity diagram, single-final) |
+| `docs/knowledge/BAB-3-DRAFT.md` | ⏳ perlu review thesis-level (renumber Gambar/Tabel + prosa) |
+| `docs/DATA-DICTIONARY.md` | ✅ REV 2.13 (23 entitas) |
+| `docs/knowledge/FULL.md` | ✅ REV 2.13 (this file) |
+| `Skripsi.mdj` (StarUML) | ✅ Rebuild REV 2.13: ERD 23 entitas (Mermaid `erDiagram`), Use Case 23 bubble, 11 activity (single-final). Diagram lama dihapus (1 sisa "Login lama" di-flag HAPUS MANUAL) |
 
 ---
 
@@ -187,10 +237,10 @@ Plan eksekusi step-by-step ada di [`~/.claude/plans/ubah-backend-dari-laravel-cr
 > Modal/COGS dinyatakan langsung per menu oleh owner (`menus.cost`), bukan dihitung dari konsumsi bahan baku terukur per siklus produksi. Perhitungan HPP berbasis bahan memerlukan penimbangan baku dan komposisi bumbu terdokumentasi - tidak tersedia pada restoran kecil keluarga yang memasak batch dengan racikan tidak tetap. Karena itu Bill of Materials / resep dan pencatatan bahan baku mentah tidak masuk lingkup sistem.
 
 **Implikasi struktural pada ERD:**
-- Inventori yang ditrack hanya `portion_stocks` (finished goods). Tidak ada entitas raw materials/vendor/pembelian.
+- Inventori yang ditrack hanya `portion_stocks` (finished goods). **Tidak ada** entitas raw materials / vendor / pembelian.
 - Tidak ada Bill of Materials / resep yang men-decrement bahan mentah saat order masuk.
-- Modal/COGS melekat per menu (`menus.cost`), di-snapshot per item transaksi (`transaction_items.unit_cost`), dengan jejak perubahan di `menu_cost_movements`.
-- Laporan owner: **Pendapatan total per periode (dari transactions) − COGS total per periode (Σ unit_cost × qty) = Laba Kotor**. Tagihan operasional (`bills`) ditampilkan terpisah, tidak dikurangkan ke laba kotor.
+- Modal/COGS melekat per menu (`menus.cost`), di-snapshot per item transaksi (`transaction_items.unit_cost`), dengan jejak perubahan di `menu_cost_movements`. Untuk varian nonStock, modal diwakili `menu_variants.cost_source_menu_id`.
+- Laporan owner: **Pendapatan total per periode (dari transactions paid, exclude merged) − COGS total per periode (Σ unit_cost × qty) − PB1-borne (`tax_borne_amount`) = Laba Kotor**. Tagihan operasional (`bills`) ditampilkan terpisah, tidak dikurangkan ke laba kotor.
 
 Paragraf paste-ready untuk skripsi (Bab 1.2 Batasan + Bab 3.1.4) ada di [`docs/operasional-resto.md`](../operasional-resto.md) seksi "Bill of Materials / HPP per Bahan (Out of Scope)" + "COGS per Menu + Laporan Laba Rugi Harian", dan [BAB-3-DRAFT.md](BAB-3-DRAFT.md) sub-bab 3.1.4.
 
@@ -204,97 +254,78 @@ Paragraf paste-ready untuk skripsi (Bab 1.2 Batasan + Bab 3.1.4) ada di [`docs/o
 - **Bahasa bisnis** untuk activity actions - hindari SQL/code/pseudocode
 
 ### Naming Pola
-- Entity ERD: lowercase snake_case (`users`, `portion_stocks`, `transaction_items`, `menu_cost_movements`)
-- Primary key: `id` (INT auto-increment), kecuali `portion_stocks` (PK = `menu_id` karena 1:1 dengan Menu)
-- Foreign key: `<entity>_id` (contoh: `menu_id`, `cashier_id`, `shift_id`, `transaction_id`, `user_id`)
-- Enum values: lowercase underscore (`cash`, `edc`, `restock_morning`, `bumbu_dasar`)
+- Entity ERD: lowercase snake_case (`users`, `portion_stocks`, `transaction_items`, `transaction_payments`, `payment_methods`, `menu_cost_movements`)
+- Primary key: `id` (INT auto-increment), kecuali `portion_stocks` (PK = `menu_id` karena 1:1 dengan Menu) dan junction (`payment_method_banks`, `menu_variant_options`, `settlement_method_counts` = composite PK)
+- Foreign key: `<entity>_id` (contoh: `menu_id`, `cashier_id`, `created_by_id`, `shift_id`, `transaction_id`, `user_id`)
+- Enum values: lowercase underscore di DB (`cash`, `edc`, `restock_morning`, `dine_in`)
 
 ### Konsistensi Arrow Direction (Use Case)
 - `<<include>>`: panah **ke UC yang jalan dulu** (biasanya ke Login)
-- `<<extend>>`: panah **ke base UC** (extending jalan opsional)
-- Generalization (hollow triangle): panah ke **parent/superclass** - saat ini tidak dipakai di sistem POS
+- `<<extend>>`: panah **ke base UC** (extending jalan opsional - `Memilih Varian/Paket` → `Mengelola Pesanan`; `Mencetak Struk` → `Memproses Pembayaran`)
+- Generalization (hollow triangle): tidak dipakai di sistem POS ini
 
 ### Konsistensi Decision di Activity
-- Pertanyaan jelas: "Tipe order dine-in?", "Item paket?", "Payment EDC atau transfer?"
+- Pertanyaan jelas: "Tipe order dine-in?", "Pembayaran sudah lunas?", "Metode butuh bank?"
 - Guard `Ya`/`Tidak` Title Case tanpa bracket
 - Single merge untuk multiple exclusive path konvergen
 
 ---
 
-## 10. Diagram yang TIDAK Dipakai di Skripsi REV 2.3
+## 10. Diagram yang TIDAK Dipakai di Skripsi
 
 Per arahan pembimbing dan keputusan scope skripsi, hanya 3 design (Use Case, Activity, ERD) yang dipakai di Bab 3. Berikut diagram lain yang **tidak dipakai** beserta alasannya:
 
 | Diagram | Status | Alasan |
 |---|---|---|
-| **Block Diagram (Deployment)** | ❌ Tidak dipakai | Pedoman SIB UK Petra menyebut sub-bab 3.2.1 Blok Diagram Desain Sistem, tetapi pembimbing membatasi cakupan diagram pada *use case*, *activity*, dan ERD saja. Detail topology fisik (HP kasir/waiter, server cloud, komunikasi via paket data) cukup dijelaskan di Bab 4 implementasi/deployment, bukan di Bab 3 desain. |
-| **Sequence Diagram** | ❌ Tidak dipakai | ADSI Bab 10 menyebut sequence diagram untuk skenario kritis (login, pembayaran, dst.), tetapi pembimbing menilai *activity diagram* dengan swimlane sudah cukup menjelaskan alur interaksi untuk skripsi POS yang dominan transaksional. Sequence diagram akan menambah jumlah halaman tanpa menambah pemahaman baru. |
-| **Class Diagram** | ❌ Tidak dipakai | Skripsi POS pakai pendekatan basis data relasional dengan ERD sebagai blueprint struktur data. Class diagram OOP (attribute + method + inheritance) tidak menambah informasi baru di atas ERD untuk konteks ini. Jika dibutuhkan, struktur model di backend (Prisma) dapat dilihat langsung di Bab 4 implementasi. |
-| **Flowchart Force Order** | ❌ Tidak dipakai (obsolete) | REV 1 dan REV 2 sempat punya konsep "force order" (kasir bisa lanjut order meski stok habis dengan flag `is_force_order=true`). REV 2.1 **menghapus konsep force order** dan menggantinya dengan kebijakan "stok porsi boleh minus" + fitur "Barang Masuk" untuk restock darurat. Karena konsep yang di-flowchart-kan sudah tidak ada di sistem, flowchart-nya juga obsolete. |
+| **Block Diagram (Deployment)** | ❌ Tidak dipakai | Pedoman SIB UK Petra menyebut sub-bab Blok Diagram Desain Sistem, tetapi pembimbing membatasi cakupan diagram pada *use case*, *activity*, dan ERD saja. Topology fisik (HP kasir/waiter, server cloud, komunikasi via paket data) cukup dijelaskan di Bab 4 implementasi/deployment. |
+| **Sequence Diagram** | ❌ Tidak dipakai | ADSI Bab 10 menyebut sequence diagram untuk skenario kritis, tetapi pembimbing menilai *activity diagram* dengan swimlane sudah cukup menjelaskan alur interaksi untuk skripsi POS yang dominan transaksional. |
+| **Class Diagram** | ❌ Tidak dipakai | Skripsi POS pakai pendekatan basis data relasional dengan ERD sebagai blueprint struktur data. Class diagram OOP tidak menambah informasi baru di atas ERD untuk konteks ini. |
+| **Flowchart Force Order** | ❌ Tidak dipakai (obsolete) | REV 1/REV 2 sempat punya konsep "force order". REV 2.1 menghapusnya, diganti kebijakan "stok porsi boleh minus" + fitur "Barang Masuk" untuk restock darurat. Konsep yang di-flowchart-kan sudah tidak ada, sehingga flowchart-nya obsolete. |
 
-### Apa yang terjadi dengan file existing dari diagram tidak dipakai?
-
-File source dan PNG dari diagram-diagram di atas masih ada di repository (jejak iterasi REV 1 dan REV 2):
-
-```
-docs/diagrams/
-├── blok-diagram-sistem-pos-ayam-bakar-banjar-monosuko.png    (S.1 - tidak dipakai)
-├── sequence-diagram-*.png (5 file)                            (SQ.1-5 - tidak dipakai)
-├── flowchart-force-order.png                                  (S.8 - obsolete)
-└── (class-diagram tidak pernah dibuat)
-```
-
-```
-.claude/skills/
-├── block-diagram/        (skill internal, tetap ada untuk reference)
-├── sequence-diagram/     (skill internal)
-├── class-diagram/        (skill internal)
-└── flowchart/            (skill internal)
-```
-
-**Keputusan**: file-file di atas **tidak di-rujuk** di Bab 3 skripsi maupun di dokumen knowledge ini. File tetap dipertahankan di repository sebagai jejak iterasi desain (audit trail), tetapi tidak akan dipakai untuk evaluasi pembimbing/penguji. Pembersihan file (delete/archive) bersifat opsional dan dapat ditunda hingga proyek selesai untuk menghindari kehilangan jika ternyata pembimbing meminta salah satu untuk dipertimbangkan ulang.
+**Keputusan**: file source/PNG diagram di atas tetap dipertahankan di repository sebagai jejak iterasi desain (audit trail), tetapi **tidak di-rujuk** di Bab 3 maupun di dokumen knowledge ini. Pembersihan file bersifat opsional.
 
 ---
 
-## 11. Output Files (3 Design + Dokumentasi REV 2.3)
+## 11. Output Files (3 Design + Dokumentasi REV 2.13)
 
 ### Diagrams (PNG export) di `docs/diagrams/` - yang DIPAKAI
 
-PNG visual ekspor dari `Skripsi.mdj`. Filename target (akan di-export saat StarUML rebuild):
+PNG visual ekspor dari `Skripsi.mdj` (REV 2.13):
 
 ```
-use-case-diagram-sistem-pos-restoran.png           (UC, pending rebuild REV 2.11 - 19 UC)
+use-case-diagram-sistem-pos-restoran.png           (UC, 23 bubble REV 2.13)
 activity-diagram-login.png                         (A.1)
-activity-diagram-order-flow.png                    (A.2, 2 tipe order + fallback waiter)
-activity-diagram-pay-flow.png                      (A.3, bank picker)
-activity-diagram-restock-stok-porsi-pagi.png       (A.4)
-activity-diagram-mencatat-barang-masuk.png         (A.5)
-activity-diagram-opname-stok-porsi.png             (A.6)
-activity-diagram-tutup-kasir.png                   (A.7, breakdown bank)
-activity-diagram-mencatat-tagihan.png              (A.8)
-activity-diagram-split-merge-bill.png              (A.9, self-ref merge)
-erd-sistem-pos-restoran.png                        (ERD, 10 entitas REV 2.11 - pending rebuild)
+activity-diagram-mengelola-pesanan.png             (A.2, 2 tipe order, input , varian/paket)
+activity-diagram-memproses-pembayaran.png          (A.3, split-tender + bank picker + PB1)
+activity-diagram-buka-kasir.png                    (A.4, window-aware + single-open guard)
+activity-diagram-tutup-kasir.png                   (A.5, mode final/handover)
+activity-diagram-setoran-akhir-hari.png            (A.6, whole business day + blind count + review)
+activity-diagram-restock-stok-porsi-pagi.png       (A.7)
+activity-diagram-mencatat-barang-masuk.png         (A.8)
+activity-diagram-opname-stok-porsi.png             (A.9)
+activity-diagram-mencatat-tagihan.png              (A.10)
+activity-diagram-kelola-menu-cogs.png              (A.11)
+erd-sistem-pos-restoran.png                        (ERD, 23 entitas REV 2.13)
 ```
-> REV 2.11: PNG `activity-diagram-opname-raw-materials.png` + `activity-diagram-mencatat-pembelian.png` tidak lagi dipakai (UC/activity-nya dihapus).
+> REV 2.13: PNG `activity-diagram-opname-raw-materials.png` + `activity-diagram-mencatat-pembelian.png` + `activity-diagram-split-merge-bill.png` tidak lagi dipakai (fitur dihapus / digabung ke split-tender).
 
 ### StarUML Source
 ```
-Skripsi.mdj   (ERD + 11 Activity sudah REV 2.2; UC pending rebuild untuk REV 2.3)
+Skripsi.mdj   (REV 2.13: ERD 23 entitas + Use Case 23 bubble + 11 Activity single-final)
 ```
 
 ### Dokumentasi (3 design + spec turunan)
 ```
 docs/knowledge/
-├── USE-CASE.md       (§3 - REV 2.3)
-├── ACTIVITY.md       (§4 - REV 2.3)
-├── ERD.md            (§5 - REV 2.3, schema identik REV 2.2)
-├── BAB-3-DRAFT.md    (naskah paste-ready Bab 3 - masih REV 2.2, perlu sync REV 2.3 kalau dipakai)
-└── FULL.md           (this file - kompilasi 3 design REV 2.3)
+├── USE-CASE.md       (§3 - REV 2.13)
+├── ACTIVITY.md       (§4 - REV 2.13)
+├── ERD.md            (§5 - REV 2.13)
+├── BAB-3-DRAFT.md    (naskah paste-ready Bab 3 - perlu review thesis-level)
+└── FULL.md           (this file - kompilasi 3 design REV 2.13)
 
 docs/
-├── operasional-resto.md   (ground truth REV 2.3, sumber kebenaran tertinggi)
-├── DATA-DICTIONARY.md     (masih REV 1, perlu rewrite ke 14 entitas)
-└── superpowers/specs/2026-05-24-permission-matrix-design.md   (design spec turunan REV 2.3)
+├── operasional-resto.md   (ground truth, sumber kebenaran alur bisnis)
+└── DATA-DICTIONARY.md     (23 entitas REV 2.13)
 ```
 
 ---
@@ -327,4 +358,4 @@ Memory files lengkap di `C:\Users\ezrak\.claude\projects\c--Users-ezrak-Document
 
 ---
 
-*Dokumen ini auto-compiled dari USE-CASE.md, ACTIVITY.md, ERD.md + integrations. Update bersamaan kalau diagram/design berubah.*
+*Dokumen ini auto-compiled dari USE-CASE.md, ACTIVITY.md, ERD.md + integrations (REV 2.13, selaras `schema.prisma`). Update bersamaan kalau diagram/design berubah.*

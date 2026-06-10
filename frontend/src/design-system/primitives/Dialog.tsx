@@ -85,7 +85,14 @@ export function Dialog({
             >
               <div
                 style={{ zIndex: 40 }}
-                className="fixed inset-0 flex justify-center items-end sm:items-center pointer-events-none sm:p-4"
+                // Positioning wrapper. Mobile: pakai tinggi DYNAMIC viewport (100dvh)
+                // + top-0 alih-alih `inset-0`. `inset-0` mengikat ke LARGE viewport
+                // (lvh) yang bagian bawahnya berada DI BELAKANG chrome bawah browser
+                // mobile (URL bar / gesture bar). Dengan `items-end`, footer (tombol
+                // aksi) jadi terdorong ke zona tertutup itu → "dibawah banget, ga
+                // muncul". 100dvh = viewport yang benar-benar terlihat → footer naik
+                // di atas chrome. Desktop: dvh == vh, perilaku sama (sm:items-center).
+                className="fixed inset-x-0 top-0 h-[100dvh] flex justify-center items-end sm:items-center pointer-events-none sm:p-4"
               >
                 <motion.div
                   className={cn(

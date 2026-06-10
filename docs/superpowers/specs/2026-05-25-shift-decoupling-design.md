@@ -107,10 +107,10 @@ Resto belum buka. Belum ada siapa-siapa yang login. **Belum ada shift aktif** di
   > "Kasir harus buka shift dulu sebelum order bisa dimasukkan. Hubungi salah satu kasir."
 - Owner tidak bisa input. **Tidak ada tombol "Buka Shift" untuk Owner.** Worst case: telpon kasir.
 
-### Edge case 3 - Waiter mau bantu input (kasir sibuk telepon)
+### Edge case 3 - Waiter input order (ada shift kasir aktif)
 - Sudah ada shift aktif (Jason).
 - Waiter (Amel) login.
-- Beranda Waiter: 2 card besar (Stok Porsi + Raw Materials), link kecil "Input Order fallback" di bawah.
+- Beranda Waiter: card Stok Porsi + akses Input Order (dengan kasir, REV 2.4).
 - Amel pencet link → POS. Karena ada shift aktif, Amel bisa input order - transaksi attach ke shift Jason, `createdBy = Amel`.
 
 ### Edge case 4 - Waiter datang tanpa kasir aktif

@@ -39,7 +39,7 @@ Setelah baca, **konfirmasi ke user** dalam 3-5 kalimat: "Saya sudah baca X, ring
      - Cashier login → buka shift → input order → tutup shift
      - Owner login (kasir aktif) → input order via POS → cek createdBy di history
      - Owner login (no kasir aktif) → POS show info card, tidak ada CTA
-     - Waiter fallback flow
+     - Waiter input order flow (dengan kasir)
      - Overlap: open 2 shifts → coba input → ditolak
 4. Setiap phase: kamu **stop**, tunjukkan hasil, user verify, lalu user instruct lanjut.
 

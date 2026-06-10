@@ -2,7 +2,7 @@
 
 > **STATUS (2026-05-24):** Reference dokumen - bukan setup aktif. State terkini:
 > - **ERD (14 entitas REV 2.2) + 11 Activity Diagram REV 2.2** sudah di-build di `Skripsi.mdj` dan tetap valid untuk REV 2.3 (no visual change).
-> - **Use Case Diagram** pending rebuild REV 2.3 untuk update annotation aktor (kasir primary vs waiter fallback).
+> - **Use Case Diagram** pending rebuild untuk update annotation aktor (input order kasir+waiter).
 > - Pada praktiknya diagram dibangun via Claude Code dengan **`staruml-mcp` HTTP transport** (port 58321/58322/58323), bukan Claude Desktop stdio. Dokumen ini disimpan sebagai catatan setup awal historis.
 > - Lihat `.claude/skills/{use-case,activity,erd}-diagram/SKILL.md` untuk pattern proven saat build/rebuild diagram.
 

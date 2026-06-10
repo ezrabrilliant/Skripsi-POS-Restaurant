@@ -36,7 +36,7 @@ interface NavItem {
 }
 
 // REV 2.3: nav per role. Item pertama selalu Beranda (landing setelah login).
-// Waiter = order intake co-equal: Beranda + Kasir + Meja + Stok. Pembayaran tetap
+// Waiter = order intake : Beranda + Kasir + Meja + Stok. Pembayaran tetap
 // kasir-only (tombol Bayar disembunyikan di CartPanel + ditolak backend), jadi
 // memberi menu Kasir/Meja TIDAK mengubah permission - cuma penempatan menu.
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {

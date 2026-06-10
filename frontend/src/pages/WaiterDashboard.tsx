@@ -1,4 +1,4 @@
-// WaiterDashboard - REV 2.3 (+ order-intake co-equal)
+// WaiterDashboard - REV 2.3 (+ order-intake )
 // Primary: kartu CTA "Input Order" (POS) di paling atas + kartu "Stok Porsi" +
 // quick action Opname/Mark Habis. Waiter kini input order sebagai alur normal;
 // pembayaran tetap diproses kasir (tombol Bayar disembunyikan + ditolak backend).

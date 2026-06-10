@@ -1,0 +1,1644 @@
+                                         NO. 33010080/MAN/2026
+
+PENGEMBANGAN SISTEM INFORMASI UNTUK MANAJEMEN PERSEDIAAN
+ DAN PERAMALAN PERMINTAAN MENGGUNAKAN METODE SARIMA DI
+                                         PT XYZ
+
+                                                     SKRIPSI
+
+               Diajukan untuk memenuhi persyaratan penyelesaian program Strata 1
+                                          Program Studi Informatika
+                                         Fakultas Teknologi Industri
+                                           Universitas Kristen Petra
+
+                                                       Oleh:
+                                           Satriya Handha Wibowo
+
+                                                NRP: C14220311
+
+                                      PROGRAM STUDI INFORMATIKA
+
+                         FAKULTAS TEKNOLOGI INDUSTRI
+                           UNIVERSITAS KRISTEN PETRA
+                                      SURABAYA
+                                          2026
+
+                                                                                     Universitas Kristen Petra
+                                           LEMBAR PENGESAHAN
+
+                                                     SKRIPSI
+
+PENGEMBANGAN SISTEM INFORMASI UNTUK MANAJEMEN PERSEDIAAN
+ DAN PERAMALAN PERMINTAAN MENGGUNAKAN METODE SARIMA DI
+                                         PT XYZ
+
+                                                       Oleh:
+                        Satriya Handha Wibowo NRP: C14220311
+
+                           Diterima oleh:
+
+Program Sistem Informasi Bisnis Program Studi Informatika
+                   Fakultas Teknologi Industri
+                     Universitas Kristen Petra
+
+                      Surabaya, 26 Juni 2026
+
+Pembimbing 1                                                   Pembimbing 2
+
+Adi Wibowo, S.T., M.T., Ph.D.                           Alvin Nathaniel T., S.Kom., M.T.
+          NIP: 00-003                                               NIP: 06-024
+
+                               Ketua Tim Penguji
+
+                               XXXXXXXXXXXXXXXX
+                                    NIP: 01-027
+
+                               Ketua Program Studi
+
+                                Adi Wibowo, S.T., M.T., Ph.D.
+                               NIP: 00-003
+
+                                                  ii
+
+                                                               Universitas Kristen Petra
+      LEMBARAN PERNYATAAN PERSETUJUAN PUBLIKASI
+       KARYA ILMIAH UNTUK KEPENTINGAN AKADEMIS
+
+Sebagai mahasiswa Universitas Kristen Petra, yang bertanda tangan dibawah ini, saya :
+
+Nama  : Satriya Handha Wibowo
+
+NRP   : C14220311
+
+Demi pengembangan ilmu pengetahuan, menyetujui untuk memberikan kepada Universitas
+Kristen Petra Hak Bebas Royalti Non-Eksklusif (Non-Exclusive Royalty-Free Right) atas karya
+ilmiah saya yang berjudul "Pengembangan Sistem Informasi Untuk Manajemen Persediaan dan
+Peramalan Permintaan Menggunakan Metode SARIMA di PT XYZ". Dengan Hak Bebas Royalti
+Non-Eksklusif ini Universitas Kristen Petra berhak menyimpan,mengalih-mediakan/formatkan,
+mengelolanya dalam bentuk pangkalan data (database), mendistribusikannya dan
+menampilkan/mempublikasinya di internet atau media lain untuk kepentingan akademik tanpa
+perlu meminta ijin dari saya selama tetap mencantumkan saya sebagai penulisnya.
+Saya bersedia untuk menanggung secara pribadi, tanpa melibatkan pihak Unversitas Kristen
+Petra, segala bentuk tuntutan hukum yang timbul atas pelanggaran Hak Cipta dalam karya ilmiah
+saya ini.
+Demikian pernyataan ini yang saya buat dengan sebenarnya.
+
+                               Surabaya, 26 Juni 2026
+                                    Yang menyatakan,
+
+                               Satriya Handha Wibowo
+
+                               iii
+                                                           Universitas Kristen Petra
+      LEMBARAN DISCLAIMER PENGGUNAAN ARTIFICIAL INTELLIGENCE
+
+Sebagai mahasiswa Universitas Kristen Petra, yang bertanda tangan dibawah ini, saya :
+
+Nama  : Satriya Handha Wibowo
+
+NRP   : C14220311
+
+Judul Karya : Pengembangan Sistem Informasi Untuk Manajemen Persediaan dan
+
+Peramalan Permintaan Menggunakan Metode SARIMA di PT XYZ
+
+         Dalam penelitian ini, saya menggunakan AI Gemini 3.1 Pro sebagai alat bantu (assistive
+tool) pendukung, khususnya untuk keperluan restrukturisasi kalimat, parafrase draf
+pembahasan, analisis penyelesaian error komputasi, serta efisiensi penulisan blok kode
+program. Meskipun demikian, seluruh perumusan ide pokok, metodologi, pengolahan data
+operasional, evaluasi analitis, hingga penarikan kesimpulan akhir mutlak merupakan hasil
+pemikiran orisinal dan tanggung jawab saya sepenuhnya. Seluruh luaran teks maupun kode yang
+dihasilkan oleh kecerdasan buatan ini telah melalui tahapan peninjauan, modifikasi, dan validasi
+secara komprehensif untuk memastikan keakuratan serta relevansinya dengan kebutuhan
+penelitian.
+
+                                                          Surabaya, 26 Juni 2026
+                                                               Yang menyatakan,
+
+                                                          Satriya Handha Wibowo
+
+                               iv
+                                                           Universitas Kristen Petra
+                                              KATA PENGANTAR
+
+         Puji Syukur kepada Tuhan Yang Maha Esa atas segala rahmat dan karunia-Nya yang telah
+penulis terima selama proses penelitian sehingga penulis dapat menyelesaikan penelitian
+dengan baik dan tepat waktu. Penelitian ini dibuat untuk memenuhi persyaratan kelulusan guna
+meraih gelar Strata-1 di program studi Informatika fakultas Teknologi Industri Universitas
+Kristen Petra Surabaya. Penulis menyadari sepenuhnya bahwa penyusunan penelitian ini tidak
+lepas dari dukungan, bimbingan, serta bantuan dari berbagai pihak sejak awal hingga akhir
+proses penelitian. Oleh karena itu, pada kesempatan ini penulis ingin menyampaikan ucapan
+terima kasih yang sebesar-besarnya kepada :
+
+    1. Bapak Adi Wibowo, S.T., M.T., Ph.D. sebagai dosen pembimbing pertama yang bersedia
+         memberikan saran, ide dan pengalaman nya saat menjadi pembimbing dengan topik
+         penelitian serupa.
+
+    2. Bapak Alvin Nathaniel Tjondrowiguno, S.Kom., M.T. sebagai dosen pembimbing kedua
+         yang selalu sabar menjelaskan hal-hal baru yang ada di topik penelitian kepada penulis.
+
+    3. Staff PT Aneka Indomakmur yang selalu bersedia menjelaskan proses bisnis kepada
+         penulis dan memberikan data yang dibutuhkan dalam penelitian ini.
+
+    4. Orang tua yang selalu memberikan dukungan dan motivasi agar penulis dapat
+         menyelesaikan penelitian ini tepat waktu.
+
+    5. Teman teman program studi informatika-sib-dsa yang selalu ada sebagai tempat berbagi
+         cerita dan keluh-kesah selama proses penelitian ini.
+
+    6. Pihak-pihak lain yang tidak dapat penulis sebutkan satu-persatu atas bantuan dan
+         dukungan nya dalam proses penulisan penelitian ini.
+
+         Penulis menyadari bahwa penyusunan laporan penelitian ini masih jauh dari kata
+sempurna mengingat keterbatasan pengetahuan dan pengalaman yang penulis miliki. Oleh
+karena itu, penulis sangat mengharapkan segala kritik, saran, serta masukan yang membangun
+dari para pembaca sebagai bahan evaluasi dan perbaikan di masa yang akan datang. Semoga
+penelitian ini dapat memberikan manfaat serta kontribusi positif bagi perkembangan ilmu
+pengetahuan, khususnya di bidang teknologi dan informasi. Akhir kata, penulis memohon maaf
+
+                                                         v
+                                                                                     Universitas Kristen Petra
+yang sebesar-besarnya apabila terdapat kesalahan kata maupun kekurangan dalam penulisan
+laporan ini.
+
+                                                                                        Surabaya, 26 Juni 2026
+                                                                                       Satriya Handha Wibowo
+
+                                                         vi
+                                                                                     Universitas Kristen Petra
+                                                    ABSTRAK
+
+Satriya Handha Wibowo.
+           Skripsi
+           Pengaruh Brand, Packaging dan Labeling Terhadap Keputusan Pembelian Produk
+           Igor's Pastry Surabaya
+
+           Di era globalisasi seperti sekarang ini, pembangunan usaha khususnya di bidang
+industri pastry berlangsung cepat. Banyak toko- toko pastry yang bermunculan, oleh karena itu
+produsen pastry harus memperhatikan variabel- variabel yang berpengaruh terhadap keputusan
+pembelian konsumen. Penelitian ini dimaksudkan untuk mengetahui sejauh mana pengaruh
+brand, packaging dan labeling terhadap keputusan pembelian konsumen, baik secara serentak
+maupun secara parsial, selain itu penelitian ini juga dimaksudkan untuk mengetahui variabel
+mana yang paling berpengaruh terhadap keputusan pembelian konsumen.
+
+           Metode pengolahan data dilakukan dengan menggunakan validitas, reliabilitas dan
+analisa statistik deskriptif, sedangkan metode analisis data yang dipakai adalah dengan
+menggunakan analisis regresi linear berganda dan uji hipotesis yang berasal dari data yang
+dikumpulkan dari kuesioner yang telah diisi dan diolah.
+
+Kata Kunci:
+           brand, packaging, labeling, keputusan pembelian
+
+                                                   ABSTRACT
+
+Cindy Setya Wibisono and Gabriella Kurnia D
+           Undegraduate Thesis
+           The Effect of Brand, Packaging and Labeling on purchase decision product Igor's Pastry
+           Surabaya
+
+           In this kind of globalization era, business development, particularly in pastry industry
+happens in a fast progress. A lot of pastry shop appears, that is why pastry maker should have
+concern about the influental variables that takes effects to the consumer's buying-decision. This
+research is meant to find out how far the effect of brand, packaging and labeling to consumer's
+buying-decision, either at the same time or partially, beside that this research is also meant to
+find out which variable are the most influental to consumer's buying-decision.
+
+           The data-processing method is done by validity, reliability and statistic descriptive
+analysis, as for the analysis-data method is using double linear-regression and hypothesis based
+on the collected data from the filled and processed questionnaire.
+
+Keywords:
+           brand, packaging, labeling, purchase decision
+
+                                                        vii
+                                                                                     Universitas Kristen Petra
+                                                   DAFTAR ISI
+
+NO. 33010080/MAN/2026 ................................................................................................ i
+LEMBAR PENGESAHAN .............................................................................................. ii
+LEMBARAN PERNYATAAN PERSETUJUAN PUBLIKASI .................................... iii
+LEMBARAN DISCLAIMER PENGGUNAAN ARTIFICIAL INTELLIGENCE........ iv
+KATA PENGANTAR ...................................................................................................... v
+ABSTRAK ..................................................................................................................... vii
+DAFTAR ISI ................................................................................................................. viii
+DAFTAR TABEL ............................................................................................................ x
+DAFTAR GAMBAR....................................................................................................... xi
+1 PENDAHULUAN .................................................................................................... 1
+
+   1.1 Latar Belakang.................................................................................................. 1
+   1.2 Rumusan Masalah ............................................................................................ 2
+   1.3 Tujuan Penelitian .............................................................................................. 2
+   1.4 Ruang Lingkup ................................................................................................. 3
+2 METODOLOGI PROYEK....................................................................................... 8
+   2.1 Studi Literatur................................................................................................... 8
+   2.2 Pengumpulan Data............................................................................................ 8
+   2.3 Pembuatan Model SARIMA ............................................................................ 8
+   2.4 Pengujian Model............................................................................................... 8
+   2.5 Desain Sistem ................................................................................................... 8
+   2.6 Pembuatan Sistem ............................................................................................ 8
+   2.7 Pengujian Program ........................................................................................... 9
+   2.8 Pembuatan Laporan .......................................................................................... 9
+   2.9 Landasan Teori ................................................................................................. 9
+
+      2.9.1 Stasioneritas Deret Waktu ........................................................................ 9
+      2.9.2 Seasonal Autoregressive Integrated Moving Average (SARIMA) .......... 9
+      2.9.3 Root Mean Square Error......................................................................... 10
+      2.9.4 Mean Absolute Percentage Error............................................................ 11
+      2.9.5 Average Costing Method........................................................................ 11
+      2.9.6 Safety Stock ............................................................................................ 12
+      2.9.7 Reorder Point .......................................................................................... 12
+3 ANALIS DAN DESAIN ........................................................................................ 14
+
+                                                        viii
+                                                                                     Universitas Kristen Petra
+   3.1 Analisis ........................................................................................................... 14
+      3.1.1 Analisis Permasalahan ............................................................................ 14
+      3.1.2 Analisis Kebutuhan Informasi ................................................................ 15
+
+   3.2 Desain Sistem ................................................................................................. 16
+      3.2.1 Blok Diagram Desain Sistem ................................................................. 16
+      3.2.2 Use Case Diagram .................................................................................. 17
+      3.2.3 Activity Diagram .................................................................................... 18
+      3.2.4 Entity Relationship Diagram .................................................................. 22
+      3.2.5 Flowchart ................................................................................................ 23
+
+   3.3 Pengolahan Data Dan Metode ........................................................................ 25
+      3.3.1 Pengumpulan Data.................................................................................. 25
+      3.3.2 Metode SARIMA ................................................................................... 25
+
+4 PENGUJIAN SISTEM ........................................................................................... 27
+   4.1 Pengujian Metode SARIMA .......................................................................... 27
+      4.1.1 Pengujian RMSE & MAPE .................................................................... 27
+      4.1.2 Hasil Pengujian RMSE & MAPE........................................................... 27
+      4.1.3 Pembahasan Pengujian RMSE & MAPE ............................................... 29
+   4.2 Pengujian Sistem Website .............................................................................. 30
+      4.2.1 Pengujian User Acceptance Testing ....................................................... 30
+      4.2.2 Hasil Pengujian User Acceptance Testing ............................................. 31
+         4.2.2.1 Modul Master Data ............................................................................. 31
+         4.2.2.2 Modul Sales ........................................................................................ 32
+         4.2.2.3 Modul Purchase .................................................................................. 33
+         4.2.2.4 Modul Inventory ................................................................................. 35
+         4.2.2.5 Modul Accounting .............................................................................. 35
+         4.2.2.6 Modul Produksi & Forecasting .......................................................... 36
+      4.2.3 Pembahasan Pengujian User Acceptance Testing .................................. 40
+
+5 KESIMPULAN DAN SARAN .............................................................................. 41
+   5.1 Kesimpulan ..................................................................................................... 41
+   5.2 Saran ............................................................................................................... 42
+
+DAFTAR REFERENSI.................................................................................................. 42
+
+                                                         ix
+                                                                                     Universitas Kristen Petra
+                                                 DAFTAR TABEL
+
+Tabel 4.1 Test Case Login ............................................................................................... 31
+Tabel 4.2 Test Case Create Data Produk Baru ................................................................ 31
+Tabel 4.3 Test Case Create Bahan Baku Baru ................................................................. 31
+Tabel 4.4 Test Case Create Data Partner Baru ............................................................... 32
+Tabel 4.5 Test Case Create Dan Konfirmasi Penjualan Baru .......................................... 32
+Tabel 4.6 Test Case Update Status Penjualan Menjadi Cancel ...................................... 33
+Tabel 4.7 Test Case Create Dan Konfirmasi Pembelian Bahan Baku.............................. 33
+Tabel 4.8 Test Case Update Status Pembelian Bahan Baku Menjadi Cancel ................. 34
+Tabel 4.9 Test Case Update Status Pengiriman Produk Ke Distributor.......................... 35
+Tabel 4.10 Test Case Update Status Penerimaan Bahan Baku Dari Supplier................. 35
+Tabel 4.11 Test Case Input Detail Pembayaran Dari Distributor.................................... 36
+Tabel 4.12 Test Case Input Detail Pembayaran Ke Supplier .......................................... 36
+Tabel 4.13 Test Case Generate Forecasting Dan Rekomendasi Jumlah Produksi .......... 37
+Tabel 4.14 Test Case Generate Rekomendasi Jumlah Re-stok Bahan Baku................... 37
+Tabel 4.15 Test Case Approve Plan Produksi Hasil Forecasting ..................................... 38
+Tabel 4.16 Create Data Batch Produksi Baru ................................................................. 38
+Tabel 4.17 Test Case Input Data Produksi Harian .......................................................... 39
+Tabel 4.18 Test Case Input Data Komposisi Produk ....................................................... 39
+
+                                                         x
+                                                                                     Universitas Kristen Petra
+                                               DAFTAR GAMBAR
+
+Gambar 2.1 Rumus Sarima ............................................................................................. 10
+Gambar 2.2 Rumus RMSE ............................................................................................... 11
+Gambar 2.3 Rumus MAPE .............................................................................................. 11
+Gambar 2.4 Rumus HPP.................................................................................................. 12
+Gambar 2.5 Rumus Safety Stock .................................................................................... 12
+Gambar 2.6 Rumus Reorder Point.................................................................................. 13
+Gambar 3.1 Blok Diagram Sistem Keseluruhan.............................................................. 16
+Gambar 3.2 Use Case Diagram Sistem ........................................................................... 17
+Gambar 3.3 Activity Diagram Membuat Purchase Order .............................................. 18
+Gambar 3.4 Activity Diagram Membuat Sales Order ..................................................... 19
+Gambar 3.5 Activity Diagram Manajemen Plan Produksi .............................................. 20
+Gambar 3.6 Activity Diagram Manajemen Data Produksi Harian .................................. 21
+Gambar 3.7 Gambar ERD Database Sistem .................................................................... 22
+Gambar 3.8 Flowchart Alur Grid Search Di Sistem......................................................... 23
+Gambar 3.9 Flowchart Alur Grid Search Untuk Menjawab Rumusan Masalah ............. 24
+Gambar 3.10 Data Penjualan Beserta Data Produk Dalam Format Excel ...................... 25
+Gambar 3.11 Data Resep Beserta Nama Bahan Baku .................................................... 25
+Gambar 4.1 Perbandingan Hasil RMSE & MAPE Untuk Setiap Produk .......................... 29
+Gambar 4.2 Hasil Grid Search Untuk Semua Produk ..................................................... 30
+Gambar 4.3 Hasil Grid Search Untuk Produk Dengan MAPE < 1000%........................... 30
+
+                                                         xi
+                                                                                     Universitas Kristen Petra
+xii
+                            Universitas Kristen Petra
+                                             1 PENDAHULUAN
+
+1.1 Latar Belakang
+           PT XYZ merupakan perusahaan yang bergerak dibidang produksi makanan ringan
+
+biskuit yang berbasis di Sidoarjo Jawa Timur. Perusahaan ini melakukan kegiatan bisnisnya
+dengan cara memproduksi beberapa jenis biskuit kemudian mendistribusikan nya ke distributor
+di pulau Jawa dan Bali. Sebagai perusahaan produsen, PT XYZ memiliki peran dalam memenuhi
+permintaan distributor yang akan menjual produk langsung ke toko ritel kemudian ke konsumen
+akhir.
+
+           PT XYZ menghadapi tantangan dalam mengoptimalkan pengelolaan stok produk jadi
+dan bahan baku untuk memenuhi permintaan distributor. Saat ini, penentuan volume produksi
+memang telah merujuk pada data historis penjualan bulanan, namun pada implementasinya,
+keputusan akhir masih didominasi oleh estimasi manual dari divisi produksi dan gudang.
+Ketergantungan pada perkiraan subjektif ini memicu terjadinya ketidakseimbangan stok, baik
+dalam bentuk understock maupun overstock. Fenomena understock berdampak langsung pada
+hilangnya potensi pendapatan (lost sales) akibat ketidaksiapan produk saat permintaan muncul,
+yang sering kali disebabkan oleh bahan baku yang tidak mencukupi untuk melakukan proses
+produksi. Sebaliknya, overstock mengakibatkan inefisiensi biaya karena modal terhenti pada
+inventori yang perputarannya lambat, serta risiko kerusakan bahan baku yang telah terlanjur
+diproses. Permasalahan ini terletak pada ketidaksesuaian dan belum tersinkronisasi nya data
+antar divisi. Belum adanya sistem informasi yang terintegrasi antara bagian penjualan (sales),
+pembelian (purchase), produksi, dan gudang (inventory) menyebabkan aliran informasi menjadi
+terhambat. Akibatnya, proses pengambilan keputusan untuk produksi dan pengadaan bahan
+baku menjadi tidak akurat karena tidak mampu mempertimbangkan parameter krusial secara
+real-time, seperti posisi stok saat ini (stock on hand), ketersediaan bahan baku, serta batas aman
+penyimpanan (safety stock). Selain itu, ketiadaan sistem yang terpusat memperbesar risiko
+inkonsistensi data antar departemen yang dapat menghambat efektivitas operasional
+perusahaan.
+
+           Pada tahun 2023, PT XYZ menghadapi kendala dalam memenuhi permintaan
+mendesak biskuit dari salah satu distributor. Perusahaan hanya mampu memenuhi 30% dari
+total permintaan tersebut. Hal ini terjadi karena bahan baku untuk jenis biskuit yang diminta
+telah habis, sebagian besar bahan baku telah digunakan untuk memproduksi varian produk yang
+
+                                                    1
+permintaannya diperkirakan akan naik namun penjualan aktualnya sedang menurun. Akibatnya,
+perusahaan kehilangan peluang penjualan dikarenakan ketidakmampuan untuk memproduksi
+dan re-stok bahan baku dalam waktu cepat.
+
+           Berdasarkan permasalahan yang telah diuraikan, penelitian ini menawarkan solusi
+melalui perancangan sistem informasi terintegrasi yang berfungsi untuk mencatat dan
+menyatukan data produk, bahan baku, penjualan, hingga aktivitas produksi secara sistematis.
+Sistem ini dilengkapi dengan fitur demand forecasting yang memberikan rekomendasi
+pengambilan keputusan mengenai jumlah barang yang akan diproduksi serta rencana re-stok
+bahan baku yang dibutuhkan. Metode yang digunakan adalah Seasonal Autoregressive
+Integrated Moving Average (SARIMA), yang dipilih karena kemampuannya dalam memodelkan
+data deret waktu yang memiliki pola tren serta fluktuasi musiman. Melalui penerapan sistem
+ini, PT XYZ diharapkan dapat mengatasi ketidaksesuaian informasi antar divisi serta
+meminimalisasi risiko understock maupun overstock dalam proses operasionalnya.
+
+1.2 Rumusan Masalah
+           Berdasarkan latar belakang yang sudah ada, dapat dirumuskan rumusan masalah
+
+sebagai berikut:
+1. Bagaimana performa metode Seasonal Autoregressive Integrated Moving Average
+
+     (SARIMA) dalam memprediksi jumlah permintaan produk di PT XYZ berdasarkan nilai RMSE
+     dan MAPE?
+2. Sejauh mana sistem informasi yang dibuat dapat membantu mempermudah PT XYZ dalam
+     menganalisis tren permintaan serta pengambilan keputusan pembelian bahan baku dan
+     jumlah barang yang akan diproduksi?
+
+1.3 Tujuan Penelitian
+           Penelitian ini bertujuan untuk menerapkan metode Seasonal Autoregressive
+
+Integrated Moving Average (SARIMA) dalam sebuah sistem informasi terintegrasi berbasis
+website yang mampu memberikan rekomendasi jumlah produksi produk jadi dan kebutuhan re-
+stock bahan baku. Sistem ini dirancang untuk mengolah data penjualan historis dengan
+mempertimbangkan variabel stok gudang, safety stock, dan lead time, guna meminimalkan
+risiko pemborosan akibat overstock serta kehilangan peluang penjualan akibat understock di PT
+XYZ.
+
+                                                         2
+1.4 Ruang Lingkup
+
+Ruang lingkup skripsi ini meliputi :
+
+1. Program dan fitur yang akan dikembangkan di penelitian ini dirancang hanya sesuai
+
+kebutuhan operasional di PT XYZ.
+
+2. Pengembangan sistem informasi terintegrasi berbasis website untuk pencatatan produksi,
+
+penjualan, pembelian, forecasting permintaan menggunakan SARIMA dan manajemen data
+
+produk jadi dan bahan baku.
+
+3. Sistem yang dibuat di penelitian ini tidak mencakup ke penjadwalan mesin.
+
+4. Desain sistem :
+
+a. Desain sistem awal menggunakan UML/ERD.
+
+b. Tools/Framework yang digunakan untuk pembuatan sistem: Laravel PHP,
+
+Python, Flask, MySQL.
+
+5. Pembuatan fitur dan modul dalam sistem :
+
+a. Modul Master Data
+
+i.                  Manajemen data produk (Hak akses: Sales, Purchase, Inventory,
+
+                    Production, Accounting)
+
+ii.                 Manajemen data bahan baku (Hak akses: Sales, Purchase,
+
+                    Inventory, Production, Accounting)
+
+iii.                Login dan manajemen hak akses (Hak akses: Sales, Purchase,
+
+                    Inventory, Production, Accounting)
+
+b. Modul Penjualan
+
+i.                  Menampilkan list Sales Order (Hak akses: Sales, Purchase,
+
+                    Inventory, Production, Accounting)
+
+ii.                 Menampilkan detail Sales Order (Hak akses : Sales, Purchase,
+
+                    Inventory, Production, Accounting)
+
+iii.                Menampilkan list history pembayaran dari distributor (Hak akses:
+
+                    Sales, Purchase, Inventory, Production, Accounting)
+
+iv.                 Manajemen history pembayaran dari distributor (Hak akses:
+
+                    Accounting)
+
+v.                  Pencatatan penjualan dan generate Sales Order baru (Hak akses:
+
+                    Sales)
+
+vi.                 Generate pdf invoice penjualan (Hak akses: Sales, Inventory)
+
+vii.                Manajemen item yang dijual (Hak akses: Sales)
+
+                                      3
+viii.  Update status Sales Order (Hak akses: Sales)
+
+ix.    Pencatatan tanggal pengiriman barang dari gudang (Hak akses:
+
+       Inventory)
+
+c. Modul Pembelian
+
+i.     Menampilkan list Purchase Order (Hak akses: Sales, Purchase,
+
+       Inventory, Production, Accounting)
+
+ii.    Menampilkan detail Purchase Order (Hak akses: Sales, Purchase,
+
+       Inventory, Production, Accounting)
+
+iii.   Menampilkan list history pembayaran ke supplier (Hak akses:
+
+       Sales, Purchase, Inventory, Production, Accounting)
+
+iv.    Manajemen history pembayaran ke supplier (Hak akses:
+
+       Accounting)
+
+v.     Pencatatan pembelian bahan baku dan generate Purchase Order
+
+       (Hak akses: Purchase)
+
+vi.    Generate pdf surat pembelian bahan baku Purchase Order (Hal
+
+       akses: Purchase)
+
+vii.   Manajemen item yang dibeli (Hak akses: Purchase)
+
+viii.  Update status Purchase Order (Hak akses: Purchase)
+
+ix.    Pencatatan tanggal penerimaan pembelian bahan baku (Hak
+
+       akses: Inventory)
+
+d. Modul Produksi
+
+i.     Menampilkan list production plan dan realisasi produksi (Hak
+
+       akses: Sales, Purchase, Inventory, Production, Accounting)
+
+ii.    Perhitungan HPP memakai metode Average Cost (Hak akses:
+
+       Production)
+
+iii.   Pencatatan batch produksi (Hak akses: Production)
+
+iv.    Pencatatan jumlah produksi harian (Hak akses: Production)
+
+v.     Manajemen pencatatan data kebutuhan resep bahan baku atau
+
+       Bill Of Materials (Hak akses: Production)
+
+                          4
+e. Modul Forecasting
+
+i.    Menampilkan chart hasil forecasting (Hak akses: Sales, Purchase,
+
+      Inventory, Production, Accounting)
+
+ii.   Generate forecast dan rekomendasi plan jumlah produksi produk
+
+      (Hak akses: Production, Purchase)
+
+iii.  Generate forecast dan rekomendasi pembelian bahan baku (Hak
+
+      akses: Production, Purchase)
+
+iv.   Generate kombinasi parameter SARIMA Menggunakan grid search
+
+      (Hak akses: Production, Purchase)
+
+f. Modul Laporan
+
+i.    Generate laporan kartu stok produk (Hak akses: Sales, Inventory)
+
+ii.   Generate laporan kartu stok bahan baku (Hak akses: Purchase,
+
+      Inventory)
+
+iii.  Generate laporan laba rugi sederhana (Hak akses: Sales, Purchase,
+
+      Accounting)
+
+6. Pembuatan model forecasting SARIMA :
+              a. Data yang digunakan untuk membuat model SARIMA adalah data penjualan
+                   harian dari bulan Januari 2020 sampai dengan Desember 2025.
+              b. Memfilter data penjualan sesuai input kode barang yang akan diprediksi
+              c. Agregasi data jumlah barang yang terjual harian menjadi jumlah penjualan per-
+                   bulan
+              d. Pre-processing data yang dapat dilakukan untuk mengurangi outlier/noise di
+                   data jumlah barang yang terjual dan meningkatkan performa SARIMA
+                   menggunakan 3 teknik berikut:
+                         i. Data smoothing: Moving Average, Savitsky-Golay filter
+                         ii. Distribution normalization: Box-Cox, Yeo-Johnson
+              e. Grid Search bertujuan untuk menentukan model SARIMA beserta kombinasi
+                   parameter yang menghasilkan RMSE terkecil.
+              f. Range Grid Search untuk parameter p (0-4), d (0-1), q (0-4), P (0-2), D (0-1), Q
+                   (0-2).
+              g. List parameter untuk Grid Search parameter S dengan nilai (2,3,6,12).
+
+                      5
+              h. Mengambil data 12 bulan terakhir untuk validation test dan evaluasi model
+                   SARIMA.
+
+7. Desain sistem forecasting :
+            a. Input dari sistem ke model forecasting berupa data penjualan produk (Sales
+                  Order). Sistem akan mengirim data penjualan dan konfigurasi parameter SARIMA
+                  ke API endpoint Python menggunakan library Flask untuk memprediksi penjualan
+                  di bulan depan menggunakan metode SARIMA.
+            b. Output sistem forecasting akan menghasilkan informasi berikut:
+
+i.    Titik-titik test data 12 bulan terakhir digunakan untuk mengukur
+
+      performa SARIMA menggunakan RMSE dan MAPE dan disimpan di
+
+      database yang kemudian divisualisasikan menggunakan plot.
+
+ii.   1 titik hasil forecasting di bulan/periode selanjutnya yang disimpan
+
+      di database, kemudian sistem menghitung rekomendasi jumlah
+
+      produk yang akan diproduksi dengan rumus Rekomendasi Qty
+
+      Produksi = (Forecast + Safety Stock) - Stock Gudang. Jika stok di
+
+      gudang lebih besar daripada jumlah forecast dan safety stock,
+
+      maka hasil rekomendasi akan menghasilkan nilai 0 untuk
+
+      mencegah overstock.
+
+iii.  Hasil dari rekomendasi akan digunakan oleh sistem untuk
+
+      menghitung apakah stok bahan bakunya mencukupi atau tidak
+
+      dengan rumus Rekomendasi Qty Restock = (Rekomendasi Qty
+
+      Produksi * Qty BOM) - (PO On The Way + Stok Bahan Baku di
+
+      Gudang) untuk melakukan produksi tersebut, jika stok bahan baku
+
+      tidak cukup maka sistem akan memberikan peringatan dan
+
+      memberikan rekomendasi jumlah re-stok bahan baku yang
+
+      diperlukan.
+
+c. Grid search parameter SARIMA yang dapat dijalankan setiap 2-3 bulan sekali
+
+untuk mencari ulang susunan parameter p, d, q dan P, D, Q yang optimal dengan
+
+error RMSE terkecil.
+
+8. Pengujian program dilakukan menggunakan metode User Acceptance Testing (UAT)
+     terhadap 5 orang responden perwakilan dari divisi Pembelian (Purchase), Penjualan (Sales),
+     Gudang (Inventory), Produksi (Production) dan Accounting di PT XYZ. Pengujian program
+
+                      6
+     dilakukan untuk mengukur tingkat kemudahan penggunaan program dan memastikan
+     program berjalan sesuai rencana.
+9. Pengujian model SARIMA yang sudah dibuat akan dievaluasi menggunakan metrik RMSE
+     dan MAPE.
+10. Batasan masalah penelitian ini dibatasi oleh :
+
+            a. Penggunaan data produk dan penjualan untuk pembuatan model forecasting
+                  dibatasi hanya untuk beberapa produk tertentu total berdasarkan pola penjualan
+                  nya sepanjang 2020 sampai 2025.
+
+            b. Data komposisi dan list bahan baku didapatkan dari website resmi perusahaan.
+            c. Perhitungan Harga Pokok Produksi (HPP) dibatasi hanya berdasarkan data resep
+
+                  (Bill Of Materials) dan tidak mencakup biaya lain seperti listrik, air, tenaga kerja
+                  dan overhead mesin.
+            d. Sistem perencanaan produksi dibatasi hanya pada sebuah rekomendasi jumlah
+                  barang yang harus diproduksi dalam periode waktu tertentu berdasarkan hasil
+                  forecasting dan jumlah stok on hand produk di gudang.
+            e. Sistem perencanaan rekomendasi pembelian bahan baku dibatasi hanya pada
+                  perhitungan kebutuhan baku berdasarkan data resep dan jumlah stok on hand
+                  bahan baku di gudang.
+            f. Perhitungan hasil Reorder Point dan Safety Stock dihitung berdasarkan lead time
+                  produksi dan pembelian bahan baku serta jumlah penjualan dan pemakaian
+                  bahan baku dalam periode tertentu.
+            g. Fitur di modul akuntansi tidak sepenuhnya dibuat dalam penelitian ini, fitur yang
+                  dibuat hanya meliputi pencatatan pembayaran vendor/distributor, dan
+                  perhitungan HPP menggunakan average cost method.
+
+                                                         7
+                                         2 METODOLOGI PROYEK
+
+2.1 Studi Literatur
+           Teori yang akan dipelajari dalam penelitian ini meliputi :
+
+1. Mempelajari teori dasar mengenai metode Seasonal Autoregressive Integrated Moving
+    Average (SARIMA) sebagai pendekatan peramalan deret waktu.
+
+2. Mempelajari teori evaluasi model menggunakan Root Mean Square Error (RMSE) dan
+    Mean Absolute Percentage Error (MAPE) sebagai metrik pengukuran performa prediksi.
+
+3. Mengkaji literatur terkait Exploratory Data Analysis (EDA), penerapan forecasting dalam
+    sistem informasi, dan metode usability testing yang relevan untuk pengujian sistem.
+
+2.2 Pengumpulan Data
+           Pengumpulan data dalam penelitian ini dilakukan dengan memperoleh data dari
+
+perusahaan berupa data penjualan serta data produk yang dijual dari tahun 2020 sampai 2025
+dalam bentuk excel. Data list bahan baku dan komposisi produk didapatkan dari website resmi
+perusahaan.
+2.3 Pembuatan Model SARIMA
+
+           Tahap ini melibatkan pengembangan model prediksi menggunakan bahasa
+pemrograman Python. Data penjualan akan dikelompokkan berdasarkan periode bulanan
+(group by monthly), kemudian mengambil data 12 bulan terakhir sebagai testing. Pada tahap ini
+juga dilakukan proses normalisasi atau scaling data apabila diperlukan. Model SARIMA dibangun
+dengan mempertimbangkan pola musiman maupun non-musiman dan karakteristik data yang
+telah dianalisis.
+2.4 Pengujian Model
+
+           Model yang telah dikembangkan kemudian dievaluasi menggunakan metrik RMSE dan
+MAPE untuk melihat tingkat kesalahan prediksi.
+2.5 Desain Sistem
+
+           Desain sistem akan menggunakan beberapa tools seperti UML Use Case Diagram,
+Activity Diagram dan ERD untuk desain relasi tabel di database.
+2.6 Pembuatan Sistem
+
+           Pada tahap ini dilakukan pengembangan sistem informasi berbasis web.
+Pengembangan meliputi :
+
+                                                         8
+              a. Perancangan antarmuka pengguna (User Interface) menggunakan HTML dan
+                   Tailwind CSS.
+
+              b. Pembuatan website menggunakan framework Laravel.
+              c. Integrasi backend dengan model SARIMA menggunakan library Python Flask
+
+                   sehingga hasil prediksi dapat ditampilkan secara dinamis pada halaman web.
+              d. Sistem dirancang agar dapat memberikan visualisasi data, hasil prediksi, dan
+
+                   rekomendasi bagi pengguna.
+              e. Pembuatan fitur yang ada di modul master data, penjualan, pembelian,
+
+                   produksi, dan forecasting.
+2.7 Pengujian Program
+
+           Sistem yang telah selesai dibuat akan diuji melalui metode User Acceptance Testing
+(UAT) untuk memastikan sistem berjalan sesuai kebutuhan. Selain itu, dilakukan juga pengujian
+tingkat usability untuk menilai kemudahan penggunaan, kejelasan tampilan, dan efektivitas
+sistem dalam membantu PT XYZ menganalisis permintaan barang. Pengujian ini menjadi acuan
+untuk menentukan apakah sistem layak digunakan serta area yang perlu dilakukan perbaikan.
+2.8 Pembuatan Laporan
+
+           Tahap akhir penelitian adalah penyusunan laporan yang memuat seluruh proses
+penelitian, hasil evaluasi model (RMSE dan MAPE), hasil pengujian sistem, serta interpretasi
+temuan. Berdasarkan hasil tersebut, ditarik kesimpulan untuk menjawab rumusan masalah
+penelitian dan memberikan rekomendasi untuk pengembangan sistem di masa mendatang.
+2.9 Landasan Teori
+2.9.1 Stasioneritas Deret Waktu
+
+           Sebagian besar model peramalan deret waktu, termasuk ARIMA, mengasumsikan
+bahwa data yang diolah bersifat stasioner. Suatu data deret waktu dikatakan stasioner jika
+properti statistiknya (seperti rata-rata, varians, dan autokovarians) tidak berubah seiring waktu
+(Hyndman & Athanasopoulos, 2018). Data penjualan di dunia nyata seringkali bersifat non-
+stasioner karena memiliki tren dan pola musiman. Metode ARIMA/SARIMA mengatasi data non-
+stasioner dengan proses differencing yang diwakili oleh parameter d non-musiman dan D
+musiman. Differencing adalah proses menghitung selisih antara satu observasi dengan observasi
+sebelumnya untuk menstabilkan rata-rata data dan menghilangkan tren (Box et al., 2015). Untuk
+menguji stasioneritas secara statistik, dapat digunakan uji hipotesis seperti Augmented Dickey-
+Fuller (ADF) Test.
+2.9.2 Seasonal Autoregressive Integrated Moving Average (SARIMA)
+
+                                                         9
+           Seasonal Autoregressive Integrated Moving Average (SARIMA) merupakan
+pengembangan dari model ARIMA yang pertama kali diperkenalkan oleh Box dan Jenkins melalui
+pendekatan Box­Jenkins untuk pemodelan deret waktu (Box et al., 2015). Model SARIMA
+dirancang untuk mengatasi permasalahan pola musiman yang tidak dapat ditangkap secara
+optimal oleh ARIMA konvensional. Dengan menambahkan komponen musiman pada struktur
+dasar ARIMA, SARIMA mampu memodelkan data deret waktu yang mengandung pola musiman,
+tren, maupun fluktuasi acak (Hyndman & Athanasopoulos, 2018).
+
+           Komponen autoregressive (AR) digunakan untuk menangkap hubungan antara nilai
+saat ini dengan nilai sebelumnya, komponen integrated (I) digunakan untuk menghilangkan tren
+agar data menjadi stasioner, sedangkan komponen moving average (MA) menangkap pengaruh
+kesalahan dari periode sebelumnya. Komponen musiman (P, D, Q, s) bekerja dengan cara
+serupa, tetapi diaplikasikan pada lag musiman tertentu, misalnya mingguan (s = 7) untuk data
+harian atau bulanan (s = 12) untuk data bulanan (Shumway & Stoffer, 2017). Sarima dapat
+dijabarkan dengan notasi sebagai berikut :
+
+Gambar 2.1 Rumus Sarima
+Keterangan :
+p = order of the autoregressive (AR) part
+d = degree of differencing
+q = order of the moving average (MA) part
+P = order of the seasonal autoregressive (SAR) part
+D = degree of seasonal differencing
+Q = order of the seasonal moving average (SMA) part
+m = number of periods per season
+
+2.9.3 Root Mean Square Error
+           Performa model metode SARIMA yang telah dibuat akan dievaluasi menggunakan
+
+metrik Root Mean Square Error (RMSE) adalah metrik akurasi yang umum, dihitung dari akar
+kuadrat rata-rata selisih kuadrat antara nilai prediksi dan aktual. Keunggulannya, satuan RMSE
+sama dengan data asli, memudahkan interpretasi sebagai standar deviasi kesalahan prediksi.
+
+                                                        10
+Menurut Hodson (2022), RMSE sensitif terhadap kesalahan besar karena proses pengkuadratan,
+sehingga sesuai untuk menghindari deviasi prediksi signifikan. Persamaan matematis RMSE
+adalah sebagai berikut :
+
+Gambar 2.2 Rumus RMSE
+Keterangan :
+n = jumlah total data
+yi = nilai aktual data ke-i
+yi^ = nilai prediksi dari model pada periode ke-i
+
+2.9.4 Mean Absolute Percentage Error
+           Metrik evaluasi kedua untuk mengevaluasi model SARIMA yang telah dibuat adalah
+
+Mean Absolute Percentage Error (MAPE), yang mengukur rata-rata kesalahan absolut dalam
+bentuk persentase relatif terhadap nilai aktual. Menurut Nabillah & Ranggadara (2020),
+keunggulan MAPE adalah hasilnya yang intuitif karena disajikan dalam format persentase,
+sehingga memudahkan interpretasi tingkat akurasi peramalan. Metrik ini secara efektif
+menunjukkan seberapa besar deviasi prediksi secara proporsional. Nilai MAPE dapat dihitung
+dengan rumus berikut :
+
+Gambar 2.3 Rumus MAPE
+Keterangan :
+n = jumlah total data
+yi = nilai aktual data ke-i
+yi^ = nilai prediksi dari model pada periode ke-i
+
+2.9.5 Average Costing Method
+
+                                                        11
+           Metode average cost digunakan untuk menghitung harga pokok produksi dengan
+menimbang harga produksi barang over waktu sehingga dapat menangkap perubahan biaya
+secara lebih stabil.
+
+           Penelitian yang dilakukan oleh (Nurjanah, 2023) menunjukkan bahwa sistem informasi
+persediaan yang menggunakan metode rata-rata (Moving Average) dapat membantu
+menghasilkan estimasi nilai persediaan yang lebih akurat dibandingkan metode manual,
+sekaligus mendukung output laporan yang relevan untuk pengambilan keputusan operasional.
+Rumus dasar metode average cost adalah :
+
+Gambar 2.4 Rumus HPP
+
+2.9.6 Safety Stock
+           Safety stock adalah istilah jumlah persediaan cadangan yang disimpan untuk
+
+mengantisipasi ketidakpastian dalam pemakaian bahan baku maupun ketidaktepatan waktu
+pengiriman pemasok. Menurut (Mustofa & Waluyowati, 2024), safety stock diperlukan untuk
+meminimalkan risiko ketidakpastian permintaan dan lead time yang berpotensi menyebabkan
+kekurangan stok. Menurut (Maulidi & Listianti, 2023) rumus safety stock dapat dijabarkan
+sebagai berikut :
+
+Gambar 2.5 Rumus Safety Stock
+
+2.9.7 Reorder Point
+           Reorder point (ROP) adalah titik batas persediaan di mana Perusahaan harus
+
+melakukan pemesanan ulang agar bahan baku tetap tersedia hingga pesanan berikutnya tiba.
+ROP berfungsi sebagai titik batas minimum jumlah barang yang menandakan kapan pemesanan
+ulang harus segera dilakukan agar stok baru tiba tepat waktu. Menurut (Maulidi & Listianti,
+2023) rumus reorder point dapat dijabarkan sebagai berikut :
+
+                                                        12
+Gambar 2.6 Rumus Reorder Point
+                                                        13
+                                          3 ANALIS DAN DESAIN
+
+3.1 Analisis
+3.1.1 Analisis Permasalahan
+
+           Berdasarkan latar belakang yang telah diuraikan pada Bab 1, permasalahan yang
+dihadapi oleh PT XYZ terjadi pada ketidakakuratan perencanaan jumlah produksi. Fluktuasi
+permintaan pasar yang dinamis dan memiliki pola musiman (seasonality) tidak dapat lagi
+diprediksi secara optimal jika hanya mengandalkan intuisi atau estimasi manual. Kondisi ini
+menempatkan perusahaan pada dua risiko operasional utama: penumpukan barang (overstock)
+yang berpotensi merugikan perusahaan karena biskuit memiliki masa kedaluwarsa atau
+sebaliknya, terjadinya kekosongan stok (stockout) yang mengakibatkan hilangnya peluang
+penjualan (lost sales).
+
+           Permasalahan tersebut diperparah oleh belum adanya sistem terintegrasi yang
+mampu mengolah data historis penjualan menjadi sebuah angka peramalan kuantitatif yang
+reliabel. PT XYZ membutuhkan sebuah peramalan permintaan untuk memetakan tren dan
+musim penjualan, yang kemudian diintegrasikan dengan logika perhitungan Material
+Requirements Planning (MRP). Melalui pendekatan ini, rekomendasi rencana produksi dapat
+dihitung secara matematis dengan mengakumulasikan hasil peramalan (forecast) dan stok
+pengaman (safety stock), lalu dikurangi dengan ketersediaan stok fisik di gudang (on-hand
+inventory).
+
+           Dengan demikian, penyelesaian masalah menggunakan pendekatan peramalan
+permintaan tersebut tidak dapat tereksekusi tanpa adanya visibilitas data operasional yang
+mendukung. Agar algoritma peramalan permintaan SARIMA dan kalkulasi rencana produksi
+dapat berjalan secara akurat, sistem membutuhkan data yang valid dan terstruktur dari berbagai
+departemen seperti Sales, Purchase, Inventory, Produksi, dan Accounting. Ketidakmampuan
+perusahaan dalam menyediakan dan melacak aliran data-data krusial inilah yang menjadi inti
+permasalahan saat ini, sehingga mendorong perlunya analisis kebutuhan informasi yang dapat
+dijelaskan pada sub-bab selanjutnya.
+
+                                                        14
+3.1.2 Analisis Kebutuhan Informasi
+           Berdasarkan analisis permasalahan di atas, diperlukan identifikasi kebutuhan
+
+informasi untuk masing-masing pengguna agar operasional perusahaan dapat berjalan lebih
+terintegrasi. Kebutuhan informasi tersebut dirangkum pada poin-poin berikut :
+
+         1. Divisi Sales
+              · Informasi yang dibutuhkan:
+                   1. Data ketersediaan stok produk
+                   2. Status Sales Order
+              · Tujuan penggunaan:
+                   1. Mencatat penjualan produk
+                   2. Memverifikasi jumlah stok ketersediaan produk
+                   3. Membuat Sales Order
+
+         2. Divisi Purchase
+              · Informasi yang dibutuhkan:
+                   1. Data ketersediaan stok bahan baku
+                   2. Status Purchase Order
+                   3. Rekomendasi re-stok bahan baku melalui forecast atau reorderpoint ROP
+              · Tujuan penggunaan:
+                   1. Mencatat pemesanan bahan baku ke supplier untuk menghindari kehabisan
+                        bahan baku
+
+         3. Divisi Inventory
+              · Informasi yang dibutuhkan:
+                   1. Data Sales Order dan Purchase Order
+                   2. Laporan mutasi stok produk dan bahan baku
+              · Tujuan penggunaan:
+                   1. Mencatat tanggal pengiriman produk ke distributor melalui data Sales Order
+                   2. Mencatat tanggal penerimaan bahan baku dari supplier melalui data
+                        Purchase Order
+                   3. Laporan audit penggunaan bahan baku, penjualan produk, penerimaan
+                        bahan baku, produksi produk
+
+         4. Divisi Produksi
+              · Informasi yang dibutuhkan:
+                   1. Forecasting penjualan
+
+                                                        15
+                   2. Data resep Bill of Materials (BoM)
+              · Tujuan penggunaan:
+
+                   1. Digunakan sebagai alat pengambilan keputusan perencanaan produksi
+                        selama periode tertentu berdasarkan estimasi penjualan di periode depan
+
+                   2. Data resep digunakan untuk perhitungan HPP menggunakan Average Cost
+                        method.
+
+         5. Divisi Accounting
+              · Informasi yang dibutuhkan:
+                   1. Data penjualan produk Sales Order yang sudah dikonfirmasi
+                   2. Data pembelian bahan baku Purchase Order yang sudah diorder
+              · Tujuan penggunaan:
+                   1. Mencatat bukti pembayaran dari distributor
+                   2. Mencatat bukti pembayaran ke supplier
+
+3.2 Desain Sistem
+3.2.1 Blok Diagram Desain Sistem
+
+           Berdasarkan sistem yang telah dirancang, blok diagram sistem dapat dirancang dengan
+input, user, pembagian modul, dan output sebagai berikut :
+
+                              Gambar 3.1 Blok Diagram Sistem Keseluruhan
+
+                                                        16
+3.2.2 Use Case Diagram
+           Pada proses bisnis yang diusulkan (to-be), sistem dirancang untuk mengurangi batas
+
+antardivisi. Interaksi aktor dengan sistem dijelaskan melalui Use Case Diagram yang
+memperlihatkan peran masing-masing divisi beserta fitur apa saja yang dapat dilakukan antara
+aktor dengan system sesuai gambar dibawah ini :
+
+                                   Gambar 3.2 Use Case Diagram Sistem
+                                                        17
+3.2.3 Activity Diagram
+           Berdasarkan use case yang telah dibuat, terdapat 4 activity diagram utama yang dapat
+
+dijelaskan secara lebih detail dengan alur sebagai berikut :
+
+                        Gambar 3.3 Activity Diagram Membuat Purchase Order
+                                                        18
+Gambar 3.4 Activity Diagram Membuat Sales Order
+                             19
+Gambar 3.5 Activity Diagram Manajemen Plan Produksi
+                                20
+Gambar 3.6 Activity Diagram Manajemen Data Produksi Harian
+                                     21
+3.2.4 Entity Relationship Diagram
+           Entity Relationship Diagram bertujuan untuk menyimpan data di database MySQL
+
+seperti data master User, Product (produk jadi), Material (bahan baku), Partner (data distributor
+dan supplier), SalesOrder (untuk data penjualan produk), PurchaseOrder (untuk data pembelian
+bahan baku), dan data transaksi seperi ProductMaterial (data komposisi BoM),
+ProductTransaction & MaterialTransaction (untuk menyimpan data historis mutasi stok produk
+dan bahan baku) sesuai gambar dibawah ini :
+
+                                Gambar 3.7 Gambar ERD Database Sistem
+
+                                                        22
+3.2.5 Flowchart
+           Grid search parameter SARIMA di skripsi ini melibatkan 2 bahasa pemrograman
+
+berbeda yaitu PHP dan Python dan menggunakan library Python Flask API untuk komunikasi
+antara PHP dan Python. Alur flowchart untuk menjalankan grid search parameter SARIMA di
+skripsi ini terbagi menjadi 2 bagian yaitu: grid search untuk program di sistem dan grid search
+untuk menjawab rumusan masalah yang telah disebutkan di bab 1.
+
+                            Gambar 3.8 Flowchart Alur Grid Search Di Sistem
+                                                        23
+Gambar 3.9 Flowchart Alur Grid Search Untuk Menjawab Rumusan Masalah
+                                            24
+3.3 Pengolahan Data Dan Metode
+3.3.1 Pengumpulan Data
+
+           Penelitian ini menggunakan empat data utama sebagai basis pengembangan program.
+Data primer yang digunakan meliputi data penjualan harian dari tahun 2020 sampai 2025 dan
+data produk jadi dalam format Excel, yang didapatkan melalui proses wawancara serta tanya
+jawab dengan pihak terkait. Selain itu, digunakan juga data daftar material (bahan baku) resep
+biskuit untuk penyusunan Bill of Materials (BoM). Sehubungan dengan kebijakan kerahasiaan
+data resep perusahaan, daftar nama material komposisi dalam penelitian ini diambil dari
+website resmi perusahaan, sementara angka kuantitas (Qty) pada BoM dibatasi pada nilai
+estimasi untuk memproduksi satu dus biskuit dengan spesifikasi kemasan tertentu.
+
+               Gambar 3.10 Data Penjualan Beserta Data Produk Dalam Format Excel
+
+                          Gambar 3.11 Data Resep Beserta Nama Bahan Baku
+3.3.2 Metode SARIMA
+
+           Metode SARIMA sesuai penjelasan di sub-bab 2.9.2 didalam penelitian ini digunakan
+untuk meramal jumlah barang yang terjual untuk periode bulan depan dengan menggunakan
+data penjualan produk mulai dari tahun 2020 sampai dengan 2025 akhir. Hasil ramalan jumlah
+barang yang akan terjual ini nantinya dapat dipakai sebagai plan rekomendasi jumlah produksi
+
+                                                        25
+dalam 1 periode ke depan. Menurut Heizer et al. (2017, hal. 574), perhitungan rekomendasi
+rencana produksi dapat didasarkan pada logika penentuan Kebutuhan Bersih (Net
+Requirements) pada Material Requirements Planning. Mengadopsi logika tersebut dalam sistem
+ini, hasil peramalan (forecast) bertindak sebagai kebutuhan kotor (gross requirement).
+Selanjutnya, untuk mengantisipasi fluktuasi peramalan, Heizer et al. (2017, hal. 575)
+menyebutkan perlunya memasukkan variabel stok pengaman (safety stock) sebagai penambah
+kebutuhan. Total kebutuhan tersebut kemudian dikurangi dengan ketersediaan stok fisik (on-
+hand inventory) untuk menghasilkan jumlah target produksi akhir. Sehingga rumus MRP yang
+dipakai di skripsi ini dapat dijabarkan seperti rumus dibawah ini:
+
+MRP = (Forecast + Safety Stock) ­ On Hand Stock  (3.1)
+
+26
+                                           4 PENGUJIAN SISTEM
+
+4.1 Pengujian Metode SARIMA
+4.1.1 Pengujian RMSE & MAPE
+
+           Pengujian ini dilakukan untuk mengukur seberapa akurat metode SARIMA dengan data
+penjualan yang diberikan untuk menjawab rumusan masalah pertama. Pengujian dilakukan
+menggunakan data penjualan harian mulai dari bulan Januari tahun 2020 sampai dengan bulan
+Desember tahun 2025. Range grid search parameter SARIMA dilakukan dengan range p (0-4), d
+(0-1), q (0-4), P (0-2), D (0-1), Q (0-2), dan parameter S dengan nilai (2,3,6,12). Memecah data
+menjadi train-test dengan nilai test mengambil data 12 bulan terakhir. Setelah kombinasi
+parameter SARIMA dengan RMSE terkecil ditemukan, selanjutnya parameter ini akan dicoba
+dengan 4 teknik pre-processing lain: Moving Average (MA), Savitzky-Golay (SG), Box-Cox (BC),
+dan Yeo-Johnson (YJ) yang selanjutnya nilai RMSE hasil pre-processing akan dibandingkan lagi
+dengan RMSE tanpa teknik pre-processing.
+4.1.2 Hasil Pengujian RMSE & MAPE
+
+           Pengujian grid search dilakukan ke 65 data produk dengan hasil RMSE MAPE untuk
+setiap produk sebagai berikut :
+
+                                                        27
+28
+                Gambar 4.1 Perbandingan Hasil RMSE & MAPE Untuk Setiap Produk
+4.1.3 Pembahasan Pengujian RMSE & MAPE
+
+           Berdasarkan evaluasi parameter model SARIMA melalui metode grid search dengan
+semua data produk, hasil menunjukkan bahwa pemodelan yang menggunakan data historis
+
+                                                        29
+aktual mentah (raw data) tanpa tahapan preprocessing menghasilkan performa peramalan
+RMSE yang paling baik yaitu mencapai 16.20 dengan MAPE 2.00e+17%.
+
+                           Gambar 4.2 Hasil Grid Search Untuk Semua Produk
+           Dalam hasil grid di gambar diatas dapat dijumpai nilai MAPE yang terlampau tinggi
+(mencapai skala e+52). Hal ini terjadi karena adanya periode penjualan aktual yang bernilai nol,
+sehingga mengakibatkan pembagian tak terhingga pada rumus MAPE. Berikut adalah hasil grid
+search dengan produk yang memiliki MAPE kurang dari 1000%.
+
+                 Gambar 4.3 Hasil Grid Search Untuk Produk Dengan MAPE < 1000%
+           Dari hasil grid search yang telah dilakukan, dapat ditarik kesimpulan data mentah
+sudah cukup baik digunakan dalam metode SARIMA tanpa perlu adanya pre-processing yang
+justru dapat meningkatkan error. Lalu dari aspek parameter S, parameter S=12 paling banyak
+menghasilkan model dengan error terendah. Sehingga dapat ditarik kesimpulan juga bahwa
+siklus musiman tahunan (annual seasonality) sering terjadi pada data penjualan PT XYZ.
+4.2 Pengujian Sistem Website
+4.2.1 Pengujian User Acceptance Testing
+           Pengujian ini bertujuan untuk mengetahui apakah sistem dan program yang sudah
+dibuat dapat berjalan dengan baik sesuai rencana dan sesuai kebutuhan di PT XYZ. Selain itu,
+
+                                                        30
+pengujian ini juga digunakan untuk menjawab rumusan masalah kedua. Pengujian User
+Acceptance Testing (UAT) dilakukan di PT XYZ dengan responden perwakilan dari 5 divisi yang
+ada di PT XYZ. Pengujian sistem dilakukan website localhost yang berjalan di laptop dengan
+spesifikasi cpu Intel i7-11370, ram 16 gb ddr4, dan gpu Nvidia RTX3050.
+
+4.2.2  Hasil Pengujian User Acceptance Testing
+       Pengujian dilakukan dengan beberapa test case berikut :
+
+4.2.2.1 Modul Master Data                    Login
+Tabel 4.1 Test Case Login
+                                             - user input email dan password
+ Scenario (test case)                        - user klik "Sign In"
+ Langkah Pengujian                           Sistem dapat masuk ke halaman home
+                                             sesuai role yang sudah di assign
+ Hasil yang diharapkan                       Sistem dapat masuk ke halaman home dan
+                                             menampilkan role user yang sedang login
+ Hasil aktual
+ Hasil (Berhasil/Gagal)                      Berhasil
+
+Tabel 4.2 Test Case Create Data Produk Baru  Create data produk baru
+ Scenario (test case)
+                                             - user memilih menu "Product"
+ Langkah Pengujian                           - user klik tombol "Add New Product"
+                                             - user input kode produk, nama produk,
+ Hasil yang diharapkan                       kemasan produk, batch size per produksi,
+ Hasil aktual                                dan harga jual
+ Hasil (Berhasil/Gagal)                      - user input estimasi lead time produksi jika
+                                             ada
+                                             - user klik tombol "Save Product"
+                                             Sistem dapat menampilkan form input data
+                                             produk dan menyimpan data yang baru
+                                             dibuat
+                                             Sistem dapat menampilkan form dan
+                                             menyimpan lalu menampilkan data yang
+                                             baru dibuat
+
+                                             Berhasil
+
+Tabel 4.3 Test Case Create Bahan Baku Baru   Create data bahan baku baru
+                                             - user memilih menu "Material"
+ Scenario (test case)
+ Langkah Pengujian
+
+                                             31
+Hasil yang diharapkan                         - user klik tombol "Create Material"
+                                              - user input kode material, nama material,
+Hasil aktual                                  status material (aktif/non-aktif), jenis
+Hasil (Berhasil/Gagal)                        material (padat/cair/pcs)
+                                              - user input satuan pembelian dan kemasan
+                                              pembelian
+                                              - user input estimasi lead time pembelian
+                                              jika ada
+                                              - user klik tombol "Simpan Material"
+                                              Sistem dapat menampilkan form input data
+                                              bahan baku dan menyimpan data yang baru
+                                              dibuat
+                                              Sistem dapat menampilkan form dan
+                                              menyimpan lalu menampilkan data yang
+                                              baru dibuat
+
+                                              Berhasil
+
+Tabel 4.4 Test Case Create Data Partner Baru
+
+Scenario (test case)                          Create data partner baru
+Langkah Pengujian
+                                              - user memilih menu "Partners"
+Hasil yang diharapkan                         - user input nama perusahaan, contact
+Hasil aktual                                  person PIC, tipe partner
+Hasil (Berhasil/Gagal)                        (distributor/supplier), nomor telpon, email,
+                                              alamat lengkap
+                                              - user klik tombol "Save Partner"
+                                              Sistem dapat menampilkan form input data
+                                              partner dan menyimpan data yang baru
+                                              dibuat
+                                              Sistem dapat menampilkan form dan
+                                              menyimpan lalu menampilkan data yang
+                                              baru dibuat
+
+                                              Berhasil
+
+4.2.2.2 Modul Sales
+Tabel 4.5 Test Case Create Dan Konfirmasi Penjualan Baru
+
+Scenario (test case)                          Create dan konfirmasi penjualan baru
+Langkah Pengujian
+                                              - user memilih menu "Sales (SO)"
+                                              - user input kode SO jika ada
+
+                                              32
+Hasil yang diharapkan   - user input tanggal transaksi dan tanggal
+                        jatuh tempo pembayaran
+Hasil aktual            - user input memilih data distributor
+Hasil (Berhasil/Gagal)  - user klik tombol "Save Sales Order"
+                        - user mencari SO yang baru saja dibuat dan
+                        mengklik icon mata
+                        - user memilih dan input jumlah barang yang
+                        akan dijual beserta diskon jika ada
+                        - user klik tombol "Add"
+                        - user klik tombol "Confirm Order"
+                        - sistem dapat menampilkan form input
+                        pembuatan SO
+                        - sistem dapat menyimpan SO sementara
+                        dengan status "Draft"
+                        - sistem dapat mengupdate status SO dari
+                        "Draft" menjadi "Confirmed" dan
+                        menampilkan data produk yang sudah
+                        dipesan
+                        - sistem dapat menambahkan stok dengan
+                        status reserved untuk produk yang dipesan
+                        Sistem dapat menampilkan input form
+                        pembuatan SO beserta input produk yang
+                        dipesan dan dapat mengupdate SO dengan
+                        status "Draft" menjadi "Confirmed" serta
+                        menambahkan stok produk dengan status
+                        reserved ke produk yang dipesan
+
+                        Berhasil
+
+Tabel 4.6 Test Case Update Status Penjualan Menjadi Cancel
+
+Scenario (test case)    Update status penjualan baru menjadi
+Langkah Pengujian       cancel
+                        - user memilih menu "Sales (SO)"
+Hasil yang diharapkan   - user mencari SO dengan status
+Hasil aktual            "Confirmed" lalu mengklik icon mata
+Hasil (Berhasil/Gagal)  - user klik tombol "Cancel Order"
+                        Sistem dapat mengurangi stok produk
+                        dengan status reserved dan mengupdate
+                        status SO menjadi "Cancelled"
+                        Sistem dapat mengurangi stok produk
+                        dengan status reserved dan mengupdate
+                        status SO menjadi "Cancelled"
+
+                        Berhasil
+
+4.2.2.3 Modul Purchase
+Tabel 4.7 Test Case Create Dan Konfirmasi Pembelian Bahan Baku
+
+                        33
+Scenario (test case)    Create dan konfirmasi pembelian bahan baku
+Langkah Pengujian
+                        - user memilih menu "Purchase (PO)"
+Hasil yang diharapkan   - user input kode PO jika ada
+Hasil aktual            - user input tanggal transaksi dan tanggal
+Hasil (Berhasil/Gagal)  jatuh tempo pembayaran
+                        - user input memilih data supplier
+                        - user klik tombol "Create Purchase Order"
+                        - user mencari PO yang baru saja dibuat dan
+                        mengklik icon mata
+                        - user memilih dan input jumlah bahan baku
+                        yang akan dibeli beserta harga belinya
+                        - user klik tombol "Add"
+                        - user klik tombol "Place Order"
+                        - sistem dapat menampilkan form input
+                        pembuatan PO
+                        - sistem dapat menyimpan PO sementara
+                        dengan status "Draft"
+                        - sistem dapat mengupdate status PO dari
+                        "Draft" menjadi "Ordered" dan
+                        menampilkan data bahan baku yang sedang
+                        dibeli
+                        - sistem dapat menambahkan stok dengan
+                        status ordered untuk bahan baku yang
+                        sedang dibeli/dipesan
+                        Sistem dapat menampilkan input form
+                        pembuatan PO beserta input bahan baku
+                        yang akan dibeli dan dapat mengupdate PO
+                        dengan status "Draft" menjadi "Ordered"
+                        serta menambahkan stok bahan baku
+                        dengan status ordered ke barang yang
+                        dipesan
+
+                        Berhasil
+
+Tabel 4.8 Test Case Update Status Pembelian Bahan Baku Menjadi Cancel
+
+Scenario (test case)    Update status pembelian bahan baku
+Langkah Pengujian       menjadi cancel
+                        - user memilih menu "Purchase (PO)"
+Hasil yang diharapkan   - user mencari PO dengan status "Ordered"
+Hasil aktual            lalu mengklik icon mata
+Hasil (Berhasil/Gagal)  - user klik tombol "Cancel PO"
+                        Sistem dapat mengurangi stok bahan baku
+                        dengan status ordered dan mengupdate
+                        status PO menjadi "Cancelled"
+                        Sistem dapat mengurangi stok bahan baku
+                        dengan status ordered dan mengupdate
+                        status PO menjadi "Cancelled"
+
+                        Berhasil
+
+                        34
+4.2.2.4 Modul Inventory
+Tabel 4.9 Test Case Update Status Pengiriman Produk Ke Distributor
+
+Scenario (test case)      Update status pengiriman produk ke
+Langkah Pengujian         distributor
+                          - user memilih menu "Sales (SO)"
+Hasil yang diharapkan     - user mencari SO dengan status
+Hasil aktual              "Confirmed" lalu mengklik icon mata
+Hasil (Berhasil/Gagal)    - user input tanggal pengiriman dan biaya
+                          ongkir jika ada
+                          - user klik tombol "Ship Order"
+                          Sistem dapat mengupdate status SO dari
+                          "Confirmed" menjadi "Shipped" dan
+                          menyimpan tanggal pengiriman dan detail
+                          tanggungan biaya ongkir lalu mengurangi
+                          stok on hand produk
+                          Sistem bisa mengupdate status SO dari
+                          "Confirmed" menjadi "Shipped" dan
+                          menyimpan tanggal pengiriman beserta
+                          detail tanggungan biaya ongkir lalu
+                          mengurangi stok on hand produk
+
+                          Berhasil
+
+Tabel 4.10 Test Case Update Status Penerimaan Bahan Baku Dari Supplier
+
+Scenario (test case)      Update status status penerimaan bahan
+Langkah Pengujian         baku dari supplier
+                          - user memilih menu "Purchase (PO)"
+Hasil yang diharapkan     - user mencari PO dengan status "Ordered"
+Hasil aktual              lalu mengklik icon mata
+Hasil (Berhasil/Gagal)    - user input tanggal barang sampai di gudang
+                          dan biaya ongkir jika ada
+                          - user klik tombol "Receive Goods"
+                          Sistem dapat mengupdate status PO dari
+                          "Ordered" menjadi "Received" dan
+                          menyimpan tanggal barang sampai diterima
+                          serta detail tanggungan biaya ongkir lalu
+                          menambah stok on hand bahan baku
+                          Sistem bisa mengupdate status PO dari
+                          "Ordered" menjadi "Received" dan
+                          menyimpan tanggal barang sampai beserta
+                          detail tanggungan biaya ongkir lalu
+                          menambah stok on hand bahan baku
+
+                          Berhasil
+
+4.2.2.5 Modul Accounting
+
+                          35
+Tabel 4.11 Test Case Input Detail Pembayaran Dari Distributor
+
+Scenario (test case)                  Input detail pembayaran dari distributor
+Langkah Pengujian
+                                      - user memilih menu "Sales (SO)"
+Hasil yang diharapkan                 - user memilih salah satu SO dengan status
+Hasil aktual                          pembayaran "Unpaid" atau "Partial"
+Hasil (Berhasil/Gagal)                - user klik icon uang
+                                      - user input tanggal pembayaran, nominal
+                                      yang dibayarkan sebesar sisa hutang tagihan
+                                      - user input metode pembayaran
+                                      (Cash/Transfer) dan nomor referensi beserta
+                                      catatan jika ada
+                                      - user klik tombol "Simpan Pembayaran"
+                                      - Sistem dapat mencatat detail data
+                                      pembayaran dan menampilkan nya di tabel
+                                      - Sistem dapat merubah status pembayaran
+                                      SO dari "Partial" atau "Unpaid" menjadi
+                                      "Paid" jika sisa hutang sudah nol
+                                      Sistem bisa menyimpan informasi
+                                      pembayaran dan mengupdate status
+                                      pembayaran SO dari "Partial" atau "Unpaid"
+                                      menjadi "Paid" jika sisa hutang sudah nol
+
+                                      Berhasil
+
+Tabel 4.12 Test Case Input Detail Pembayaran Ke Supplier
+
+Scenario (test case)                  Input detail pembayaran ke supplier
+Langkah Pengujian
+                                      - user memilih menu "Purchase (PO)"
+Hasil yang diharapkan                 - user memilih salah satu PO dengan status
+Hasil aktual                          pembayaran "Unpaid" atau "Partial"
+Hasil (Berhasil/Gagal)                - user klik icon uang
+                                      - user input tanggal pembayaran, nominal
+                                      yang dibayarkan sebesar sisa hutang tagihan
+                                      - user input metode pembayaran
+                                      (Cash/Transfer) dan nomor referensi beserta
+                                      catatan jika ada
+                                      - user klik tombol "Simpan Pembayaran"
+                                      - Sistem dapat mencatat detail data
+                                      pembayaran dan menampilkan nya di tabel
+                                      - Sistem dapat merubah status pembayaran
+                                      PO dari "Partial" atau "Unpaid" menjadi
+                                      "Paid" jika sisa hutang sudah nol
+                                      Sistem bisa menyimpan informasi
+                                      pembayaran dan mengupdate status
+                                      pembayaran PO dari "Partial" atau "Unpaid"
+                                      menjadi "Paid" jika sisa hutang sudah nol
+
+                                      Berhasil
+
+4.2.2.6 Modul Produksi & Forecasting
+
+                                      36
+Tabel 4.13 Test Case Generate Forecasting Dan Rekomendasi Jumlah Produksi
+
+Scenario (test case)    Generate forecasting dan rekomendasi
+Langkah Pengujian       jumlah produksi
+                        - user memilih menu "Forecasting"
+Hasil yang diharapkan   - user memilih salah satu produk dan klik
+                        tombol "View Forecast"
+Hasil aktual            - user klik tombol "Start Process"
+Hasil (Berhasil/Gagal)  - user klik icon mata di forecast dengan
+                        status "Draft"
+                        - Sistem dapat menjalankan proses
+                        forecasting SARIMA
+                        - Sistem dapat menampilkan hasil forecast
+                        untuk periode bulan depan dengan status
+                        "Draft"
+                        - Sistem bisa menampilkan jumlah
+                        forecasting penjualan di bulan depan
+                        - Sistem dapat menghitung rekomendasi
+                        jumlah barang yang dapat diproduksi untuk
+                        periode depan dengan rumus :
+                        Rekomendasi Produksi = (Forecast + Safety
+                        Stock) - On Hand Stock Produk
+                        - Sistem bisa menampilkan chart
+                        perbandingan antara data penjualan aktual
+                        dengan data yang di-forecasting
+                        Sistem berhasil menjalankan forecasting
+                        SARIMA, lalu membuat data forecast baru
+                        dengan status "Draft", sistem dapat
+                        memunculkan angka rekomendasi jumlah
+                        produksi dan menampilkan chart
+                        perbandingan data aktual dengan data
+                        forecast
+
+                        Berhasil
+
+Tabel 4.14 Test Case Generate Rekomendasi Jumlah Re-stok Bahan Baku
+
+Scenario (test case)    Generate rekomendasi jumlah re-stok bahan
+Langkah Pengujian       baku
+Hasil yang diharapkan   - user memilih menu "Forecasting"
+                        - user memilih salah satu produk dan klik
+                        tombol "View Forecast"
+                        - user klik tombol "View Production Plan"
+                        - user memilih salah satu production plan
+                        dan klik icon mata
+                        - Sistem dapat menampilkan tabel komposisi
+                        bahan baku untuk produk terkait
+                        - Sistem dapat menghitung jumlah
+                        rekomendasi re-stok bahan baku dengan
+                        rumus :
+
+                        37
+Hasil aktual                                Rekomendasi Re-stok Bahan Baku =
+Hasil (Berhasil/Gagal)                      (Rekomendasi Produksi * Kebutuhan) ­ (On
+                                            Hand Stock Bahan Baku + Stok Bahan Baku
+                                            Yang Sudah Diorder)
+                                            Sistem berhasil menampilkan jumlah re-stok
+                                            kekurangan bahan baku yang perlu direstok
+
+                                            Berhasil
+
+Tabel 4.15 Test Case Approve Plan Produksi Hasil Forecasting
+
+Scenario (test case)                        Approve plan produksi hasil forecasting
+Langkah Pengujian
+                                            - user memilih menu "Production"
+Hasil yang diharapkan                       - user memilih salah satu produk dan klik
+                                            tombol "View Plans"
+Hasil aktual                                - user memilih salah satu plan dengan status
+Hasil (Berhasil/Gagal)                      "Draft" dan klik icon mata
+                                            - user input jumlah plan produksi sesuai hasil
+                                            forecasting atau keputusan Perusahaan
+                                            - user klik tombol "Approve Plan"
+                                            - Sistem dapat menerima dan menyimpan
+                                            input user
+                                            - Sistem dapat mengupdate status
+                                            plan/forecasting dari "Draft" menjadi
+                                            "Approved"
+                                            - Sistem dapat menampilkan jumlah yang
+                                            disetujui dilayar
+                                            - Sistem dapat mengupdate rekomendasi re-
+                                            stok bahan baku menggunakan value plan
+                                            produksi yang sudah disetujui
+                                            - Sistem dapat menerima dan menyimpan
+                                            input user
+                                            - Sistem dapat mengupdate status
+                                            plan/forecasting dari "Draft" menjadi
+                                            "Approved"
+                                            - Sistem dapat menampilkan jumlah yang
+                                            disetujui dilayar
+                                            - Sistem dapat mengupdate rekomendasi re-
+                                            stok bahan baku menggunakan value plan
+                                            produksi yang sudah disetujui
+
+                                            Berhasil
+
+Tabel 4.16 Create Data Batch Produksi Baru  Create data batch produksi baru
+ Scenario (test case)
+                                            - user memilih menu "Production"
+ Langkah Pengujian                          - user memilih salah satu produk dan klik
+                                            tombol "View Plans"
+                                            - user memilih salah satu plan dengan status
+                                            "Approve" dan klik icon mata
+
+                                            38
+Hasil yang diharapkan                            - user pilih tab "Production Batch List"
+                                                 - user klik tombol "Create new batch"
+Hasil aktual                                     - Sistem dapat membuat catatan batch
+Hasil (Berhasil/Gagal)                           produksi baru di sebuah production plan
+                                                 dengan status "In Progress"
+                                                 - Sistem dapat membuat catatan batch
+                                                 produksi baru di sebuah production plan
+                                                 dengan status "In Progress"
+
+                                                 Berhasil
+
+Tabel 4.17 Test Case Input Data Produksi Harian
+
+Scenario (test case)                             Input data produksi harian
+Langkah Pengujian
+                                                 - user memilih menu "Production"
+Hasil yang diharapkan                            - user memlih salah satu produk dan klik
+Hasil aktual                                     tombol "View Plans"
+Hasil (Berhasil/Gagal)                           - user memilih salah satu plan dengan status
+                                                 "Approve"
+                                                 - user pilih tab "Production Batch List"
+                                                 - user memilih salah satu batch dengan
+                                                 status "In Progress" dan klik icon mata
+                                                 - user input tanggal dan jumlah produk yang
+                                                 sudah diproduksi
+                                                 - Sistem dapat mencatat tanggal dan jumlah
+                                                 produksi
+                                                 - Sistem dapat mengurangi sisa target
+                                                 produksi per batch
+                                                 - Sistem dapat mencatat tanggal dan jumlah
+                                                 produksi
+                                                 - Sistem dapat mengurangi sisa target
+                                                 produksi per batch
+
+                                                 Berhasil
+
+Tabel 4.18 Test Case Input Data Komposisi Produk
+
+Scenario (test case)                             Input data komposisi produk
+Langkah Pengujian
+Hasil yang diharapkan                            - user memilih menu "Product"
+                                                 - user memilih salah satu produk yang akan
+                                                 ditambahkan data komposisinya
+                                                 - user klik icon mata
+                                                 - user memilih nama bahan baku yang
+                                                 dibutuhkan
+                                                 - user input quantity yang dibutuhkan
+                                                 - user klik tombol "Add"
+                                                 Sistem dapat menyimpan data nama
+                                                 material beserta jumlah yang dibutuhkan
+                                                 untuk membuat 1 kemasan produk
+
+                        39
+Hasil aktual            Sistem dapat menyimpan data nama
+Hasil (Berhasil/Gagal)  material beserta jumlah yang dibutuhkan
+                        untuk membuat 1 kemasan produk
+
+                        Berhasil
+
+4.2.3 Pembahasan Pengujian User Acceptance Testing
+           Pengujian User Acceptance Testing (UAT) yang melibatkan responden perwakilan dari
+
+divisi Sales, Purchase, Inventory, Production, dan Accounting menunjukkan bahwa seluruh
+fungsi dan modul utama sistem telah beroperasi sesuai rencana dan tanpa kendala. Pengguna
+di masing-masing departemen terbukti mampu mengeksekusi alur proses bisnis secara utuh,
+mulai dari manajemen master data produk dan material, pembuatan serta konfirmasi dokumen
+Sales Order dan Purchase Order, hingga pencatatan status pengiriman maupun penerimaan
+barang. Selain itu, sistem juga tervalidasi mampu menangani pencatatan riwayat pembayaran
+secara akurat, serta memfasilitasi divisi produksi dalam melakukan agregasi peramalan
+penjualan, persetujuan rencana produksi, pencatatan batch produksi, dan kalkulasi
+rekomendasi kebutuhan re-stok bahan baku. Keberhasilan pada pengujian ini mengonfirmasi
+bahwa sistem secara teknis dinyatakan layak dan sesuai kebutuhan PT XYZ.
+
+                        40
+                                       5 KESIMPULAN DAN SARAN
+
+5.1 Kesimpulan
+           Berdasarkan dari hasil penelitian dan pembahasan, maka kesimpulan dalam penelitian
+
+ini adalah sebagai berikut :
+1. Penerapan metode Seasonal Autoregressive Integrated Moving Average (SARIMA)
+
+     menggunakan data penjualan historis aktual (raw data) terbukti memberikan performa
+     peramalan yang paling optimal dalam memprediksi jumlah permintaan produk di PT XYZ.
+     Model tersebut menghasilkan tingkat akurasi yang sangat memadai dengan capaian
+     median Root Mean Square Error (RMSE) sebesar 6,79 dan Mean Absolute Percentage Error
+     (MAPE) sebesar 26,88% yang diuji pada mayoritas produk. Di samping itu, penemuan
+     dominasi parameter siklus musiman tahunan (s=12) menegaskan keandalan metode
+     SARIMA dalam memetakan fluktuasi tren pasar yang bersifat repetitif secara periodik.
+2. Pengembangan sistem informasi terintegrasi terbukti mampu menyelesaikan
+     permasalahan sinkronisasi informasi antar divisi sekaligus menyederhanakan proses
+     analisis data di PT XYZ. Melalui fungsionalitas perhitungan pada modul produksi dan
+     forecasting, sistem secara terukur mendukung proses pengambilan keputusan manajerial
+
+                                                        41
+     khususnya dalam keputusan target jumlah produksi bulanan maupun harian serta
+     menyusun rekomendasi kuantitas re-stok bahan baku kepada supplier.
+5.2 Saran
+
+           Berdasarkan kesimpulan yang ada, dikemukakan saran sebagai berikut :
+1. Memasukkan dan mengintegrasikan variabel eksternal (seperti faktor ekonomi makro, tren
+
+     inflasi, pergeseran hari libur nasional, atau efektivitas kampanye pemasaran) ke dalam
+     pemodelan algoritma untuk semakin menyempurnakan dan meningkatkan nilai akurasi
+     forecasting permintaan di masa mendatang.
+2. Mengimplementasikan fitur caching secara komprehensif pada tingkatan aplikasi untuk
+     menampung data yang sering diakses, guna mereduksi beban request kueri yang berulang
+     ke database utama sehingga mempercepat waktu respon pemuatan halaman.
+3. Menyempurnakan optimalisasi tata letak (layout) user interface pada elemen formulir dan
+     konsistensi pemilihan warna.
+
+             DAFTAR REFERENSI
+
+Box, G. E. P., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015). Time Series Analysis:
+
+Forecasting  and      Control          (5th  ed.).  Wiley.
+
+https://doi.org/10.1002/9781118619193
+
+Hyndman, R. J., & Athanasopoulos, G. (2018). Forecasting: Principles and Practice (2nd
+           ed.). OTexts. https://otexts.com/fpp2/
+
+Shumway, R. H., & Stoffer, D. S. (2017). Time Series Analysis and Its Applications: With R
+           Examples (4th ed.). Springer. https://doi.org/10.1007/978-3-319-52452-8
+
+Hodson, T. O. (2022). Root-mean-square error (RMSE) or mean absolute error (MAE):
+           when to use them or not. Geosci. Model Dev., 15, 5481­542.
+           https://doi.org/10.5194/gmd-15-5481-2022
+
+Nabillah, I., & Ranggadara, I. (2020). Mean Absolute Percentage Error untuk Evaluasi
+           Hasil Prediksi Komoditas Laut. JOINS (Journal of Information System), 5(2),
+           250­255. https://doi.org/10.33633/joins.v5i2.3900
+
+                  42
+         Nurjanah, A. Q. (2023). Analisis dan perancangan sistem informasi penilaian harga
+                     perolehan barang dagang dengan metode moving average. METIK Jurnal.
+                     https://doi.org/10.47002/metik.v7i2.222
+
+         Mustofa, A. Q., & Waluyowati, N. P. (2024). Penerapan Analisis Abc, Safety
+                     Stock, Dan Reorder Point Bahan Baku Impor. Jurnal Kewirausahaan Dan
+                     Inovasi, 3(2), 333­352. https://doi.org/10.21776/jki.2024.03.2.01
+
+         Maulidi, R., & Listianti, P. (2023). Optimasi Pengendalian Persediaan dengan
+                     Metode Reorder Point dalam Pengembangan Aplikasi Kontrol Stok
+                     Berbasis Web. Journal of Applied Informatics and Computing, 7(1), 36­
+                     43. https://doi.org/10.30871/jaic.v7i1.5204
+
+Heizer, J., Render, B., & Munson, C. (2017). Operations management: Sustainability and supply
+chain management (12th ed.). Pearson
+
+                                                        43
+

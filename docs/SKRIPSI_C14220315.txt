@@ -1,0 +1,469 @@
+                              SKRIPSI
+Pembuatan Sistem Point of Sales (POS) pada Restoran X
+
+                                                  Oleh:
+                                      Ezra Brilliant Konterliem
+
+                                              C14220315
+
+   PROGRAM STUDI SISTEM INFORMASI BISNIS
+           FAKULTAS TEKNOLOGI INDUSTRI
+             UNIVERSITAS KRISTEN PETRA
+                            SURABAYA
+  1. BAB 1 PENDAHULUAN
+
+          1.1. Latar Belakang Masalah
+
+Perkembangan teknologi informasi telah mendorong digitalisasi di berbagai sektor bisnis, termasuk pada
+bidang kuliner dan restoran. Sistem Point of Sale (POS) berbasis web memungkinkan pencatatan
+transaksi sehingga mengurangi ketergantungan pada nota kertas dan perhitungan manual yang rawan
+kesalahan (Alexander, 2021). Namun, studi di Indonesia menunjukkan masih banyak restoran keluarga
+yang mengelola transaksi secara manual dengan nota dan buku tulis, sehingga rawan salah tulis,
+pencatatan ganda, dan keterlambatan rekap laporan. Sistem kasir terkomputerisasi terbukti dapat
+membantu kasir mengolah transaksi penjualan, membuat nota, dan menyusun laporan keuangan secara
+lebih efektif dibanding pencatatan manual (Rozi, 2024; Nurchayati & Husaini, 2022).
+
+Restoran yang menjadi objek penelitian masih mengandalkan proses manual yang rentan kendala, dimulai
+dari persiapan bahan olahan di rumah di mana ayam dimarinasi dalam jumlah besar menjadi stok porsi
+siap jual (seperti ayam bakar/goreng) dicatat manual di buku tulis setiap pagi. Buku yang sama juga
+digunakan secara campur aduk untuk mencatat pengeluaran harian, menempelkan struk EDC/belanja,
+serta mencatat pesanan pelanggan, yang menyebabkan kekacauan administrasi, variasi tulisan tangan dan
+kelalaian mencatat mutasi stok sering membuat data di buku tidak sesuai fisik, mengakibatkan kehabisan
+menu mendadak saat jam operasional sehingga pemilik terpaksa mengirim stok tambahan dari rumah
+menggunakan kurir instan yang menambah beban pengeluaran. selain itu, pencatatan transaksi yang tidak
+terpisah mempersulit kasir saat membagi tagihan (split bill) dan memicu selisih (mismatch) tak terdeteksi
+antara uang fisik, struk EDC, dan mutasi QRIS saat rekonsiliasi akhir hari.
+
+Penelitian mengenai implementasi sistem Point of Sale berbasis web pada Olive Cafe Jakarta
+menunjukkan bahwa pencatatan pesanan dan pembayaran secara manual menyebabkan data transaksi
+tidak terperinci dan berisiko hilang. Solusi yang diterapkan berupa sistem POS berbasis web
+menggunakan PHP dan MySQL terbukti membantu pelayan dalam mencatat pesanan, menghitung
+pembayaran, dan menghasilkan laporan secara lebih tertib (Alexander, 2021). Penelitian lain pada Cafe
+Unico Tembilahan mengidentifikasi bahwa sistem kasir manual menyebabkan antrean pelanggan dan
+potensi kesalahan perhitungan total transaksi. Sistem e-kasir dikembangkan menggunakan metode SDLC
+Waterfall dengan PHP dan MySQL sebagai basis data, dan hasilnya menunjukkan bahwa sistem mampu
+mempercepat proses transaksi, mempermudah pemantauan data produk, serta menghasilkan laporan
+keuangan secara otomatis (Rozi et al., 2024).
+
+Dengan mempertimbangkan kebutuhan dan permasalahan tersebut, Penelitian ini bertujuan
+mengimplementasikan sistem Point of Sale (POS) berbasis web yang disesuaikan dengan kebutuhan
+operasional Restoran X. Sistem difokuskan pada pengelolaan pesanan meja, pencatatan pembayaran
+terpusat untuk berbagai metode pembayaran, serta pemantauan stok porsi harian secara real-time.
+Metode penelitian meliputi analisis kebutuhan, perancangan sistem, pengembangan, dan pengujian untuk
+menilai kemudahan penggunaan, ketertiban administrasi kasir, serta akurasi rekonsiliasi pendapatan.
+Diharapkan sistem ini mampu meningkatkan efisiensi operasional, meminimalkan selisih kas, dan
+menjaga ketersediaan stok selama jam operasional.
+          1.2. Rumusan Masalah
+
+Berdasarkan latar belakang tersebut, maka perumusan masalah dalam tugas akhir ini adalah sebagai
+berikut:
+
+      A. Apakah penerapan sistem POS berbasis web dapat mempercepat durasi proses transaksi
+           dibandingkan sebelum sistem diterapkan?
+
+      B. Apakah dengan menerapkan sistem POS dapat mempercepat proses rekonsiliasi pendapatan dan
+           menurunkan jumlah mismatch antara catatan penjualan dan mutasi rekening?
+
+      C. Apakah fitur manajemen stok harian dengan fitur stok opname dapat meminimalisir terjadinya
+           mismatch dibanding pencatatan manual?
+
+          1.3. Tujuan
+
+Penelitian ini bertujuan untuk merancang dan mengimplementasikan sistem Point of Sale (POS) berbasis
+web yang mampu menangani fleksibilitas operasional restoran melalui fitur manajemen pesanan
+kompleks (seperti split bill dan merge bill), serta menyediakan mekanisme pencatatan pembayaran untuk
+transaksi tunai maupun non-tunai guna menyederhanakan proses rekonsiliasi pendapatan dan
+meminimalkan selisih kas harian. Selain itu, penelitian ini juga bertujuan mengembangkan modul
+pemantauan stok harian berbasis porsi menu siap jual untuk menyediakan informasi ketersediaan produk
+secara real-time dan meningkatkan kontrol internal.
+
+          1.4. Ruang lingkup
+  1. Proses Bisnis
+
+         Sistem ini dirancang untuk mencakup alur kerja operasional restoran mulai dari penerimaan stok
+         barang jadi (finished goods) hingga pelaporan akhir hari.
+
+    A. Tech Stack
+  1. Backend: Sistem dibangun menggunakan framework Express.js (Node.js) untuk menangani
+
+         logika bisnis dan penyediaan API.
+  2. Frontend: Antarmuka pengguna dikembangkan menggunakan library React (TypeScript) untuk
+
+         interaksi yang responsif dan dinamis.
+  3. Database: Penyimpanan data menggunakan MySQL sebagai sistem manajemen basis data
+
+         relasional (RDBMS).
+  4. Platform & Akses: Sistem dikembangkan berbasis web (web-based application) yang
+
+         dioptimalkan untuk tampilan desktop (Admin) dan tablet (Kasir).
+
+    B. Manajemen Inventori & Stok (Inventory Control)
+               Pencatatan Stok Masuk: Sistem memfasilitasi input stok barang yang dikirim dari dapur
+                   produksi (rumah pemilik) ke outlet restoran. Stok yang dicatat adalah barang siap jual
+                   (satuan porsi), bukan bahan baku mentah (gramasi).
+               Pengurangan Stok: Stok di sistem akan berkurang secara otomatis saat transaksi
+                   pembayaran berhasil dilakukan.
+              Stock Opname (Pencocokan Stok): Fitur untuk membandingkan stok tercatat di sistem
+                  dengan stok fisik aktual di akhir shift. Sistem akan menghitung varians (selisih) stok
+                  untuk mendeteksi kehilangan atau kesalahan input.
+
+              Peringatan Stok Rendah (Low Stock Alert): Indikator visual pada dashboard kasir
+                  ketika stok menu tertentu mencapai batas minimum yang ditentukan, guna mencegah
+                  kekosongan stok mendadak saat operasional berlangsung.
+
+   C. Operasional Point of Sales (Kasir)
+              Manajemen Pesanan Meja (Table Management):
+                        Status meja (Kosong, Terisi, Menunggu Pembayaran).
+                        Fitur Add Order (Penambahan pesanan pada meja yang sama sebelum
+                            checkout).
+              Fleksibilitas Tagihan (Bill Management):
+                        Split Bill: Kemampuan memecah satu tagihan menjadi beberapa pembayaran
+                            terpisah berdasarkan menu yang dipilih.
+                        Merge Bill: Kemampuan menggabungkan tagihan dari dua meja atau pesanan
+                            berbeda menjadi satu faktur.
+                        Void/Cancel Order: Pembatalan pesanan yang belum dibayar.
+
+   D. Manajemen Keuangan & Rekonsiliasi (Financial Reconciliation)
+              Manajemen Keuangan: Proses buka kasir dengan input modal awal (petty cash) dan
+                  tutup kasir (clock-out).
+              Rekonsiliasi Pembayaran: Pada akhir hari, kasir diwajibkan menginput total uang fisik
+                  dan total struk EDC/QRIS yang dipegang tanpa melihat total di sistem terlebih dahulu.
+                  Sistem kemudian akan membandingkan input kasir vs data sistem untuk menampilkan
+                  selisih (over/short).
+              Laporan Laba Rugi Harian: Perhitungan laba kotor Total Penjualan - (Harga Modal
+                  Satuan x Jumlah Terjual).
+
+1.5 Manfaat
+
+    Pemilik Restoran (Objek Penelitian)
+        Operasional kasir lebih efisien karena pesanan, status masak, dan pembayaran tercatat dalam
+            satu sistem POS.
+        Pemilik memperoleh laporan selisih antara total penjualan dan total modal harian
+            sehingga dapat mengevaluasi kinerja operasional restoran secara keseluruhan.
+        Rekonsiliasi transaksi tunai dan non-tunai menjadi lebih mudah karena data penjualan dan
+            pembayaran tersaji dalam laporan terpusat.
+
+    Bagi Pegawai
+        Mengurangi kesalahan akibat pencatatan manual dan tulisan tangan yang sulit dibaca.
+        Mempercepat proses pemesanan, penyajian, dan pembayaran melalui alur kerja yang lebih
+            jelas.
+
+    Akademis
+        Dapat menjadi referensi pengembangan lebih lanjut untuk topik-topik Sistem Informasi Bisnis
+            yang menggabungkan proses operasional, pengendalian stok, dan analisis biaya.
+  2. BAB 2 METODOLOGI PROYEK
+          2.1. Studi Literatur
+
+Tahap pertama adalah studi literatur yang dilakukan untuk membangun landasan teoritis dan wawasan
+terhadap solusi sejenis. Kegiatan pada tahap ini meliputi pengkajian penelitian-penelitian terdahulu
+mengenai implementasi sistem Point of Sale berbasis web, serta analisis terhadap perangkat lunak POS
+yang sudah ada di pasaran seperti Moka POS dan iReap POS. Hasil studi literatur digunakan sebagai
+acuan dalam menentukan fitur-fitur yang relevan untuk dikembangkan pada sistem ini.
+
+          2.2. Analisis Kebutuhan
+Tahap analisis kebutuhan dilakukan melalui wawancara langsung dengan pemilik Restoran X untuk
+mengidentifikasi permasalahan operasional yang dihadapi, alur proses bisnis yang berjalan saat ini (as-is),
+serta kebutuhan informasi yang diharapkan dari sistem. Hasil wawancara kemudian dianalisis untuk
+menyusun kebutuhan fungsional dan non-fungsional sistem, yang menjadi dasar perancangan pada tahap
+berikutnya.
+
+          2.3. Perancangan Sistem
+
+Tahap perancangan menghasilkan cetak biru sistem yang akan dikembangkan. Kegiatan pada tahap ini
+meliputi perancangan proses bisnis yang diusulkan (to-be), pembuatan use case diagram, activity
+diagram, dan Entity Relationship Diagram (ERD) sebagai representasi struktur data sistem. Selain itu,
+pada tahap ini juga dirancang antarmuka pengguna (UI mockup) untuk modul kasir, manajemen stok, dan
+pelaporan.
+
+          2.4. Pengembangan Sistem
+
+Tahap pengembangan merupakan implementasi dari hasil perancangan ke dalam bentuk aplikasi. Sistem
+dibangun menggunakan framework Express.js untuk backend, React untuk frontend, dan MySQL sebagai
+basis data. Pengembangan dilakukan secara modular, dimulai dari modul manajemen stok, modul
+operasional kasir, hingga modul rekonsiliasi dan pelaporan keuangan.
+
+          2.5. Pengujian Sistem
+
+Tahap terakhir adalah pengujian sistem yang bertujuan membuktikan bahwa sistem yang dikembangkan
+telah memenuhi kebutuhan proses bisnis dan kebutuhan informasi Restoran X. Pengujian dilakukan
+menggunakan metode User Acceptance Testing (UAT) yang melibatkan pemilik dan kasir restoran
+sebagai penguji, serta System Usability Scale (SUS) untuk mengukur tingkat kemudahan penggunaan
+sistem.
+  3. BAB 3 ANALISIS DAN DESAIN
+          3.1. Analisis
+                 3.1.1. Analisis Permasalahan
+
+Restoran X menghadapi permasalahan utama berupa ketidakteraturan pencatatan operasional harian yang
+berdampak langsung pada efisiensi kasir dan akurasi rekonsiliasi pendapatan. Permasalahan tersebut
+terjadi karena seluruh aktivitas operasional - mulai dari pencatatan stok masuk, pesanan pelanggan,
+hingga pengeluaran harian - masih dicatat dalam satu buku tulis yang sama tanpa pemisahan yang jelas.
+
+Proses bisnis yang berjalan saat ini dimulai dari pengiriman stok porsi siap jual dari rumah pemilik ke
+outlet setiap pagi, yang dicatat manual di buku tulis. Saat operasional berlangsung, kasir mencatat
+pesanan pelanggan secara manual dan menghitung tagihan secara manual pula. Pembayaran diterima
+melalui tiga metode tunai, EDC, dan QRIS namun pencatatannya tidak terpisah sehingga menyulitkan
+proses rekonsiliasi di akhir hari. Rekonsiliasi dilakukan dengan mencocokkan uang fisik di laci, struk
+EDC, dan mutasi QRIS secara manual, yang rawan selisih tidak terdeteksi.
+
+Kondisi tersebut menyebabkan beberapa dampak nyata pada operasional restoran. Pertama, kehabisan
+stok menu terjadi secara mendadak karena tidak ada pemantauan stok secara real-time. Kedua, proses
+split bill memakan waktu lama karena dilakukan perhitungan manual. Ketiga, pemilik tidak dapat
+memperoleh laporan pendapatan harian yang akurat dan cepat karena rekap harus dilakukan secara
+manual di akhir periode.
+
+                 3.1.2. Analisis Kebutuhan Informasi
+
+Berdasarkan analisis permasalahan, dapat diidentifikasi kebutuhan informasi yang harus dipenuhi sistem
+agar mendukung proses pengambilan keputusan dan pelaksanaan tugas pada masing-masing peran
+pengguna. Tabel 3.1 menunjukkan informasi yang dibutuhkan oleh setiap aktor beserta tujuan
+pemanfaatannya.
+
+      Peran Pengguna      Informasi yang Dibutuhkan                 Tujuan Penggunaan
+Pemilik (Owner)       Pendapatan harian per metode      Memantau pemasukan harian dan
+Pemilik (Owner)       pembayaran                        rekonsiliasi kas
+Pemilik (Owner)                                         Mengevaluasi alokasi biaya operasional
+Pemilik (Owner)       Pengeluaran harian per kategori   bulanan
+Pemilik (Owner)                                         Mendeteksi mismatch atau potensi
+                      Selisih kas akhir shift           kebocoran kas
+                      Stok harian per menu beserta
+                      variansnya                        Mengevaluasi efisiensi penggunaan stok
+                      Daftar transaksi yang dibatalkan  Mengontrol penyalahgunaan otorisasi
+                      beserta alasannya                 pembatalan pesanan
+Kasir                    Status meja (kosong, terisi,       Mengelola alokasi pesanan ke meja
+Kasir                    menunggu pembayaran)               tersedia
+Kasir
+                         Ketersediaan stok harian per menu  Menentukan apakah menu dapat dipesan
+                         Total tagihan per meja sebelum     atau perlu force order
+                         pembayaran
+                                                            Menyampaikan rincian tagihan kepada
+                                                            pelanggan
+
+Kasir                    Total penjualan dan jumlah kas fisik Melakukan rekonsiliasi sebelum tutup
+Pegawai Dapur (Kitchen)  per metode pembayaran akhir shift kasir
+
+                         Daftar menu aktif yang harus diisi Memastikan seluruh menu memiliki stok
+
+                         stok pagi                          awal sebelum operasional
+
+Tabel 3.1 Kebutuhan Informasi per Peran Pengguna
+
+Pemilik membutuhkan informasi keuangan dan operasional yang terintegrasi sebagai dasar evaluasi
+performa restoran secara menyeluruh, baik dari sisi pendapatan, pengeluaran, maupun pengendalian
+internal. Kasir membutuhkan informasi operasional waktu nyata untuk melayani pelanggan dengan cepat
+sekaligus memverifikasi keseimbangan kas pada akhir shift. Pegawai Dapur sebagai aktor pendukung
+membutuhkan daftar menu aktif sebagai acuan input stok pagi yang menjadi sumber data utama bagi
+pengecekan stok kasir.
+
+                 3.1.3. Analisis Kebutuhan Sistem
+
+Berdasarkan permasalahan dan kebutuhan informasi yang teridentifikasi, dirumuskan kebutuhan sistem
+yang dibagi menjadi kebutuhan fungsional dan non-fungsional.
+
+- Kebutuhan Fungsional
+    Sistem yang dirancang harus dapat memenuhi kebutuhan fungsional sebagai berikut:
+        1. Mengelola autentikasi pengguna melalui PIN 6 digit untuk tiga peran (Pemilik,
+             Kasir, dan Pegawai Dapur).
+        2. Mengelola katalog menu yang mencakup nama menu, kategori, harga jual, dan
+             status aktif.
+        3. Mencatat stok masuk per menu setiap pagi melalui input langsung oleh Pegawai
+             Dapur sebagai pengganti pencatatan manual di buku.
+        4. Menyediakan informasi ketersediaan stok harian per menu kepada Kasir secara
+             waktu nyata saat memasukkan pesanan.
+        5. Mendukung pembukaan pesanan per meja dengan status meja kosong, terisi, dan
+             menunggu pembayaran.
+        6. Mendukung penambahan, perubahan, dan pembatalan item pesanan sebelum
+             pembayaran dilakukan.
+        7. Menyediakan mekanisme force order yang memungkinkan kasir tetap mencatat
+             pesanan meskipun stok kurang, dengan tanda khusus pada item agar dapat ditelusuri
+             pada laporan.
+        8. Mendukung pemecahan tagihan (split bill) dan penggabungan tagihan (merge bill)
+             untuk fleksibilitas pembayaran.
+  9. Memproses pembayaran dengan enam metode: tunai, QRIS, transfer, debit, kredit,
+       dan layanan ojek daring (ojol), serta opsi pencetakan struk.
+
+  10. Melakukan pengurangan stok secara otomatis saat pembayaran berhasil dilakukan.
+  11. Melakukan stok opname pada akhir shift untuk mencocokkan stok fisik dan stok
+
+       sistem serta menampilkan selisihnya.
+  12. Melakukan tutup kasir, yaitu rekonsiliasi kas akhir shift dengan input jumlah fisik
+
+       per metode pembayaran tanpa melihat total dari sistem terlebih dahulu, untuk
+       mendeteksi mismatch.
+  13. Mencatat pengeluaran harian oleh Pemilik beserta kategori (bahan baku, utilitas,
+       gaji, transportasi, atau lainnya) dan jumlah nominalnya.
+  14. Menyediakan dashboard dan laporan yang berisi pendapatan harian, pengeluaran
+       harian, rekonsiliasi shift, dan laba kotor harian bagi Pemilik.
+  15. Memerlukan otorisasi PIN Pemilik (Owner PIN elevation) untuk pembatalan
+       pesanan dan tindakan sensitif lainnya.
+3.2. Design Sistem
+       3.2.1. Use Case
+
+                   Gambar 3.1 Use Case Sistem Point of Sales dan Inventory
+         
+         Gambar 3.1 mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran. Sistem
+         melibatkan tiga aktor, Pemilik, Kasir, dan Pegawai Dapur, yang berinteraksi dengan lima belas
+         use case yang terbagi dalam empat domain.
+
+              - Domain pertama adalah autentikasi melalui use case Login yang wajib dilakukan oleh
+                   seluruh aktor.
+
+              - Domain kedua adalah operasional kasir yang mencakup Buka Kasir, Mengelola Pesanan
+                   Meja, Memecah Tagihan, Menggabungkan Tagihan, Membatalkan Pesanan, Memproses
+                   Pembayaran, Mencetak Struk, Melakukan Stock Opname, dan Tutup Kasir.
+
+              - Domain ketiga adalah manajemen stok yang dilakukan oleh Pegawai Dapur melalui
+                   Menginput Stok Masuk.
+
+              - Domain keempat adalah pengelolaan master data dan pemantauan oleh Pemilik melalui
+                   Mengelola Menu, Mengelola Pengguna, Mengelola Pengeluaran, dan Melihat Dashboard
+                   dan Laporan.
+
+Hubungan <<include>> ditunjukkan dari setiap use case operasional ke Login, menandakan bahwa
+autentikasi merupakan prasyarat wajib sebelum use case tersebut dapat dijalankan. Hubungan
+<<extend>> ditunjukkan dari Mencetak Struk ke Memproses Pembayaran, menandakan bahwa
+pencetakan struk hanya dilakukan apabila pelanggan memintanya.
+
+                 3.2.2. Activity Diagram
+                         3.2.2.1. Activity Diagram Login
+                   Gambar 3.2 Activity Diagram Login
+Gambar 3.2 menjelaskan alur proses login. Aktor (yang dapat berperan sebagai Pemilik, Kasir, atau
+Pegawai Dapur) memulai dengan membuka aplikasi POS, kemudian sistem menampilkan layar login
+PIN. Aktor memasukkan PIN 6 digit, lalu sistem memvalidasi PIN tersebut dengan memeriksa
+keberadaannya di basis data dan mengambil peran pengguna. Apabila PIN tidak valid, sistem
+menampilkan pesan kesalahan dan aktor kembali ke tahap memasukkan PIN. Apabila PIN valid, sistem
+menampilkan halaman dashboard sesuai peran pengguna dan proses login selesai.
+
+                         3.2.2.2. Activity Diagram Order Flow
+
+                   Gambar 3.3 Diagram Order Flow
+Gambar 3.3 menjelaskan alur Kasir dalam mengelola pesanan meja. Kasir memilih meja yang masih
+kosong, membuka pesanan untuk meja tersebut, lalu memilih menu beserta jumlahnya. Sistem kemudian
+melakukan pengecekan ketersediaan stok hari ini.
+
+Apabila stok mencukupi, sistem mencatat pesanan dan mengurangi stok sebanyak jumlah yang
+dipesan. Apabila stok tidak mencukupi, sistem menanyakan apakah pesanan akan tetap diteruskan
+dalam mode force order, yakni pencatatan paksa meskipun stok di sistem akan menjadi nol. Jika
+dikonfirmasi, Kasir menyetujui melalui dialog force order, lalu sistem mencatat pesanan dengan
+tanda force order tanpa membuat stok menjadi negatif. Jika tidak dikonfirmasi, sistem
+membatalkan penambahan item.
+
+Setelah salah satu cabang selesai, sistem menanyakan apakah Kasir ingin menambahkan item lain.
+Jika ya, alur kembali ke pemilihan menu. Jika tidak, sistem menyimpan pesanan sebagai pesanan
+terbuka dan proses selesai. Mekanisme force order ini merupakan kontribusi utama dari sistem
+untuk menjawab permasalahan kasir yang sering menerima pesanan tanpa memeriksa stok terlebih
+dahulu.
+
+                         3.2.2.3. Activity Diagram Pay Flow
+                   Gambar 3.4 Activity Diagram Pay Flow
+Gambar 3.4 menjelaskan alur pembayaran pesanan meja. Kasir memilih opsi bayar untuk meja yang
+sudah memiliki pesanan terbuka, kemudian sistem mengambil daftar pesanan meja dan menampilkan
+rincian tagihan. Kasir memilih metode pembayaran yang digunakan pelanggan (tunai, QRIS, transfer,
+debit, kredit, atau ojol) dan memasukkan nominal pembayaran.
+Sistem melakukan validasi nominal. Apabila nominal kurang dari total tagihan, alur kembali ke
+tahap memasukkan nominal. Apabila nominal mencukupi, sistem menandai pesanan sebagai lunas
+dan mencatatnya ke rekap harian. Setelah pembayaran tercatat, sistem menanyakan apakah
+pelanggan meminta cetak struk. Jika ya, sistem mencetak struk; jika tidak, alur langsung berlanjut.
+Kedua cabang menyatu dan sistem menampilkan konfirmasi pembayaran sebelum proses selesai.
+
+                         3.2.2.4. Activity Diagram Stock Opname
+
+                   Gambar 3.5 Activity Diagram Stock Opname Pagi
+Gambar 3.5 menjelaskan alur input stok masuk pagi yang dilakukan oleh Pegawai Dapur sebelum jam
+buka restoran. Setelah Pegawai Dapur melakukan login, sistem mengambil daftar menu yang aktif dan
+menampilkannya bersama kolom input stok. Pegawai Dapur kemudian memasukkan jumlah stok pagi
+untuk masing-masing menu. Sistem menyimpan stok awal hari ini dan memeriksa apakah semua menu
+sudah selesai diinput. Apabila masih ada menu yang belum, alur kembali ke tahap input. Apabila semua
+menu sudah, sistem menandai opname pagi sebagai selesai dan proses berakhir.
+                         3.2.2.5. Activity Diagram Tutup Kasir
+
+                   Gambar 3.6 Activity Diagram Tutup Kasir
+Gambar 3.6 menjelaskan alur tutup kasir, yaitu rekonsiliasi kas akhir shift di mana Kasir memasukkan
+jumlah fisik tanpa melihat total dari sistem terlebih dahulu. Kasir mengklik tombol Tutup Kasir, lalu
+sistem memeriksa apakah masih ada pesanan yang belum dibayar. Apabila ada, sistem menampilkan
+peringatan agar Kasir menyelesaikan pesanan yang belum dibayar terlebih dahulu, dan proses berakhir
+lebih awal.
+Apabila tidak ada pesanan yang belum dibayar, sistem menampilkan formulir rekonsiliasi tanpa
+memperlihatkan total sistem. Kasir memasukkan jumlah fisik untuk masing-masing dari lima
+metode pembayaran (tunai, QRIS, transfer, debit/kredit, dan ojol). Setelah Kasir submit, sistem
+menghitung total penjualan per metode berdasarkan data transaksi pada shift tersebut, lalu
+menghitung selisih per metode. Sistem menampilkan rekap perbandingan beserta total selisih
+over/short kepada Kasir, kemudian menyimpan hasil rekonsiliasi shift dan menutup shift sebelum
+proses selesai.
+
+                         3.2.2.6. Activity Diagram Mencatat Pengeluaran
+
+                   Gambar 3.7 Activity Diagram Mencatat Pengeluaran
+Gambar 3.7 menjelaskan alur Pemilik dalam mencatat pengeluaran harian. Pemilik membuka halaman
+pengeluaran, lalu sistem menampilkan formulir pengeluaran. Pemilik memasukkan tanggal, kategori
+(bahan baku, utilitas, gaji, transportasi, atau lainnya), jumlah nominal, dan deskripsi. Setelah Pemilik
+submit, sistem memvalidasi input.
+Apabila input tidak valid (misalnya kategori belum dipilih atau jumlah kosong), sistem
+menampilkan pesan kesalahan dan alur kembali ke tahap input. Apabila input valid, sistem
+menyimpan data pengeluaran dan menampilkan konfirmasi sebelum proses selesai. Alur ini
+menggantikan pencatatan struk dan total pengeluaran yang sebelumnya ditempel dengan solatip di
+sisi kiri buku catatan.
+                 3.2.3. Entity Relationship Diagram
+
+Gambar 3.8 Entity Relationship Diagram Sistem POS Restoran
+Sistem terdiri atas delapan entitas utama. Entitas users menyimpan data seluruh pengguna beserta peran
+dan PIN autentikasi. Entitas menus menyimpan master katalog makanan siap jual. Entitas
+daily_menu_stocks menyimpan stok per menu per hari dengan constraint unik per kombinasi tanggal dan
+menu. Entitas shifts mencatat siklus buka-tutup kasir per hari per kasir. Entitas transactions menyimpan
+header pesanan per meja dengan status terbuka, terbayar, atau dibatalkan. Entitas transaction_items
+sebagai entitas asosiatif (junction) antara menu dan transaksi yang menyimpan jumlah, harga snapshot,
+dan penanda force order. Entitas settlements menyimpan hasil rekonsiliasi blind count akhir shift dengan
+kolom terpisah untuk masing-masing dari lima metode pembayaran. Entitas expenses menyimpan
+pencatatan pengeluaran harian beserta kategorinya.
+Sistem memiliki sembilan relasi utama yang menghubungkan entitas-entitas tersebut, dengan
+dominasi relasi one-to-many, sebagai contoh, satu kasir dapat melakukan banyak transaksi, dan
+satu relasi satu-ke-satu antara shifts dan settlements di mana setiap shift menghasilkan tepat satu
+rekonsiliasi. Relasi banyak-ke-banyak antara menu dan transaksi dijabarkan sebagai entitas
+asosiatif transaction_items yang menyimpan atribut tambahan seperti jumlah dan harga snapshot
+saat transaksi terjadi.
+Daftar Pustaka
+
+Alexander, J. (2021). Implementasi point of sales berbasis web pada usaha Olive Cafe. JUSIBI (Jurnal
+Sistem Informasi dan E-Bisnis), 2(4), 452-465. https://doi.org/10.54650/jusibi.v2i4.230
+
+Andarwati, M., Zuhroh, D., & Amrullah, F. (2020). End User Satisfaction of Accounting Information
+System (AIS) Mobile Based for Small Medium Enterprises (SMEs): Actual Usage and TAM Approach.
+Journal of Development Research, 3(2), 37-42.
+https://journal.unublitar.ac.id/jdr/index.php/jdr/article/view/79
+
+Brilliansyach, R. F., & Pinandito, A. (2024). Perbandingan kecepatan transaksi antara QRIS statis dan
+QRIS dinamis menggunakan mekanisme Merchant Presented Mode. Jurnal Pengembangan Teknologi
+Informasi dan Ilmu Komputer, 8(13). https://j-ptiik.ub.ac.id/index.php/j-ptiik/article/view/13578
+
+Fatman, Y., Nafisah, N. K., & Pambudi, P. B. J. (2023). Implementasi payment gateway dengan
+menggunakan Midtrans pada website UMKM Geberco. Jurnal KomtekInfo, 10(2), 64-72.
+https://doi.org/10.35134/komtekinfo.v10i2.364
+
+Fauzan, R., Krisnahati, I., Nurwibowo, B. D., & Wibowo, D. A. (2022). A systematic literature review on
+Progressive Web Application practice and challenges. IPTEK: The Journal for Technology and Science,
+33(1). http://dx.doi.org/10.12962/j20882033.v33i1.13904
+
+Hidayati, I., Sudarmiatin, S., & Hermawan, B. (2023). Analysis of point of sale system implementation in
+coffee shop. Jurnal Pendidikan dan Kewirausahaan, 11(3), 932-947.
+https://doi.org/10.47668/pkwu.v1113.881
+
+Kieso, D. E., Weygandt, J. J., & Warfield, T. D. (2018). Intermediate Accounting: IFRS Edition (3rd ed.).
+Wiley.
+
+Nurchayati, N., & Husaini, S. (2022). Implementasi sistem informasi Point of Sale (POS) Moka dengan
+metode PIECES (studi kasus Kafe Janji Jiwa 995 Comal). Jurnal Riset Sosial Humaniora dan Pendidikan
+(SOSHUMDIK), 1(3), 30-44. https://doi.org/10.56444/soshumdik.v1i3.126
+
+Rozi, M. S., Ridha, M. R., Usman, U., & Aditia, F. (2024). Sistem informasi e-kasir pada Cafe Unico
+Tembilahan. Jurnal Informatika dan Teknik Elektro Terapan, 12(3S1).
+https://doi.org/10.23960/jitet.v12i3S1.5300
+
+Sandhu, R. S., Coyne, E. J., Feinstein, H. L., & Youman, C. E. (1996). Role-based access control models.
+Computer, 29(2), 38-47. https://doi.org/10.1109/2.485845
+
+Sucipta, A. N. (2023). Pengaruh Penggunaan Sistem Informasi Point of Sale (POS) Oktopus Pos Sistem
+Terhadap Efisiensi Pelayanan Pada Restoran Warung Ole. Universitas Terbuka.
+https://student-repository.ut.ac.id/id/eprint/1431/
+Widiyanti, V., & Tisnawati, R. (2024). Perancangan Sistem Informasi Point of Sale di PT. Abercode
+Software Berbasis Web. Jurnal Sosial Teknologi (SOSTECH), 4(10).
+https://doi.org/10.59188/jurnalsostech.v4i10.23179
+

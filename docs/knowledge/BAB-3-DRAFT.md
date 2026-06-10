@@ -1,393 +1,373 @@
-# BAB 3 - Analisis dan Desain (Draft Paste-Ready, REV 2.11)
+# BAB 3 — Analisis dan Desain (Draft Paste-Ready, REV 2.13)
 
-> 🚧 **REV 2.11 (2026-05-30) - PERLU REVIEW THESIS-LEVEL OLEH EZRA.** Naskah ini telah disesuaikan secara faktual ke model COGS (drop subsistem belanja/vendor/raw-materials, tambah modal/COGS per menu + Laporan Laba Rugi Harian). Perubahan struktural utama: entitas 14 → **10**, relasi 19 → **17**, use case 20 → **19**, activity diagram 11 → **9**; Kebutuhan Fungsional #12 (raw materials) & #14 (mencatat pembelian) dihapus, ditambah FR modal/COGS; sub-bab activity 3.2.3.7 (Opname Raw Materials) & 3.2.3.9 (Mencatat Pembelian) dihapus; numbering Gambar/Tabel **perlu disusun ulang** (Gambar 3.2–3.12 dan Tabel 3.2–3.15 lama). **Bagian yang BELUM disisir habis (perlu review manual Ezra):** mapping Gambar/Tabel di atas, renumbering caption, dan kehalusan kalimat prosa naratif. Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](../superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
-
-> ✅ **Implementasi STATUS per 2026-05-24:** Backend + Frontend FULL DONE (11 phase backend + 11 phase frontend + Phase 4b split/merge bill). Backend `tsc --noEmit` 0 errors, frontend `vite build` SUCCESS 1564 modules, ~170+ smoke test scenarios PASS. Naskah Bab 3 di bawah ini menggambarkan sistem yang **sudah jalan**, bukan rencana.
-
-> **Status:** REV 2.3 (2026-05-24) - bump dari REV 2.2 setelah brainstorming workflow order intake dan permission matrix. Tidak ada perubahan schema (tetap 14 entitas, 19 relasi). Yang berubah: (1) deskripsi Login diperbaiki menjadi form 2 field input nama + PIN murni (sebelumnya REV 2.2 narasi masih menyebut "memilih namanya dari daftar" + "mengingat pengguna terakhir"); (2) workflow order intake diperjelas sebagai berbasis kertas (waiter tulis → kasir input) dengan waiter sebagai fallback bila kasir tidak available; (3) Kebutuhan Fungsional #1 dan #4-6 diperbaiki untuk mencerminkan annotation kasir primary vs waiter fallback.
-> **Sumber alur bisnis:** [`docs/operasional-resto.md`](../operasional-resto.md) REV 2.3 (sumber kebenaran tertinggi)
-> **Sumber struktur data:** [`backend/prisma/schema.prisma`](../../backend/prisma/schema.prisma) - schema REV 2.2 (14 entitas, 19 relasi) sudah applied ke MySQL `pos_restaurant` per 2026-05-24. REV 2.3 tidak menambah schema, hanya middleware permission granular per-endpoint.
-> **Design spec turunan:** [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md)
-> **Mengikuti:** Pedoman Program SIB UK Petra (`docs/Pedoman Program SIB.pdf`).
-
-> **Cakupan diagram (per arahan pembimbing):** Use Case Diagram + Activity Diagram + Entity Relationship Diagram saja. *Sequence Diagram*, *Block Diagram*, *Class Diagram*, dan *Flowchart Force Order* TIDAK dipakai di Bab 3.
-
-> ⚠️ **Penyempurnaan dari REV 2:** Perubahan utama:
-> - Tipe order disederhanakan dari 4 jenis menjadi **2** (dine-in dan takeaway). Sumber takeaway (walk-in, GoFood, GrabFood, gosend) dibedakan via metode pembayaran, bukan via sub-tipe order.
-> - Metode pembayaran EDC dan transfer **dipisah per bank** via field `payment_bank` agar owner mendapatkan laporan rekonsiliasi per bank.
-> - Stok bahan rigid (`bulk_stocks` dengan 5 jenis hardcoded) diganti dengan **`raw_materials` fleksibel** (is_tracked + category enum + unit varchar bebas + freshness_days untuk perishable).
-> - Tabel **`vendors`** baru (opsional) untuk catat toko/pasar tempat belanja.
-> - Pembelian dinormalisasi: header `purchases` + detail `purchase_items` (FK ke `raw_materials`).
-> - Field `portion_stocks.opening_qty_today` baru untuk auto-snapshot pagi (metric "terjual hari ini").
-> - Self-reference `transactions.merged_into_id` untuk merge bill.
-> - **HPP dan Bill of Materials EXPLICIT out-of-scope** - ada paragraf justifikasi siap paste di sub-bab "Batasan".
-> - 13 entitas (sebelumnya 11), 17 relasi (sebelumnya 13).
-> - 20 use case (sebelumnya 17), 11 activity diagram (sebelumnya 10).
+> 🚧 **REV 2.13 (2026-06-02) — diselaraskan ke sistem nyata + diagram StarUML hasil rebuild & verifikasi.** **Struktur mengikuti Pedoman Program SIB UK Petra** (`docs/Pedoman Program SIB.pdf`): 3.1 Analisis (3.1.1–3.1.3) + 3.2 Desain Sistem (3.2.1 Blok Diagram · 3.2.2 Use Case · 3.2.3 Activity · 3.2.4 ERD · 3.2.5 Pengolahan Data dan Metode). Sub-bab 3.2.5 dinyatakan **tidak berlaku** (sistem operasional-transaksional tanpa algoritma analitik). Diagram: **Blok Diagram + Use Case + Activity + ERD** (Sequence/Class/Flowchart tidak dipakai, arahan pembimbing).
+>
+> Sumber kebenaran: `backend/prisma/schema.prisma` (23 entitas) + `docs/knowledge/{ERD,USE-CASE,ACTIVITY}.md` REV 2.13 + `docs/operasional-resto.md`. Live: `monosuko.my.id`.
+>
+> **Perubahan utama vs draft REV 2.11:** ERD 10→**23 entitas** (≈39 FK); Use Case 19→**23 bubble** (21 dasar + 2 «extend»); Activity 9→**11 diagram** (A.1–A.11). Koreksi faktual: (1) *split bill* per-item/`party_id` dihapus → **split-tender**; (2) metode pembayaran jadi **master table** (`payment_methods`), `transactions` tanpa kolom `payment_method`/`payment_bank`; (3) subsistem belanja/vendor/raw-materials dihapus; (4) **PB1 owner-configurable 2-sumbu**, default nonaktif; (5) **settlement whole-business-day** (`@@unique(date)`, dinamis); (6) **shift REV 2.7** (window + `active_marker` + re-stamp); (7) **+Blok Diagram (3.2.1)** + Tutup Kasir & Setoran dipisah.
+>
+> ⚠️ **Perlu review thesis-level Ezra:** kehalusan prosa + ekspor PNG diagram + finalisasi caption. Penomoran Gambar konsisten: Blok 3.1 → Use Case 3.2 → Activity 3.3–3.13 → ERD 3.14 (14 Gambar).
 
 ---
 
-## Mapping Gambar dan Tabel (REV 2.3 - ⚠️ PERLU DISUSUN ULANG untuk REV 2.11)
+## Pemetaan Gambar & Tabel
 
-> 🚧 **REV 2.11:** tabel mapping di bawah ini masih versi REV 2.3 (13 Gambar + 15 Tabel). Setelah penghapusan 2 *activity diagram* (Opname Raw Materials + Mencatat Pembelian) dan 5 entitas data dictionary (`raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items`) + penambahan `menu_cost_movements`, mapping ini menjadi **11 Gambar + 11 Tabel** (1 tabel kebutuhan informasi + 10 tabel data dictionary). Penyusunan ulang penomoran Gambar/Tabel diserahkan ke penulis (Ezra) sebagai bagian review thesis-level.
-
-**Total (REV 2.3, BELUM di-update): 13 Gambar + 15 Tabel** (1 tabel kebutuhan informasi + 14 tabel data dictionary)
+**Total: 14 Gambar + 12 Tabel** (1 tabel kebutuhan informasi + 11 tabel kamus data inti; skema penuh 23 entitas di `docs/DATA-DICTIONARY.md`).
 
 | Gambar | Sub-bab | Judul | File screenshot |
 |---|---|---|---|
-| 3.1 | 3.2.2 | Use Case Diagram | `use-case-diagram-sistem-pos-restoran.png` |
-| 3.2 | 3.2.3.1 | Activity Diagram Login | `activity-diagram-login.png` |
-| 3.3 | 3.2.3.2 | Activity Diagram Order Flow | `activity-diagram-order-flow.png` |
-| 3.4 | 3.2.3.3 | Activity Diagram Pay Flow | `activity-diagram-pay-flow.png` |
-| 3.5 | 3.2.3.4 | Activity Diagram Restock Stok Porsi Pagi | `activity-diagram-restock-stok-porsi-pagi.png` |
-| 3.6 | 3.2.3.5 | Activity Diagram Mencatat Barang Masuk | `activity-diagram-mencatat-barang-masuk.png` |
-| 3.7 | 3.2.3.6 | Activity Diagram Opname Stok Porsi | `activity-diagram-opname-stok-porsi.png` |
-| 3.8 | 3.2.3.7 | Activity Diagram Opname Raw Materials | `activity-diagram-opname-raw-materials.png` |
-| 3.9 | 3.2.3.8 | Activity Diagram Tutup Kasir | `activity-diagram-tutup-kasir.png` |
-| 3.10 | 3.2.3.9 | Activity Diagram Mencatat Pembelian | `activity-diagram-mencatat-pembelian.png` |
-| 3.11 | 3.2.3.10 | Activity Diagram Mencatat Tagihan Bulanan | `activity-diagram-mencatat-tagihan.png` |
-| 3.12 | 3.2.3.11 | Activity Diagram Split & Merge Bill | `activity-diagram-split-merge-bill.png` |
-| 3.13 | 3.2.4 | Entity Relationship Diagram | `erd-sistem-pos-restoran.png` |
+| 3.1 | 3.2.1 | Blok Diagram Desain Sistem | `blok-diagram-desain-sistem.png` |
+| 3.2 | 3.2.2 | Use Case Diagram | `use-case-diagram-sistem-pos-restoran.png` |
+| 3.3 | 3.2.3 | Activity Diagram Login (A.1) | `activity-diagram-login.png` |
+| 3.4 | 3.2.3 | Activity Diagram Mengelola Pesanan (A.2) | `activity-diagram-mengelola-pesanan.png` |
+| 3.5 | 3.2.3 | Activity Diagram Memproses Pembayaran (A.3) | `activity-diagram-memproses-pembayaran.png` |
+| 3.6 | 3.2.3 | Activity Diagram Buka Kasir (A.4) | `activity-diagram-buka-kasir.png` |
+| 3.7 | 3.2.3 | Activity Diagram Tutup Kasir (A.5) | `activity-diagram-tutup-kasir.png` |
+| 3.8 | 3.2.3 | Activity Diagram Setoran Akhir Hari (A.6) | `activity-diagram-setoran-akhir-hari.png` |
+| 3.9 | 3.2.3 | Activity Diagram Restock Stok Porsi Pagi (A.7) | `activity-diagram-restock-stok-porsi-pagi.png` |
+| 3.10 | 3.2.3 | Activity Diagram Mencatat Barang Masuk (A.8) | `activity-diagram-mencatat-barang-masuk.png` |
+| 3.11 | 3.2.3 | Activity Diagram Opname Stok Porsi (A.9) | `activity-diagram-opname-stok-porsi.png` |
+| 3.12 | 3.2.3 | Activity Diagram Mencatat Tagihan Bulanan (A.10) | `activity-diagram-mencatat-tagihan.png` |
+| 3.13 | 3.2.3 | Activity Diagram Kelola Menu dan Modal/COGS (A.11) | `activity-diagram-kelola-menu-cogs.png` |
+| 3.14 | 3.2.4 | Entity Relationship Diagram | `erd-sistem-pos-restoran.png` |
 
-| Tabel | Sub-bab | Konten | Sumber |
-|---|---|---|---|
-| 3.1 | 3.1.2 | Kebutuhan Informasi per Peran Pengguna | (paragraf di bawah) |
-| 3.2 | 3.2.5 | Data Dictionary `users` | DATA-DICTIONARY.md §1 |
-| 3.3 | 3.2.5 | Data Dictionary `menus` | §2 |
-| 3.4 | 3.2.5 | Data Dictionary `portion_stocks` | §3 |
-| 3.5 | 3.2.5 | Data Dictionary `portion_movements` (REV 2.2: rename dari `stock_movements`) | §4 |
-| 3.6 | 3.2.5 | Data Dictionary `raw_materials` | §5 |
-| 3.7 | 3.2.5 | Data Dictionary `raw_material_movements` (REV 2.2: BARU) | §6 |
-| 3.8 | 3.2.5 | Data Dictionary `vendors` | §7 |
-| 3.9 | 3.2.5 | Data Dictionary `shifts` | §8 |
-| 3.10 | 3.2.5 | Data Dictionary `transactions` | §9 |
-| 3.11 | 3.2.5 | Data Dictionary `transaction_items` | §10 |
-| 3.12 | 3.2.5 | Data Dictionary `settlements` | §11 |
-| 3.13 | 3.2.5 | Data Dictionary `purchases` | §12 |
-| 3.14 | 3.2.5 | Data Dictionary `purchase_items` | §13 |
-| 3.15 | 3.2.5 | Data Dictionary `bills` | §14 |
+| Tabel | Sub-bab | Konten |
+|---|---|---|
+| 3.1 | 3.1.2 | Kebutuhan Informasi per Peran Pengguna |
+| 3.2–3.12 | 3.2.4 | Kamus Data entitas inti (11 tabel); skema penuh 23 entitas di `DATA-DICTIONARY.md` |
+
+> 🚧 **Catatan:** Tabel `raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items` **dihapus** (subsistem belanja/raw-materials keluar dari lingkup REV 2.11). Sebaliknya `menu_cost_movements`, `transaction_payments`, dan child `settlement_method_counts` **ditambahkan**.
 
 ---
 
-## 3.1.2 Analisis Kebutuhan Informasi
+## 3.1 Analisis
 
-> Berdasarkan analisis permasalahan pada sub-bab 3.1.1, dapat diidentifikasi kebutuhan informasi yang harus dipenuhi sistem agar mendukung proses pengambilan keputusan dan pelaksanaan tugas pada masing-masing peran pengguna. Tabel 3.1 menunjukkan informasi yang dibutuhkan oleh setiap aktor beserta tujuan pemanfaatannya.
+### 3.1.1 Analisis Permasalahan
+
+Restoran X menghadapi permasalahan utama berupa ketidakteraturan pencatatan operasional harian yang berdampak langsung pada efisiensi kasir, akurasi rekonsiliasi pendapatan, dan ketersediaan stok. Permasalahan tersebut terjadi karena seluruh aktivitas operasional — pencatatan stok pagi, pesanan pelanggan, hingga rekap penjualan — masih dicatat dalam satu buku tulis tanpa pemisahan yang jelas.
+
+Proses bisnis yang berjalan saat ini (*as-is*) dimulai dari pengiriman stok porsi siap jual dari rumah pemilik ke outlet setiap pagi, yang dicatat manual di sisi kiri buku. Saat operasional berlangsung, waiter mencatat pesanan pelanggan di kertas lalu menyerahkannya ke kasir, dan kasir menghitung tagihan secara manual. Pembayaran diterima melalui beberapa metode (tunai, EDC, QRIS, transfer, serta layanan ojek daring untuk pesanan online) namun pencatatannya tercampur, sehingga menyulitkan rekonsiliasi akhir hari yang dilakukan dengan mencocokkan uang fisik, struk EDC, dan mutasi rekening secara manual per bank.
+
+Kondisi tersebut menimbulkan dampak nyata. Pertama, **stok tidak terpantau**: pencatatan stok di sisi kiri buku sering terlewat, sehingga restoran tidak mengetahui sisa stok dan baru sadar habis saat pelanggan memesan — memaksa pengiriman darurat dari rumah via Gojek/Grab yang menambah biaya operasional. Kedua, **rekonsiliasi lambat dan rawan selisih tak terdeteksi** karena pencatatan tercampur dan tidak terpilah per metode maupun per bank. Ketiga, **pemilik tidak memperoleh laporan laba dan pengeluaran yang akurat dan cepat** karena rekap manual dilakukan di akhir periode.
+
+### 3.1.2 Analisis Kebutuhan Informasi
+
+Berdasarkan analisis permasalahan pada sub-bab 3.1.1, dapat diidentifikasi kebutuhan informasi untuk masing-masing peran pengguna, yaitu **informasi apa yang dibutuhkan setiap aktor untuk menjalankan aktivitas dan mengambil keputusan**. Tabel 3.1 merangkum informasi tersebut beserta tujuan penggunaannya per peran. (Catatan: tabel ini berorientasi pada informasi yang *dikonsultasi/dipakai* aktor, bukan daftar fitur laporan; rincian atribut data yang disimpan sistem dijabarkan pada Kamus Data di sub-bab 3.2.4.)
 
 **Tabel 3.1** *Kebutuhan Informasi per Peran Pengguna*
 
-| Peran Pengguna | Informasi yang Dibutuhkan | Tujuan Penggunaan |
-|---|---|---|
-| Pemilik (*Owner*) | Pendapatan harian per metode pembayaran beserta rincian per bank untuk EDC dan transfer | Memantau pemasukan harian dan rekonsiliasi mutasi rekening per bank |
-| Pemilik (*Owner*) | Harga pokok (COGS) dan laba kotor harian (pendapatan − COGS) serta tagihan operasional bulanan terpisah | Mengevaluasi profitabilitas dan alokasi biaya operasional |
-| Pemilik (*Owner*) | Selisih kas akhir hari per metode pembayaran | Mendeteksi mismatch atau potensi kebocoran kas |
-| Pemilik (*Owner*) | Stok porsi yang menipis atau habis | Mempersiapkan restock harian dari rumah |
-| Pemilik (*Owner*) | Daftar transaksi yang dibatalkan | Mengontrol penggunaan fitur pembatalan oleh kasir |
-| Kasir | Status meja (kosong atau terisi) dan tipe order aktif | Mengelola alokasi pesanan dan tipe layanan |
-| Kasir | Ketersediaan stok porsi waktu nyata | Mengetahui kapan perlu menghubungi pemilik untuk restock darurat |
-| Kasir | Total tagihan per meja sebelum pembayaran (termasuk pajak PB1) | Menyampaikan rincian tagihan kepada pelanggan |
-| Kasir | Total penjualan per enam metode pembayaran beserta rincian per bank | Melakukan rekap akhir hari sebelum tutup kasir |
-| Waiter | Daftar item stok porsi yang perlu restock pagi (di bawah batas minimum) | Memberitahu kasir saat input restock pagi |
-| Waiter | Daftar menu yang tersedia di POS | Membantu input order pelanggan ke sistem |
+| Peran Pengguna    | Informasi yang Dibutuhkan                                                          | Tujuan Penggunaan                                                              |
+| ----------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Kasir             | Daftar menu aktif beserta harga jual                                              | Menginput pesanan pelanggan dan menghitung tagihan                            |
+| Kasir             | Ketersediaan stok porsi *real-time*                                               | Memutuskan kapan perlu menghubungi pemilik untuk restock darurat              |
+| Kasir             | Status meja (kosong/terisi) dan pesanan terbuka per meja                          | Mengelola alokasi pesanan dan melanjutkan pesanan dalam satu sesi meja        |
+| Kasir             | Total tagihan per meja (termasuk PB1 bila aktif) dan metode pembayaran tersedia   | Memproses pembayaran dan menyampaikan rincian tagihan kepada pelanggan        |
+| Kasir             | Total penjualan per metode pembayaran beserta rincian per bank                    | Membuka/menutup kasir per shift dan melakukan setoran (*settlement*) akhir hari             |
+| Waiter            | Daftar menu aktif dan ketersediaan stok porsi                                     | Membantu mengambil dan menginput pesanan pelanggan                            |
+| Waiter            | Daftar item stok porsi di bawah batas minimum                                     | Melakukan restock pagi dan opname stok porsi                                  |
+| Waiter            | Status meja                                                                       | Mengantar pesanan ke meja yang tepat                                          |
+| Pemilik (*Owner*) | Pendapatan harian per metode pembayaran beserta rincian per bank                  | Mencocokkan pemasukan dengan mutasi rekening per bank dan mengevaluasi pendapatan |
+| Pemilik (*Owner*) | Harga pokok (COGS) per menu, laba kotor harian, dan tagihan operasional (terpisah)| Menetapkan modal/harga menu, mencatat tagihan operasional, dan mengevaluasi profitabilitas |
+| Pemilik (*Owner*) | Selisih kas (*over/short*) akhir hari per metode pembayaran                       | Mendeteksi *mismatch* atau potensi kebocoran kas                              |
+| Pemilik (*Owner*) | Kondisi stok porsi (item menipis atau habis)                                      | Memutuskan jumlah restock harian yang dibawa dari rumah                       |
+| Pemilik (*Owner*) | Daftar transaksi yang dibatalkan (*void*)                                         | Memantau penggunaan pembatalan oleh kasir (pengendalian internal)            |
 
-> Pemilik membutuhkan informasi keuangan dan operasional yang terintegrasi sebagai dasar evaluasi performa restoran secara menyeluruh, dengan rincian khusus per bank untuk metode pembayaran EDC dan transfer agar memudahkan rekonsiliasi dengan mutasi rekening, serta harga pokok per menu untuk menghitung laba kotor harian. Kasir membutuhkan informasi operasional waktu nyata untuk melayani pelanggan dengan cepat, sekaligus memverifikasi keseimbangan kas pada akhir hari. Waiter sebagai aktor pendukung membutuhkan informasi kondisi stok porsi untuk membantu pencatatan restock dan opname stok porsi.
+Kasir sebagai operator utama POS membutuhkan informasi operasional *real-time* — daftar menu beserta harga, ketersediaan stok porsi, status meja, serta total tagihan — agar dapat mencatat pesanan, memproses pembayaran, dan melakukan rekonsiliasi dengan cepat dan akurat. Waiter membutuhkan informasi menu, ketersediaan stok, dan status meja untuk membantu pengambilan dan input pesanan serta pengelolaan stok porsi. Pemilik, yang berperan mengawasi dan mengambil keputusan, membutuhkan informasi keuangan dan operasional yang terangkum — pendapatan per metode dan per bank, harga pokok dan laba kotor, selisih kas, kondisi stok, serta daftar pembatalan — sebagai dasar evaluasi performa, pengendalian internal, dan penetapan modal/harga. Seluruh kebutuhan informasi ini menjadi acuan perumusan kebutuhan fungsional pada sub-bab 3.1.3.
 
----
+### 3.1.3 Analisis Kebutuhan Sistem
 
-## 3.1.3 Analisis Kebutuhan Sistem
+Berdasarkan permasalahan dan kebutuhan informasi yang teridentifikasi, dirumuskan kebutuhan sistem yang dibagi menjadi kebutuhan fungsional dan non-fungsional.
 
-> Berdasarkan permasalahan dan kebutuhan informasi yang teridentifikasi, dirumuskan kebutuhan sistem yang dibagi menjadi kebutuhan fungsional dan non-fungsional.
+#### Kebutuhan Fungsional
 
-### Kebutuhan Fungsional
+Sistem yang dirancang harus dapat memenuhi kebutuhan fungsional sebagai berikut:
 
-> Sistem yang dirancang harus dapat memenuhi kebutuhan fungsional sebagai berikut:
->
-> 1. Mengelola autentikasi pengguna melalui form login untuk tiga peran (Pemilik, Kasir, dan Waiter). Saat pertama kali login di suatu perangkat, pegawai mengisi nama pengguna dan PIN enam digit secara manual. Setelah login berhasil, sistem menyimpan nama tersebut di penyimpanan lokal perangkat sehingga login berikutnya di perangkat yang sama hanya memerlukan input PIN enam digit pada *numpad* (nama otomatis terisi dari cache, mempercepat alur untuk pegawai yang menggunakan satu perangkat berulang). Tombol *Ganti Pengguna* tersedia untuk mereset cache dan kembali menampilkan form dua field bila perangkat dipakai pegawai berbeda. PIN diperbolehkan duplikat antar pegawai karena identifikasi dilakukan melalui kombinasi nama dan PIN - nama yang unik per pegawai berfungsi sebagai identifier, sedangkan PIN hanya sebagai kata sandi. Sistem tidak menampilkan daftar seluruh pegawai untuk dipilih; cache hanya menyimpan satu nama pegawai terakhir per perangkat.
-> 2. Mengelola katalog menu yang mencakup nama, kategori, harga, klasifikasi jenis stok (porsi yang ditrack, varian yang berbagi stok, atau tanpa stok), batas minimum stok, dan definisi sub-pilihan untuk menu paket.
-> 3. Mendukung dua tipe order: *dine-in* dengan pemilihan meja, dan *takeaway* tanpa meja. Sumber order takeaway (walk-in, GoFood, GrabFood, atau gosend) dibedakan melalui metode pembayaran, bukan melalui sub-tipe order yang terpisah.
-> 4. Mendukung penambahan, perubahan, dan pembatalan item pesanan sebelum pembayaran dilakukan oleh kasir sebagai aktor utama yang menerima catatan pesanan kertas dari waiter dan menginputnya ke sistem. Waiter memiliki akses *fallback* untuk menginput pesanan langsung ke sistem apabila kasir sedang tidak tersedia. Pembatalan transaksi tidak memerlukan otorisasi khusus.
-> 5. Mendukung pemecahan tagihan (*split bill*) per item per pelanggan menghasilkan beberapa struk terpisah, dan penggabungan tagihan (*merge bill*) dari beberapa meja menjadi satu struk dengan mekanisme *self-reference* pada transaksi sumber. Kedua mekanisme ini dilakukan oleh kasir saja, tidak diakses oleh waiter.
-> 6. Menyediakan mekanisme sub-pilihan dinamis untuk menu paket: kasir (atau waiter sebagai *fallback*) memilih variant (misalnya paha atau dada, bakar atau goreng) saat menambahkan paket ke pesanan, dan sistem mengurangi stok porsi sesuai pilihan tersebut.
-> 7. Memproses pembayaran dengan enam metode (cash, EDC, QRIS, Gojek, Grab, transfer) yang dilakukan oleh kasir saja (waiter tidak memiliki akses ke pembayaran), dengan input bank pendamping khusus untuk metode EDC dan transfer agar laporan rekonsiliasi dapat dilakukan per bank. Pajak PB1 sepuluh persen ditambahkan otomatis, diskon manual didukung, dan struk pembayaran dicetak dalam format PDF yang disimpan ke perangkat kasir.
-> 8. Melakukan pengurangan stok porsi secara otomatis saat pesanan diinput ke POS (bukan saat pembayaran), dengan memperbolehkan stok bernilai negatif untuk mengakomodasi situasi habis di tengah hari.
-> 9. Mencatat masuknya stok darurat (fitur "Barang Masuk") saat pemilik mengirim restock dari rumah pada tengah hari, dengan dukungan input kelipatan lima porsi dan dokumentasi detail breakdown.
-> 10. Memungkinkan restock pagi stok porsi dengan formula kelipatan lima yang menjaga stok akhir di atas batas minimum.
-> 11. Menyediakan fitur opname untuk koreksi nilai stok porsi (pagi, setelah restock) ketika kondisi sistem menyimpang dari realita fisik, dengan jejak audit yang mencatat selisih dan pelaku koreksi.
-> 12. Menyediakan pencatatan modal/harga pokok (COGS) per menu yang hanya dapat diakses Pemilik, dengan nilai modal yang dinyatakan langsung per menu (bukan dihitung dari konsumsi bahan baku), serta jejak riwayat perubahan modal. Modal tidak ditampilkan pada katalog menu publik (POS).
-> 13. Melakukan tutup kasir akhir hari oleh kasir shift malam saja, dengan rekap sederhana enam total metode pembayaran (sistem dan fisik) beserta rincian per bank untuk EDC dan transfer, dan perhitungan variansnya per metode.
-> 14. Menghitung laba rugi harian dengan rumus laba kotor = total penjualan dikurangi total harga modal (jumlah `unit_cost` × jumlah terjual atas transaksi lunas), di mana modal di-*snapshot* per item saat order dibuat sehingga laba periode lampau tidak berubah meskipun modal diperbarui kemudian. Tagihan operasional bulanan ditampilkan terpisah dan tidak dikurangkan ke laba kotor.
-> 15. Mencatat tagihan operasional bulanan (kebersihan, listrik, air, parkir, sewa) yang hanya dapat diakses oleh Pemilik.
-> 16. Menyediakan dashboard masing-masing peran dengan reminder stok porsi yang menipis, serta laporan periodik pendapatan, COGS, dan laba kotor bagi Pemilik.
-> 17. Menyimpan jejak audit untuk seluruh perubahan kondisi stok porsi melalui tabel log `portion_movements` (delta, alasan: order/restock pagi/restock darurat/penyesuaian manual, pengguna pelaku, waktu) serta jejak perubahan modal menu melalui tabel log `menu_cost_movements`, sehingga pemilik dapat menelusuri kapan dan oleh siapa setiap perubahan stok dan modal terjadi.
-> 18. Menerapkan pembatasan akses (otorisasi) per peran pada tingkat fungsional sesuai matriks kewenangan: pemilik memiliki akses penuh terhadap seluruh fitur termasuk tagihan operasional bulanan, modal/COGS menu, dan pengelolaan data master; kasir memiliki akses ke pengelolaan transaksi (input order, pembayaran, split/merge bill, void), pengelolaan stok porsi (restock, barang masuk, opname), serta buka dan tutup kasir; sedangkan waiter memiliki akses ke pengelolaan stok porsi dan opname seperti kasir, ditambah akses *fallback* untuk menginput pesanan ke sistem hanya bila kasir sedang tidak tersedia. Waiter tidak memiliki akses ke proses pembayaran, settlement akhir hari, modal/COGS, maupun tagihan operasional. Pembatasan ini diterapkan baik di sisi antarmuka (tombol/halaman tersembunyi sesuai peran) maupun di sisi *endpoint* basis data (validasi peran pengguna).
+1. Mengelola autentikasi pengguna melalui form login untuk tiga peran (Pemilik, Kasir, dan Waiter). Saat pertama kali login di suatu perangkat, pegawai mengisi nama pengguna dan PIN enam digit secara manual. Setelah login berhasil, sistem menyimpan nama tersebut di penyimpanan lokal perangkat sehingga login berikutnya di perangkat yang sama hanya memerlukan input PIN enam digit pada *numpad* (nama otomatis terisi dari cache). Tombol *Ganti Pengguna* tersedia untuk mereset cache. PIN diperbolehkan duplikat antar pegawai karena identifikasi dilakukan melalui kombinasi nama dan PIN — nama berfungsi sebagai identifier, PIN sebagai kata sandi. Sistem tidak menampilkan daftar seluruh pegawai untuk dipilih.
+2. Mengelola katalog menu yang mencakup nama, kategori, harga, klasifikasi jenis stok (porsi yang ditrack, varian yang berbagi stok, atau tanpa stok), jenis menu (sederhana/varian/paket), batas minimum stok, serta konfigurasi varian dan komposisi paket.
+3. Mendukung dua tipe order: *dine-in* dengan pemilihan meja, dan *takeaway* tanpa meja. Sumber order takeaway (walk-in, GoFood, GrabFood, atau gosend) dibedakan melalui metode pembayaran, bukan melalui sub-tipe order yang terpisah.
+4. Mendukung penambahan, perubahan, dan pembatalan item pesanan sebelum pembayaran. Pencatatan pesanan ke sistem dapat dilakukan oleh **kasir maupun waiter secara ** melalui perangkat masing-masing; menuliskan pesanan di kertas lalu menyerahkannya ke kasir merupakan cara alternatif yang opsional. Pembatalan transaksi tidak memerlukan otorisasi khusus.
+5. Mendukung penggabungan tagihan (*merge bill*) dari beberapa meja menjadi satu transaksi melalui mekanisme *self-reference* pada transaksi sumber, sehingga rombongan lintas-meja dapat membayar sekaligus. Mekanisme ini dilakukan oleh kasir atau Pemilik, tidak diakses oleh waiter.
+6. Menyediakan mekanisme sub-pilihan dinamis untuk menu paket dan menu varian: kasir atau waiter memilih variant (misalnya paha atau dada, bakar atau goreng, jenis minuman) saat menambahkan item, dan sistem mengurangi stok porsi sesuai pilihan tersebut.
+7. Memproses pembayaran melalui metode pembayaran yang dapat dikonfigurasi oleh Pemilik (master *payment methods* yang dapat ditambah, dinonaktifkan, dan diurutkan — mencakup tunai, EDC, QRIS, dompet digital, dan transfer), dengan dukungan **pembayaran gabungan (*split-tender*)** yaitu satu transaksi dibayar dengan beberapa metode sekaligus. Untuk metode yang memerlukan bank (misalnya EDC dan transfer), sistem meminta input bank pendamping dari master bank agar laporan rekonsiliasi dapat dilakukan per bank. Pembayaran dilakukan oleh kasir atau Pemilik saja. Diskon manual didukung, dan struk pembayaran dicetak dalam format PDF.
+8. Menyediakan pengaturan Pajak Pembangunan 1 (PB1) yang dapat dikonfigurasi Pemilik pada dua sumbu: aktif atau tidak, dan apabila aktif, dibebankan ke pelanggan (ditambahkan ke total) atau ditanggung restoran (tidak masuk total pelanggan, dicatat sebagai pengurang laba). Pada restoran objek penelitian ini, PB1 berstatus nonaktif (harga menu sudah final).
+9. Melakukan pengurangan stok porsi secara otomatis saat pesanan diinput ke POS (bukan saat pembayaran), dengan memperbolehkan stok bernilai negatif untuk mengakomodasi situasi habis di tengah hari.
+10. Mencatat masuknya stok darurat (fitur "Barang Masuk") saat pemilik mengirim restock dari rumah pada tengah hari.
+11. Memungkinkan restock pagi stok porsi dengan formula kelipatan lima yang menjaga stok akhir di atas batas minimum.
+12. Menyediakan fitur opname untuk koreksi nilai stok porsi ketika kondisi sistem menyimpang dari realita fisik, dengan jejak audit yang mencatat selisih dan pelaku koreksi.
+13. Menyediakan pencatatan modal/harga pokok (COGS) per menu yang hanya dapat diakses Pemilik, dengan nilai modal dinyatakan langsung per menu (bukan dihitung dari konsumsi bahan baku), serta jejak riwayat perubahan modal. Modal tidak ditampilkan pada katalog menu publik (POS).
+14. Mengelola shift: kasir membuka kasir dengan modal awal (sadar window jam shift yang dikonfigurasi owner dan dijaga guard satu shift terbuka sekaligus) dan menutup shift dengan mode penutupan final atau serah-terima.
+15. Melakukan setoran akhir hari (*settlement*) sekali untuk satu hari bisnis penuh oleh kasir penutup shift terakhir atau Pemilik, dengan rekap per metode pembayaran secara dinamis (total sistem dan total fisik *blind count*) beserta rincian per bank dan perhitungan variansnya.
+16. Menghitung laba rugi harian dengan rumus laba kotor = total penjualan dikurangi total harga modal (Σ `unit_cost` × jumlah terjual atas transaksi lunas), di mana modal di-*snapshot* per item saat order dibuat. Tagihan operasional bulanan ditampilkan terpisah dan tidak dikurangkan ke laba kotor.
+17. Mencatat tagihan operasional bulanan (kebersihan, listrik, air, parkir, sewa) yang hanya dapat diakses oleh Pemilik.
+18. Menyediakan dashboard per peran dengan reminder stok porsi menipis, serta laporan periodik pendapatan, COGS, dan laba kotor bagi Pemilik.
+19. Menyimpan jejak audit untuk seluruh perubahan stok porsi (`portion_movements`) dan modal menu (`menu_cost_movements`), sehingga pemilik dapat menelusuri kapan dan oleh siapa setiap perubahan terjadi.
+20. Menyediakan konfigurasi metode pembayaran dan bank serta pengaturan aplikasi (pajak PB1, jam shift untuk batas hari bisnis, identitas restoran) oleh Pemilik.
+21. Menerapkan pembatasan akses (otorisasi) per peran pada tingkat fungsional sesuai matriks kewenangan: Pemilik berakses penuh (termasuk tagihan, modal/COGS, master data, konfigurasi metode/bank, dan pengaturan aplikasi); kasir berakses ke pengelolaan transaksi (input order, pembayaran, merge, void), stok porsi, serta buka/tutup kasir dan setoran; sedangkan waiter **** dengan kasir dalam input pesanan dan pengelolaan stok porsi serta pemantauan meja, namun tidak berakses ke pembayaran, merge/void, buka/tutup kasir, setoran, modal/COGS, tagihan, maupun konfigurasi. Pembatasan diterapkan di antarmuka maupun di *endpoint* basis data.
 
-### Kebutuhan Non-Fungsional
+#### Kebutuhan Non-Fungsional
 
-> Selain kebutuhan fungsional, sistem juga harus memenuhi kebutuhan non-fungsional berikut:
->
-> 1. **Kemudahan penggunaan** - antarmuka harus dapat dioperasikan oleh pegawai non-teknis dengan minimal pelatihan, mengingat kasir merupakan anggota keluarga pemilik yang bukan pengguna teknologi mahir, dan waiter dilatih cepat untuk membantu input order.
-> 2. **Aksesibilitas mobile-first sebagai PWA** - aplikasi diakses melalui peramban pada telepon seluler dengan dukungan instalasi *progressive web app* ke layar utama, mengingat restoran tidak memiliki komputer maupun jaringan WiFi internal.
-> 3. **Konektivitas berbasis paket data atau WiFi tetangga** - sistem harus tetap responsif pada koneksi yang tidak stabil.
-> 4. **Keamanan akses dengan pembatasan per peran** - fitur input tagihan bulanan hanya dapat diakses oleh Pemilik meskipun kasir merupakan anggota keluarga.
-> 5. **Konsistensi dan jejak audit perubahan stok** - setiap perubahan stok porsi (akibat order, restock pagi, restock darurat, atau penyesuaian manual via opname) tercatat di log audit yang menyimpan alasan, kuantitas, dan pengguna pelakunya.
-> 6. **Kecepatan respons** - proses pembayaran satu transaksi tidak melebihi 30 detik sejak kasir menekan tombol bayar hingga konfirmasi muncul.
+1. **Kemudahan penggunaan** — antarmuka dapat dioperasikan pegawai non-teknis dengan minimal pelatihan.
+2. **Aksesibilitas mobile-first sebagai PWA** — diakses via peramban ponsel, dapat dipasang ke layar utama, karena restoran tidak memiliki komputer maupun jaringan WiFi internal.
+3. **Konektivitas berbasis paket data / WiFi seadanya** — sistem tetap responsif pada koneksi tidak stabil.
+4. **Keamanan akses dengan pembatasan per peran** — fitur sensitif (tagihan, modal/COGS, konfigurasi) hanya untuk Pemilik.
+5. **Konsistensi dan jejak audit** — setiap perubahan stok porsi dan modal menu tercatat di log audit (alasan, kuantitas/nilai, pengguna pelaku).
+6. **Kecepatan respons** — proses pembayaran satu transaksi tidak melebihi 30 detik sejak kasir menekan tombol bayar hingga konfirmasi muncul.
 
----
-
-## 3.1.4 Batasan Penelitian - Bill of Materials dan Inventori Bahan Baku (Out of Scope)
-
-> Perhitungan harga pokok produksi (HPP) berbasis bahan memerlukan data konsumsi bahan baku yang terukur dan tercatat secara akurat untuk setiap siklus produksi melalui *Bill of Materials* atau resep. Namun, pada restoran kecil berbasis keluarga seperti objek penelitian ini, proses memasak dilakukan secara batch tanpa penimbangan bahan yang baku, dan komposisi peracikan bumbu bersifat tidak tetap serta tidak terdokumentasi. Hal ini menyebabkan data input yang dibutuhkan untuk menghitung HPP berbasis bahan tidak tersedia secara konsisten. Oleh karena itu, sistem tidak menyertakan *Bill of Materials*, resep, maupun pencatatan inventori bahan baku mentah; inventori dibatasi pada barang siap jual satuan porsi (sesuai ruang lingkup penelitian Bab 1).
->
-> Sebagai gantinya, harga modal (*Cost of Goods Sold*/COGS) dinyatakan langsung per menu oleh Pemilik sebagai satu nilai modal per porsi yang bersifat *owner-authoritative*. Pelacakan laba rugi harian dilakukan dengan rumus laba kotor = total pendapatan dikurangi total harga modal (modal satuan dikalikan jumlah terjual) yang di-*snapshot* per item transaksi saat order dibuat, sementara tagihan operasional bulanan ditampilkan terpisah. Pendekatan ini dipilih karena sesuai dengan karakteristik restoran kecil yang tidak melakukan *standard costing*, namun tetap membutuhkan gambaran profitabilitas harian.
+**Batasan sistem (Bill of Materials dan inventori bahan baku — *out of scope*).** Perhitungan harga pokok produksi (HPP) berbasis bahan memerlukan data konsumsi bahan baku terukur per siklus produksi melalui *Bill of Materials* atau resep. Namun pada restoran kecil berbasis keluarga ini, proses memasak dilakukan secara *batch* tanpa penimbangan baku dan komposisi bumbu tidak terdokumentasi, sehingga data tersebut tidak tersedia konsisten. Oleh karena itu sistem tidak menyertakan *Bill of Materials*, resep, maupun pencatatan inventori bahan baku mentah, vendor, dan pembelian; inventori dibatasi pada barang siap jual satuan porsi (selaras ruang lingkup Bab 1.4). Sebagai gantinya, harga modal (COGS) dinyatakan langsung per menu oleh Pemilik dan laba kotor dihitung dari Pendapatan - (modal satuan × jumlah terjual) yang di-*snapshot* per item saat order.
 
 ---
 
-## 3.2.1 Proses Bisnis yang Diusulkan
+## 3.2 Desain Sistem
 
-> Sistem yang diusulkan mengubah proses bisnis restoran dari pencatatan manual berbasis buku menjadi pencatatan terintegrasi berbasis aplikasi *progressive web app* dengan basis data tunggal sebagai acuan. Proses bisnis yang dikomputerisasi mencakup delapan alur utama berikut.
->
-> **Pertama, autentikasi pengguna**, di mana setiap pegawai wajib login menggunakan kombinasi nama dan PIN enam digit. Saat pertama kali login di suatu perangkat, pegawai mengisi nama pengguna pada *field* teks dan PIN pada *numpad* enam digit, lalu menekan tombol kirim; sistem memvalidasi kombinasi nama dan PIN - apabila benar, pegawai diarahkan ke halaman dashboard yang menyesuaikan dengan peran (Pemilik, Kasir, atau Waiter), sekaligus menyimpan nama pegawai tersebut di penyimpanan lokal perangkat. Untuk login berikutnya di perangkat yang sama, sistem menampilkan layar PIN-only dengan nama pegawai terisi otomatis dari *cache* - pegawai cukup memasukkan PIN enam digit dan sistem otomatis memverifikasi. Tombol *Ganti Pengguna* tersedia bila perangkat dipakai pegawai berbeda, yang akan mereset *cache* dan kembali menampilkan form dua *field*. Apabila kombinasi nama dan PIN salah, sistem menampilkan pesan kesalahan dan pegawai mengulang pengisian PIN. PIN diperbolehkan duplikat antar pegawai karena identifikasi dilakukan melalui kombinasi nama dan PIN.
->
-> **Kedua, restock stok porsi pagi**, di mana waiter atau kasir mencatat jumlah restock per item stok porsi berdasarkan stok yang dibawa pagi dari rumah pemilik. Sistem menampilkan rekomendasi jumlah restock dalam kelipatan lima berdasarkan formula yang menjaga stok akhir di atas batas minimum, sebagai pengganti pencatatan manual di buku.
->
-> **Ketiga, opname stok porsi pagi**, di mana waiter atau kasir melakukan cek fisik stok porsi setelah restock pagi dicatat, kemudian mengoreksi nilai sistem apabila ditemukan selisih dengan kondisi fisik aktual. Aktivitas ini analog dengan rekonsiliasi cash, dilakukan untuk memastikan jumlah di sistem konsisten dengan jumlah nyata.
->
-> **Keempat, pengelolaan pesanan**, di mana kasir atau waiter memilih tipe order (dine-in dengan pemilihan meja, atau takeaway tanpa meja), lalu menambahkan item dari katalog. Apabila item yang dipilih adalah paket dengan sub-pilihan, sistem menampilkan dialog pemilihan variant terlebih dahulu (misalnya paha atau dada, bakar atau goreng). Stok porsi otomatis berkurang saat pesanan disimpan, dan diperbolehkan menjadi negatif untuk mengakomodasi situasi habis di tengah hari.
->
-> **Kelima, pencatatan barang masuk**, di mana saat pemilik mengirim restock darurat dari rumah pada tengah hari (via Gojek, Grab, atau antar pribadi), kasir mencatat jumlah barang yang datang dan sistem otomatis menambah stok porsi terkait, sehingga stok yang sempat negatif kembali ke nilai positif.
->
-> **Keenam, pembayaran**, di mana kasir memilih metode pembayaran dari enam opsi (cash, EDC, QRIS, Gojek, Grab, transfer). Untuk metode EDC dan transfer, sistem menampilkan input bank dengan autocomplete dari riwayat bank sebelumnya agar laporan rekonsiliasi dapat dilakukan per bank. Sistem menambahkan pajak PB1 sepuluh persen secara otomatis, dan mendukung diskon manual. Sistem juga menyediakan dukungan *split bill* (pemecahan tagihan per item per pelanggan menghasilkan beberapa struk) dan *merge bill* (penggabungan tagihan dari beberapa meja menjadi satu struk via mekanisme self-reference). Struk dicetak dalam format PDF dan disimpan ke perangkat kasir.
->
-> **Ketujuh, tutup kasir akhir hari** oleh kasir shift malam saja, di mana sistem menampilkan total penjualan per enam metode pembayaran beserta rincian per bank untuk EDC dan transfer, kasir memasukkan jumlah fisik per metode, dan sistem menghitung variansnya untuk dokumentasi rekonsiliasi.
->
-> **Kedelapan, pencatatan tagihan operasional bulanan** oleh Pemilik dengan kategori (kebersihan, listrik, air, parkir, atau sewa) dan nominal, sebagai pengganti tempelan struk pada buku pencatatan lama. Fitur ini hanya dapat diakses oleh Pemilik meskipun kasir merupakan anggota keluarga. Selain itu, Pemilik menetapkan harga modal (COGS) per menu yang dipakai sistem untuk menghitung laporan laba rugi harian (laba kotor = pendapatan dikurangi COGS); penetapan modal ini berupa pengisian satu nilai modal per menu, bukan alur operasional harian, sehingga tidak digambarkan sebagai *activity diagram* tersendiri.
+### 3.2.1 Blok Diagram Desain Sistem
 
----
+Gambaran umum rancangan sistem ditunjukkan pada Gambar 3.1 dalam bentuk blok diagram yang memetakan empat komponen: *sumber data* (masukan), *modul utama* (proses), *keluaran*, dan *pengguna* sistem.
 
-## 3.2.2 Use Case Diagram
+**Sumber data** yang menjadi masukan sistem meliputi data pengguna dan hak akses; data menu beserta varian, paket, dan modal (COGS); data stok porsi; data transaksi dan pembayaran; data shift, setoran, dan tagihan operasional; serta data konfigurasi (metode pembayaran, bank, pajak PB1, jam shift, dan identitas restoran).
 
-> *Use case diagram* pada Gambar 3.1 mendeskripsikan interaksi antara pengguna dengan Sistem POS Restoran. Sistem melibatkan tiga aktor - Pemilik (*Owner*), Kasir, dan Waiter - yang berinteraksi dengan sembilan belas *use case* yang terbagi dalam empat domain.
->
-> Domain pertama adalah autentikasi melalui *use case* `Login` yang wajib dilakukan oleh seluruh aktor. Domain kedua adalah operasional transaksi yang mencakup `Buka Kasir`, `Mengelola Pesanan Meja` (dua tipe order: dine-in dan takeaway), `Memilih Sub-Pilihan Paket`, `Memecah Tagihan`, `Menggabungkan Tagihan`, `Membatalkan Pesanan`, `Memproses Pembayaran` (dengan input bank untuk EDC dan transfer), `Mencetak Struk`, dan `Tutup Kasir`. Domain ketiga adalah manajemen stok yang mencakup `Restock Stok Porsi` (pagi, kelipatan lima), `Mencatat Barang Masuk` (restock darurat tengah hari), dan `Melakukan Opname Stok Porsi` (pagi setelah restock). Domain keempat adalah administrasi dan laporan yang mencakup `Mengelola Menu`, `Kelola Modal/COGS Menu` (Pemilik), `Mengelola Pengguna`, `Mencatat Tagihan Bulanan` (Pemilik), `Mereview Settlement`, dan `Melihat Dashboard dan Laporan`.
->
-> Hubungan `<<include>>` ditunjukkan dari setiap *use case* operasional ke `Login`, menandakan bahwa autentikasi merupakan prasyarat wajib (delapan belas hubungan include). Hubungan `<<extend>>` digunakan pada tiga skenario opsional: `Mencetak Struk` ke `Memproses Pembayaran` (struk dicetak hanya apabila pelanggan meminta), `Memilih Sub-Pilihan Paket` ke `Mengelola Pesanan Meja` (sub-pilihan muncul hanya apabila item yang ditambahkan adalah paket), dan `Memecah Tagihan` ke `Memproses Pembayaran` (split bill dilakukan hanya apabila pelanggan meminta bill terpisah per pelanggan). Sesuai ruang lingkup penelitian, sistem membatasi inventori pada barang siap jual satuan porsi sehingga tidak terdapat *use case* pengelolaan bahan baku mentah, vendor, maupun pencatatan pembelian; harga modal/COGS dinyatakan langsung per menu oleh Pemilik melalui *use case* `Kelola Modal/COGS Menu`.
+**Modul utama** sistem terdiri atas tujuh modul. *Modul Autentikasi & Hak Akses* mengatur login dan kewenangan per peran. *Modul Manajemen Menu & Modal/COGS* mengelola katalog menu beserta varian, paket, dan harga modal. *Modul Manajemen Stok Porsi* menangani restock pagi, barang masuk, dan opname. *Modul Pemesanan (POS)* mencatat pesanan dine-in dan takeaway. *Modul Pembayaran & Rekonsiliasi Shift* memproses pembayaran (termasuk *split-tender*) serta buka/tutup kasir dan setoran akhir hari. *Modul Dashboard & Laporan* menyajikan informasi sesuai peran. *Modul Konfigurasi & Pengaturan* mengatur metode pembayaran, bank, PB1, jam shift, dan identitas restoran.
 
-**Gambar 3.1** *Use Case Diagram Sistem POS Restoran*
+**Keluaran** yang dihasilkan meliputi laporan laba rugi harian (Pendapatan - COGS), rekap pendapatan per metode dan per bank, hasil setoran akhir hari beserta selisih kas (*over/short*), status dan pengingat (*reminder*) stok porsi, struk pembayaran PDF, serta riwayat transaksi dan jejak audit.
+
+**Pengguna** sistem terdiri atas tiga peran — Pemilik (*Owner*), Kasir, dan Waiter — yang mengakses modul sesuai kewenangan masing-masing sebagaimana diuraikan pada sub-bab 3.1.3.
+
+**Gambar 3.1** *Blok Diagram Desain Sistem POS Restoran*
+*(File: `docs/diagrams/blok-diagram-desain-sistem.png`)*
+
+### 3.2.2 Use Case Diagram
+
+Pada proses bisnis yang diusulkan (*to-be*), pencatatan manual berbasis buku digantikan sistem terintegrasi sehingga setiap peran mencatat dan mengakses data melalui satu basis data. Interaksi antara pengguna dan sistem digambarkan pada *use case diagram* di Gambar 3.2, yang melibatkan tiga aktor — Pemilik (*Owner*), Kasir, dan Waiter — beserta fitur yang dapat diakses masing-masing sesuai kewenangannya. Kasir dan Waiter setara (*co-equal*) dalam mencatat pesanan, sedangkan pemrosesan pembayaran, pembukaan/penutupan kasir, dan setoran hanya untuk Kasir dan Pemilik, serta pengelolaan data master (menu, modal/COGS, pengguna, tagihan) dan konfigurasi aplikasi hanya untuk Pemilik.
+
+**Gambar 3.2** *Use Case Diagram Sistem POS Restoran*
 *(File: `docs/diagrams/use-case-diagram-sistem-pos-restoran.png`)*
 
----
+### 3.2.3 Activity Diagram
 
-## 3.2.3 Activity Diagram
+Berdasarkan *use case*, dirancang sebelas *activity diagram* yang menggambarkan alur tiap proses bisnis menggunakan *swimlane* per aktor, masing-masing dengan satu *initial node* dan satu *activity final node*. Ringkasan alur tiap diagram diuraikan berikut; diagram lengkap dapat ditempatkan pada Lampiran sesuai Pedoman.
 
-> *Activity diagram* digunakan untuk menggambarkan alur kerja proses bisnis utama yang teridentifikasi pada *use case diagram*. Setiap *activity diagram* menggunakan *swimlane* (partisi vertikal) untuk memisahkan tanggung jawab antara aktor dan sistem. Setiap aksi dinyatakan dalam bahasa bisnis yang mudah dipahami oleh pegawai non-teknis. Setiap titik keputusan diberi label pertanyaan dengan jawaban `Ya` atau `Tidak` pada masing-masing cabang. Sub-bab berikut menjelaskan sembilan *activity diagram* yang dirancang untuk sistem ini. (Catatan REV 2.11: *activity diagram* Opname Raw Materials dan Mencatat Pembelian dihapus bersama subsistem belanja/raw-materials; penomoran Gambar di bawah perlu disusun ulang oleh penulis.)
+**Login (A.1).** Pengguna memasukkan nama dan PIN; bila valid sistem mengarahkan ke dashboard sesuai peran, bila salah pengguna diminta mengulang. 
+**Mengelola Pesanan (A.2).** Kasir atau waiter (*co-equal*) memilih tipe order (dine-in pilih meja / takeaway) dan menambahkan item dengan pemilihan varian/paket bila perlu — lalu menyimpan pesanan sehingga stok porsi otomatis berkurang dan modal di-*snapshot*
+**Memproses Pembayaran (A.3).** Kasir memilih metode pembayaran (memilih bank bila diperlukan) dan menambah *slice* hingga lunas (*split-tender*), lalu mencetak struk bila diminta
+**Buka Kasir (A.4).** Kasir membuka shift dengan modal awal setelah sistem memastikan tidak ada shift lain yang aktif dan masih dalam jam operasional
+**Tutup Kasir (A.5).** Kasir menutup shift dengan mode final (diblok bila masih ada transaksi belum dibayar) atau serah-terima ke kasir berikutnya
+**Setoran Akhir Hari (A.6).** Kasir atau Pemilik menginput jumlah fisik per metode secara *blind count*; sistem menghitung selisih terhadap total sistem lalu menyimpan setoran untuk satu hari bisnis
+**Restock Stok Porsi Pagi (A.7).** Waiter atau kasir menginput jumlah restock (kelipatan lima) mengikuti rekomendasi sistem sehingga stok bertambah dan tercatat di log
+**Mencatat Barang Masuk (A.8).** Saat restock darurat tengah hari tiba, waiter atau kasir menginput jumlah yang datang sehingga stok porsi bertambah dan tercatat di log
+**Opname Stok Porsi (A.9).** Waiter atau kasir menginput jumlah fisik per item; bila ada selisih, sistem mengoreksi stok dan mencatat penyesuaian
+**Mencatat Tagihan Bulanan (A.10).** Pemilik mengisi bulan, kategori, dan jumlah tagihan; setelah validasi, sistem menyimpan dan menampilkan daftar tagihan bulan itu
+**Kelola Menu dan Modal/COGS (A.11).** Pemilik menambah atau mengubah menu beserta modal; bila modal berubah, sistem mencatatnya ke log riwayat modal 
 
-### 3.2.3.1 Activity Diagram Login
 
-> Gambar 3.2 menjelaskan alur proses login. Aktor (Pemilik, Kasir, atau Waiter) membuka aplikasi POS, lalu sistem menampilkan formulir login berisi dua *field*: nama pengguna dan PIN enam digit. Aktor mengetik nama pengguna mereka secara manual dan memasukkan PIN, lalu menekan tombol kirim. Sistem melakukan validasi dengan mencari pengguna berdasarkan nama yang dimasukkan dan mencocokkan PIN - PIN diperbolehkan duplikat antar pegawai karena identifikasi dilakukan melalui kombinasi nama dan PIN, dengan nama yang unik per pegawai berfungsi sebagai identifier dan PIN sebagai kata sandi. Apabila kombinasi nama dan PIN tidak cocok, sistem menampilkan pesan kesalahan dan aktor mengulang pengisian. Apabila cocok, sistem mengarahkan aktor ke halaman dashboard yang menyesuaikan dengan peran pengguna. Aktivitas ini tidak menggunakan layar pemilihan nama dari daftar maupun mekanisme penyimpanan nama pengguna terakhir di perangkat - setiap login pegawai mengetik nama mereka manual, sesuai realita restoran kecil keluarga di mana satu perangkat dapat dipakai bergantian oleh beberapa pegawai dalam satu shift.
+### 3.2.4 Entity Relationship Diagram dan Kamus Data
 
-**Gambar 3.2** *Activity Diagram Login*
-*(File: `docs/diagrams/activity-diagram-login.png`)*
+Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.14 menggunakan notasi *crow's-foot*.
 
-### 3.2.3.2 Activity Diagram Order Flow
-
-> Gambar 3.3 menjelaskan alur pengelolaan pesanan dengan tiga *swimlane*: Waiter, Kasir, dan Sistem. Untuk pesanan *dine-in*, waiter menerima pesanan secara verbal dari pelanggan di meja, mencatatnya di kertas, dan menyerahkan catatan tersebut ke kasir melalui dapur restoran (yang menyiapkan makanan dari stok beku jadi). Kasir kemudian memilih tipe order *dine-in* di sistem dan memilih nomor meja - sistem akan memeriksa apakah meja sudah memiliki transaksi yang masih terbuka sebelumnya dan menggabungkan dengan pesanan yang sudah ada bila perlu, mengakomodasi praktik pelanggan dine-in yang menambah pesanan beberapa kali dalam satu sesi makan. Untuk pesanan *takeaway* (baik pelanggan walk-in yang datang langsung minta dibungkus, maupun pesanan yang masuk dari aplikasi GoFood atau GrabFood), kasir langsung memilih tipe *takeaway* di sistem tanpa pemilihan meja dan tanpa perantara waiter. Sumber order takeaway tidak dipilah pada tahap ini karena akan dibedakan melalui metode pembayaran di tahap berikutnya. Apabila kasir sedang tidak tersedia (misalnya sedang menelepon pemilik untuk koordinasi restock atau sedang menangani urusan operasional lain), waiter dapat menginput pesanan langsung ke sistem sebagai jalur *fallback* dengan akun POS-nya sendiri - diagram pada Gambar 3.3 menggambarkan alur *primary*, sedangkan alur *fallback* memiliki langkah-langkah identik dengan jalur kasir, hanya saja aktor pada *swimlane* berbeda.
->
-> Setelah tipe order dipilih, sistem menampilkan grid katalog menu. Saat aktor memilih item, sistem memeriksa apakah item tersebut merupakan paket dengan sub-pilihan dinamis. Apabila ya, sistem menampilkan dialog pemilihan variant (misalnya paha atau dada, bakar atau goreng, jenis minuman). Berdasarkan pilihan tersebut, sistem memetakan ke stok porsi target yang akan berkurang. Apabila item bukan paket, sistem langsung menggunakan item itu sendiri. Item lalu ditambahkan ke keranjang. Setelah selesai menambahkan semua item, aktor menyimpan pesanan, dan sistem mengurangi stok porsi untuk setiap item dengan jenis stok porsi atau berbagi stok (boleh menjadi negatif) sekaligus mencatat log audit perubahan stok pada `portion_movements`.
-
-**Gambar 3.3** *Activity Diagram Order Flow*
-*(File: `docs/diagrams/activity-diagram-order-flow.png`)*
-
-### 3.2.3.3 Activity Diagram Pay Flow
-
-> Gambar 3.4 menjelaskan alur pembayaran pesanan. Kasir memilih opsi bayar untuk transaksi yang masih terbuka, kemudian sistem menampilkan rincian: subtotal, diskon (yang dapat diisi manual oleh kasir), pajak PB1 10% yang otomatis dihitung dari subtotal dikurangi diskon, dan total akhir. Sistem menampilkan enam metode pembayaran yang tersedia (cash, EDC, QRIS, Gojek, Grab, transfer) - semua metode tersedia untuk kedua tipe order karena sumber takeaway dibedakan dari metode pembayaran yang dipilih.
->
-> Kasir memilih metode pembayaran. Apabila metode adalah EDC atau transfer, sistem menampilkan input bank pendamping dengan autocomplete dari riwayat bank sebelumnya (misalnya BCA, Mandiri, BRI) - input ini wajib karena Pemilik membutuhkan laporan rekonsiliasi per bank untuk mutasi rekening. Apabila metode adalah cash, sistem meminta input jumlah uang diterima dan memvalidasi kecukupan nominal - jika kurang, alur kembali ke input. Setelah validasi lolos, sistem menandai pesanan sebagai lunas. Jika pelanggan meminta split bill, sistem mengalihkan ke alur pemecahan tagihan (Gambar 3.12) yang menghasilkan beberapa struk terpisah. Jika pelanggan meminta cetak struk, sistem menghasilkan struk dalam format PDF dan menyimpannya ke perangkat kasir. Sistem akhirnya menampilkan konfirmasi pembayaran beserta jumlah kembalian apabila pembayaran cash.
-
-**Gambar 3.4** *Activity Diagram Pay Flow*
-*(File: `docs/diagrams/activity-diagram-pay-flow.png`)*
-
-### 3.2.3.4 Activity Diagram Restock Stok Porsi Pagi
-
-> Gambar 3.5 menjelaskan alur restock pagi yang dilakukan oleh waiter atau kasir setelah pemilik mengirim stok dari rumah. Aktor membuka halaman Stok Porsi, lalu sistem menampilkan 25 item stok porsi dengan informasi: kondisi stok saat ini, batas minimum, dan rekomendasi jumlah restock yang dihitung dengan formula pembulatan ke atas dari selisih batas minimum dan stok saat ini dibagi lima, dikalikan lima (sehingga restock selalu dalam kelipatan lima dan menjaga stok akhir di atas batas minimum). Aktor memasukkan jumlah restock per item (umumnya mengikuti rekomendasi), lalu sistem memperbarui kondisi stok dan mencatat log audit dengan alasan "restock pagi".
-
-**Gambar 3.5** *Activity Diagram Restock Stok Porsi Pagi*
-*(File: `docs/diagrams/activity-diagram-restock-stok-porsi-pagi.png`)*
-
-### 3.2.3.5 Activity Diagram Mencatat Barang Masuk
-
-> Gambar 3.6 menjelaskan alur pencatatan barang masuk untuk restock darurat di tengah hari. Apabila stok porsi habis di tengah jam operasional (misalnya ayam bakar atau goreng yang sering habis), kasir menghubungi pemilik di rumah. Pemilik kemudian mengirim stok ke restoran melalui Gojek, Grab, atau diantar sendiri. Saat barang sampai, kasir atau waiter membuka halaman Stok Porsi dan menekan tombol Barang Masuk, lalu sistem menampilkan daftar item stok porsi beserta kondisi stoknya saat ini. Aktor memasukkan jumlah barang yang datang per item (umumnya dalam kelipatan lima) beserta catatan opsional (misalnya "Antar via Gojek 18:30, ayam bakar 5 + paha bakar 10"). Sistem kemudian menambahkan jumlah tersebut ke stok porsi terkait (sehingga stok yang sempat negatif kembali ke nilai positif) dan mencatat log audit dengan alasan "restock darurat".
-
-**Gambar 3.6** *Activity Diagram Mencatat Barang Masuk*
-*(File: `docs/diagrams/activity-diagram-mencatat-barang-masuk.png`)*
-
-### 3.2.3.6 Activity Diagram Opname Stok Porsi
-
-> Gambar 3.7 menjelaskan alur opname stok porsi yang dilakukan kasir atau waiter, paling tepat di pagi hari setelah restock pagi dicatat. Aktor membuka halaman Stok Porsi dan menekan tombol Cek Fisik & Koreksi, lalu sistem menampilkan daftar 25 item dengan kondisi stok saat ini sebagai nilai default. Aktor mengecek kondisi fisik aktual di tempat penyimpanan, lalu memasukkan jumlah fisik untuk item yang berbeda dari kondisi sistem. Saat aktor menyimpan, sistem menghitung selisih per item, memperbarui kondisi stok ke jumlah fisik aktual, dan mencatat log audit dengan alasan "penyesuaian manual" beserta catatan selisih positif atau negatif. Aktivitas ini dirancang sebagai analog terhadap rekonsiliasi kas akhir shift - meskipun sistem sudah mencatat semua transaksi, tetap diperlukan verifikasi fisik untuk mendeteksi kebocoran (tumpah, busuk, salah catat) yang tidak terekam pada transaksi normal.
-
-**Gambar 3.7** *Activity Diagram Opname Stok Porsi*
-*(File: `docs/diagrams/activity-diagram-opname-stok-porsi.png`)*
-
-> 🚧 **DIHAPUS REV 2.11:** sub-bab "Activity Diagram Opname Raw Materials" beserta Gambar terkait dihapus karena subsistem raw materials keluar dari ruang lingkup sistem (inventori = finished-goods porsi saja). Penomoran Gambar dan sub-bab berikutnya perlu disusun ulang oleh penulis.
-
-### 3.2.3.7 Activity Diagram Tutup Kasir
-
-> Gambar 3.9 menjelaskan alur tutup kasir akhir hari yang dilakukan oleh kasir shift malam saja, sekali dalam satu hari. Kasir mengklik tombol Tutup Kasir, lalu sistem memeriksa apakah masih ada pesanan yang belum dibayar. Apabila ada, sistem menampilkan peringatan dan daftar meja yang masih terbuka, serta meminta kasir menyelesaikan pembayaran terlebih dahulu - alur berakhir lebih awal. Apabila tidak ada, sistem menghitung total penjualan per enam metode pembayaran (cash, EDC, QRIS, Gojek, Grab, transfer) berdasarkan data transaksi pada hari tersebut beserta rincian per bank untuk EDC dan transfer (misalnya EDC BCA 200K, EDC Mandiri 150K), kemudian menampilkan form rekap dengan dua kolom: total dari sistem dan input total fisik dari kasir.
->
-> Kasir mengisi total fisik untuk masing-masing dari enam metode (cash dihitung dari laci kas, sementara EDC, QRIS, Gojek, Grab, dan transfer dihitung dari mutasi rekening atau aplikasi merchant). Sistem menghitung varians per metode sebagai selisih antara total fisik dan total sistem, lalu menampilkan ringkasan rekap beserta total varians keseluruhan. Setelah kasir mengkonfirmasi, sistem menyimpan hasil rekap ke tabel `settlements` dan menutup shift dengan menandai waktu penutupan.
-
-**Gambar 3.9** *Activity Diagram Tutup Kasir*
-*(File: `docs/diagrams/activity-diagram-tutup-kasir.png`)*
-
-> 🚧 **DIHAPUS REV 2.11:** sub-bab "Activity Diagram Mencatat Pembelian" beserta Gambar terkait dihapus karena fitur pencatatan pembelian belanja (beserta vendor dan raw materials) keluar dari ruang lingkup sistem. Penomoran Gambar dan sub-bab berikutnya perlu disusun ulang oleh penulis.
-
-### 3.2.3.8 Activity Diagram Mencatat Tagihan Bulanan
-
-> Gambar 3.11 menjelaskan alur Pemilik dalam mencatat tagihan operasional bulanan. Pemilik membuka halaman Tagihan (kasir tidak memiliki akses ke halaman ini meskipun kasir merupakan anggota keluarga, baik di sisi *user interface* maupun *endpoint* basis data). Sistem menampilkan formulir dengan kolom bulan (dalam format YYYY-MM), kategori (kebersihan, listrik, air, parkir, atau sewa), jumlah nominal, dan catatan opsional. Pemilik mengisi data, lalu sistem memvalidasi input. Apabila tidak valid (misalnya jumlah kosong atau peran bukan Pemilik), sistem menampilkan pesan kesalahan. Apabila valid, sistem menyimpan tagihan dan menampilkan daftar tagihan bulan ini beserta total.
-
-**Gambar 3.11** *Activity Diagram Mencatat Tagihan Bulanan*
-*(File: `docs/diagrams/activity-diagram-mencatat-tagihan.png`)*
-
-### 3.2.3.9 Activity Diagram Split Bill dan Merge Bill
-
-> Gambar 3.12 menjelaskan dua alur terkait: pemecahan tagihan (*split bill*) dan penggabungan tagihan (*merge bill*).
->
-> **Alur split bill** dimulai saat kasir berada di dialog pembayaran dan pelanggan meminta tagihan dipisah per pelanggan. Kasir menekan opsi Split Bill, lalu sistem menampilkan daftar semua item dan tombol untuk menambah pelanggan baru (misalnya Pelanggan A, Pelanggan B). Kasir mengelompokkan item ke pelanggan masing-masing - setiap item dapat ditandai sebagai milik pelanggan tertentu via *party id*. Sistem menghitung total per pelanggan (subtotal beserta proporsi diskon dan PB1). Kasir kemudian memproses pembayaran satu per satu per pelanggan, dengan metode pembayaran dan bank yang bisa berbeda antar pelanggan, dan sistem menghasilkan struk PDF terpisah untuk masing-masing.
->
-> **Alur merge bill** dimulai saat kasir berada di halaman Meja dan rombongan dari beberapa meja meminta bayar bersama. Kasir menekan opsi Merge Bill, lalu sistem menampilkan daftar meja yang sedang terisi. Kasir memilih dua atau lebih meja yang akan digabung, dan sistem menampilkan keranjang gabungan berisi semua item dari transaksi-transaksi tersebut. Setelah kasir mengkonfirmasi, sistem membuat transaksi parent baru sebagai gabungan, lalu menandai transaksi sumber dengan *self-reference* `merged_into_id` agar jejak audit tetap terjaga. Kasir kemudian memproses pembayaran normal untuk transaksi parent yang sudah digabung tersebut (bisa juga dipecah lebih lanjut dengan split bill).
-
-**Gambar 3.12** *Activity Diagram Split Bill dan Merge Bill*
-*(File: `docs/diagrams/activity-diagram-split-merge-bill.png`)*
-
----
-
-## 3.2.4 Entity Relationship Diagram
-
-> Struktur penyimpanan data sistem dirancang dengan pendekatan basis data relasional yang digambarkan dalam *Entity Relationship Diagram* pada Gambar 3.13 menggunakan notasi *crow's-foot*.
-
-**Gambar 3.13** *Entity Relationship Diagram Sistem POS Restoran*
+**Gambar 3.14** *Entity Relationship Diagram Sistem POS Restoran*
 *(File: `docs/diagrams/erd-sistem-pos-restoran.png`)*
 
-> Sistem terdiri atas sepuluh entitas utama. Entitas `users` menyimpan data seluruh pengguna beserta peran (Pemilik, Kasir, atau Waiter) dan PIN autentikasi yang diperbolehkan duplikat antar pegawai karena identifikasi dilakukan via nama. Entitas `menus` menyimpan master katalog 60 menu beserta klasifikasi jenis stok (porsi yang ditrack, varian yang berbagi stok dengan menu lain, atau tanpa stok), batas minimum stok, definisi sub-pilihan dalam format JSON untuk menu paket, serta harga modal (*Cost of Goods Sold*/COGS) per menu pada kolom `cost` yang hanya dapat diakses Pemilik dan tidak dibocorkan ke katalog publik. Entitas `portion_stocks` menyimpan kondisi stok porsi terkini per menu sebagai *live count* yang terus berubah seiring transaksi (dengan dukungan nilai negatif untuk mengakomodasi situasi habis di tengah hari) beserta kondisi awal hari (*opening qty*) yang otomatis di-snapshot saat pengguna pertama login pagi - kondisi ini dipakai untuk menghitung metric "terjual hari ini" pada dashboard. Entitas `portion_movements` menyimpan log audit setiap perubahan stok porsi beserta alasannya (akibat order, restock pagi, restock darurat, atau penyesuaian manual via opname), dan entitas `menu_cost_movements` menyimpan log audit setiap perubahan harga modal per menu (nilai sebelum dan sesudah, alasan, pengguna pelaku, dan waktu).
->
-> Entitas `shifts` mencatat siklus shift per kasir per hari per jenis (pagi atau malam) beserta modal awal laci kas. Entitas `transactions` menyimpan *header* pesanan dengan dua tipe order (dine-in atau takeaway), nomor meja yang opsional, status pesanan, metode pembayaran beserta nama bank pendamping yang terisi khusus untuk metode EDC dan transfer (agar laporan rekonsiliasi dapat dilakukan per bank), rincian nominal termasuk pajak PB1 10%, dan *self-reference* `merged_into_id` untuk mengakomodasi fitur merge bill. Entitas `transaction_items` sebagai entitas asosiatif (*junction*) antara menu dan transaksi yang menyimpan jumlah, harga jual *snapshot*, harga modal *snapshot* (`unit_cost`) untuk perhitungan laba kotor, pilihan sub-options untuk paket, dan identifier pelanggan (*party id*) untuk dukungan split bill. Entitas `settlements` menyimpan hasil rekap akhir hari oleh kasir shift malam dengan enam total metode pembayaran (sistem dan fisik); rincian per bank untuk EDC dan transfer dihitung di *runtime* dari tabel transaksi sehingga tidak disimpan duplikat di tabel ini. Entitas `bills` menyimpan tagihan operasional bulanan yang hanya dapat diakses oleh Pemilik dan ditampilkan terpisah dari laba kotor. Sesuai ruang lingkup penelitian, sistem tidak menyertakan entitas bahan baku mentah (*raw materials*), vendor, maupun pencatatan pembelian.
->
-> Sistem memiliki tujuh belas relasi yang menghubungkan entitas-entitas tersebut, dengan dominasi relasi satu-ke-banyak (sebagai contoh, satu kasir dapat melakukan banyak transaksi), satu relasi satu-ke-satu antara `shifts` dan `settlements` di mana setiap shift malam menghasilkan tepat satu rekap, dan satu relasi *self-reference* pada `transactions` untuk merge bill. Relasi banyak-ke-banyak antara menu dan transaksi dijabarkan sebagai entitas asosiatif `transaction_items`. Sistem secara sengaja tidak menyertakan *Bill of Materials* atau resep yang men-*decrement* bahan mentah saat order; harga modal (COGS) dinyatakan langsung per menu, sesuai keputusan perancangan bahwa HPP berbasis bahan berada di luar lingkup sistem (lihat sub-bab 3.1.4 Batasan Penelitian). Detail atribut dan tipe data setiap entitas dijabarkan pada Tabel 3.2 hingga Tabel 3.11 di sub-bab berikutnya. *(Catatan REV 2.11: penomoran Gambar dan Tabel perlu disusun ulang oleh penulis sesuai pengurangan entitas dan diagram.)*
+Sistem menyimpan data dalam **dua puluh tiga entitas** yang dikelompokkan menjadi lima: (1) operasional inti (`users`, `shifts`, `transactions`, `transaction_items`, `transaction_payments`, `settlements`, `settlement_method_counts`); (2) katalog dan varian (`menus`, `menu_option_groups`, `menu_options`, `menu_variants`, `menu_variant_options`, `paket_components`, `paket_choice_options`, `transaction_item_selections`); (3) stok porsi (`portion_stocks`, `portion_movements`); (4) konfigurasi pembayaran (`payment_methods`, `banks`, `payment_method_banks`); dan (5) administrasi/audit (`bills`, `app_settings`, `menu_cost_movements`). Antar entitas terhubung oleh sekitar tiga puluh sembilan relasi *foreign key* yang didominasi relasi satu-ke-banyak, dengan satu relasi satu-ke-satu (`shifts`–`settlements`), satu *self-reference* (`transactions.merged_into_id` untuk merge bill), dan dua relasi banyak-ke-banyak melalui entitas junction (`payment_method_banks` dan `menu_variant_options`). Sesuai ruang lingkup, sistem tidak menyertakan entitas bahan baku mentah, vendor, maupun pembelian; modal/COGS dinyatakan langsung per menu pada kolom `cost` (lihat batasan pada sub-bab 3.1.3).
 
----
+Definisi atribut sebelas entitas inti dijabarkan pada Tabel 3.2 hingga Tabel 3.12 berikut; skema lengkap 23 entitas terdapat pada [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md).
 
-## 3.2.5 Data Dictionary
+Tabel `users` menyimpan data seluruh pengguna (Pemilik, Kasir, Waiter) beserta PIN autentikasi yang boleh duplikat antar pegawai karena identifikasi dilakukan via kombinasi nama dan PIN, sebagaimana ditunjukkan pada Tabel 3.2.
 
-> Definisi rinci atribut, tipe data, dan keterangan untuk setiap entitas dijabarkan pada Tabel 3.2 hingga Tabel 3.15 berikut. Tipe data yang digunakan merujuk pada konvensi DBMS basis data relasional standar.
+**Tabel 3.2** *Definisi Atribut Tabel `users`*
 
-**Cara melengkapi:**
-
-Buka [`docs/DATA-DICTIONARY.md`](../DATA-DICTIONARY.md) (PERLU UPDATE ke REV 2.3 - saat ini masih versi REV 1 dengan 8 entitas; perlu rewrite ke 14 entitas REV 2.2 - REV 2.3 tidak menambah entitas, hanya bump version). Untuk masing-masing entitas, tulis pengantar 1 kalimat lalu tempel tabel di bawahnya:
-
-| Tabel | Entitas | Pengantar (paste-ready) |
+| Field | Tipe Data | Keterangan |
 |---|---|---|
-| 3.2 | `users` | "Tabel `users` menyimpan data seluruh pengguna sistem POS yang terbagi dalam tiga peran (Pemilik, Kasir, Waiter) beserta PIN autentikasinya. PIN diperbolehkan duplikat antar pegawai karena identifikasi via nama. Definisi rinci atribut ditunjukkan pada Tabel 3.2." |
-| 3.3 | `menus` | "Tabel `menus` menyimpan master katalog menu siap jual beserta harga, kategori, klasifikasi jenis stok, batas minimum stok, dan definisi sub-pilihan untuk menu paket. Definisi rinci atribut ditunjukkan pada Tabel 3.3." |
-| 3.4 | `portion_stocks` | "Tabel `portion_stocks` menyimpan kondisi stok porsi terkini per menu sebagai *live count* (dengan dukungan nilai negatif) beserta kondisi awal hari (*opening qty*) yang otomatis di-snapshot saat pengguna pertama login pagi. Definisi rinci atribut ditunjukkan pada Tabel 3.4." |
-| 3.5 | `portion_movements` | "Tabel `portion_movements` (revisi penyesuaian nama dari `stock_movements`) menyimpan log audit setiap perubahan stok porsi beserta alasan dan pengguna yang melakukannya. Definisi rinci atribut ditunjukkan pada Tabel 3.5." |
-| 3.6 | `menu_cost_movements` | "Tabel `menu_cost_movements` menyimpan log audit setiap perubahan harga modal (COGS) per menu beserta nilai sebelum dan sesudah, alasan, pengguna pelaku (Pemilik), dan waktu kejadian. Definisi rinci atribut ditunjukkan pada Tabel 3.6." |
-| 3.7 | `shifts` | "Tabel `shifts` mencatat siklus shift per kasir per hari per jenis (pagi atau malam) beserta modal awal yang diinput saat buka kasir. Definisi rinci atribut ditunjukkan pada Tabel 3.7." |
-| 3.8 | `transactions` | "Tabel `transactions` menyimpan *header* pesanan beserta tipe order, status, total, metode pembayaran beserta nama bank pendamping untuk EDC dan transfer, pajak PB1, dan *self-reference* untuk merge bill. Definisi rinci atribut ditunjukkan pada Tabel 3.8." |
-| 3.9 | `transaction_items` | "Tabel `transaction_items` menyimpan rincian item per transaksi sebagai entitas asosiatif antara menu dan transaksi, lengkap dengan jumlah, harga jual *snapshot*, harga modal *snapshot* (`unit_cost`), pilihan sub-options paket, dan identifier pelanggan untuk split bill. Definisi rinci atribut ditunjukkan pada Tabel 3.9." |
-| 3.10 | `settlements` | "Tabel `settlements` menyimpan rekap akhir hari oleh kasir shift malam dengan enam total metode pembayaran sistem dan fisik. Definisi rinci atribut ditunjukkan pada Tabel 3.10." |
-| 3.11 | `bills` | "Tabel `bills` menyimpan tagihan operasional bulanan yang hanya dapat diakses oleh Pemilik. Definisi rinci atribut ditunjukkan pada Tabel 3.11." |
+| id | INT (PK, auto-increment) | ID unik pengguna |
+| name | VARCHAR(100) | Nama pegawai |
+| pin | VARCHAR(6) | PIN 6-digit; boleh duplikat antar pegawai |
+| role | ENUM(owner, cashier, waiter) | Peran pengguna |
+| is_active | BOOLEAN | Status aktif (default true) |
+| created_at, updated_at | DATETIME | Waktu dibuat dan update terakhir |
 
-> 🚧 **REV 2.11:** Tabel `raw_materials`, `raw_material_movements`, `vendors`, `purchases`, `purchase_items` dihapus dari data dictionary (subsistem belanja/raw-materials keluar dari sistem). Penomoran Tabel di atas (3.6–3.11) sudah mencerminkan penghapusan tersebut + penambahan `menu_cost_movements`; **mapping Gambar/Tabel di bagian atas dokumen ini belum disusun ulang dan perlu review penulis.**
+Tabel `menus` menyimpan master katalog menu siap jual beserta harga, kategori, klasifikasi jenis stok, jenis menu, batas minimum, dan modal/COGS yang hanya dapat diakses Pemilik, sebagaimana ditunjukkan pada Tabel 3.3.
 
-> Untuk format tabel itu sendiri, langsung *copy-paste* dari `docs/DATA-DICTIONARY.md` (perlu update ke REV 2.3). Caption tabel pakai format `Tabel 3.X *Definisi Atribut Tabel <nama>*`.
+**Tabel 3.3** *Definisi Atribut Tabel `menus`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik menu |
+| name | VARCHAR(100) | Nama menu |
+| category | VARCHAR(50) | Kategori menu |
+| price | DECIMAL(10,2) | Harga jual satuan (Rupiah) |
+| cost | DECIMAL(10,2), nullable | Modal/COGS per unit (owner-only, tidak dibocorkan ke POS); null = belum di-set |
+| stock_type | ENUM(portion, linked, nonStock) | Klasifikasi stok |
+| min_stock | INT, nullable | Ambang minimum (untuk stockType=portion) |
+| image_url | VARCHAR(255), nullable | Path/URL foto menu |
+| sub_options | JSON, nullable | Legacy definisi sub-pilihan paket |
+| is_active | BOOLEAN | Menu aktif (default true) |
+| kind | ENUM(simple, variant, paket) | Jenis menu (default simple) |
+| pos_visible | BOOLEAN | Tampil di grid POS (default true) |
+| created_at, updated_at | DATETIME | Audit |
+
+Tabel `portion_stocks` menyimpan kondisi stok porsi terkini per menu sebagai *live count* (boleh negatif) beserta kondisi awal hari (*opening qty*) yang otomatis di-*snapshot* saat pengguna pertama login pagi, sebagaimana ditunjukkan pada Tabel 3.4.
+
+**Tabel 3.4** *Definisi Atribut Tabel `portion_stocks`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| menu_id | INT (PK + FK → menus, CASCADE) | PK sekaligus FK (1:1 dengan menu) |
+| current_qty | INT | *Live count*; boleh negatif |
+| min_stock | INT | Ambang reminder restock (default 0) |
+| opening_qty_today | INT | *Snapshot* stok saat login pagi pertama (default 0) |
+| opening_qty_date | DATE | Tanggal *snapshot* |
+| updated_at | DATETIME | Waktu update terakhir |
+
+Tabel `portion_movements` menyimpan log audit setiap perubahan stok porsi beserta alasan, nilai sebelum/sesudah, dan pengguna pelakunya, sebagaimana ditunjukkan pada Tabel 3.5.
+
+**Tabel 3.5** *Definisi Atribut Tabel `portion_movements`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik log |
+| menu_id | INT (FK → menus) | Item stok yang berubah |
+| delta | INT | Positif saat restock, negatif saat order/void |
+| reason | ENUM(order, restockMorning, restockEmergency, manualAdjust, refundVoid) | Alasan perubahan |
+| transaction_id | INT, nullable (FK → transactions, SET NULL) | Transaksi sumber (order/refundVoid) |
+| transaction_item_id | INT, nullable (FK → transaction_items, SET NULL) | Baris item penyebab decrement |
+| qty_before | INT, nullable | Stok sebelum perubahan |
+| qty_after | INT, nullable | Stok sesudah (= qty_before + delta) |
+| note | VARCHAR(255), nullable | Catatan manusiawi opsional |
+| user_id | INT (FK → users) | Pengguna pelaku |
+| created_at | DATETIME | Waktu perubahan |
+
+Tabel `menu_cost_movements` menyimpan log audit setiap perubahan modal/COGS menu (nilai sebelum dan sesudah, alasan, pelaku, dan waktu), sebagaimana ditunjukkan pada Tabel 3.6.
+
+**Tabel 3.6** *Definisi Atribut Tabel `menu_cost_movements`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik log |
+| menu_id | INT (FK → menus) | Menu yang modalnya berubah |
+| cost_before | DECIMAL(10,2), nullable | Modal sebelum (null = belum di-set) |
+| cost_after | DECIMAL(10,2), nullable | Modal sesudah |
+| reason | ENUM(initialSet, manualEdit) | Set awal atau penyesuaian |
+| note | VARCHAR(255), nullable | Catatan opsional |
+| user_id | INT (FK → users) | Owner pelaku |
+| created_at | DATETIME | Waktu perubahan |
+
+Tabel `shifts` mencatat siklus shift kasir berbasis *business day* beserta modal awal dan penanda *single-OPEN* yang menjamin hanya satu shift terbuka pada satu waktu, sebagaimana ditunjukkan pada Tabel 3.7.
+
+**Tabel 3.7** *Definisi Atribut Tabel `shifts`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik shift |
+| date | DATE | Tanggal *business day* |
+| type | ENUM(pagi, malam) | Jenis shift |
+| cashier_id | INT (FK → users) | Kasir pembuka shift |
+| opening_cash | DECIMAL(12,2) | Modal awal laci kas |
+| closed_at | DATETIME, nullable | Waktu tutup (null = masih terbuka) |
+| active_marker | INT, nullable (UNIQUE) | Penanda *single-OPEN*; null saat tutup |
+| created_at | DATETIME | Waktu buka kasir |
+
+Tabel `transactions` menyimpan *header* pesanan beserta tipe order, status, rincian nominal (termasuk PB1 yang ditanggung resto), dan *self-reference* untuk merge bill — tanpa menyimpan metode/bank pembayaran, sebagaimana ditunjukkan pada Tabel 3.8.
+
+**Tabel 3.8** *Definisi Atribut Tabel `transactions`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik transaksi |
+| shift_id | INT (FK → shifts) | Shift fiskal (di-*re-stamp* saat bayar) |
+| order_type | ENUM(dineIn, takeaway) | Tipe order |
+| table_number | INT, nullable | Nomor meja (wajib untuk dineIn) |
+| created_by_id | INT (FK → users) | User penginput order |
+| status | ENUM(open, paid, void) | Status pesanan |
+| merged_into_id | INT, nullable (FK → transactions, self) | Parent gabungan; query revenue meng-exclude yang non-null |
+| subtotal | DECIMAL(12,2) | Σ subtotal item |
+| discount_amount | DECIMAL(12,2) | Diskon manual |
+| tax_amount | DECIMAL(12,2) | PB1 yang ditagih ke pelanggan |
+| tax_borne_amount | DECIMAL(12,2) | PB1 yang ditanggung resto (tidak masuk total; kurangi laba) |
+| total | DECIMAL(12,2) | subtotal − discount + tax_amount |
+| created_at, paid_at, voided_at | DATETIME, nullable | Waktu dibuka, dibayar, dibatalkan |
+
+Tabel `transaction_items` menyimpan rincian item per transaksi (entitas asosiatif menu × transaksi) lengkap dengan jumlah, harga *snapshot*, modal *snapshot*, dan varian terjual, sebagaimana ditunjukkan pada Tabel 3.9.
+
+**Tabel 3.9** *Definisi Atribut Tabel `transaction_items`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik item |
+| transaction_id | INT (FK → transactions, CASCADE) | Transaksi parent |
+| menu_id | INT (FK → menus) | Menu yang dipesan |
+| qty | INT | Jumlah porsi |
+| unit_price | DECIMAL(10,2) | Harga jual *snapshot* saat order |
+| subtotal | DECIMAL(12,2) | qty × unit_price |
+| unit_cost | DECIMAL(10,2), nullable | Modal *snapshot* (laba: Σ unit_cost × qty) |
+| sub_options_selected | JSON, nullable | Legacy pilihan paket berbasis label |
+| notes | VARCHAR(255), nullable | Catatan per item |
+| variant_id | INT, nullable (FK → menu_variants, SET NULL) | Varian yang terjual |
+| created_at | DATETIME | Waktu item ditambahkan |
+
+Tabel `transaction_payments` menyimpan satu atau beberapa *slice* pembayaran per transaksi untuk mendukung *split-tender*, masing-masing berisi kode metode, bank pendamping, dan nominal, sebagaimana ditunjukkan pada Tabel 3.10.
+
+**Tabel 3.10** *Definisi Atribut Tabel `transaction_payments`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik *slice* pembayaran |
+| transaction_id | INT (FK → transactions, CASCADE) | Transaksi yang dibayar |
+| method | VARCHAR(20) | Kode metode (denormalisasi `payment_methods.code`) |
+| bank | VARCHAR(50), nullable | Bank (wajib untuk metode `requires_bank`) |
+| amount | DECIMAL(12,2) | Nominal *slice* (Σ = total saat paid) |
+| recorded_at | DATETIME | Waktu *slice* direkam |
+| recorded_by_id | INT (FK → users) | User perekam *slice* |
+
+Tabel `settlements` menyimpan rekap setoran akhir hari secara *whole business day* (satu setoran per tanggal), dengan rincian per metode di tabel anak `settlement_method_counts`, sebagaimana ditunjukkan pada Tabel 3.11.
+
+**Tabel 3.11** *Definisi Atribut Tabel `settlements`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik setoran |
+| shift_id | INT (FK → shifts, UNIQUE) | Shift acuan (1:1) |
+| date | DATE (UNIQUE) | Tanggal *business day* (satu setoran per hari) |
+| cashier_id | INT (FK → users) | Penyetor (kasir penutup terakhir / owner) |
+| reviewer_id | INT, nullable (FK → users) | Owner yang me-review |
+| status | ENUM(submitted, reviewed) | Status setoran |
+| submitted_at | DATETIME | Waktu submit |
+| reviewed_at | DATETIME, nullable | Waktu review |
+
+Tabel `bills` menyimpan tagihan operasional bulanan yang hanya dapat diakses Pemilik dan ditampilkan terpisah dari laba kotor, sebagaimana ditunjukkan pada Tabel 3.12.
+
+**Tabel 3.12** *Definisi Atribut Tabel `bills`*
+
+| Field | Tipe Data | Keterangan |
+|---|---|---|
+| id | INT (PK) | ID unik tagihan |
+| month | VARCHAR(7) | Bulan tagihan (format YYYY-MM) |
+| category | ENUM(kebersihan, listrik, air, parkir, sewa) | Kategori tagihan |
+| amount | DECIMAL(12,2) | Nominal tagihan |
+| note | VARCHAR(255), nullable | Catatan opsional |
+| user_id | INT (FK → users) | Pemilik penginput |
+| created_at | DATETIME | Waktu input |
+
+### 3.2.5 Pengolahan Data dan Metode yang Digunakan
+
+Sub-bab ini **tidak berlaku** karena sistem bersifat operasional-transaksional tanpa metode atau algoritma analitik khusus (peramalan, klasifikasi, dan sejenisnya). Seluruh perhitungan bersifat aritmetika operasional langsung: total dan pajak PB1, rekomendasi restock (kelipatan lima), selisih (*variance*) setoran per metode, serta laba kotor harian (Pendapatan - COGS).
 
 ---
 
 ## Tips Teknis Penulisan
 
-1. **Caption gambar** di **bawah** gambar; **caption tabel** di **atas** tabel - konvensi UK Petra.
-2. **Setiap gambar dan tabel WAJIB di-rujuk** di paragraf dengan kalimat seperti *"ditunjukkan pada Gambar 3.x"* atau *"seperti pada Tabel 3.x"*. Jangan letakkan gambar/tabel tanpa rujukan teks.
-3. **Istilah teknis dimiringkan** (*italic*) saat pertama muncul: *swimlane*, *snapshot*, *live count*, *progressive web app*, *split bill*, *merge bill*, *self-reference*, *opening qty*, *foreign key*. Setelahnya boleh tegak.
-4. **Bahasa pasif** untuk teks akademik: "*sistem dirancang untuk*", "*proses bisnis dilakukan*", bukan "*kita merancang*" atau "*kami melakukan*".
-5. **Konsistensi penamaan aktor** - gunakan istilah Indonesia dengan istilah Inggris dalam tanda kurung saat pertama muncul: "*Pemilik (Owner)*", "*Waiter*". Setelahnya boleh pakai salah satunya saja.
-6. **Tabel WAJIB dijelaskan dalam kalimat** di paragraf - bukan sekadar dilemparkan tanpa narasi (per Pedoman SIB hal. 6).
+1. **Caption gambar** di **bawah** gambar; **caption tabel** di **atas** tabel (konvensi UK Petra).
+2. **Setiap gambar/tabel WAJIB dirujuk** di paragraf ("ditunjukkan pada Gambar 3.x" / "seperti pada Tabel 3.x").
+3. **Istilah teknis dimiringkan** saat pertama muncul: *swimlane*, *snapshot*, *live count*, *progressive web app*, *split-tender*, *merge bill*, *self-reference*, *blind count*, *over/short*, *foreign key*.
+4. **Bahasa pasif** untuk teks akademik.
+5. **Penamaan aktor konsisten**: *Pemilik (Owner)*, Kasir, Waiter.
+6. **Tabel WAJIB dijelaskan dalam kalimat** (Pedoman SIB).
 
 ## Self-Check sebelum Submit Bab 3
 
-- [ ] Numbering sudah sesuai pedoman: 3.1 Analisis (umbrella) → 3.1.1, 3.1.2, 3.1.3, 3.1.4 → 3.2 Desain Sistem (umbrella) → 3.2.1, 3.2.2, 3.2.3, 3.2.4, 3.2.5.
-- [ ] 3.1.1 Analisis Permasalahan sudah ada (konten yang sudah kamu tulis).
-- [ ] 3.1.2 Tabel kebutuhan informasi (Tabel 3.1) dirujuk di paragraf, lalu tabel ditampilkan, lalu dijelaskan dengan paragraf di bawahnya.
-- [ ] 3.1.3 Kebutuhan Fungsional (18 item) + Non-Fungsional (6 item).
-- [ ] 3.1.4 Batasan Penelitian - HPP dan Bill of Materials out of scope, dengan 2 paragraf justifikasi paste-ready.
-- [ ] 3.2.1 Proses Bisnis yang Diusulkan: paragraf naratif sepuluh proses, tanpa figure.
-- [ ] 3.2.2 Use Case Diagram (Gambar 3.1) dirujuk di paragraf pertama, lalu narasi tiga paragraf (20 UC, 3 actor, 19 include, 3 extend).
-- [ ] 3.2.3 Activity Diagram sebelas sub-bab, masing-masing punya pengantar paragraf + Gambar 3.2 sampai 3.12.
-- [ ] 3.2.4 ERD (Gambar 3.13) dirujuk di paragraf pengantar, lalu narasi empat belas entitas + sembilan belas relasi.
-- [ ] 3.2.5 Data Dictionary: empat belas tabel di Tabel 3.2 hingga 3.15.
-- [ ] Tidak ada penyebutan eksplisit Express, React, MySQL, JWT - istilah teknologi ditahan ke Bab 4. Yang boleh: "*basis data relasional*", "*aplikasi berbasis web*", "*progressive web app*".
+- [ ] Struktur sesuai Pedoman (flat, mengikuti pola peer): 3.1 Analisis (3.1.1–3.1.3) · 3.2 Desain Sistem → 3.2.1 Blok Diagram, 3.2.2 Use Case, 3.2.3 Activity, 3.2.4 ERD + Kamus Data, 3.2.5 Pengolahan Data dan Metode (tidak berlaku).
+- [ ] Export **14 PNG** diagram dari StarUML ke `docs/diagrams/` lalu sisipkan (Gambar 3.1–3.14).
+- [ ] 3.1.3: Kebutuhan Fungsional (21 item) + Non-Fungsional (6 item) + paragraf batasan.
+- [ ] 3.2.3: sebelas activity diagram (Gambar 3.3–3.13), tiap diagram 1 *initial* + 1 *final*.
+- [ ] 3.2.4: ERD (Gambar 3.14) narasi 23 entitas + ≈39 relasi; lengkapi 11 tabel kamus data inti (Tabel 3.2–3.12) dari `DATA-DICTIONARY.md`.
+- [ ] Konsistensi: Bab 3 ↔ Bab 2 (tahapan + pengujian) ↔ Ruang Lingkup 1.4.
 
 ---
 
-## Catatan tentang Pedoman SIB
-
-Pedoman SIB UK Petra menyebutkan **3.2.1 Blok Diagram Desain Sistem** dan **3.2.3 Pengolahan Data dan Metode** sebagai sub-bab yang umumnya ada. Kedua sub-bab tersebut **dilewatkan** atas arahan pembimbing yang membatasi cakupan diagram pada Bab 3 ini hanya pada *use case*, *activity*, dan ERD. Selain itu, *sequence diagram*, *class diagram*, dan *flowchart* juga tidak digunakan dalam Bab 3 ini sesuai arahan yang sama.
-
-Pedoman juga menyebutkan bahwa "*Activity diagram boleh diletakkan di lampiran*". Pada draft ini, *activity diagram* tetap diletakkan pada main body (sub-bab 3.2.3) dengan sebelas sub-bab terpisah agar lebih mudah dirujuk dan dievaluasi oleh pembimbing. Apabila pembimbing meminta agar dipindahkan ke lampiran, pengantar pada 3.2.3 dapat diringkas menjadi satu paragraf yang merujuk pada Lampiran A.
-
----
-
-## Perubahan REV 2.2 → REV 2.3 (permission matrix + login fix, no schema change)
-
-| Aspek | REV 2.2 | REV 2.3 |
-|---|---|---|
-| Total entitas ERD | 14 | **14 (tetap)** - no schema change |
-| Total relasi ERD | 19 | **19 (tetap)** - no schema change |
-| Use Case count | 20 UC | **20 UC (tetap)** - annotation aktor diperjelas |
-| Activity diagram count | 11 | **11 (tetap)** - A.2 tambah catatan *fallback* waiter, no visual change |
-| Total Tabel data dictionary | 14 | **14 (tetap)** |
-| Kebutuhan Fungsional | 17 item | **18 item** (+1 item #18 tentang permission matrix per peran) |
-| FR #1 Login | "pilih nama dan input PIN... perangkat mengingat pengguna terakhir" (REV 2 awal) → **REV 2.3 form 2 field murni, no localStorage** → **REV 2.3.1 (final)**: cached-name UX. First login di device pakai form 2 *field*, login berikutnya PIN-only numpad (nama auto-fill dari cache `pos-auth.lastUserName`); tombol *Ganti Pengguna* reset cache. Cache simpan 1 nama per device (bukan daftar semua pegawai). |
-| FR #4 Pesanan | "kasir atau waiter" (ambigu, dianggap co-equal) | **Kasir primary, waiter fallback only** bila kasir tidak tersedia |
-| FR #5 Split/merge bill | Tidak ada anotasi aktor | **Kasir saja, tidak diakses waiter** |
-| FR #6 Sub-pilihan paket | "kasir atau waiter" | **Kasir primary, waiter fallback** |
-| FR #7 Pembayaran | Tidak ada anotasi aktor eksplisit | **Kasir saja (waiter tidak memiliki akses)** |
-| Proses Bisnis "Pertama, autentikasi" | "memilih namanya dari daftar... perangkat akan mengingat pengguna terakhir" | **Form input nama + PIN, ketik manual setiap login** |
-| 3.2.3.1 Activity Login narration | "mekanisme dua tahap... sistem memeriksa pengguna terakhir... daftar nama pegawai untuk dipilih" | **Form 2 *field* input nama + PIN, validasi kombinasi nama + PIN, redirect dashboard sesuai peran** |
-| 3.2.3.2 Activity Order Flow narration | "kasir atau waiter" | **3 *swimlane*: Waiter (tulis kertas) \| Kasir (input ke POS) \| Sistem, dengan note *fallback* waiter** |
-| Sumber otoritatif baru | - | [`docs/superpowers/specs/2026-05-24-permission-matrix-design.md`](../superpowers/specs/2026-05-24-permission-matrix-design.md) |
-| Sumber otoritatif update | `docs/operasional-resto.md` (REV 2.2) | **`docs/operasional-resto.md` REV 2.3** dengan seksi "Permission Matrix" baru |
-
-## Perubahan REV 2.1 → REV 2.2
-
-| Aspek | REV 2.1 | REV 2.2 |
-|---|---|---|
-| Total Tabel data dictionary | 13 | **14** (+1 raw_material_movements) |
-| Total Tabel keseluruhan (incl. Tabel 3.1) | 14 | **15** |
-| Total entitas ERD | 13 | **14** (drop none, add raw_material_movements) |
-| Total relasi ERD | 17 | **19** (+2: users→raw_material_movements, raw_materials→raw_material_movements) |
-| Nama tabel audit stok porsi | `stock_movements` | **`portion_movements`** (rename, clarify scope) |
-| Audit log raw materials | Tidak ada | **`raw_material_movements`** (BARU, analog dengan `portion_movements`) |
-| Enum `StockMovementReason` | `order, restock_morning, restock_emergency, manual_adjust` | **`PortionMovementReason`** (rename) - values tetap + tambah `refund_void` |
-| Enum baru | - | **`RawMaterialMovementReason`** (purchase, opname, manual_adjust) |
-| Kebutuhan Fungsional | 16 item | **17 item** (+1 tentang audit log per kategori stok) |
-| Alur opname raw materials | Update `stock_qty` saja | **Update `stock_qty` + insert log `raw_material_movements`** |
-| Alur pembelian | Update `raw_materials.stock_qty/last_buy_date/unit_price` | **... + insert log `raw_material_movements` reason=`purchase`** |
-| Use Case count | 20 UC | **20 UC (tetap)** - hanya note di UC opname/pembelian tentang audit log |
-| Activity diagram count | 11 | **11 (tetap)** - step audit log ditambah di A.7 dan A.9 |
-
-## Perubahan vs REV 2 (Diff lengkap)
-
-| Aspek | REV 2 | REV 2.1 |
-|---|---|---|
-| Total Gambar | 12 | **13** (+1 Activity Opname Stok Porsi, +1 Activity Opname Raw Materials, −1 Activity Mencatat Stok Bahan) |
-| Total Tabel data dictionary | 11 | **13** (+raw_materials, +vendors, +purchase_items, −bulk_stocks) |
-| Total entitas ERD | 11 | **13** |
-| Total relasi ERD | 13 | **17** |
-| Total use case | 17 | **20** |
-| Total activity diagram | 10 | **11** |
-| Sub-bab 3.1.4 HPP out of scope | Tidak ada | **BARU - 2 paragraf justifikasi** |
-| Tipe order (kebutuhan fungsional & UC & activity) | 4 jenis | **2 jenis** (dineIn/takeaway) |
-| Payment + bank picker | Tidak ada | **BARU** (untuk EDC & transfer) |
-| Merge bill mekanisme | Tidak detail | **Self-reference `merged_into_id`** |
-| Raw materials structure | Rigid 5 jenis | **Fleksibel (is_tracked + category + unit)** |
-| Vendor | Tidak ada | **Tabel baru, opsional** |
-| Purchase items | JSON ad-hoc | **Normalized ke `purchase_items` dengan FK** |
-| Opname stok porsi | Tidak ada UC/activity | **BARU - UC + activity dipisah** |
-| Mencatat Stok Bahan (REV 2) | Rigid 5 jenis bahan | **REPLACE → Opname Raw Materials** (lebih fleksibel) |
+*Selaras dengan sistem REV 2.13 (live `monosuko.my.id`) + diagram StarUML hasil rebuild & verifikasi 2026-06-02. Struktur mengikuti Pedoman Program SIB UK Petra. Sumber: `schema.prisma` (23 entitas), `ERD.md`/`USE-CASE.md`/`ACTIVITY.md` REV 2.13.*

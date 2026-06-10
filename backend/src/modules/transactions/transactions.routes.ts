@@ -1,5 +1,5 @@
 // Routes modul transactions. REV 2.5 Permission per matrix REV 2.3:
-//   - POST /                              -> semua authenticated (waiter + kasir co-equal)
+//   - POST /                              -> semua authenticated (waiter + kasir )
 //   - GET /                               -> semua authenticated
 //   - GET /:id                            -> semua authenticated
 //   - GET /table/:tableNumber             -> semua authenticated

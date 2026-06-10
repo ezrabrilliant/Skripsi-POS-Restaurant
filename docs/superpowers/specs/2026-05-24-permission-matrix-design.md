@@ -1,6 +1,8 @@
 # Design Spec - Order Intake Workflow & Permission Matrix (REV 2.3)
 
-**Status:** Approved by Ezra (2026-05-24, brainstorming session).
+> ⚠️ **SUPERSEDED (REV 2.4, 2026-05-26):** keputusan "waiter input order = fallback only" pada spec ini **dibatalkan**. Sejak REV 2.4, **waiter dan kasir ** untuk input order (keduanya input via HP). Yang tetap kasir/owner-only: pembayaran, buka/tutup kasir, settlement (pemisahan tugas penanganan uang). Dokumen ini dipertahankan sebagai catatan historis brainstorming; bagian yang menyebut "fallback" tidak lagi berlaku.
+
+**Status:** Approved by Ezra (2026-05-24, brainstorming session). *(Bagian order-intake superseded REV 2.4 — lihat banner.)*
 **Konsekuensi:** Bump dokumentasi proyek dari REV 2.2 → REV 2.3.
 **Tidak ada perubahan schema** - semua keputusan di sini di-implement di app layer (middleware + UI conditional).
 
@@ -8,7 +10,7 @@
 
 Sampai REV 2.2, dokumentasi menyebut waiter "bisa input order ke sistem POS, sama seperti kasir" (di `docs/operasional-resto.md` seksi "Pengguna Sistem" dan beberapa UC di `docs/knowledge/USE-CASE.md`). Realita lapangan yang dikonfirmasi Ezra: waiter sangat sibuk peak hour - bersih meja, cuci piring, buat & antar minuman, ambil order baru. Memutus alur kerja untuk pegang HP dan input order ke POS sambil tangan kotor tidak realistis.
 
-Konsekuensi: workflow primary tetap kertas (waiter tulis → Yanti di dapur resto baca → kasir input ke POS). Waiter tidak boleh dianggap co-equal dengan kasir untuk input order - itu cuma fallback bila kasir tidak available (misal kasir lagi telepon owner, lagi ke toilet, lagi belanja).
+Konsekuensi (REV 2.3, kini **superseded**): waiter input order dianggap fallback. **Diperbarui REV 2.4:** waiter dan kasir **** untuk input order — keduanya mencatat pesanan via HP; workflow kertas hanya cara alternatif yang opsional.
 
 ## 2. Keputusan Final
 
@@ -26,7 +28,7 @@ Tidak ada cetak struk pesanan ke dapur. Yanti baca dari kertas waiter langsung. 
 
 | Resource / Aksi | Owner | Kasir | Waiter |
 |---|:---:|:---:|:---:|
-| Input order / edit / void transaksi | ✓ | ✓ | ✓ *(fallback only)* |
+| Input order / edit / void transaksi | ✓ | ✓ | ✓ *(, REV 2.4)* |
 | Proses payment (selesaikan transaksi, pilih metode + bank) | ✓ | ✓ | ✗ |
 | Buka kasir (modal awal shift) | – | ✓ | ✗ |
 | Settlement harian (rekap 6 metode) | ✓ | ✓ | ✗ |
@@ -39,15 +41,15 @@ Tidak ada cetak struk pesanan ke dapur. Yanti baca dari kertas waiter langsung. 
 
 > **Update REV 2.11 (2026-05-30):** baris "Raw materials" dan "Pembelian (belanja pasar)" **dihapus** - subsistem belanja/vendor/raw-materials di-drop dari sistem (inventori = finished-goods porsi saja). Master data master raw material juga hilang. Sebagai gantinya ditambah baris **Edit modal/COGS menu = owner-only** (untuk Laporan Laba Rugi Harian = Pendapatan − COGS). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](2026-05-30-cogs-per-menu-remove-belanja-design.md).
 
-**Interpretasi "fallback only" untuk waiter input order:**
-- Backend tidak hard-block waiter dari `POST /transactions`. Endpoint tetap accept role `waiter`.
-- Frontend UI yang membentuk perilaku: dashboard waiter menampilkan "Stok Hari Ini" + reminder + tombol Opname sebagai primary CTA. Akses ke "Input Order" ditaruh sebagai link sekunder yang lebih kecil (bukan card besar) supaya waiter tidak terbiasa pakai sebagai default.
+**Input order — kasir & waiter (REV 2.4, menggantikan "fallback only" REV 2.3):**
+- Backend menerima `POST /transactions` dari role kasir dan waiter.
+- Frontend: dashboard kasir maupun waiter sama-sama menyediakan akses "Input Order" sebagai aksi utama. Tidak ada penurunan akses untuk waiter.
 
 ### 2.3. UI Implikasi Per Role
 
 **Dashboard Waiter:**
 - Primary: card "Stok Porsi Hari Ini" (dengan count item yang ≤ min) + card "Raw Materials Reminder" (item perlu beli / mendekati basi) + tombol "Opname Stok Porsi" + tombol "Opname Raw Materials" + tombol "Mark Item Habis"
-- Secondary: link kecil "Input Order (fallback)" di pojok atas
+- Akses "Input Order" sebagai aksi utama (dengan kasir, REV 2.4)
 
 **Dashboard Kasir:**
 - Conditional Primary: kalau shift belum dibuka → CTA tunggal besar "Buka Kasir" (input modal awal). Kalau shift sudah buka → 3 card sejajar: "Input Order Baru", "Daftar Transaksi Open" (untuk lanjut bayar / lihat split-merge), "Tutup Kasir" (di akhir shift malam saja)
@@ -69,12 +71,12 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
 
 | File | Perubahan |
 |---|---|
-| `docs/operasional-resto.md` | Seksi "Pengguna Sistem" - koreksi waiter "bisa input order sama seperti kasir" → "bisa input order sebagai fallback bila kasir tidak available". Seksi "Alur Transaksi" - perjelas "kasir yang input" (sebelumnya ambigu "kasir/waiter"). Tambah seksi baru **"Permission Matrix"** setelah "Pengguna Sistem". |
-| `docs/knowledge/USE-CASE.md` | Bump header ke REV 2.3. Fix UC `Login` (drop mention pilih nama dari list + localStorage). UC `Mengelola Pesanan Meja` annotate *(kasir primary, waiter fallback)*. UC `Memilih Sub-Pilihan Paket` sama. Narasi Bab 3 paragraf 2 update Login mechanism. Update aktor row Waiter di tabel section 4. |
-| `docs/knowledge/ACTIVITY.md` | Bump header ke REV 2.3. A.2 tambah note "Waiter dapat fallback langsung input di POS dengan bypass jalur kertas saat kasir tidak available - alur sama dengan jalur kasir input, hanya actor swimlane swap". A.1 sudah aligned REV 2.2 - tidak diubah. |
+| `docs/operasional-resto.md` | Seksi "Pengguna Sistem" - klarifikasi akses input order waiter (REV 2.4: dengan kasir). Tambah seksi baru **"Permission Matrix"** setelah "Pengguna Sistem". |
+| `docs/knowledge/USE-CASE.md` | Bump header ke REV 2.3. Fix UC `Login` (drop mention pilih nama dari list + localStorage). UC `Mengelola Pesanan Meja` & `Memilih Sub-Pilihan Paket` annotate *(kasir & waiter , REV 2.4)*. Narasi Bab 3 paragraf 2 update Login mechanism. Update aktor row Waiter di tabel section 4. |
+| `docs/knowledge/ACTIVITY.md` | Bump header ke REV 2.3. A.2 catatan input order kasir & waiter (REV 2.4; alur kedua actor identik, hanya swimlane berbeda). A.1 sudah aligned REV 2.2 - tidak diubah. |
 | `docs/knowledge/ERD.md` | Bump header ke REV 2.3 dengan note "Tidak ada perubahan schema - REV 2.3 hanya alignment dokumentasi dengan permission matrix". |
-| `CLAUDE.md` | Bump REV 2.1 → REV 2.3 di "Status REV". Update "3 role" deskripsi - tambah note waiter primary di kertas, fallback POS. |
-| Memory `project_resto_operational_truths.md` | Bump REV 2.2 → REV 2.3. Tambah seksi "Permission Matrix". Update seksi "Auth & Pengguna" - clarify waiter fallback. |
+| `CLAUDE.md` | Bump REV 2.1 → REV 2.3 di "Status REV". Update "3 role" deskripsi - input order kasir & waiter (REV 2.4). |
+| Memory `project_resto_operational_truths.md` | Bump REV 2.2 → REV 2.3. Tambah seksi "Permission Matrix". Update seksi "Auth & Pengguna" - input order kasir & waiter (REV 2.4). |
 | Memory `project_session_handoff.md` | Update fase ke REV 2.3 + sesi 2026-05-24 brainstorming note. |
 
 ## 4. Konsekuensi ke Code (akan jadi bagian writing-plans, BUKAN bagian spec ini)
@@ -90,7 +92,7 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
   - `POST /bills` → owner saja
   - `POST /opname/portion`, `POST /opname/raw_materials` → semua role
   - `PUT /menus`, `POST /users`, `PUT /raw_materials/:id` (master edit) → owner saja
-- Auto-decrement `portion_stocks.current_qty` saat `POST /transactions` (waiter pun bisa trigger via fallback).
+- Auto-decrement `portion_stocks.current_qty` saat `POST /transactions` (kasir & waiter sama-sama bisa trigger).
 
 **Frontend** ([frontend/src/](frontend/src/)):
 - Tambah `CashierRoute` guard component (selain `OwnerRoute` existing).
@@ -102,15 +104,15 @@ Bump semua docs core dari REV 2.2 → REV 2.3:
 
 ## 5. Out of Scope
 
-- Tidak menambah "audit trail aksi waiter saat fallback input order". Kalau dibutuhkan untuk skripsi, bisa ditambah di REV 2.4 (kolom `transactions.input_by_role` enum yang track siapa yang input - tapi dirasa over-engineering untuk family business).
-- Tidak menambah "approval kasir saat waiter fallback input". Family business, trust tinggi, koordinasi verbal cukup.
+- Tidak menambah "audit trail aksi waiter saat input order". Kalau dibutuhkan untuk skripsi, bisa ditambah kolom `transactions.input_by_role` enum yang track siapa yang input - tapi dirasa over-engineering untuk family business.
+- Tidak menambah "approval kasir saat waiter input order". Family business, trust tinggi, koordinasi verbal cukup.
 - Tidak menambah notifikasi "kasir sedang tidak available" ke waiter. Komunikasi tetap verbal.
 
 ## 6. Rationale Singkat
 
 | Keputusan | Why |
 |---|---|
-| Waiter fallback (bukan blocked) | Family business kecil - kasir bisa tidak available (telepon owner, ke toilet, belanja). Lebih baik UI nudge kasir-first daripada hard-block waiter yang bisa bikin order tidak ter-record |
+| Waiter input order (REV 2.4) | Family business kecil; waiter dan kasir sama-sama input order via HP. REV 2.3 sempat mem-framing ini "fallback", REV 2.4 menetapkan |
 | Timing input fleksibel | Kasir biasanya lebih lowong dari waiter peak hour. Sistem tidak memaksa timing - kasir input saat lowong atau saat customer minta bill. Realistis untuk family business minim aturan |
-| Payment kasir-only (bukan waiter fallback) | Payment menyangkut transaksi uang nyata + pemilihan metode + bank picker untuk EDC/transfer. Lebih aman kasir handle. Family business trust ke kasir (anak owner) lebih tinggi |
+| Payment kasir/owner-only | Payment menyangkut transaksi uang nyata + pemilihan metode + bank picker untuk EDC/transfer. Pemisahan tugas penanganan uang. Family business trust ke kasir (anak owner) lebih tinggi |
 | Stok porsi opname semua role | Waiter sering yang cek fisik stok di malam (verbal handover ke kasir). Memberi waiter akses opname digital memberinya ownership data yang sudah dipegangnya secara fisik |

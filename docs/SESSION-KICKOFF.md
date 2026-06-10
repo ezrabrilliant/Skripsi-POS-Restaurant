@@ -58,7 +58,7 @@ Combine Tables Phase 1-7 done. Frontend Phase 8-16 masih pending.
 - `feedback_incremental_build.md` - satu file/group per step, jelaskan + tunggu review
 
 **State REV 2.5 (penting untuk dipahami):**
-- 3 role: Owner, Kasir, Waiter (REV 2.4: waiter+kasir co-equal input order via HP,
+- 3 role: Owner, Kasir, Waiter (REV 2.4: waiter+kasir input order via HP,
   paper workflow obsolete)
 - Login = form 2 field input nama + PIN murni
 - Schema **15 entitas** (REV 2.5: tambah TransactionPayment, drop
@@ -261,7 +261,7 @@ Tegur dengan:
 ### Kalau Claude lupa workflow REV 2.4
 
 Tegur dengan:
-> "REV 2.4 update: waiter + kasir CO-EQUAL input order via HP (paper workflow
+> "REV 2.4 update: waiter + kasir input order via HP (paper workflow
 > obsolete). Tapi Bayar tetap owner+kasir only. Multi-Pesanan per meja via
 > ActiveOrdersView component."
 
@@ -283,7 +283,7 @@ Kalau di tengah sesi context Claude mau habis lagi, kasih instruksi:
 |---|---|---|
 | REV 2.1 | 2026-05-xx | Initial - 5 OrderType, BulkStock kategori rigid, Login 2-step list picker |
 | REV 2.2 | 2026-05-xx | Schema 14 entitas, RawMaterial flexible, PortionMovement + RawMaterialMovement audit log |
-| REV 2.3 | 2026-05-24 | Permission matrix granular per-aksi, waiter fallback only, Login form input murni |
+| REV 2.3 | 2026-05-24 | Permission matrix granular per-aksi, Login form input murni (anggapan "waiter fallback" REV 2.3 dibatalkan REV 2.4 → ) |
 | REV 2.3 shift-decoupling | 2026-05-25 | Pisahkan submit user dari shift cashier, multi-cashier sharing |
-| REV 2.4 | 2026-05-26 (pagi) | Multi-Pesanan per meja, field notes, waiter+kasir co-equal HP, drop Es prefix temperature toggle |
+| REV 2.4 | 2026-05-26 (pagi) | Multi-Pesanan per meja, field notes, waiter+kasir HP, drop Es prefix temperature toggle |
 | REV 2.5 | 2026-05-26 (sore) | Split Tender (TransactionPayment table), Combine Tables, drop split bill multi-party (partyId, splitTransaction, SplitBillModal). Backend done (Phase 1-7), frontend pending (Phase 8-16). |

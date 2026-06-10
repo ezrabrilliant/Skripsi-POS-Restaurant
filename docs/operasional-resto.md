@@ -6,7 +6,8 @@
 >
 > Riwayat versi:
 > - **REV 2.11 (2026-05-30)** - COGS per menu + Laporan Laba Rugi Harian; hapus belanja/vendor/raw materials (selaras proposal). Lihat [`docs/superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md`](superpowers/specs/2026-05-30-cogs-per-menu-remove-belanja-design.md).
-> - **REV 2.3 (2026-05-24)** - clarify waiter fallback + permission matrix lengkap (no schema change)
+> - **REV 2.4 (2026-05-26)** - waiter & kasir **** untuk input order via HP (membatalkan anggapan "waiter fallback" pada REV 2.3); workflow kertas jadi salah satu cara, bukan satu-satunya default
+> - **REV 2.3 (2026-05-24)** - permission matrix lengkap (no schema change)
 > - **REV 2.2 (2026-05-24)** - tambah audit log raw materials (`raw_material_movements`) + rename `stock_movements` → `portion_movements`
 > - **REV 2.1 (2026-05-23)** - order type 2 enum, raw_materials fleksibel, vendor opsional, purchase_items normalized
 
@@ -32,7 +33,7 @@ Di akhir hari, kasir shift malam melakukan rekap total penjualan sekali saja, me
 
 ## Pengguna Sistem
 
-Sistem digunakan oleh tiga jenis pengguna: kasir, waiter, dan owner. Kasir memiliki akses untuk menginput transaksi (input order, proses pembayaran), mencatat dan memperbarui stok porsi, serta membuka dan menutup kasir per shift. Waiter memiliki tugas operasional fisik di lapangan: bersih-bersih meja dan cuci piring, mengantar makanan ke meja, membuat dan mengantar minuman, serta mengambil order dari pelanggan. **Workflow primary waiter tetap kertas** - waiter ambil order verbal di meja, tulis di kertas, lalu menyerahkan kertas ke kasir untuk diinput ke POS. Waiter juga punya akun sistem dengan akses ke fitur inventory stok porsi (view stok porsi, opname pagi, mark item habis). Sistem **memberikan waiter akses fallback** untuk input order ke POS hanya saat kasir tidak available (misal kasir sedang telepon owner, sedang ke toilet) - bukan workflow default. Realita lapangan: waiter sangat sibuk peak hour (cuci piring + buat minuman + antar makanan + ambil order baru), sehingga memutus alur kerja untuk pegang HP dan input order ke POS tidak realistis sebagai default. Owner dapat melihat laporan dari mana saja, termasuk dari rumah melalui HP atau browser. Khusus untuk input tagihan operasional dan modal/COGS menu, hanya owner yang memiliki akses - kasir tidak bisa melakukan ini meskipun kasir adalah anggota keluarga owner.
+Sistem digunakan oleh tiga jenis pengguna: kasir, waiter, dan owner. Kasir memiliki akses untuk menginput transaksi (input order, proses pembayaran), mencatat dan memperbarui stok porsi, serta membuka dan menutup kasir per shift. Waiter memiliki tugas operasional fisik di lapangan: bersih-bersih meja dan cuci piring, mengantar makanan ke meja, membuat dan mengantar minuman, serta mengambil order dari pelanggan. Waiter mengambil order verbal di meja, lalu mencatat pesanan tersebut ke POS. Sejak REV 2.4, **waiter dan kasir bersifat untuk input order** - keduanya dapat mencatat pesanan ke sistem via HP masing-masing. Pembagian fisiknya fleksibel mengikuti kondisi lapangan: waiter dapat langsung input dari HP saat menghampiri meja, atau menuliskannya di kertas lalu menyerahkannya ke kasir untuk diinput - keduanya sama-sah. Waiter juga punya akun sistem dengan akses ke fitur inventory stok porsi (view stok porsi, opname pagi, mark item habis). Owner dapat melihat laporan dari mana saja, termasuk dari rumah melalui HP atau browser. Khusus untuk input tagihan operasional dan modal/COGS menu, hanya owner yang memiliki akses - kasir tidak bisa melakukan ini meskipun kasir adalah anggota keluarga owner.
 
 Pegawai riil di resto:
 
@@ -48,7 +49,7 @@ Tabel berikut merinci akses per role per aksi. Permission ditangani di app layer
 
 | Resource / Aksi | Owner | Kasir | Waiter |
 |---|:---:|:---:|:---:|
-| Input order baru / edit / void transaksi | ✓ | ✓ | ✓ *(fallback only)* |
+| Input order baru / edit / void transaksi | ✓ | ✓ | ✓ |
 | Proses payment (pilih metode + bank picker EDC/transfer + PB1 + cetak struk) | ✓ | ✓ | ✗ |
 | Split bill dan merge bill | ✓ | ✓ | ✗ |
 | Buka kasir (input modal awal shift) | – | ✓ | ✗ |
@@ -61,9 +62,9 @@ Tabel berikut merinci akses per role per aksi. Permission ditangani di app layer
 | CRUD user, set role, reset PIN | ✓ | ✗ | ✗ |
 | Edit modal/COGS menu (set + ubah, lihat riwayat modal) | ✓ | ✗ | ✗ |
 
-**Interpretasi "fallback only" untuk waiter input order:**
+**Input order - kasir dan waiter (REV 2.4):**
 
-Backend tidak memblok hard role `waiter` dari endpoint `POST /transactions`. Endpoint tetap accept ketiga role. Yang membentuk perilaku "fallback" adalah desain UI di frontend: dashboard waiter menampilkan card besar "Stok Porsi Hari Ini" + tombol "Opname" sebagai primary CTA, sementara akses ke "Input Order" ditaruh sebagai link kecil sekunder (bukan card besar) supaya waiter tidak terbiasa pakai sebagai default. Pada dashboard kasir, sebaliknya - "Input Order Baru" jadi primary CTA. Dengan demikian, sistem mendorong workflow kertas-mediated sebagai default, namun tidak memblok waiter kalau memang harus input (worst case kasir tidak available).
+Backend menerima `POST /transactions` dari ketiga role. Dashboard kasir maupun waiter sama-sama menyediakan akses "Input Order" sebagai aksi utama (lewat HP masing-masing) - tidak ada pembatasan/penurunan akses untuk waiter. Yang tetap menjadi kewenangan kasir/owner adalah penanganan uang: pembayaran, buka/tutup kasir, dan settlement. Ini merupakan pemisahan tugas (separation of duties), bukan pembatasan peran waiter.
 
 ## Tipe Order
 
@@ -71,7 +72,7 @@ Restoran X melayani dua tipe order: **dine-in** dan **takeaway**. Dine-in artiny
 
 ## Alur Transaksi
 
-Untuk dine-in, ketika customer datang dan duduk di meja, waiter menghampiri dan mencatat pesanan di kertas. Kertas pesanan tersebut dibawa ke dapur resto (Yanti, yang panaskan/bakar/goreng makanan jadi dari frozen stock) untuk diproses, lalu diserahkan ke kasir. **Kasir** yang menginput pesanan ke sistem POS dengan memilih nomor meja yang sesuai (timing input fleksibel - antara terima kertas dari dapur dan customer minta bill, sistem tidak enforce). Jika kasir sedang tidak available (misalnya sedang telepon owner untuk koordinasi restock atau sedang ke toilet), waiter dapat input langsung sebagai fallback dengan akun POS-nya. Selama customer masih makan, mereka bisa menambah pesanan kapan saja - satu sesi meja bisa memiliki beberapa kali putaran order sebelum akhirnya minta bill. Struk dicetak dalam bentuk PDF. Jika satu meja ingin split bill, sistem memungkinkan pemisahan per item sehingga menghasilkan dua struk terpisah. Sebaliknya, sistem juga mendukung merge bill - beberapa transaksi meja yang berbeda dapat digabung menjadi satu struk, misalnya rombongan yang duduk di dua meja terpisah namun ingin bayar bareng-bareng.
+Untuk dine-in, ketika customer datang dan duduk di meja, waiter menghampiri dan mencatat pesanan di kertas. Kertas pesanan tersebut dibawa ke dapur resto (Yanti, yang panaskan/bakar/goreng makanan jadi dari frozen stock) untuk diproses, lalu diserahkan ke kasir. Pesanan diinput ke sistem POS dengan memilih nomor meja yang sesuai - **baik oleh waiter langsung dari HP maupun oleh kasir** (timing input fleksibel, sistem tidak enforce). Waiter yang menghampiri meja dapat langsung mencatat pesanan ke POS, atau menyerahkan catatan kertas ke kasir untuk diinput - keduanya sama-sah. Selama customer masih makan, mereka bisa menambah pesanan kapan saja - satu sesi meja bisa memiliki beberapa kali putaran order sebelum akhirnya minta bill. Struk dicetak dalam bentuk PDF. Jika satu meja ingin split bill, sistem memungkinkan pemisahan per item sehingga menghasilkan dua struk terpisah. Sebaliknya, sistem juga mendukung merge bill - beberapa transaksi meja yang berbeda dapat digabung menjadi satu struk, misalnya rombongan yang duduk di dua meja terpisah namun ingin bayar bareng-bareng.
 
 Untuk takeaway, kasir menginput pesanan ke sistem POS langsung (customer walk-in datang ke kasir, atau order GoFood/GrabFood notif masuk via app merchant kasir input manual) tanpa memilih meja. Metode pembayaran dipilih sesuai sumber order (lihat seksi Pembayaran).
 
