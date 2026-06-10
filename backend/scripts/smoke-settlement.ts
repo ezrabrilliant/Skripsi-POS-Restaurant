@@ -6,7 +6,7 @@ import { UserRole, ShiftType } from '@prisma/client';
 import { prisma } from '../src/config/prisma';
 import { openShift, closeShift } from '../src/modules/shifts/shifts.service';
 import { createTransaction, addPayment, voidTransaction } from '../src/modules/transactions/transactions.service';
-import { previewSettlement, createSettlement } from '../src/modules/settlements/settlements.service';
+import { previewSettlement, createSettlement, deleteSettlement } from '../src/modules/settlements/settlements.service';
 import { getOwnerReport } from '../src/modules/dashboard/dashboard.service';
 
 if (!/_test/.test(process.env.DATABASE_URL ?? '')) throw new Error('REFUSE: harus DB *_test.');
@@ -83,6 +83,21 @@ async function main() {
   console.log('\n[7] Dashboard owner today = whole-day revenue (atribusi shift.date):');
   const report = await getOwnerReport({ period: 'today' } as Parameters<typeof getOwnerReport>[0]);
   ok(report.revenue.total === expectedWholeDay, `owner revenue.total = ${report.revenue.total} (expect ${expectedWholeDay})`);
+
+  console.log('\n[8] Seal: buka shift lagi di hari yang sudah disetor → 409:');
+  await expectErr(
+    () => openShift(jason.id, { type: ShiftType.pagi, openingCash: 0 }),
+    409,
+    'openShift di businessDate yang sudah disetor',
+  );
+
+  console.log('\n[9] Escape hatch: owner hapus setoran → openShift boleh lagi:');
+  await deleteSettlement(st.id);
+  const reopened = await openShift(jason.id, { type: ShiftType.pagi, openingCash: 0 });
+  ok(reopened.date === businessDate, `setelah hapus setoran, openShift sukses (date ${reopened.date})`);
+  const gone = await prisma.settlement.findUnique({ where: { id: st.id } });
+  ok(gone === null, 'settlement + method counts terhapus (cascade)');
+  await closeShift(reopened.id, jason.id, UserRole.cashier, 'handover'); // cleanup activeMarker
 
   console.log(`\n[smoke-settlement] HASIL: ${pass} pass, ${fail} fail`);
   await prisma.$disconnect();

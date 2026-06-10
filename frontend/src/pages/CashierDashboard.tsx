@@ -26,9 +26,11 @@ import {
   Moon,
   Package,
   ArrowRight,
+  CheckCircle,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { dashboardService } from '@/services/dashboardService'
+import { settlementService } from '@/services/settlementService'
 import type { ShiftType, MethodTotalEntry } from '@/types'
 import { formatCurrency, formatTime, cn } from '@/lib/utils'
 import { Button, Badge, Skeleton, Page } from '@/design-system/primitives'
@@ -56,6 +58,23 @@ export default function CashierDashboard() {
   })
   const myActiveShift = activeShifts.find((s) => s.cashierId === user?.id) ?? null
   const otherActiveShifts = activeShifts.filter((s) => s.cashierId !== user?.id)
+
+  // REV 2.15 seal: kalau hari ini sudah disetor & tak ada shift sendiri, jangan
+  // tampilkan CTA "Buka Kasir" (backend akan 409). Catatan: pakai tanggal kalender
+  // lokal; pada jendela lewat-tengah-malam sebelum changeover businessDate bisa
+  // beda - tapi backend tetap otoritas penyegelan.
+  const now = new Date()
+  const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const { data: settledList = [] } = useQuery({
+    queryKey: ['settlements', 'byDate', todayLocal],
+    queryFn: () => settlementService.list({ date: todayLocal }),
+    // FIX stale-cache: tanpa ini, buka beranda dalam 5 menit setelah setor (global
+    // staleTime 5min) menyajikan settledList basi → tampil CTA "Buka Kasir" yang
+    // akan 409. 'always' memaksa refetch tiap mount. Sejalan dengan preview di
+    // SettlementPage yang pakai pola sama.
+    refetchOnMount: 'always',
+  })
+  const todaySettled = settledList.length > 0
 
   // REV 2.12: ada shift overdue → blok dashboard, arahkan tutup shift kemarin.
   const overdueShift = activeShifts.find((s) => s.isOverdue) ?? null
@@ -86,7 +105,7 @@ export default function CashierDashboard() {
 
         {/* Kasir pertama hari ini, belum ada shift sama sekali */}
         {dashboard && !myActiveShift && otherActiveShifts.length === 0 && (
-          <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
+          todaySettled ? <SettledTodayCard /> : <NoActiveShiftCTA onOpen={() => setShowOpenModal(true)} />
         )}
 
         {dashboard && myActiveShift && (
@@ -149,6 +168,27 @@ function NoActiveShiftCTA({ onOpen }: { onOpen: () => void }) {
           >
             Buka Kasir Sekarang
           </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettledTodayCard() {
+  return (
+    <div className="bg-white rounded-2xl p-6 sm:p-8 border border-neutral-200/60 shadow-sm">
+      <div className="flex items-start gap-4">
+        <div className="w-14 h-14 bg-success-50 rounded-xl flex items-center justify-center flex-shrink-0">
+          <CheckCircle className="w-7 h-7 text-success-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-title sm:text-headline font-semibold mb-1 text-neutral-900">
+            Hari ini sudah disetor
+          </h2>
+          <p className="text-neutral-600 text-body-sm sm:text-body">
+            Setoran hari ini sudah final dan terkunci. Buka shift lagi untuk hari berikutnya.
+            Kalau setoran keliru, minta owner menghapusnya lewat halaman Laporan.
+          </p>
         </div>
       </div>
     </div>
