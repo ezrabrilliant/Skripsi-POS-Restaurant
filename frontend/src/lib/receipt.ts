@@ -170,17 +170,27 @@ export function generateReceiptPdf(tx: Transaction, opts: ReceiptOptions): void 
   for (const row of rows) {
     if (row.t === 'sep') {
       doc.setFont('courier', 'normal')
+      doc.setFontSize(FONT_PT)
       doc.text(row.c.repeat(CHARS), left, y)
     } else if (row.t === 'center') {
+      // Nama resto (center+bold pertama) lebih besar.
+      const big = row.bold
       doc.setFont('courier', row.bold ? 'bold' : 'normal')
+      doc.setFontSize(big ? FONT_PT + 2 : FONT_PT)
       doc.text(row.s, center, y, { align: 'center' })
+      doc.setFontSize(FONT_PT)
     } else if (row.t === 'left') {
       doc.setFont('courier', 'normal')
+      doc.setFontSize(FONT_PT)
       doc.text(row.s, left, y)
     } else {
-      doc.setFont('courier', row.bold ? 'bold' : 'normal')
+      // lr: TOTAL & Kembali (row.bold) ditonjolkan — lebih besar + bold.
+      const emphasize = row.bold
+      doc.setFont('courier', emphasize ? 'bold' : 'normal')
+      doc.setFontSize(emphasize ? FONT_PT + 1 : FONT_PT)
       doc.text(row.l, left, y)
       doc.text(row.r, right, y, { align: 'right' })
+      doc.setFontSize(FONT_PT)
     }
     y += LINE_H
   }
