@@ -11,6 +11,9 @@ export { default as UsersPage } from './UsersPage'
 export { default as BillsPage } from './BillsPage'
 export { default as PaymentMethodsPage } from './PaymentMethodsPage'
 
+// REV 2.14: halaman laporan owner (eks konten dashboard ber-tab)
+export { default as LaporanPage } from './LaporanPage'
+
 // REV 2.3: 3 dashboard per role
 export { default as OwnerDashboard } from './OwnerDashboard'
 export { default as CashierDashboard } from './CashierDashboard'

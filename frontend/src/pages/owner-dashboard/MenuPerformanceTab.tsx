@@ -18,7 +18,15 @@ const CAT_COLORS = ['#2f7d5b', '#c2761b', '#2563eb', '#7c3aed', '#dc2626', '#089
 const pctText = (n: number) => `${n.toFixed(0)}%`
 const profitClass = (n: number) => (n < 0 ? 'text-danger-700' : 'text-success-700')
 
-export default function MenuPerformanceTab({ period }: { period: OwnerReportQuery }) {
+export default function MenuPerformanceTab({
+  period,
+  preview = false,
+  headerAction,
+}: {
+  period: OwnerReportQuery
+  preview?: boolean
+  headerAction?: React.ReactNode
+}) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['ownerMenuPerformance', period],
     queryFn: () => dashboardService.getOwnerMenuPerformance(period),
@@ -60,17 +68,24 @@ export default function MenuPerformanceTab({ period }: { period: OwnerReportQuer
     { key: 'profit', header: 'Laba', align: 'right', cell: (r) => <span className={`tabular-nums font-medium ${profitClass(r.profit)}`}>{formatCurrency(r.profit)}</span> },
   ]
 
+  const topMenusData = preview ? (data?.topMenus ?? []).slice(0, 5) : data?.topMenus
+
   return (
     <div className="space-y-4">
       {/* Menu Terlaris */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
-        <h3 className="text-title font-semibold text-neutral-900 mb-3">Menu Terlaris</h3>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="text-title font-semibold text-neutral-900">
+            {preview ? 'Menu Terlaris (Top 5)' : 'Menu Terlaris'}
+          </h3>
+          {headerAction}
+        </div>
         {isLoading ? (
           <Skeleton className="h-64" />
         ) : (
           <DataTable
             columns={menuColumns}
-            data={data?.topMenus}
+            data={topMenusData}
             rowKey={(r) => r.menuId}
             emptyTitle="Belum ada penjualan menu"
             emptyDescription="Data muncul setelah ada transaksi dibayar di periode ini."
@@ -95,7 +110,8 @@ export default function MenuPerformanceTab({ period }: { period: OwnerReportQuer
         )}
       </div>
 
-      {/* Penjualan per Kategori */}
+      {/* Penjualan per Kategori (disembunyikan di preview beranda) */}
+      {!preview && (
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200/60">
         <h3 className="text-title font-semibold text-neutral-900 mb-3">Penjualan per Kategori</h3>
         {isLoading ? (
@@ -134,6 +150,7 @@ export default function MenuPerformanceTab({ period }: { period: OwnerReportQuer
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
