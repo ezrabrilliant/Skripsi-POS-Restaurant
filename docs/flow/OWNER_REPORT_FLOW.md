@@ -32,10 +32,15 @@ shift** (*business day*), bukan jam pembayaran.
 | **Pendapatan** | Total uang masuk | Σ total transaksi **lunas** pada periode |
 | **Beban Pokok (COGS)** | Modal bahan terjual | Σ (modal per menu × qty) |
 | **Laba Kotor** | Untung kotor | Pendapatan − COGS − PB1 ditanggung |
-| **Margin Laba** | Persentase untung | Laba Kotor ÷ Pendapatan |
+| **Margin Kotor** | Persentase untung kotor | Laba Kotor ÷ Pendapatan |
 
 Di kartu COGS ada catatan kecil: *"PB1 ditanggung Rp… · Tagihan Rp… (terpisah)"* —
 mengingatkan owner bahwa tagihan **tidak** masuk hitungan laba kotor.
+
+Khusus periode **Bulan Ini / Tahun Ini**, muncul **panel "Laba Bersih"** terpisah:
+**Laba Bersih = Laba Kotor − Tagihan** (+ Margin Bersih). Panel ini sengaja **tidak**
+muncul di periode harian/mingguan/custom — tagihan bersifat tetap bulanan dan tak bisa
+dipotong harian (lihat Bagian 4).
 
 ---
 
@@ -96,8 +101,9 @@ tetap bayar harga menu, tapi laba owner sudah memperhitungkan pajak yang ditangg
 ```
 
 Dengan dipisah, owner bisa membaca dua angka berbeda:
-- **Laba Kotor** = hasil dari aktivitas jualan harian.
-- **Laba Bersih** (dihitung owner) = Laba Kotor − Tagihan bulanan.
+- **Laba Kotor** = hasil aktivitas jualan (bisa per hari/bulan/tahun).
+- **Laba Bersih** = Laba Kotor − Tagihan bulanan. **Ditampilkan sistem otomatis** di
+  panel khusus pada periode **Bulan / Tahun** (bukan dihitung manual lagi).
 
 ---
 
@@ -112,9 +118,9 @@ Dengan dipisah, owner bisa membaca dua angka berbeda:
    Laba Kotor = 2.300.000 − 1.150.000 − 230.000 = Rp 920.000
    Margin     = 920.000 / 2.300.000             = 40%
 
-   (Terpisah) Tagihan bulan ini: Rp 1.563.000
-   → Owner hitung sendiri laba bersih bulanan:
-     Σ Laba Kotor sebulan − Tagihan bulan itu
+   (Panel Laba Bersih — muncul di periode Bulan/Tahun)
+   Tagihan bulan ini: Rp 1.563.000
+   → Laba Bersih = Σ Laba Kotor sebulan − Tagihan bulan itu
 ```
 
 ---
@@ -139,8 +145,9 @@ Semua ini **owner-only** — kasir & waiter tidak melihat laporan laba/modal.
    (akurat secara historis); **paket/varian** dijumlah per komponen.
 3. **PB1 ditanggung** mengurangi laba **hanya** bila modenya "ditanggung resto"
    (kondisi Monosuko). Bila ditagih ke pelanggan, tidak mengurangi laba.
-4. **Tagihan bulanan TERPISAH**, tidak dikurangkan ke Laba Kotor — karena overhead
-   tetap, bukan biaya per-transaksi. Laba bersih = Laba Kotor − Tagihan (dihitung owner).
+4. **Tagihan bulanan TERPISAH** dari Laba Kotor (overhead tetap, bukan biaya
+   per-transaksi). **Laba Bersih = Laba Kotor − Tagihan** ditampilkan sistem di panel
+   khusus pada periode **Bulan/Tahun**.
 5. Kalau **modal menu belum diisi**, COGS = 0 → laba over-estimasi → modal wajib diisi.
 6. Laporan ini **owner-only**.
 
