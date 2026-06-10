@@ -69,6 +69,32 @@ export const updateItemSchema = z
     message: 'Setidaknya salah satu field qty atau notes harus disertakan',
   });
 
+/// REV 2.14: PATCH /transactions/:id/items/:itemId/variant.
+/// Ubah varian / pilihan paket sebuah item yang sudah ada (in-place), tanpa hapus+input ulang.
+/// menuId TIDAK diterima dari client - service memakai menuId dari item DB (hanya
+/// varian/paket dari menu yang sama yang boleh berubah). Bentuk field mirror orderItemSchema.
+export const changeItemVariantSchema = z.object({
+  variantId: z.number().int().positive().nullable().optional(),
+  paketChoices: z
+    .record(
+      z.string(),
+      z.object({
+        targetMenuId: z.number().int().positive(),
+        variantId: z.number().int().positive().nullable().optional(),
+        chosenLabel: z.string().trim().min(1),
+      }),
+    )
+    .optional(),
+  preferences: z
+    .array(z.object({ groupLabel: z.string().trim().min(1), chosenLabel: z.string().trim().min(1) }))
+    .optional(),
+})
+  .refine(
+    (data) =>
+      data.variantId !== undefined || data.paketChoices !== undefined || data.preferences !== undefined,
+    { message: 'Setidaknya salah satu field varian/paket harus disertakan' },
+  );
+
 /// REV 2.6: addPayment - tambah 1 payment slice.
 /// Validasi format saja di sini:
 ///   - method: string non-empty (lowercase, max 20) - lookup di payment_methods table di service.
@@ -139,6 +165,7 @@ export type OrderItemInput = z.infer<typeof orderItemSchema>;
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type AddItemsInput = z.infer<typeof addItemsSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+export type ChangeItemVariantInput = z.infer<typeof changeItemVariantSchema>;
 export type AddPaymentInput = z.infer<typeof addPaymentSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type ListByTableQuery = z.infer<typeof listByTableQuerySchema>;

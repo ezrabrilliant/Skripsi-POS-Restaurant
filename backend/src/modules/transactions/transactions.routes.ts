@@ -21,6 +21,7 @@ import {
   handleAddItems,
   handleDeleteItem,
   handleUpdateItem,
+  handleChangeItemVariant,
   handleAddPayment,
   handleRemovePayment,
   handleVoid,
@@ -46,6 +47,8 @@ router.post('/:id/items', handleAddItems);
 router.delete('/:id/items/:itemId', handleDeleteItem);
 // REV 2.4: update item per-row - qty + notes (stock adjust via delta + audit log)
 router.patch('/:id/items/:itemId', handleUpdateItem);
+// REV 2.14: ubah varian/paket item terbuka in-place (reverse stok lama → apply stok baru)
+router.patch('/:id/items/:itemId/variant', handleChangeItemVariant);
 
 // Owner + cashier saja (REV 2.5: payment slice + void + combine)
 const ownerOrCashier = requireRole(UserRole.owner, UserRole.cashier);

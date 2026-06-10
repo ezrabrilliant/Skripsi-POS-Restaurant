@@ -23,7 +23,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import type { Menu, MenuVariant } from '@/types'
+import type { Menu, MenuVariant, TransactionItem } from '@/types'
 import { menuService } from '@/services/menuService'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Dialog, Button, Skeleton } from '@/design-system/primitives'
@@ -51,6 +51,10 @@ interface Props {
   menu: Menu
   onConfirm: (result: VariantPickResult) => void
   onClose: () => void
+  /** REV 2.14: item tersimpan yang sedang diedit → seed pilihan awal (pre-fill). */
+  initialItem?: TransactionItem
+  /** REV 2.14: label tombol confirm. Default "Tambah ke Pesanan"; edit pakai "Simpan Perubahan". */
+  confirmLabel?: string
 }
 
 /** Cek apakah catalog layer sudah ter-include di menu (list pakai menuDetailInclude). */
@@ -62,7 +66,7 @@ function hasCatalog(menu: Menu): boolean {
   )
 }
 
-export default function VariantPickerModal({ menu, onConfirm, onClose }: Props) {
+export default function VariantPickerModal({ menu, onConfirm, onClose, initialItem, confirmLabel }: Props) {
   // Kalau menu list belum bawa nested catalog, fetch detail. Umumnya sudah ada
   // (backend list pakai menuDetailInclude) → query disabled, langsung pakai menu prop.
   const needsFetch = !hasCatalog(menu)
@@ -96,7 +100,7 @@ export default function VariantPickerModal({ menu, onConfirm, onClose }: Props) 
       ) : !resolved ? (
         <p className="text-body-sm text-neutral-600 py-4">Gagal memuat detail menu.</p>
       ) : (
-        <PickerBody menu={resolved} onConfirm={onConfirm} onClose={onClose} />
+        <PickerBody menu={resolved} onConfirm={onConfirm} onClose={onClose} initialItem={initialItem} confirmLabel={confirmLabel} />
       )}
     </Dialog>
   )
@@ -113,16 +117,20 @@ function PickerBody({
   menu,
   onConfirm,
   onClose,
+  initialItem,
+  confirmLabel,
 }: {
   menu: Menu
   onConfirm: (result: VariantPickResult) => void
   onClose: () => void
+  initialItem?: TransactionItem
+  confirmLabel?: string
 }) {
   if (menu.kind === 'variant') {
-    return <VariantPicker menu={menu} onConfirm={onConfirm} />
+    return <VariantPicker menu={menu} onConfirm={onConfirm} initialItem={initialItem} confirmLabel={confirmLabel} />
   }
   if (menu.kind === 'paket') {
-    return <PaketPicker menu={menu} onConfirm={onConfirm} />
+    return <PaketPicker menu={menu} onConfirm={onConfirm} initialItem={initialItem} confirmLabel={confirmLabel} />
   }
   // simple - jarang dibuka. Confirm langsung.
   return (
@@ -142,7 +150,7 @@ function PickerBody({
             onConfirm({ menuId: menu.id, unitPrice: menu.price, displayLabel: menu.name })
           }
         >
-          Tambah ke Pesanan
+          {confirmLabel ?? 'Tambah ke Pesanan'}
         </Button>
       </div>
     </div>
@@ -200,9 +208,13 @@ function OptionGrid({
 function VariantPicker({
   menu,
   onConfirm,
+  initialItem,
+  confirmLabel,
 }: {
   menu: Menu
   onConfirm: (result: VariantPickResult) => void
+  initialItem?: TransactionItem
+  confirmLabel?: string
 }) {
   const groups = useMemo(
     () => [...(menu.optionGroups ?? [])].sort((a, b) => a.displayOrder - b.displayOrder),
@@ -214,8 +226,34 @@ function VariantPicker({
     [menu.variants],
   )
 
+  // REV 2.14: pre-fill dari item tersimpan. Grup affectsVariant diisi dari
+  // variant.optionIds; grup free-preference dari selections isPreference=true
+  // (cocokkan nama grup + label opsi). Dihitung sekali (mount).
+  const initialSelection = useMemo<Record<number, number>>(() => {
+    const sel: Record<number, number> = {}
+    if (!initialItem) return sel
+    const optionToGroup = new Map<number, number>()
+    for (const g of groups) for (const o of g.options) optionToGroup.set(o.id, g.id)
+    const v = variants.find((vr) => vr.id === initialItem.variantId)
+    if (v) {
+      for (const oid of v.optionIds) {
+        const gid = optionToGroup.get(oid)
+        if (gid !== undefined) sel[gid] = oid
+      }
+    }
+    for (const s of initialItem.selections ?? []) {
+      if (!s.isPreference) continue
+      const g = groups.find((gr) => gr.name === s.groupOrSlotLabel)
+      if (!g) continue
+      const o = g.options.find((op) => op.label === s.chosenLabel)
+      if (o) sel[g.id] = o.id
+    }
+    return sel
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // selection: { groupId -> optionId }
-  const [selection, setSelection] = useState<Record<number, number>>({})
+  const [selection, setSelection] = useState<Record<number, number>>(initialSelection)
 
   const handleSelect = (groupId: number, optionId: number) => {
     setSelection((prev) => ({ ...prev, [groupId]: optionId }))
@@ -306,7 +344,7 @@ function VariantPicker({
         disabled={!canConfirm}
         onClick={handleConfirm}
       >
-        Tambah ke Pesanan
+        {confirmLabel ?? 'Tambah ke Pesanan'}
       </Button>
     </div>
   )
@@ -319,9 +357,13 @@ function VariantPicker({
 function PaketPicker({
   menu,
   onConfirm,
+  initialItem,
+  confirmLabel,
 }: {
   menu: Menu
   onConfirm: (result: VariantPickResult) => void
+  initialItem?: TransactionItem
+  confirmLabel?: string
 }) {
   const components = useMemo(
     () => [...(menu.paketComponents ?? [])].sort((a, b) => a.displayOrder - b.displayOrder),
@@ -330,12 +372,39 @@ function PaketPicker({
   const fixedComponents = components.filter((c) => c.kind === 'fixed')
   const choiceComponents = components.filter((c) => c.kind === 'choice')
 
+  // REV 2.14: pre-fill dari item tersimpan. Untuk tiap slot choice, cocokkan
+  // selection tersimpan (label slot + label opsi) → set opsi terpilih; seed
+  // subPicks dari targetVariantId bila ada (caption varian best-effort = chosenLabel).
+  const initialPaketState = useMemo(() => {
+    const sel: Record<number, number> = {}
+    const subs: Record<number, { variantId: number; variantLabel: string }> = {}
+    for (const s of initialItem?.selections ?? []) {
+      if (s.isPreference) continue
+      const comp = choiceComponents.find((c) => c.label === s.groupOrSlotLabel)
+      if (!comp) continue
+      const opt =
+        comp.choiceOptions.find((o) => o.label === s.chosenLabel) ??
+        comp.choiceOptions.find((o) =>
+          s.targetVariantId != null
+            ? o.targetVariantId === s.targetVariantId
+            : o.targetMenuId === s.targetMenuId,
+        )
+      if (!opt) continue
+      sel[comp.id] = opt.id
+      if (s.targetVariantId != null) {
+        subs[comp.id] = { variantId: s.targetVariantId, variantLabel: s.chosenLabel }
+      }
+    }
+    return { sel, subs }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // selection per choice slot: { componentId -> optionId }
-  const [selection, setSelection] = useState<Record<number, number>>({})
+  const [selection, setSelection] = useState<Record<number, number>>(initialPaketState.sel)
   // sub-variant pick per slot (kalau opsi target adalah menu varian): { componentId -> {variantId, variantLabel} }
   const [subPicks, setSubPicks] = useState<
     Record<number, { variantId: number; variantLabel: string }>
-  >({})
+  >(initialPaketState.subs)
   // nested picker target: menu varian + komponen yang sedang dipilih sub-variannya.
   const [nestedTarget, setNestedTarget] = useState<{
     componentId: number
@@ -478,7 +547,7 @@ function PaketPicker({
         disabled={!allChoicesChosen}
         onClick={handleConfirm}
       >
-        Tambah ke Pesanan
+        {confirmLabel ?? 'Tambah ke Pesanan'}
       </Button>
 
       {/* Nested variant picker untuk slot yang target-nya menu varian. */}

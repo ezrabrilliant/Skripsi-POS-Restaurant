@@ -67,6 +67,8 @@ interface Props {
   onUpdateItemQty?: (txId: number, itemId: number, newQty: number) => void
   /// REV 2.4: update notes item dari Tx open.
   onUpdateItemNotes?: (txId: number, itemId: number, newNotes: string) => void
+  /// REV 2.14: ubah varian/paket item Pesanan terbuka (diteruskan ke ActiveOrdersView).
+  onEditVariant?: (txId: number, itemId: number) => void
   /// Disable mutate buttons selama mutation berjalan.
   isDeleting?: boolean
   isUpdatingItem?: boolean
@@ -91,6 +93,7 @@ export default function CartPanel({
   onDeleteItem,
   onUpdateItemQty,
   onUpdateItemNotes,
+  onEditVariant,
   isDeleting,
   isUpdatingItem,
   occupiedTables,
@@ -229,6 +232,7 @@ export default function CartPanel({
               isDeleting={isDeleting}
               isUpdating={isUpdatingItem}
               isSubmitting={isSubmitting}
+              onEditVariant={onEditVariant}
             />
           ) : (
             <EmptyState

@@ -34,7 +34,7 @@ import { shiftService } from '@/services/shiftService'
 import { transactionService } from '@/services/transactionService'
 import { useCartStore, cartItemCount } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { Menu, Shift, Transaction, UserRole } from '@/types'
+import type { Menu, Shift, Transaction, TransactionItem, UserRole } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button, IconButton, Sheet } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -63,6 +63,15 @@ export default function POSPage() {
   // atomic - merge tidak dilakukan upfront supaya cancel tidak meninggalkan
   // merge state yang stuck di backend.
   const [paymentCandidates, setPaymentCandidates] = useState<number[]>([])
+
+  // REV 2.14: konteks edit varian item Pesanan terbuka. Set oleh handleEditVariant,
+  // mengontrol VariantPickerModal kedua (mode edit, pre-filled dari item tersimpan).
+  const [variantEdit, setVariantEdit] = useState<{
+    txId: number
+    itemId: number
+    menu: Menu
+    item: TransactionItem
+  } | null>(null)
 
   const cart = useCartStore()
 
@@ -202,6 +211,35 @@ export default function POSPage() {
       qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
     },
     onError: (err: Error) => toast.error(err.message || 'Gagal update item'),
+  })
+
+  // REV 2.14: ubah varian/paket item Pesanan terbuka. Backend reverse stok lama →
+  // apply stok baru + update harga/cost/subtotal. Invalidate set sama updateItemMutation.
+  const changeVariantMutation = useMutation({
+    mutationFn: (input: {
+      txId: number
+      itemId: number
+      variantId?: number | null
+      paketChoices?: Record<
+        string,
+        { targetMenuId: number; variantId?: number | null; chosenLabel: string }
+      >
+      preferences?: { groupLabel: string; chosenLabel: string }[]
+    }) =>
+      transactionService.changeItemVariant(input.txId, input.itemId, {
+        variantId: input.variantId,
+        paketChoices: input.paketChoices,
+        preferences: input.preferences,
+      }),
+    onSuccess: () => {
+      toast.success('Varian item diperbarui')
+      qc.invalidateQueries({ queryKey: ['transactions', 'byTable', cart.tableNumber] })
+      qc.invalidateQueries({ queryKey: ['transactions', 'openTakeaway'] })
+      qc.invalidateQueries({ queryKey: ['menus', 'pos'] })
+      qc.invalidateQueries({ queryKey: ['transactions', 'open-today'] })
+      setVariantEdit(null)
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal mengubah varian'),
   })
 
   // REV 2.5: merge intra-table SEKARANG dipindah ke dalam PaymentModal (defer
@@ -357,6 +395,23 @@ export default function POSPage() {
     updateItemMutation.mutate({ txId, itemId, notes: newNotes.trim() })
   }
 
+  // REV 2.14: buka VariantPickerModal pre-filled untuk item Pesanan terbuka.
+  // Cari Tx + item dari activeOrders (dine-in), dan Menu dari list POS.
+  const handleEditVariant = (txId: number, itemId: number) => {
+    const order = activeOrders.find((o) => o.id === txId)
+    const item = order?.items.find((i) => i.id === itemId)
+    if (!item) {
+      toast.error('Item tidak ditemukan')
+      return
+    }
+    const menu = menus.find((m) => m.id === item.menuId)
+    if (!menu) {
+      toast.error('Menu untuk item ini tidak tersedia (mungkin nonaktif)')
+      return
+    }
+    setVariantEdit({ txId, itemId, menu, item })
+  }
+
   // REV 2.5: handler dipanggil PaymentModal saat Tx fully paid (cascade selesai).
   // Cleanup state UI + cart. Invalidate query handled di PaymentModal sendiri.
   const handlePaymentSuccess = () => {
@@ -444,6 +499,7 @@ export default function POSPage() {
           onDeleteItem={handleDeleteItem}
           onUpdateItemQty={handleUpdateItemQty}
           onUpdateItemNotes={handleUpdateItemNotes}
+          onEditVariant={handleEditVariant}
           isDeleting={deleteItemMutation.isPending}
           isUpdatingItem={updateItemMutation.isPending}
           occupiedTables={occupiedTables}
@@ -490,6 +546,7 @@ export default function POSPage() {
             onDeleteItem={handleDeleteItem}
             onUpdateItemQty={handleUpdateItemQty}
             onUpdateItemNotes={handleUpdateItemNotes}
+            onEditVariant={handleEditVariant}
             isDeleting={deleteItemMutation.isPending}
             isUpdatingItem={updateItemMutation.isPending}
             occupiedTables={occupiedTables}
@@ -503,6 +560,25 @@ export default function POSPage() {
           menu={pickerMenu}
           onConfirm={handlePickerConfirm}
           onClose={() => setPickerMenu(null)}
+        />
+      )}
+
+      {/* REV 2.14: modal edit varian/paket item Pesanan terbuka (pre-filled). */}
+      {variantEdit && (
+        <VariantPickerModal
+          menu={variantEdit.menu}
+          initialItem={variantEdit.item}
+          confirmLabel="Simpan Perubahan"
+          onConfirm={(result) =>
+            changeVariantMutation.mutate({
+              txId: variantEdit.txId,
+              itemId: variantEdit.itemId,
+              variantId: result.variantId ?? null,
+              paketChoices: result.paketChoices ?? undefined,
+              preferences: result.preferences ?? undefined,
+            })
+          }
+          onClose={() => setVariantEdit(null)}
         />
       )}
 

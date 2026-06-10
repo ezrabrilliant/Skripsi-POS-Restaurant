@@ -309,13 +309,13 @@ export interface TransactionItem {
    * untuk teh & jeruk yang ambigu suhu). */
   notes: string | null
   /** REV 2.10: varian terjual untuk menu kind=variant (null untuk simple/paket).
-   * Optional: backend view mapper (toTransactionView) belum emit field ini -
-   * akan ditambah di phase berikutnya bersama variantLabel + selections. */
+   * Di-emit oleh backend view mapper (toTransactionView). Optional di tipe untuk
+   * backward-compat Tx historis. Dipakai REV 2.14 untuk pre-fill edit varian. */
   variantId?: number | null
   /** REV 2.10: label varian untuk display (kalau backend mengirimkannya). */
   variantLabel?: string | null
-  /** REV 2.10: baris selection (slot paket + free-preference) - optional sampai
-   * backend view mapper mengembalikannya. */
+  /** REV 2.10: baris selection (slot paket + free-preference). Di-emit oleh
+   * backend view mapper; optional di tipe untuk Tx historis tanpa selections. */
   selections?: TransactionItemSelection[]
   createdAt: string
 }
