@@ -30,10 +30,12 @@ function addDays(d: Date, n: number): Date {
   x.setDate(x.getDate() + n)
   return x
 }
-function startOfWeekMonday(d: Date): Date {
-  const day = d.getDay() // 0=Min .. 6=Sab
-  const diff = day === 0 ? -6 : 1 - day
-  return addDays(d, diff)
+/** Default dashboard owner: "Minggu Ini" = 7 hari terakhir (hari ini − 6 → hari
+ *  ini, SELALU 7 hari penuh apa pun harinya). Dipakai oleh preset "Minggu Ini"
+ *  sekaligus initial state OwnerDashboard supaya chip & data konsisten. */
+export function last7DaysQuery(): OwnerReportQuery {
+  const now = new Date()
+  return { period: 'custom', fromDate: localISODate(addDays(now, -6)), toDate: localISODate(now) }
 }
 
 function presetToQuery(preset: Preset, from: string, to: string): OwnerReportQuery {
@@ -46,7 +48,7 @@ function presetToQuery(preset: Preset, from: string, to: string): OwnerReportQue
       return { period: 'custom', fromDate: d, toDate: d }
     }
     case 'week':
-      return { period: 'custom', fromDate: localISODate(startOfWeekMonday(now)), toDate: localISODate(now) }
+      return last7DaysQuery()
     case 'month':
       return { period: 'month' }
     case 'year':
@@ -61,7 +63,7 @@ interface PeriodControlProps {
 }
 
 export function PeriodControl({ onChange }: PeriodControlProps) {
-  const [preset, setPreset] = useState<Preset>('today')
+  const [preset, setPreset] = useState<Preset>('week')
   const [from, setFrom] = useState(localISODate(addDays(new Date(), -7)))
   const [to, setTo] = useState(localISODate(new Date()))
 

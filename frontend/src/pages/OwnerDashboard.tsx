@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { Page } from '@/design-system/primitives'
 import { formatDate } from '@/lib/utils'
 import type { OwnerReportQuery } from '@/services/dashboardService'
-import { PeriodControl } from './owner-dashboard/PeriodControl'
+import { PeriodControl, last7DaysQuery } from './owner-dashboard/PeriodControl'
 import RingkasanTab from './owner-dashboard/RingkasanTab'
 import MenuPerformanceTab from './owner-dashboard/MenuPerformanceTab'
 import TrendTab from './owner-dashboard/TrendTab'
@@ -38,7 +38,9 @@ const SECTION_ITEMS = [
 export default function OwnerDashboard() {
   const { user } = useAuthStore()
   const [section, setSection] = useState<Section>('ringkasan')
-  const [period, setPeriod] = useState<OwnerReportQuery>({ period: 'today' })
+  // REV 2.x: default period = "Minggu Ini" (7 hari terakhir). Lazy init supaya
+  // dihitung sekali saat mount; konsisten dgn chip default 'week' di PeriodControl.
+  const [period, setPeriod] = useState<OwnerReportQuery>(last7DaysQuery)
 
   return (
     <Page
