@@ -140,8 +140,6 @@ function SettlementFlow({ businessDate }: { businessDate: string }) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const toast = useToast()
-  const confirm = useConfirm()
-  const navigate = useNavigate()
 
   const { data: preview, isLoading } = useQuery({
     queryKey: ['settlements', 'preview', businessDate],
@@ -168,30 +166,6 @@ function SettlementFlow({ businessDate }: { businessDate: string }) {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => settlementService.delete(id),
-    onSuccess: () => {
-      toast.success('Setoran dihapus - hari ini terbuka lagi')
-      qc.invalidateQueries({ queryKey: ['settlement'] })
-      qc.invalidateQueries({ queryKey: ['settlements'] })
-      navigate('/laporan?tab=kasir')
-    },
-    onError: (err: Error) => toast.error(err.message),
-  })
-
-  const handleDelete = async (id: number) => {
-    const okToDelete = await confirm({
-      title: 'Hapus setoran?',
-      description:
-        'Hari ini akan terbuka kembali (shift bisa dibuka & transaksi bisa di-void lagi). ' +
-        'Pakai ini hanya kalau setoran keliru.',
-      confirmText: 'Ya, Hapus Setoran',
-      tone: 'danger',
-    })
-    if (!okToDelete) return
-    deleteMutation.mutate(id)
-  }
-
   if (isLoading || !preview) {
     return <Skeleton className="h-96" />
   }
@@ -203,9 +177,6 @@ function SettlementFlow({ businessDate }: { businessDate: string }) {
         canReview={user?.role === 'owner' && existingSettlement.status === 'submitted'}
         onReview={() => reviewMutation.mutate(existingSettlement.id)}
         isReviewing={reviewMutation.isPending}
-        canDelete={user?.role === 'owner'}
-        onDelete={() => handleDelete(existingSettlement.id)}
-        isDeleting={deleteMutation.isPending}
       />
     )
   }
@@ -426,17 +397,11 @@ function SettlementDetailView({
   canReview,
   onReview,
   isReviewing,
-  canDelete,
-  onDelete,
-  isDeleting,
 }: {
   settlement: Settlement
   canReview: boolean
   onReview: () => void
   isReviewing: boolean
-  canDelete: boolean
-  onDelete: () => void
-  isDeleting: boolean
 }) {
   const totalDiff = settlement.totalVariance
   const isReviewed = settlement.status === 'reviewed'
@@ -574,19 +539,6 @@ function SettlementDetailView({
           className="!bg-success-600 hover:!bg-success-700"
         >
           Tandai Sudah Direview
-        </Button>
-      )}
-
-      {canDelete && (
-        <Button
-          variant="ghost"
-          size="sm"
-          fullWidth
-          onClick={onDelete}
-          loading={isDeleting}
-          className="!text-danger-700 hover:!bg-danger-50"
-        >
-          Hapus setoran (buka kembali hari ini)
         </Button>
       )}
     </div>

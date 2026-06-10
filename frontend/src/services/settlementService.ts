@@ -66,9 +66,4 @@ export const settlementService = {
     )
     return res.data.data.settlement
   },
-
-  delete: async (id: number): Promise<{ id: number }> => {
-    const res = await api.delete<ApiResponse<{ id: number }>>(`/settlements/${id}`)
-    return res.data.data
-  },
 }

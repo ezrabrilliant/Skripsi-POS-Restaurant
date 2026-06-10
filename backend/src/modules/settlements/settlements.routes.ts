@@ -13,7 +13,6 @@ import {
   handleList,
   handleDetail,
   handleReview,
-  handleDelete,
 } from './settlements.controller';
 
 const router = Router();
@@ -27,6 +26,5 @@ router.post('/', ownerOrCashier, handleCreate);
 router.get('/', ownerOrCashier, handleList);
 router.get('/:id', ownerOrCashier, handleDetail);
 router.put('/:id/review', ownerOnly, handleReview);
-router.delete('/:id', ownerOnly, handleDelete);
 
 export default router;

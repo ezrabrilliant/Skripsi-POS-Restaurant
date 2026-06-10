@@ -69,23 +69,10 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   const { minutesOfDay } = restoNow(window.timezone, now);
   const businessDate = businessDateFor(window, now);
 
-  const [openCount, pagiToday, settledToday] = await Promise.all([
+  const [openCount, pagiToday] = await Promise.all([
     prisma.shift.count({ where: { activeMarker: 1 } }),
     prisma.shift.count({ where: { date: businessDate, type: ShiftType.pagi } }),
-    prisma.settlement.findFirst({ where: { date: businessDate }, select: { id: true } }),
   ]);
-
-  // REV 2.15 seal: hari yang sudah disetor terkunci. Tanpa ini, reopen shift di
-  // tanggal yang sama bikin transaksi baru bocor dari rekonsiliasi (settlement
-  // @@unique([date]) sudah beku, createSettlement kedua 409). Tolak buka shift.
-  if (settledToday) {
-    const dateStr = businessDate.toISOString().substring(0, 10);
-    throw new AppError(
-      `Hari ini (${dateStr}) sudah disetor. Buka shift untuk hari berikutnya, ` +
-        `atau minta owner menghapus setoran kalau ada kekeliruan.`,
-      409,
-    );
-  }
 
   const check = canOpenShift({
     type: input.type as 'pagi' | 'malam',
