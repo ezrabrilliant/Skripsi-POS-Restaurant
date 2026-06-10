@@ -50,3 +50,9 @@ export const handleReview = asyncHandler(async (req: Request, res: Response) => 
   const settlement = await settlementsService.reviewSettlement(id, req.user.id);
   sendSuccess(res, { settlement }, 'Settlement di-review');
 });
+
+export const handleDelete = asyncHandler(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const result = await settlementsService.deleteSettlement(id);
+  sendSuccess(res, result, 'Setoran dihapus');
+});

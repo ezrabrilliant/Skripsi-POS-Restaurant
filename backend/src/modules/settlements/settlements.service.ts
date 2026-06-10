@@ -451,6 +451,16 @@ export async function listSettlements(query: ListSettlementsQuery): Promise<Sett
   return withBreakdowns;
 }
 
+export async function deleteSettlement(id: number): Promise<{ id: number }> {
+  // Escape hatch owner-only (permission di route layer). Menghapus settlement
+  // membuka-segel hari itu: openShift boleh lagi + void boleh lagi. Child rows
+  // settlement_method_counts ikut terhapus via onDelete: Cascade.
+  const existing = await prisma.settlement.findUnique({ where: { id } });
+  if (!existing) throw notFound('Settlement');
+  await prisma.settlement.delete({ where: { id } });
+  return { id };
+}
+
 export async function reviewSettlement(id: number, reviewerId: number): Promise<SettlementView> {
   const existing = await prisma.settlement.findUnique({ where: { id } });
   if (!existing) throw notFound('Settlement');
