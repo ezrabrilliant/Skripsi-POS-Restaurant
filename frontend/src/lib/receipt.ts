@@ -131,7 +131,8 @@ export function buildReceiptRows(tx: Transaction, opts: ReceiptOptions): Row[] {
     }
     rows.push({ t: 'lr', l: labelOf('cash'), r: money(opts.cashReceived) })
     const change = opts.cashReceived - (tx.total - sumNonCash)
-    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
+    // bold: Kembali ditonjolkan setara TOTAL (renderer key ke row.bold, bukan label).
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change), bold: true })
   } else {
     // Perilaku lama (cetak ulang dari Riwayat): kembalian dari payments (praktis 0).
     const paid = tx.payments.reduce((s, p) => s + p.amount, 0)
@@ -139,7 +140,7 @@ export function buildReceiptRows(tx: Transaction, opts: ReceiptOptions): Row[] {
       rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
     }
     const change = paid - tx.total
-    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change), bold: true })
   }
   rows.push({ t: 'sep', c: '=' })
 

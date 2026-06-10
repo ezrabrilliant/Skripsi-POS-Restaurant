@@ -52,15 +52,13 @@ export default function ReceiptPreview({
             </div>
           )
         }
-        // row.t === 'lr'
-        const emphasize = row.bold || row.l === 'TOTAL' || row.l === 'Kembali'
+        // row.t === 'lr' — TOTAL & Kembali ditandai bold di buildReceiptRows (sumber tunggal).
         return (
           <div
             key={i}
             className={cn(
               'flex items-baseline justify-between gap-3 tabular-nums',
-              emphasize && 'font-bold',
-              (row.l === 'TOTAL' || row.l === 'Kembali') && 'text-[14px]',
+              row.bold && 'font-bold text-[14px]',
             )}
           >
             <span className="min-w-0 break-words">{row.l}</span>
