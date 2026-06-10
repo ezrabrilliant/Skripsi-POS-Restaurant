@@ -46,6 +46,14 @@ type AppSettingRow = {
   shiftMalamEnd: string;
 };
 
+/** Jam operasional turunan dari window shift: buka = mulai shift pagi, tutup =
+ *  akhir shift malam. Mengganti free-text `openingHours` lama (rawan typo/jelek)
+ *  jadi satu sumber kebenaran. Format Indonesia "HH.MM - HH.MM". */
+function deriveOperatingHours(pagiStart: string, malamEnd: string): string {
+  const dot = (hhmm: string) => hhmm.replace(':', '.');
+  return `${dot(pagiStart)} - ${dot(malamEnd)}`;
+}
+
 function toView(s: AppSettingRow): SettingView {
   return {
     taxEnabled: s.taxEnabled,
@@ -53,7 +61,9 @@ function toView(s: AppSettingRow): SettingView {
     taxChargedToCustomer: s.taxChargedToCustomer,
     restaurantName: s.restaurantName,
     restaurantAddress: s.restaurantAddress,
-    openingHours: s.openingHours,
+    // REV 2.x: openingHours kini DITURUNKAN dari jam shift (buka pagi → tutup
+    // malam), bukan lagi field manual. Kolom DB openingHours dibiarkan dormant.
+    openingHours: deriveOperatingHours(s.shiftPagiStart, s.shiftMalamEnd),
     restaurantPhone: s.restaurantPhone,
     restaurantLogoUrl: s.restaurantLogoUrl,
     restockMultiple: s.restockMultiple,

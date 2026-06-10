@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Store, ImagePlus, Loader2, X } from 'lucide-react'
+import { Store, ImagePlus, Loader2, X, Clock } from 'lucide-react'
 import { settingsService } from '@/services/settingsService'
 import { Button, Input, Skeleton } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
@@ -17,7 +17,6 @@ export default function RestaurantIdentityTab() {
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
-  const [hours, setHours] = useState('')
   const [phone, setPhone] = useState('')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -27,7 +26,6 @@ export default function RestaurantIdentityTab() {
     if (settingsQuery.data) {
       setName(settingsQuery.data.restaurantName)
       setAddress(settingsQuery.data.restaurantAddress ?? '')
-      setHours(settingsQuery.data.openingHours ?? '')
       setPhone(settingsQuery.data.restaurantPhone ?? '')
       setLogoUrl(settingsQuery.data.restaurantLogoUrl)
     }
@@ -38,7 +36,6 @@ export default function RestaurantIdentityTab() {
       settingsService.update({
         restaurantName: name.trim(),
         restaurantAddress: address.trim() || null,
-        openingHours: hours.trim() || null,
         restaurantPhone: phone.trim() || null,
         restaurantLogoUrl: logoUrl,
       }),
@@ -71,7 +68,6 @@ export default function RestaurantIdentityTab() {
     !!settingsQuery.data &&
     (name.trim() !== settingsQuery.data.restaurantName ||
       (address.trim() || null) !== settingsQuery.data.restaurantAddress ||
-      (hours.trim() || null) !== settingsQuery.data.openingHours ||
       (phone.trim() || null) !== settingsQuery.data.restaurantPhone ||
       logoUrl !== settingsQuery.data.restaurantLogoUrl)
 
@@ -161,19 +157,20 @@ export default function RestaurantIdentityTab() {
           onChange={(e) => setAddress(e.target.value)}
           placeholder="Ir. Soekarno No. 221 unit GF, 221 Lane Merr, Surabaya"
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input
-            label="Jam Buka"
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-            placeholder="10.00 - 22.00"
-          />
-          <Input
-            label="Telepon"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+62 877-3424-2941"
-          />
+        <Input
+          label="Telepon"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+62 877-3424-2941"
+        />
+
+        <div className="flex items-start gap-2 rounded-lg bg-info-50 border border-info-100 p-2.5">
+          <Clock size={16} className="text-info-600 shrink-0 mt-0.5" aria-hidden />
+          <p className="text-caption text-info-700">
+            Jam operasional di struk &amp; halaman login otomatis dari tab{' '}
+            <span className="font-medium">Jam Shift</span> (jam buka shift pagi sampai
+            jam tutup shift malam) &mdash; tidak perlu diisi manual.
+          </p>
         </div>
 
         <div className="flex justify-end pt-1">
