@@ -50,7 +50,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/stock',      icon: Package,          label: 'Stok' },
     { to: '/menu',       icon: UtensilsCrossed,  label: 'Menu', end: true },
     { to: '/users',      icon: Users,            label: 'Pengguna' },
-    { to: '/payment-methods', icon: Settings,  label: 'Setting' },
+    { to: '/settings',   icon: Settings,        label: 'Pengaturan' },
   ],
   cashier: [
     { to: '/dashboard',  icon: Home,             label: 'Beranda' },

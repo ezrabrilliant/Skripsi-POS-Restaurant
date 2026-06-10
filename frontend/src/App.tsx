@@ -86,7 +86,9 @@ function App() {
           <Route path="menu/sku-varian" element={<Navigate to="/menu?tab=varian" replace />} />
           <Route path="users" element={<RoleRoute allow={['owner']}><UsersPage /></RoleRoute>} />
           <Route path="bills" element={<RoleRoute allow={['owner']}><BillsPage /></RoleRoute>} />
-          <Route path="payment-methods" element={<RoleRoute allow={['owner']}><PaymentMethodsPage /></RoleRoute>} />
+          <Route path="settings" element={<RoleRoute allow={['owner']}><PaymentMethodsPage /></RoleRoute>} />
+          {/* Backward-compat: tautan/bookmark lama /payment-methods → /settings */}
+          <Route path="payment-methods" element={<Navigate to="/settings" replace />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
