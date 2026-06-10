@@ -15,6 +15,7 @@ import {
   listByTableQuerySchema,
   mergeSchema,
   updateItemSchema,
+  changeItemVariantSchema,
 } from './transactions.schema';
 import * as transactionsService from './transactions.service';
 
@@ -52,6 +53,17 @@ export const handleUpdateItem = asyncHandler(async (req: Request, res: Response)
   const input = updateItemSchema.parse(req.body);
   const transaction = await transactionsService.updateTransactionItem(id, itemId, req.user.id, input);
   sendSuccess(res, { transaction }, 'Item berhasil diupdate');
+});
+
+/// REV 2.14: PATCH /transactions/:id/items/:itemId/variant - ubah varian/paket item in-place.
+/// Reverse stok lama → re-resolve pilihan baru → apply stok baru. Semua role authenticated.
+export const handleChangeItemVariant = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthorized();
+  const id = parseId(req.params.id);
+  const itemId = parseId(req.params.itemId);
+  const input = changeItemVariantSchema.parse(req.body);
+  const transaction = await transactionsService.changeTransactionItemVariant(id, itemId, req.user.id, input);
+  sendSuccess(res, { transaction }, 'Varian item berhasil diubah');
 });
 
 /// REV 2.5: POST /transactions/:id/payments - tambah 1 payment slice (Split Tender support).
