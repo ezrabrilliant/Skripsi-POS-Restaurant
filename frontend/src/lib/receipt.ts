@@ -56,6 +56,10 @@ export interface ReceiptOptions {
   taxRate?: number
   /** resolusi label metode bayar dari code (mis. cash -> Tunai). Default: code apa adanya. */
   paymentLabel?: (method: string) => string
+  /** REV 2.15: uang tunai diterima (ephemeral, frontend-only). Jika ada → baris
+   *  Tunai memakai nilai ini & Kembali = cashReceived − sisa tunai (total − Σ non-cash).
+   *  Tidak disertakan saat cetak ulang dari Riwayat → kembalian tak tampil (perilaku lama). */
+  cashReceived?: number
 }
 
 /** Bangun daftar baris struk (pure - tanpa side effect). Diuji di receipt.test.ts.
@@ -113,12 +117,27 @@ export function buildReceiptRows(tx: Transaction, opts: ReceiptOptions): Row[] {
   rows.push({ t: 'lr', l: 'TOTAL', r: money(tx.total), bold: true })
 
   // --- Pembayaran + kembalian ---
-  const paid = tx.payments.reduce((s, p) => s + p.amount, 0)
-  for (const p of tx.payments) {
-    rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+  if (opts.cashReceived != null) {
+    // REV 2.15: mode at-payment. Tampilkan slice non-cash apa adanya, lalu satu baris
+    // Tunai = uang diterima, dan Kembali = diterima − sisa tunai (total − Σ non-cash).
+    const nonCash = tx.payments.filter((p) => p.method !== 'cash')
+    let sumNonCash = 0
+    for (const p of nonCash) {
+      sumNonCash += p.amount
+      rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+    }
+    rows.push({ t: 'lr', l: labelOf('cash'), r: money(opts.cashReceived) })
+    const change = opts.cashReceived - (tx.total - sumNonCash)
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
+  } else {
+    // Perilaku lama (cetak ulang dari Riwayat): kembalian dari payments (praktis 0).
+    const paid = tx.payments.reduce((s, p) => s + p.amount, 0)
+    for (const p of tx.payments) {
+      rows.push({ t: 'lr', l: labelOf(p.method) + (p.bank ? ` (${p.bank})` : ''), r: money(p.amount) })
+    }
+    const change = paid - tx.total
+    if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
   }
-  const change = paid - tx.total
-  if (change > 0) rows.push({ t: 'lr', l: 'Kembali', r: money(change) })
   rows.push({ t: 'sep', c: '=' })
 
   // --- Footer ---

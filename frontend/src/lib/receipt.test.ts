@@ -61,4 +61,31 @@ describe('buildReceiptRows', () => {
     // Catatan gabungan muncul.
     expect(rows.some((r) => r.t === 'left' && r.s.includes('Gabungan'))).toBe(true)
   })
+
+  it('cashReceived: baris Tunai = uang diterima & Kembali = diterima - total', () => {
+    const t = tx({
+      subtotal: 41800, total: 41800,
+      items: [item({ menuName: 'Ayam Bakar', qty: 1, subtotal: 41800 })],
+      payments: [{ id: 1, method: 'cash', bank: null, amount: 41800, recordedAt: '', recordedById: 1, recordedByName: 'Jason' }],
+    })
+    const rows = buildReceiptRows(t, { identity: null, cashReceived: 50000, paymentLabel: () => 'Tunai' })
+    expect(lr(rows, 'Tunai')?.r).toBe('50.000')
+    expect(lr(rows, 'Kembali')?.r).toBe('8.200')
+  })
+
+  it('cashReceived dengan slice non-cash sebelumnya: Kembali atas sisa tunai', () => {
+    const t = tx({
+      subtotal: 41800, total: 41800,
+      items: [item({ menuName: 'Paket', qty: 1, subtotal: 41800 })],
+      payments: [
+        { id: 1, method: 'qris', bank: null, amount: 21800, recordedAt: '', recordedById: 1, recordedByName: 'Jason' },
+        { id: 2, method: 'cash', bank: null, amount: 20000, recordedAt: '', recordedById: 1, recordedByName: 'Jason' },
+      ],
+    })
+    const rows = buildReceiptRows(t, { identity: null, cashReceived: 50000, paymentLabel: (m) => (m === 'cash' ? 'Tunai' : 'QRIS') })
+    // sisa tunai = total - nonCash = 41800 - 21800 = 20000; kembali = 50000 - 20000 = 30000
+    expect(lr(rows, 'Tunai')?.r).toBe('50.000')
+    expect(lr(rows, 'QRIS')?.r).toBe('21.800')
+    expect(lr(rows, 'Kembali')?.r).toBe('30.000')
+  })
 })
