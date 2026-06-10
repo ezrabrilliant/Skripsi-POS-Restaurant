@@ -155,6 +155,28 @@ export const transactionService = {
     return res.data.data.transaction
   },
 
+  /** REV 2.14: ubah varian / pilihan paket item yang sudah ada (in-place).
+   * Backend reverse stok lama → re-resolve pilihan baru → apply stok baru +
+   * update harga/cost/subtotal + ganti selections. Open Tx only. */
+  changeItemVariant: async (
+    transactionId: number,
+    itemId: number,
+    payload: {
+      variantId?: number | null
+      paketChoices?: Record<
+        string,
+        { targetMenuId: number; variantId?: number | null; chosenLabel: string }
+      >
+      preferences?: { groupLabel: string; chosenLabel: string }[]
+    },
+  ): Promise<Transaction> => {
+    const res = await api.patch<ApiResponse<{ transaction: Transaction }>>(
+      `/transactions/${transactionId}/items/${itemId}/variant`,
+      payload,
+    )
+    return res.data.data.transaction
+  },
+
   /** REV 2.5: POST /transactions/:id/payments - tambah 1 payment slice.
    * Single tender: 1x call dengan amount = total.
    * Split tender:  Nx call sampai sum payments >= total.
