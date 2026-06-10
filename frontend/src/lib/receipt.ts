@@ -58,7 +58,10 @@ export interface ReceiptOptions {
   paymentLabel?: (method: string) => string
   /** REV 2.15: uang tunai diterima (ephemeral, frontend-only). Jika ada → baris
    *  Tunai memakai nilai ini & Kembali = cashReceived − sisa tunai (total − Σ non-cash).
-   *  Tidak disertakan saat cetak ulang dari Riwayat → kembalian tak tampil (perilaku lama). */
+   *  Tidak disertakan saat cetak ulang dari Riwayat → kembalian tak tampil (perilaku lama).
+   *  Kontrak pemanggil: hanya kirim saat pembayaran memuat komponen tunai, dan pastikan
+   *  cashReceived ≥ sisa tunai (PaymentModal sudah memblokir submit jika kurang). Kembalian
+   *  pas (0) sengaja tidak memunculkan baris "Kembali". */
   cashReceived?: number
 }
 
