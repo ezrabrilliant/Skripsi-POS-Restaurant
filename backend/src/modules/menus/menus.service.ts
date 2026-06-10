@@ -324,6 +324,9 @@ export async function upsertMenu(
 
     // 1. Base menu (create atau update)
     let baseId: number;
+    // Kunci optionLabels varian lama (untuk reconcile in-place pada UPDATE). Kosong
+    // pada CREATE → reconcile jadi "create semua".
+    let existingVariants: { id: number; key: string }[] = [];
     if (id === null) {
       const created = await tx.menu.create({
         data: {
@@ -387,9 +390,15 @@ export async function upsertMenu(
           },
         });
       }
-      // Replace-children: hapus catalog lama (cascade hilangkan turunannya).
+      // VARIAN di-reconcile in-place (BUKAN delete-recreate) supaya ID varian stabil:
+      // paket boleh mereferensikan variant via targetVariantId (onDelete: Restrict),
+      // dan delete-recreate akan (a) ditolak FK, (b) meng-orphan link paket. Tangkap
+      // dulu kunci optionLabels varian lama SEBELUM hapus option groups (hapus group
+      // → cascade hapus menu_variant_options sehingga link tidak bisa direkonstruksi).
+      existingVariants = await captureExistingVariants(tx, baseId);
+      // Replace-children untuk option groups + paket components (tidak direferensi
+      // lintas-menu, aman di-recreate). Varian ditangani di step 4 (reconcile).
       await tx.menuOptionGroup.deleteMany({ where: { menuId: baseId } });
-      await tx.menuVariant.deleteMany({ where: { menuId: baseId } });
       await tx.paketComponent.deleteMany({ where: { paketMenuId: baseId } });
     }
 
@@ -439,23 +448,35 @@ export async function upsertMenu(
       }
     }
 
-    // 4. Variants + variant-options (link ke option dari grup affectsVariant).
+    // 4. Variants — reconcile in-place by kunci optionLabels (preserve ID varian).
+    //    Matched (kunci sama) → UPDATE (ID & link paket tetap); baru → CREATE.
+    const existingByKey = new Map(existingVariants.map((v) => [v.key, v.id]));
+    const matchedExistingIds = new Set<number>();
     for (const variant of input.variants) {
-      const createdVariant = await tx.menuVariant.create({
-        data: {
-          menuId: baseId,
-          label: variant.label,
-          price: new Prisma.Decimal(variant.price),
-          stockTargetMenuId: variant.stockTargetMenuId,
-          costSourceMenuId: variant.costSourceMenuId ?? null,
-          isActive: variant.isActive,
-          displayOrder: variant.displayOrder,
-        },
-      });
+      const data = {
+        label: variant.label,
+        price: new Prisma.Decimal(variant.price),
+        stockTargetMenuId: variant.stockTargetMenuId,
+        costSourceMenuId: variant.costSourceMenuId ?? null,
+        isActive: variant.isActive,
+        displayOrder: variant.displayOrder,
+      };
+      const key = canonicalVariantKey(variant.optionLabels, variant.label);
+      const existingId = existingByKey.get(key);
+      let variantId: number;
+      if (existingId !== undefined && !matchedExistingIds.has(existingId)) {
+        await tx.menuVariant.update({ where: { id: existingId }, data });
+        matchedExistingIds.add(existingId);
+        variantId = existingId;
+      } else {
+        const created = await tx.menuVariant.create({ data: { menuId: baseId, ...data } });
+        variantId = created.id;
+      }
+      // Link ke option grup affectsVariant. Link lama varian matched sudah ter-cascade
+      // saat hapus option groups; selalu buat ulang dari option ID baru.
       for (const [groupName, optionLabel] of Object.entries(variant.optionLabels)) {
         const groupEntry = variantGroupLookup.get(groupName);
-        // optionLabels yang merujuk grup non-affectsVariant (atau tidak ada) → abaikan
-        // bila grup tidak ada di affectsVariant set, dianggap error referensi.
+        // optionLabels yang merujuk grup non-affectsVariant (atau tidak ada) → error referensi.
         if (!groupEntry) {
           throw new AppError(
             `Varian "${variant.label}" mereferensikan opsi yang tidak ada`,
@@ -470,9 +491,19 @@ export async function upsertMenu(
           );
         }
         await tx.menuVariantOption.create({
-          data: { menuVariantId: createdVariant.id, optionId },
+          data: { menuVariantId: variantId, optionId },
         });
       }
+    }
+
+    // 4b. Varian lama yang tidak lagi ada di payload → hapus, KECUALI masih dipakai
+    //     paket (targetVariantId, onDelete: Restrict) → AppError 400 ramah (bukan 500 FK).
+    const removedVariantIds = existingVariants
+      .map((v) => v.id)
+      .filter((vid) => !matchedExistingIds.has(vid));
+    if (removedVariantIds.length > 0) {
+      await assertVariantsNotReferencedByPaket(tx, removedVariantIds);
+      await tx.menuVariant.deleteMany({ where: { id: { in: removedVariantIds } } });
     }
 
     // 5. Paket components + choice options.
@@ -505,6 +536,68 @@ export async function upsertMenu(
   });
 
   return getMenuDetail(menuId, true);
+}
+
+/**
+ * Kunci identitas stabil sebuah varian = kombinasi optionLabels (grup affectsVariant).
+ * Dipakai untuk mencocokkan varian incoming ↔ existing saat reconcile in-place.
+ * Canonical: entries di-sort by group name lalu JSON, sehingga urutan tidak berpengaruh.
+ * Fallback ke label kalau optionLabels kosong (varian tanpa axis — kasus tepi).
+ * Catatan: rename grup/opsi affectsVariant mengubah kunci → varian terhitung "baru"
+ * (ID berganti); itu konsekuensi yang diterima karena tidak ada ID stabil dari klien.
+ */
+function canonicalVariantKey(optionLabels: Record<string, string>, fallbackLabel: string): string {
+  const entries = Object.entries(optionLabels);
+  if (entries.length === 0) return `__label__:${fallbackLabel}`;
+  entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify(entries);
+}
+
+/** Ambil varian existing + rekonstruksi kunci optionLabels-nya dari link option→group. */
+async function captureExistingVariants(
+  tx: Prisma.TransactionClient,
+  menuId: number,
+): Promise<{ id: number; key: string }[]> {
+  const rows = await tx.menuVariant.findMany({
+    where: { menuId },
+    include: { options: { include: { option: { include: { group: true } } } } },
+  });
+  return rows.map((v) => {
+    const labels: Record<string, string> = {};
+    for (const link of v.options) labels[link.option.group.name] = link.option.label;
+    return { id: v.id, key: canonicalVariantKey(labels, v.label) };
+  });
+}
+
+/**
+ * Tolak penghapusan varian yang masih direferensikan paket (komponen fixed atau
+ * choice option) via targetVariantId. Lempar AppError 400 dengan nama paket-nya,
+ * menggantikan 500 FK constraint yang membingungkan owner.
+ */
+async function assertVariantsNotReferencedByPaket(
+  tx: Prisma.TransactionClient,
+  variantIds: number[],
+): Promise<void> {
+  // Sequential (bukan Promise.all): interactive transaction tidak menjamin query
+  // konkuren pada client tx yang sama.
+  const comps = await tx.paketComponent.findMany({
+    where: { targetVariantId: { in: variantIds } },
+    include: { paket: { select: { name: true } } },
+  });
+  const choices = await tx.paketChoiceOption.findMany({
+    where: { targetVariantId: { in: variantIds } },
+    include: { component: { include: { paket: { select: { name: true } } } } },
+  });
+  const paketNames = new Set<string>();
+  for (const c of comps) paketNames.add(c.paket.name);
+  for (const co of choices) paketNames.add(co.component.paket.name);
+  if (paketNames.size > 0) {
+    throw new AppError(
+      `Varian tidak bisa dihapus karena masih dipakai paket: ${[...paketNames].join(', ')}. ` +
+        `Lepaskan dulu varian itu dari paket tersebut.`,
+      400,
+    );
+  }
 }
 
 /**
