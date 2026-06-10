@@ -58,6 +58,7 @@ import type {
   OrderItemInput,
   MergeInput,
   UpdateItemInput,
+  ChangeItemVariantInput,
 } from './transactions.schema';
 
 // ============================================================
@@ -1192,6 +1193,116 @@ export async function updateTransactionItem(
         }
       }
     }
+    await recomputeSubtotal(tx, transactionId);
+  });
+
+  return getTransactionById(transactionId);
+}
+
+/// REV 2.14: ubah varian / pilihan paket sebuah item yang sudah ada, in-place.
+/// Model: reverse deduction LAMA penuh → re-resolve pilihan BARU dari nol → apply
+/// deduction BARU. Identitas item dipertahankan (id, qty, notes). menuId SELALU
+/// dari item DB (hanya varian/paket menu yang sama yang boleh berubah). Open Tx only.
+export async function changeTransactionItemVariant(
+  transactionId: number,
+  itemId: number,
+  userId: number,
+  input: ChangeItemVariantInput,
+): Promise<TransactionView> {
+  const existing = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+    include: {
+      items: { where: { id: itemId }, include: { menu: { select: { name: true } }, selections: true } },
+    },
+  });
+  if (!existing) throw notFound('Transaction');
+  if (existing.status !== TransactionStatus.open) {
+    throw new AppError(`Hanya transaksi status open yang bisa diedit (saat ini: ${existing.status})`, 400);
+  }
+  const item = existing.items[0];
+  if (!item) {
+    throw new AppError(`Item id=${itemId} tidak ditemukan di transaksi ${transactionId}`, 404);
+  }
+
+  // Signature selections untuk guard no-op (urutan-independen).
+  const sigOf = (
+    sels: { groupOrSlotLabel: string; chosenLabel: string; targetMenuId: number | null; targetVariantId: number | null; isPreference: boolean }[],
+  ) =>
+    JSON.stringify(
+      sels.map((s) => [s.groupOrSlotLabel, s.chosenLabel, s.targetMenuId, s.targetVariantId, s.isPreference]).sort(),
+    );
+
+  await prisma.$transaction(async (tx) => {
+    const graph = await buildMenuGraph(tx);
+
+    // Re-resolve item BARU lebih dulu (validasi paketChoices + varian milik menu).
+    const [resolvedNew] = await resolveItems(tx, graph, [
+      {
+        menuId: item.menuId,
+        qty: item.qty,
+        variantId: input.variantId ?? null,
+        paketChoices: input.paketChoices,
+        preferences: input.preferences,
+      },
+    ]);
+    if (!resolvedNew) throw new AppError('Gagal me-resolve item baru', 500);
+
+    // Guard no-op: varian + signature selections identik → tidak ada perubahan.
+    const sameVariant = (item.variantId ?? null) === (resolvedNew.variantId ?? null);
+    if (sameVariant && sigOf(item.selections) === sigOf(resolvedNew.selections)) {
+      return;
+    }
+
+    // 1. Reverse deduction LAMA × qty (audit refundVoid).
+    const oldDeductions = deductionsForStoredItem(graph, item);
+    for (const ded of oldDeductions) {
+      const incBy = ded.qty * item.qty;
+      const updated = await tx.portionStock.update({ where: { menuId: ded.menuId }, data: { currentQty: { increment: incBy } } });
+      await tx.portionMovement.create({
+        data: {
+          menuId: ded.menuId, delta: incBy, reason: PortionMovementReason.refundVoid,
+          transactionId, transactionItemId: itemId,
+          qtyBefore: updated.currentQty - incBy, qtyAfter: updated.currentQty,
+          note: `ganti varian: lepas "${item.menu.name}"`, userId,
+        },
+      });
+    }
+
+    // 2. Apply deduction BARU × qty (audit order).
+    for (const ded of resolvedNew.deductions) {
+      const decBy = ded.qty * item.qty;
+      const delta = -decBy;
+      const updated = await tx.portionStock.update({ where: { menuId: ded.menuId }, data: { currentQty: { decrement: decBy } } });
+      await tx.portionMovement.create({
+        data: {
+          menuId: ded.menuId, delta, reason: PortionMovementReason.order,
+          transactionId, transactionItemId: itemId,
+          qtyBefore: updated.currentQty - delta, qtyAfter: updated.currentQty,
+          note: `ganti varian: pasang "${item.menu.name}"`, userId,
+        },
+      });
+    }
+
+    // 3. Update baris item (varian/harga/cost/subtotal). qty + notes tetap.
+    await tx.transactionItem.update({
+      where: { id: itemId },
+      data: {
+        variantId: resolvedNew.variantId,
+        unitPrice: resolvedNew.unitPrice,
+        unitCost: resolvedNew.unitCost,
+        subtotal: resolvedNew.unitPrice.mul(item.qty),
+      },
+    });
+
+    // 4. Ganti selections.
+    await tx.transactionItemSelection.deleteMany({ where: { transactionItemId: itemId } });
+    if (resolvedNew.selections.length > 0) {
+      await tx.transactionItemSelection.createMany({
+        data: resolvedNew.selections.map((s) => ({ ...s, transactionItemId: itemId })),
+      });
+    }
+
+    // 5. Recompute subtotal Tx.
     await recomputeSubtotal(tx, transactionId);
   });
 

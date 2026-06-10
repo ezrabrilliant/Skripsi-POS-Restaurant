@@ -88,7 +88,12 @@ export const changeItemVariantSchema = z.object({
   preferences: z
     .array(z.object({ groupLabel: z.string().trim().min(1), chosenLabel: z.string().trim().min(1) }))
     .optional(),
-});
+})
+  .refine(
+    (data) =>
+      data.variantId !== undefined || data.paketChoices !== undefined || data.preferences !== undefined,
+    { message: 'Setidaknya salah satu field varian/paket harus disertakan' },
+  );
 
 /// REV 2.6: addPayment - tambah 1 payment slice.
 /// Validasi format saja di sini:
