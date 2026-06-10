@@ -186,7 +186,11 @@ export default function PaymentModal({
   // REV 2.15: uang tunai diterima (ephemeral). Hanya relevan saat method.code === 'cash'.
   const [cashReceived, setCashReceived] = useState(0)
   // REV 2.15: uang diterima & kembalian dari pembayaran penutup, untuk fase SUKSES + struk.
+  // paidChangeDue di-snapshot dari changeDue saat submit — JANGAN re-derive dari total di
+  // header sukses (pada split dengan slice non-cash sebelumnya, kembalian dihitung atas
+  // sisa tunai = total − Σ non-cash, bukan total penuh; konsisten dengan buildReceiptRows).
   const [paidCashReceived, setPaidCashReceived] = useState<number | null>(null)
+  const [paidChangeDue, setPaidChangeDue] = useState<number | null>(null)
 
   // Sync mode: kalau payments sudah ada → force 'split'.
   useEffect(() => {
@@ -367,6 +371,7 @@ export default function PaymentModal({
     if (!transaction || isPaid || !selectedMethod) return
     const finalBank = needsBank ? bank.trim() : undefined
     setPaidCashReceived(isCashMethod ? cashReceived : null)
+    setPaidChangeDue(isCashMethod ? changeDue : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -386,6 +391,7 @@ export default function PaymentModal({
     if (!transaction || isPaid || !selectedMethod) return
     const finalBank = needsBank ? bank.trim() : undefined
     setPaidCashReceived(isCashMethod ? cashReceived : null)
+    setPaidChangeDue(isCashMethod ? changeDue : null)
     addPayMutation.mutate({
       method: selectedMethod.code,
       bank: finalBank,
@@ -540,11 +546,11 @@ export default function PaymentModal({
             <p className="text-body-sm text-neutral-600">
               Total dibayar{' '}
               <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(transaction.total)}</span>
-              {paidCashReceived != null && paidCashReceived - transaction.total > 0 && (
+              {paidChangeDue != null && paidChangeDue > 0 && (
                 <>
                   {' · '}Kembalian{' '}
                   <span className="font-bold text-success-700 tabular-nums">
-                    {formatCurrency(paidCashReceived - transaction.total)}
+                    {formatCurrency(paidChangeDue)}
                   </span>
                 </>
               )}
