@@ -1278,7 +1278,19 @@ export async function listTransactions(query: ListTransactionsQuery): Promise<Tr
   if (query.status) where.status = query.status;
   if (query.shiftId) where.shiftId = query.shiftId;
   if (query.orderType) where.orderType = query.orderType;
-  if (query.date) {
+  // REV 2.x: date-range (fromDate/toDate) diprioritaskan; fallback ke single `date`.
+  // toDate inklusif → batas atas = toDate + 1 hari (eksklusif), konsisten dgn
+  // pola single-date di bawah.
+  if (query.fromDate || query.toDate) {
+    const range: Prisma.DateTimeFilter = {};
+    if (query.fromDate) range.gte = new Date(query.fromDate);
+    if (query.toDate) {
+      const end = new Date(query.toDate);
+      end.setDate(end.getDate() + 1);
+      range.lt = end;
+    }
+    where.createdAt = range;
+  } else if (query.date) {
     const day = new Date(query.date);
     const nextDay = new Date(day);
     nextDay.setDate(nextDay.getDate() + 1);

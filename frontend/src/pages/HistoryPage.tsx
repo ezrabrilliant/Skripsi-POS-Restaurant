@@ -69,6 +69,38 @@ const STATUS_TONE: Record<TransactionStatus, 'success' | 'warning' | 'neutral'> 
   void: 'neutral',
 }
 
+// --- Date-range helpers (kalender lokal device) ---
+function localISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+type TemplateKey = 'today' | 'week' | 'month' | '3month'
+
+// Quick template: rentang dihitung MUNDUR dari hari ini (to = hari ini, inklusif).
+//   today   → hari ini saja
+//   week    → hari ini − 7 hari
+//   month   → hari ini − 1 bulan
+//   3month  → hari ini − 3 bulan
+const RANGE_TEMPLATES: { key: TemplateKey; label: string }[] = [
+  { key: 'today', label: 'Hari Ini' },
+  { key: 'week', label: '1 Minggu' },
+  { key: 'month', label: '1 Bulan' },
+  { key: '3month', label: '3 Bulan' },
+]
+
+function templateRange(key: TemplateKey): { from: string; to: string } {
+  const to = new Date()
+  const from = new Date(to)
+  if (key === 'week') from.setDate(from.getDate() - 7)
+  else if (key === 'month') from.setMonth(from.getMonth() - 1)
+  else if (key === '3month') from.setMonth(from.getMonth() - 3)
+  // 'today' → from tetap = hari ini
+  return { from: localISODate(from), to: localISODate(to) }
+}
+
 export default function HistoryPage() {
   const qc = useQueryClient()
   const toast = useToast()
@@ -78,8 +110,12 @@ export default function HistoryPage() {
   // CloseShiftBlockedModal / OverdueShiftGate supaya mendarat ter-filter pada hari &
   // status yang tepat. Lazy initial state = baca sekali saat mount; user bebas ubah sesudahnya.
   const [searchParams] = useSearchParams()
-  const today = new Date().toISOString().substring(0, 10)
-  const [filterDate, setFilterDate] = useState(() => searchParams.get('date') || today)
+  const today = localISODate(new Date())
+  // REV 2.x: filter berubah dari single-date jadi date-range. Default = hari ini saja
+  // (from = to = hari ini), BUKAN 7 hari seperti dashboard. URL ?date=X mengisi
+  // kedua ujung (backward-compat dgn redirect tutup-shift).
+  const [fromDate, setFromDate] = useState(() => searchParams.get('date') || today)
+  const [toDate, setToDate] = useState(() => searchParams.get('date') || today)
   const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>(() => {
     const s = searchParams.get('status')
     return s === 'open' || s === 'paid' || s === 'void' ? s : 'all'
@@ -101,10 +137,11 @@ export default function HistoryPage() {
     })
 
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', filterDate, filterStatus, filterOrderType],
+    queryKey: ['transactions', fromDate, toDate, filterStatus, filterOrderType],
     queryFn: () =>
       transactionService.list({
-        date: filterDate,
+        fromDate,
+        toDate,
         status: filterStatus === 'all' ? undefined : filterStatus,
         orderType: filterOrderType === 'all' ? undefined : filterOrderType,
       }),
@@ -193,31 +230,72 @@ export default function HistoryPage() {
     .filter((t) => t.status === 'paid')
     .reduce((s, t) => s + t.total, 0)
 
+  const applyTemplate = (key: TemplateKey) => {
+    const { from, to } = templateRange(key)
+    setFromDate(from)
+    setToDate(to)
+  }
+
+  // Template mana yang persis cocok dgn rentang aktif (untuk highlight chip). null
+  // bila user pakai tanggal manual yang tidak pas dgn template manapun.
+  const activeTemplate =
+    RANGE_TEMPLATES.find((t) => {
+      const r = templateRange(t.key)
+      return r.from === fromDate && r.to === toDate
+    })?.key ?? null
+
+  const isDefaultRange = fromDate === today && toDate === today
   const activeFilterCount =
-    (filterStatus !== 'all' ? 1 : 0) + (filterOrderType !== 'all' ? 1 : 0)
+    (filterStatus !== 'all' ? 1 : 0) +
+    (filterOrderType !== 'all' ? 1 : 0) +
+    (!isDefaultRange ? 1 : 0)
 
   const filterContent = (
     <div className="space-y-3">
-      <Input
-        label="Tanggal"
-        type="date"
-        value={filterDate}
-        onChange={(e) => setFilterDate(e.target.value)}
-      />
-      <Combobox
-        label="Status"
-        value={filterStatus}
-        onValueChange={(v) => setFilterStatus(v as TransactionStatus | 'all')}
-        options={STATUS_OPTIONS}
-        searchPlaceholder="Cari status..."
-      />
-      <Combobox
-        label="Tipe Order"
-        value={filterOrderType}
-        onValueChange={(v) => setFilterOrderType(v as OrderType | 'all')}
-        options={ORDER_TYPE_OPTIONS}
-        searchPlaceholder="Cari tipe..."
-      />
+      {/* Quick template: rentang cepat mundur dari hari ini */}
+      <div className="flex flex-wrap gap-2">
+        {RANGE_TEMPLATES.map((t) => (
+          <Button
+            key={t.key}
+            variant={activeTemplate === t.key ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => applyTemplate(t.key)}
+          >
+            {t.label}
+          </Button>
+        ))}
+      </div>
+      {/* Rentang manual + filter lain */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          label="Dari"
+          type="date"
+          value={fromDate}
+          max={toDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
+        <Input
+          label="Sampai"
+          type="date"
+          value={toDate}
+          min={fromDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
+        <Combobox
+          label="Status"
+          value={filterStatus}
+          onValueChange={(v) => setFilterStatus(v as TransactionStatus | 'all')}
+          options={STATUS_OPTIONS}
+          searchPlaceholder="Cari status..."
+        />
+        <Combobox
+          label="Tipe Order"
+          value={filterOrderType}
+          onValueChange={(v) => setFilterOrderType(v as OrderType | 'all')}
+          options={ORDER_TYPE_OPTIONS}
+          searchPlaceholder="Cari tipe..."
+        />
+      </div>
     </div>
   )
 
@@ -247,7 +325,7 @@ export default function HistoryPage() {
     >
         {/* Filter desktop inline */}
         {!isMobile && (
-          <div className="bg-white rounded-xl p-3 border border-neutral-200/60 grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-xl p-3 border border-neutral-200/60">
             {filterContent}
           </div>
         )}
@@ -296,6 +374,8 @@ export default function HistoryPage() {
                 onClick={() => {
                   setFilterStatus('all')
                   setFilterOrderType('all')
+                  setFromDate(today)
+                  setToDate(today)
                 }}
               >
                 Reset

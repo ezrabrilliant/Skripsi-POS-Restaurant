@@ -71,6 +71,9 @@ export interface ListTransactionsQuery {
   shiftId?: number
   orderType?: OrderType
   date?: string
+  /** REV 2.x: date-range Riwayat. Kalau diisi, diprioritaskan di atas `date`. */
+  fromDate?: string
+  toDate?: string
 }
 
 export interface MergePayload {
@@ -85,6 +88,8 @@ export const transactionService = {
     if (query.shiftId) params.shiftId = query.shiftId
     if (query.orderType) params.orderType = query.orderType
     if (query.date) params.date = query.date
+    if (query.fromDate) params.fromDate = query.fromDate
+    if (query.toDate) params.toDate = query.toDate
     const res = await api.get<ApiResponse<{ transactions: Transaction[] }>>('/transactions', {
       params,
     })

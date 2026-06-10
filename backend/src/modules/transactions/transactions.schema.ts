@@ -99,6 +99,17 @@ export const listTransactionsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date harus YYYY-MM-DD')
     .optional(),
+  // REV 2.x: date-range filter Riwayat. Kalau fromDate/toDate ada, dipakai sebagai
+  // rentang (inklusif kedua ujung); `date` single-day diabaikan. toDate inklusif
+  // (service tambah +1 hari untuk batas atas eksklusif).
+  fromDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format fromDate harus YYYY-MM-DD')
+    .optional(),
+  toDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format toDate harus YYYY-MM-DD')
+    .optional(),
 });
 
 /// REV 2.4: query schema untuk GET /transactions/table/:tableNumber.
