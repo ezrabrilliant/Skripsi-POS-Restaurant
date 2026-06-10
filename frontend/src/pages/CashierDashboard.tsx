@@ -68,6 +68,11 @@ export default function CashierDashboard() {
   const { data: settledList = [] } = useQuery({
     queryKey: ['settlements', 'byDate', todayLocal],
     queryFn: () => settlementService.list({ date: todayLocal }),
+    // FIX stale-cache: tanpa ini, buka beranda dalam 5 menit setelah setor (global
+    // staleTime 5min) menyajikan settledList basi → tampil CTA "Buka Kasir" yang
+    // akan 409. 'always' memaksa refetch tiap mount. Sejalan dengan preview di
+    // SettlementPage yang pakai pola sama.
+    refetchOnMount: 'always',
   })
   const todaySettled = settledList.length > 0
 
