@@ -131,7 +131,7 @@ export default function TablesPage() {
                   <button
                     onClick={() => navigate(`/pos/${t.number}`)}
                     className={cn(
-                      'w-full p-4 rounded-xl text-left border-2 transition-all duration-fast active:scale-[0.98]',
+                      'w-full h-full min-h-[8.5rem] p-4 rounded-xl text-left border-2 transition-all duration-fast active:scale-[0.98]',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-1',
                       occupied
                         ? 'bg-warning-50 border-warning-300 hover:bg-warning-100 hover:border-warning-400'

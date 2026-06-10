@@ -15,6 +15,7 @@
 //     Click badge → setExpandedId(target) + scrollIntoView.
 
 import { Fragment, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
@@ -24,8 +25,10 @@ import {
   Filter,
   Receipt,
   Link2,
+  Wallet,
 } from 'lucide-react'
 import { transactionService } from '@/services/transactionService'
+import PaymentModal from '@/components/PaymentModal'
 import { paymentMethodService } from '@/services/paymentMethodService'
 import { ORDER_TYPE_LABELS } from '@/types'
 import type { TransactionStatus, OrderType, Transaction } from '@/types'
@@ -71,10 +74,19 @@ export default function HistoryPage() {
   const toast = useToast()
   const confirm = useConfirm()
   const isMobile = useIsMobile()
+  // Preset dari URL (?status=open&date=YYYY-MM-DD) — dipakai saat di-redirect dari
+  // CloseShiftBlockedModal / OverdueShiftGate supaya mendarat ter-filter pada hari &
+  // status yang tepat. Lazy initial state = baca sekali saat mount; user bebas ubah sesudahnya.
+  const [searchParams] = useSearchParams()
   const today = new Date().toISOString().substring(0, 10)
-  const [filterDate, setFilterDate] = useState(today)
-  const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all')
+  const [filterDate, setFilterDate] = useState(() => searchParams.get('date') || today)
+  const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>(() => {
+    const s = searchParams.get('status')
+    return s === 'open' || s === 'paid' || s === 'void' ? s : 'all'
+  })
   const [filterOrderType, setFilterOrderType] = useState<OrderType | 'all'>('all')
+  // Tx yang sedang dibayar lewat Riwayat (reuse PaymentModal apa adanya). null = tertutup.
+  const [payTx, setPayTx] = useState<Transaction | null>(null)
   // Multi-expand: user bisa buka beberapa Tx sekaligus (mis. target merge + source-nya
   // berdampingan untuk cross-check). Sebelumnya single accordion (expandedId number|null).
   const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set())
@@ -259,6 +271,7 @@ export default function HistoryPage() {
                 expanded={expandedIds.has(tx.id)}
                 onToggle={() => toggleExpanded(tx.id)}
                 onVoid={() => handleVoid(tx)}
+                onPay={() => setPayTx(tx)}
                 onScrollToTx={handleScrollToTx}
                 labelForMethod={labelForMethod}
               />
@@ -298,6 +311,21 @@ export default function HistoryPage() {
             </div>
           </div>
         </Sheet>
+
+        {payTx && (
+          <PaymentModal
+            transactionId={payTx.id}
+            tableNumber={payTx.tableNumber ?? null}
+            candidateSourceIds={[]}
+            onClose={() => setPayTx(null)}
+            onSuccess={() => {
+              setPayTx(null)
+              // Key komposit ['transactions',date,status,type] kena prefix-invalidate dari
+              // ['transactions'] → baris flip dari 'open' ke 'paid'.
+              qc.invalidateQueries({ queryKey: ['transactions'] })
+            }}
+          />
+        )}
     </Page>
   )
 }
@@ -308,6 +336,7 @@ function TransactionRow({
   expanded,
   onToggle,
   onVoid,
+  onPay,
   onScrollToTx,
   labelForMethod,
 }: {
@@ -317,11 +346,16 @@ function TransactionRow({
   expanded: boolean
   onToggle: () => void
   onVoid: () => void
+  /** Buka PaymentModal untuk Tx open ini (dibayar lewat Riwayat). */
+  onPay: () => void
   onScrollToTx: (id: number) => void
   /** REV 2.6: lookup label dari master payment_methods (fallback uppercase code). */
   labelForMethod: (code: string) => string
 }) {
   const canVoid = tx.status !== 'void'
+  // Bayar hanya untuk Tx open yang BUKAN merge-source (source dibayar via parent —
+  // konsisten dgn cascade addPayment). Merge target & single tetap bisa dibayar.
+  const canPay = tx.status === 'open' && tx.mergedIntoId === null
   const isMergedSource = tx.mergedIntoId !== null
   const isMergedTarget = mergedSources.length > 0
   const hasMergeRelation = isMergedSource || isMergedTarget
@@ -413,6 +447,18 @@ function TransactionRow({
             <p className="text-caption text-neutral-500">{displayItemCount} item</p>
           </div>
         </button>
+        {canPay && (
+          <div className="flex items-center pr-1 sm:pr-2">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Wallet className="w-4 h-4" />}
+              onClick={onPay}
+            >
+              Bayar
+            </Button>
+          </div>
+        )}
         {menuItems.length > 0 && (
           <div className="flex items-center pr-3 sm:pr-4">
             <DropdownMenu

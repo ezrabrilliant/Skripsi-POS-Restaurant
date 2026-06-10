@@ -50,6 +50,23 @@ export function formatDate(date: string | Date): string {
   }).format(new Date(date))
 }
 
+// Format tanggal shift: "hari, tanggal - bulan - tahun" → mis. "Sabtu, 30 - 05 - 2026".
+// shift.date dari API = "YYYY-MM-DD" (atau ISO). Untuk date-only, konstruksi Date dari
+// komponen lokal supaya nama hari tidak meleset karena pergeseran timezone.
+export function formatShiftDate(date: string | Date): string {
+  let d: Date
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    const [y, m, day] = date.slice(0, 10).split('-').map(Number)
+    d = new Date(y, m - 1, day)
+  } else {
+    d = new Date(date)
+  }
+  const weekday = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(d)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${weekday}, ${dd} - ${mm} - ${d.getFullYear()}`
+}
+
 export function formatDateTime(date: string | Date): string {
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
