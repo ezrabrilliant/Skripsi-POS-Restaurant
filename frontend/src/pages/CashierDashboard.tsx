@@ -187,7 +187,6 @@ function SettledTodayCard() {
           </h2>
           <p className="text-neutral-600 text-body-sm sm:text-body">
             Setoran hari ini sudah final dan terkunci. Buka shift lagi untuk hari berikutnya.
-            Kalau setoran keliru, minta owner menghapusnya lewat halaman Laporan.
           </p>
         </div>
       </div>
