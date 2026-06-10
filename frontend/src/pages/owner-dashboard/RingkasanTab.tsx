@@ -3,7 +3,7 @@
 // tabel bank + reminder + quick links. Fetch GET /dashboard/owner (period).
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Wallet,
   TrendingDown,
@@ -31,8 +31,8 @@ import {
   type ReminderCounts,
 } from '@/services/dashboardService'
 import { shiftService } from '@/services/shiftService'
-import { formatCurrency } from '@/lib/utils'
-import { Stat, Badge, Skeleton, EmptyState } from '@/design-system/primitives'
+import { formatCurrency, formatShiftDate } from '@/lib/utils'
+import { Stat, Badge, Skeleton, EmptyState, Button } from '@/design-system/primitives'
 
 export default function RingkasanTab({ period }: { period: OwnerReportQuery }) {
   const { data: report, isLoading, error } = useQuery({
@@ -262,8 +262,18 @@ function QuickLinks() {
 function ShiftPanel({
   shifts,
 }: {
-  shifts: Array<{ id: number; type?: 'pagi' | 'malam'; cashierName?: string; createdAt: string; openingCash: number }>
+  shifts: Array<{
+    id: number
+    date: string
+    type?: 'pagi' | 'malam'
+    cashierName?: string
+    createdAt: string
+    openingCash: number
+    isOverdue?: boolean
+  }>
 }) {
+  const navigate = useNavigate()
+
   if (shifts.length === 0) {
     return (
       <div className="bg-white rounded-xl p-3 sm:p-4 border border-neutral-200/60 flex items-center gap-3">
@@ -275,22 +285,29 @@ function ShiftPanel({
     )
   }
   const isOverlap = shifts.length > 1
+  const overdueShift = shifts.find((s) => s.isOverdue) ?? null
+  const needsClose = !!overdueShift || isOverlap
+
   return (
     <div
       className={
-        isOverlap
+        needsClose
           ? 'bg-warning-50 border border-warning-300 rounded-xl p-3 sm:p-4'
           : 'bg-success-50 border border-success-200 rounded-xl p-3 sm:p-4'
       }
     >
       <div className="flex items-center gap-2 mb-1">
-        {isOverlap ? (
+        {needsClose ? (
           <AlertCircle className="w-4 h-4 text-warning-700" />
         ) : (
           <Wallet className="w-4 h-4 text-success-700" />
         )}
         <h3 className="text-body-sm font-semibold text-neutral-900">
-          {isOverlap ? `Ada ${shifts.length} shift aktif (overlap)` : 'Shift aktif hari ini'}
+          {overdueShift
+            ? `Shift ${formatShiftDate(overdueShift.date)} (kasir ${overdueShift.cashierName ?? '-'}) belum ditutup`
+            : isOverlap
+              ? `Ada ${shifts.length} shift aktif (overlap)`
+              : 'Shift aktif hari ini'}
         </h3>
       </div>
       <ul className="text-body-sm space-y-1 text-neutral-700">
@@ -304,11 +321,17 @@ function ShiftPanel({
           </li>
         ))}
       </ul>
-      {isOverlap && (
-        <p className="mt-2 text-caption text-warning-700">
-          Input order baru akan ditolak sampai salah satu shift ditutup. Owner force-close belum
-          tersedia di UI - minta kasir tutup shift via menu Settlement.
-        </p>
+      {needsClose && (
+        <div className="mt-3 space-y-2">
+          <p className="text-caption text-warning-700">
+            {overdueShift
+              ? 'Shift hari sebelumnya belum disetor. Tutup & setor dulu sebelum mulai hari baru.'
+              : 'Input order baru ditolak sampai salah satu shift ditutup.'}
+          </p>
+          <Button variant="primary" size="sm" onClick={() => navigate('/settlement')}>
+            Tutup &amp; Setor Shift
+          </Button>
+        </div>
       )}
     </div>
   )
