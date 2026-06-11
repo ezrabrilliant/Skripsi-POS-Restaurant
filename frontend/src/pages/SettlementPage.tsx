@@ -16,6 +16,7 @@ import { settlementService, type CreateSettlementPayload } from '@/services/sett
 import { useAuthStore } from '@/stores/authStore'
 import type { SettlementPreview, Settlement } from '@/types'
 import { formatCurrency, cn, formatShiftDate } from '@/lib/utils'
+import { settlementExpected } from '@/lib/settlementMath'
 import { Button, Badge, Skeleton, Checkbox, Page } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 import { useConfirm } from '@/design-system/hooks/useConfirm'
@@ -232,7 +233,11 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
     (s, m) => s + (counts[m.paymentMethodCode] ?? 0),
     0,
   )
-  const totalVariance = totalActual - preview.totalSystem
+  const totalExpected = preview.system.reduce(
+    (s, m) => s + settlementExpected(m.paymentMethodCode, m.total, preview.openingCashTotal),
+    0,
+  )
+  const totalVariance = totalActual - totalExpected
   const hasAnyCount = preview.system.some((m) => (counts[m.paymentMethodCode] ?? 0) > 0)
 
   return (
@@ -286,13 +291,18 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
             <div className="space-y-2">
               <div className="grid grid-cols-12 gap-2 text-label text-neutral-500 px-1">
                 <span className="col-span-4">Metode</span>
-                <span className="col-span-4 text-right">Sistem</span>
+                <span className="col-span-4 text-right">Ekspektasi</span>
                 <span className="col-span-4 text-right">Fisik</span>
               </div>
               {preview.system.map((s) => {
-                const sysVal = s.total
+                const expectedVal = settlementExpected(
+                  s.paymentMethodCode,
+                  s.total,
+                  preview.openingCashTotal,
+                )
+                const isCash = s.paymentMethodCode === 'cash'
                 const actVal = counts[s.paymentMethodCode] ?? 0
-                const diff = actVal - sysVal
+                const diff = actVal - expectedVal
                 return (
                   <div
                     key={s.paymentMethodCode}
@@ -307,7 +317,12 @@ function BlindCountForm({ preview }: { preview: SettlementPreview }) {
                       <span className="truncate">{s.methodLabel}</span>
                     </span>
                     <span className="col-span-4 text-right text-body-sm text-neutral-600 tabular-nums">
-                      {formatCurrency(sysVal)}
+                      {formatCurrency(expectedVal)}
+                      {isCash && preview.openingCashTotal > 0 && (
+                        <span className="block text-caption text-neutral-400">
+                          {formatCurrency(s.total)} jual + {formatCurrency(preview.openingCashTotal)} modal
+                        </span>
+                      )}
                     </span>
                     <input
                       type="number"
@@ -430,7 +445,7 @@ function SettlementDetailView({
           <thead>
             <tr className="text-label text-neutral-500 border-b border-neutral-200">
               <th className="text-left py-2">Metode</th>
-              <th className="text-right py-2">Sistem</th>
+              <th className="text-right py-2">Ekspektasi</th>
               <th className="text-right py-2">Fisik</th>
               <th className="text-right py-2">Selisih</th>
             </tr>
@@ -444,9 +459,11 @@ function SettlementDetailView({
               </tr>
             )}
             {settlement.methodCounts.map((mc) => {
-              const sys = mc.system
+              const sys = mc.expected
               const act = mc.counted
               const diff = mc.variance
+              const isCash = mc.paymentMethodCode === 'cash'
+              const cashModal = settlement.openingCashTotal
               return (
                 <tr key={mc.paymentMethodCode}>
                   <td className="py-2 font-medium text-neutral-800">
@@ -459,7 +476,14 @@ function SettlementDetailView({
                       <span className="truncate">{mc.methodLabel}</span>
                     </span>
                   </td>
-                  <td className="py-2 text-right text-neutral-600">{formatCurrency(sys)}</td>
+                  <td className="py-2 text-right text-neutral-600">
+                    {formatCurrency(sys)}
+                    {isCash && cashModal > 0 && (
+                      <span className="block text-caption text-neutral-400">
+                        {formatCurrency(mc.system)} jual + {formatCurrency(cashModal)} modal
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 text-right text-neutral-900 font-medium">
                     {formatCurrency(act)}
                   </td>
@@ -480,7 +504,7 @@ function SettlementDetailView({
             <tr className="bg-neutral-50 font-semibold border-t-2 border-neutral-300">
               <td className="py-2.5 text-neutral-900">TOTAL</td>
               <td className="py-2.5 text-right text-neutral-700">
-                {formatCurrency(settlement.totalSystem)}
+                {formatCurrency(settlement.totalExpected)}
               </td>
               <td className="py-2.5 text-right text-neutral-900">
                 {formatCurrency(settlement.totalCounted)}
