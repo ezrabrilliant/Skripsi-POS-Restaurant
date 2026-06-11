@@ -497,6 +497,8 @@ export interface SettlementMethodCountView {
   colorHex: string
   counted: number
   system: number
+  /** Pembanding aktual: cash = system + openingCashTotal, non-cash = system. */
+  expected: number
   variance: number
 }
 
@@ -533,6 +535,10 @@ export interface Settlement {
   methodCounts: SettlementMethodCountView[]
   totalCounted: number
   totalSystem: number
+  /** Σ shift.openingCash tanggal ini (float baseline). */
+  openingCashTotal: number
+  /** Σ expected per metode (= totalSystem + openingCashTotal). */
+  totalExpected: number
   totalVariance: number
   /** Reserved untuk future migration; backend Phase 6 belum punya kolom note. */
   note: string | null
