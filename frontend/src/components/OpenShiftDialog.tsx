@@ -8,14 +8,14 @@
 // settings belum termuat. Saat sudah ada shift terbuka (kasir manapun), dialog jadi
 // alur SERAH-TERIMA: tutup shift berjalan (mode handover) lalu buka shift baru.
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sun, Moon } from 'lucide-react'
 import { shiftService, type OpenShiftPayload } from '@/services/shiftService'
 import { settingsService } from '@/services/settingsService'
 import { canOpenClient } from '@/lib/shiftWindow'
 import type { Shift, ShiftType } from '@/types'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { Dialog, Button, Input } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 
@@ -44,11 +44,14 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
   const hasOpenShift = activeShifts.length > 0
   const pagiOpenedToday = (todayShiftsQ.data ?? []).some((s) => s.type === 'pagi')
 
-  // Carry-over: sudah ada ≥1 shift hari ini → laci dilanjutkan, kasir tidak isi modal
-  // baru (cegah double-count). Modal hari ini = Σ openingCash shift hari ini.
+  // Modal hari itu = modal shift TERAKHIR yang dibuka (single value, bukan dijumlah).
+  // Dipakai untuk pre-fill: buka pertama field kosong; buka ulang/serah-terima ter-isi
+  // angka modal berjalan supaya tinggal konfirmasi (atau diedit kalau perlu koreksi).
   const todayShifts = todayShiftsQ.data ?? []
-  const isCarryOver = todayShifts.length > 0
-  const runningModal = todayShifts.reduce((sum, s) => sum + s.openingCash, 0)
+  const hasShiftToday = todayShifts.length > 0
+  const todayModal = hasShiftToday
+    ? [...todayShifts].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]!.openingCash
+    : 0
 
   // Advisory openable; fail-closed (false) ketika settings belum termuat.
   const openable = (t: ShiftType) =>
@@ -75,8 +78,20 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, hasOpenShift, pagiOpenedToday])
 
+  // Pre-fill modal dengan modal hari berjalan saat buka ulang/serah-terima (sekali),
+  // supaya kasir tinggal konfirmasi angka yang sama atau mengoreksinya.
+  const prefilledRef = useRef(false)
+  useEffect(() => {
+    if (prefilledRef.current) return
+    if (hasShiftToday && openingCash === '') {
+      setOpeningCash(String(todayModal))
+      prefilledRef.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasShiftToday, todayModal])
+
   const amount = Number(openingCash)
-  const openingCashValid = isCarryOver || (openingCash !== '' && Number.isFinite(amount) && amount >= 0)
+  const openingCashValid = openingCash !== '' && Number.isFinite(amount) && amount >= 0
 
   const openMutation = useMutation({
     mutationFn: (payload: OpenShiftPayload) => shiftService.openShift(payload),
@@ -108,8 +123,7 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const effectiveCash = isCarryOver ? 0 : amount
-    if (!isCarryOver && !openingCashValid) {
+    if (!openingCashValid) {
       toast.error('Modal awal tidak valid')
       return
     }
@@ -118,14 +132,14 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
         toast.error('Tipe shift di luar jam untuk serah-terima')
         return
       }
-      handoverMutation.mutate({ type, openingCash: effectiveCash })
+      handoverMutation.mutate({ type, openingCash: amount })
       return
     }
     if (!openable(type)) {
       toast.error('Tipe shift di luar jam')
       return
     }
-    openMutation.mutate({ type, openingCash: effectiveCash })
+    openMutation.mutate({ type, openingCash: amount })
   }
 
   // Caption alasan tombol tipe disabled.
@@ -240,31 +254,23 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
               </p>
             ) : null}
 
-            {isCarryOver ? (
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
-                <p className="text-label text-neutral-700">Modal awal (carry-over)</p>
-                <p className="text-body font-semibold text-neutral-900 tabular-nums mt-0.5">
-                  {formatCurrency(runningModal)}
-                </p>
-                <p className="text-caption text-neutral-500 mt-1">
-                  Lanjut dari laci shift sebelumnya — tidak perlu isi modal baru.
-                </p>
-              </div>
-            ) : (
-              <Input
-                label="Modal Awal (Rp)"
-                type="number"
-                inputMode="numeric"
-                value={openingCash}
-                onChange={(e) => setOpeningCash(e.target.value)}
-                min={0}
-                step={1000}
-                placeholder="500000"
-                autoFocus
-                required
-                helper="Total uang cash di laci sebelum mulai shift."
-              />
-            )}
+            <Input
+              label="Modal Awal (Rp)"
+              type="number"
+              inputMode="numeric"
+              value={openingCash}
+              onChange={(e) => setOpeningCash(e.target.value)}
+              min={0}
+              step={1000}
+              placeholder="125000"
+              autoFocus
+              required
+              helper={
+                hasShiftToday
+                  ? 'Lanjut dari laci hari ini / edit kalau perlu koreksi.'
+                  : 'Total uang cash di laci sebelum mulai shift.'
+              }
+            />
           </>
         )}
       </form>

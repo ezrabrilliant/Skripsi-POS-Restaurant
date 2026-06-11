@@ -44,7 +44,7 @@ async function main() {
 
   await closeShift(A.id, jason.id, UserRole.cashier, 'handover');
   const B = await openShift(bryant.id, { type: ShiftType.malam, openingCash: 300000 });
-  ok(B.openingCash === 0, `shift B (malam, bukan pertama) carry-over openingCash = ${B.openingCash} (expect 0)`);
+  ok(B.openingCash === 300000, `shift B simpan modal apa adanya (tanpa normalisasi) = ${B.openingCash} (expect 300000)`);
   ok(B.date === businessDate, `shift B business day sama dengan A (${businessDate})`);
   const tx2 = await createTransaction(bryant.id, { orderType: 'dineIn', tableNumber: 2, items: [{ menuId: menu.id, qty: 1 }] } as TxInput);
   await addPayment(tx2.id, bryant.id, { method: 'cash', amount: tx2.subtotal } as PayInput);
@@ -65,7 +65,7 @@ async function main() {
   console.log('\n[2] Preview whole-day = gabungan kedua shift:');
   const prev = await previewSettlement(new Date(businessDate + 'T00:00:00.000Z'));
   ok(prev.totalSystem === expectedWholeDay, `preview.totalSystem = ${prev.totalSystem} (expect ${expectedWholeDay})`);
-  ok(prev.openingCashTotal === 500000, `openingCashTotal = modal shift pertama (carry-over) = ${prev.openingCashTotal} (expect 500000)`);
+  ok(prev.openingCashTotal === 300000, `openingCashTotal = modal shift TERAKHIR dibuka (B malam, latest-wins) = ${prev.openingCashTotal} (expect 300000)`);
   if (edcDineIn) ok(prev.bankBreakdown.some((b) => b.method === 'edc' && b.bank === 'BCA' && b.total === edcTotal), 'bankBreakdown ada edc/BCA whole-day');
 
   console.log('\n[3] Permission: kasir BUKAN penutup (Jason, penutup=Bryant) ditolak 403:');

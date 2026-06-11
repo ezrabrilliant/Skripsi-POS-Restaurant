@@ -182,6 +182,23 @@ function fallbackMeta(code: string): MethodMeta {
 }
 
 // ============================================================
+// Modal awal hari itu (single value, bukan dijumlah)
+// ============================================================
+
+/// "Modal hari itu" untuk rekonsiliasi kas = openingCash shift TERAKHIR yang dibuka
+/// pada business date itu. Laci uang tunggal & berlanjut, jadi tiap buka kasir cuma
+/// menyetel ulang angka modal yang sama (nilai terakhir menang). Tidak dijumlah antar
+/// shift supaya tidak double-count. 0 kalau belum ada shift hari itu.
+async function dayOpeningCash(businessDate: Date): Promise<number> {
+  const latest = await prisma.shift.findFirst({
+    where: { date: businessDate },
+    orderBy: { createdAt: 'desc' },
+    select: { openingCash: true },
+  });
+  return Math.round(latest?.openingCash.toNumber() ?? 0);
+}
+
+// ============================================================
 // View builders
 // ============================================================
 
@@ -192,15 +209,7 @@ async function toSettlementView(
   const codes = s.methodCounts.map((mc) => mc.paymentMethodCode);
   const metaMap = await lookupMethodsMeta(codes);
 
-  // openingCashTotal = Σ shift.openingCash untuk business date settlement.
-  // Shift closed = immutable, jadi recompute deterministik (tanpa kolom snapshot).
-  const shiftsThatDay = await prisma.shift.findMany({
-    where: { date: s.date },
-    select: { openingCash: true },
-  });
-  const openingCashTotal = Math.round(
-    shiftsThatDay.reduce((sum, sh) => sum + sh.openingCash.toNumber(), 0),
-  );
+  const openingCashTotal = await dayOpeningCash(s.date);
 
   const methodCounts: SettlementMethodCountView[] = s.methodCounts
     .map((mc) => {
@@ -287,10 +296,8 @@ export async function previewSettlement(businessDate: Date): Promise<SettlementP
 
   const totalSystem = system.reduce((s, e) => s + e.total, 0);
 
-  // Float baseline = sum openingCash semua shift hari itu (3.3).
-  const openingCashTotal = Math.round(
-    shiftsThatDay.reduce((sum, s) => sum + s.openingCash.toNumber(), 0),
-  );
+  // Modal hari itu = modal shift terakhir yang dibuka (single value, bukan dijumlah).
+  const openingCashTotal = await dayOpeningCash(businessDate);
 
   return {
     shiftId: closer.id,
