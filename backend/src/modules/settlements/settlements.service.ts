@@ -26,6 +26,7 @@ import type {
   CreateSettlementInput,
   ListSettlementsQuery,
 } from './settlements.schema';
+import { methodExpected } from './variance';
 
 // ============================================================
 // View shape (REV 2.6: dinamis array)
@@ -37,7 +38,9 @@ export interface SettlementMethodCountView {
   colorHex: string;
   counted: number;
   system: number;
-  variance: number; // counted - system
+  /// Pembanding aktual: cash = system + openingCashTotal, non-cash = system.
+  expected: number;
+  variance: number; // counted - expected
 }
 
 export interface SettlementSystemEntry {
@@ -64,6 +67,10 @@ export interface SettlementView {
   methodCounts: SettlementMethodCountView[];
   totalCounted: number;
   totalSystem: number;
+  /// Σ shift.openingCash untuk tanggal ini (float baseline). Recompute dari shifts.
+  openingCashTotal: number;
+  /// Σ expected per metode (= totalSystem + openingCashTotal). totalVariance = totalCounted - totalExpected.
+  totalExpected: number;
   totalVariance: number;
   note: string | null;
   status: SettlementStatus;
@@ -185,23 +192,36 @@ async function toSettlementView(
   const codes = s.methodCounts.map((mc) => mc.paymentMethodCode);
   const metaMap = await lookupMethodsMeta(codes);
 
+  // openingCashTotal = Σ shift.openingCash untuk business date settlement.
+  // Shift closed = immutable, jadi recompute deterministik (tanpa kolom snapshot).
+  const shiftsThatDay = await prisma.shift.findMany({
+    where: { date: s.date },
+    select: { openingCash: true },
+  });
+  const openingCashTotal = Math.round(
+    shiftsThatDay.reduce((sum, sh) => sum + sh.openingCash.toNumber(), 0),
+  );
+
   const methodCounts: SettlementMethodCountView[] = s.methodCounts
     .map((mc) => {
       const meta = metaMap.get(mc.paymentMethodCode) ?? fallbackMeta(mc.paymentMethodCode);
+      const expected = methodExpected(mc.paymentMethodCode, mc.system, openingCashTotal);
       return {
         paymentMethodCode: mc.paymentMethodCode,
         methodLabel: meta.label,
         colorHex: meta.colorHex,
         counted: mc.counted,
         system: mc.system,
-        variance: mc.counted - mc.system,
+        expected,
+        variance: mc.counted - expected,
       };
     })
     .sort((a, b) => a.paymentMethodCode.localeCompare(b.paymentMethodCode));
 
-  const totalCounted = methodCounts.reduce((s, mc) => s + mc.counted, 0);
-  const totalSystem = methodCounts.reduce((s, mc) => s + mc.system, 0);
-  const totalVariance = totalCounted - totalSystem;
+  const totalCounted = methodCounts.reduce((sum, mc) => sum + mc.counted, 0);
+  const totalSystem = methodCounts.reduce((sum, mc) => sum + mc.system, 0);
+  const totalExpected = methodCounts.reduce((sum, mc) => sum + mc.expected, 0);
+  const totalVariance = totalCounted - totalExpected;
 
   return {
     id: s.id,
@@ -214,6 +234,8 @@ async function toSettlementView(
     methodCounts,
     totalCounted,
     totalSystem,
+    openingCashTotal,
+    totalExpected,
     totalVariance,
     // REV 2.6: note belum disimpan di tabel settlements (no column). Reserved untuk
     // future migration; sementara expose null. Schema input sudah accept note,
