@@ -69,9 +69,10 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   const { minutesOfDay } = restoNow(window.timezone, now);
   const businessDate = businessDateFor(window, now);
 
-  const [openCount, pagiToday] = await Promise.all([
+  const [openCount, pagiToday, shiftsToday] = await Promise.all([
     prisma.shift.count({ where: { activeMarker: 1 } }),
     prisma.shift.count({ where: { date: businessDate, type: ShiftType.pagi } }),
+    prisma.shift.count({ where: { date: businessDate } }),
   ]);
 
   const check = canOpenShift({
@@ -95,13 +96,19 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
     throw new AppError('Di luar jam operasional untuk membuka shift ini', 400);
   }
 
+  // Carry-over: hanya shift PERTAMA di satu business day yang menaruh modal.
+  // Shift berikutnya melanjutkan laci yang sama (uang tidak diambil/ditambah),
+  // jadi openingCash dipaksa 0 supaya Σ openingCash hari itu = modal shift pertama
+  // (cegah double-count di settlement). Server = authority, abaikan nilai client.
+  const effectiveOpeningCash = shiftsToday > 0 ? 0 : input.openingCash;
+
   try {
     const created = await prisma.shift.create({
       data: {
         date: businessDate,
         cashierId,
         type: input.type,
-        openingCash: new Prisma.Decimal(input.openingCash),
+        openingCash: new Prisma.Decimal(effectiveOpeningCash),
         activeMarker: 1,
       },
       include: { cashier: true },
