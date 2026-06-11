@@ -44,6 +44,7 @@ async function main() {
 
   await closeShift(A.id, jason.id, UserRole.cashier, 'handover');
   const B = await openShift(bryant.id, { type: ShiftType.malam, openingCash: 300000 });
+  ok(B.openingCash === 0, `shift B (malam, bukan pertama) carry-over openingCash = ${B.openingCash} (expect 0)`);
   ok(B.date === businessDate, `shift B business day sama dengan A (${businessDate})`);
   const tx2 = await createTransaction(bryant.id, { orderType: 'dineIn', tableNumber: 2, items: [{ menuId: menu.id, qty: 1 }] } as TxInput);
   await addPayment(tx2.id, bryant.id, { method: 'cash', amount: tx2.subtotal } as PayInput);
@@ -64,7 +65,7 @@ async function main() {
   console.log('\n[2] Preview whole-day = gabungan kedua shift:');
   const prev = await previewSettlement(new Date(businessDate + 'T00:00:00.000Z'));
   ok(prev.totalSystem === expectedWholeDay, `preview.totalSystem = ${prev.totalSystem} (expect ${expectedWholeDay})`);
-  ok(prev.openingCashTotal === 800000, `openingCashTotal = Σ float = ${prev.openingCashTotal} (expect 800000)`);
+  ok(prev.openingCashTotal === 500000, `openingCashTotal = modal shift pertama (carry-over) = ${prev.openingCashTotal} (expect 500000)`);
   if (edcDineIn) ok(prev.bankBreakdown.some((b) => b.method === 'edc' && b.bank === 'BCA' && b.total === edcTotal), 'bankBreakdown ada edc/BCA whole-day');
 
   console.log('\n[3] Permission: kasir BUKAN penutup (Jason, penutup=Bryant) ditolak 403:');
@@ -83,6 +84,33 @@ async function main() {
   console.log('\n[7] Dashboard owner today = whole-day revenue (atribusi shift.date):');
   const report = await getOwnerReport({ period: 'today' } as Parameters<typeof getOwnerReport>[0]);
   ok(report.revenue.total === expectedWholeDay, `owner revenue.total = ${report.revenue.total} (expect ${expectedWholeDay})`);
+
+  console.log('\n[8] Rekonsiliasi kas: variance cash = fisik − (penjualan cash + modal awal):');
+  // Bersihkan supaya hari ini bersih dari section sebelumnya.
+  await prisma.settlementMethodCount.deleteMany({});
+  await prisma.settlement.deleteMany({});
+  await prisma.transactionPayment.deleteMany({});
+  await prisma.transaction.deleteMany({});
+  await prisma.shift.deleteMany({});
+
+  const C = await openShift(jason.id, { type: ShiftType.pagi, openingCash: 120000 });
+  const bizC = C.date;
+  const txc = await createTransaction(jason.id, { orderType: 'dineIn', tableNumber: 1, items: [{ menuId: menu.id, qty: 1 }] } as TxInput);
+  await addPayment(txc.id, jason.id, { method: 'cash', amount: txc.subtotal } as PayInput);
+  await closeShift(C.id, jason.id, UserRole.cashier, 'final');
+
+  const cashSales = txc.subtotal;
+  const prevC = await previewSettlement(new Date(bizC + 'T00:00:00.000Z'));
+  ok(prevC.openingCashTotal === 120000, `[8] openingCashTotal = ${prevC.openingCashTotal} (expect 120000)`);
+
+  // Submit dengan fisik laci = modal + penjualan cash → variance kas 0.
+  const fisikCocok = 120000 + cashSales;
+  const stC = await createSettlement(jason.id, UserRole.cashier, { date: bizC, counts: { cash: fisikCocok } });
+  const cashRow = stC.methodCounts.find((m) => m.paymentMethodCode === 'cash')!;
+  ok(cashRow.expected === 120000 + cashSales, `[8] cash expected = ${cashRow.expected} (expect ${120000 + cashSales})`);
+  ok(cashRow.variance === 0, `[8] fisik = modal+sales → variance cash = ${cashRow.variance} (expect 0)`);
+  ok(stC.openingCashTotal === 120000, `[8] settlement.openingCashTotal = ${stC.openingCashTotal} (expect 120000)`);
+  ok(stC.totalVariance === 0, `[8] totalVariance = ${stC.totalVariance} (expect 0)`);
 
   console.log(`\n[smoke-settlement] HASIL: ${pass} pass, ${fail} fail`);
   await prisma.$disconnect();
