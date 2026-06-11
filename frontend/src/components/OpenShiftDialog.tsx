@@ -15,7 +15,7 @@ import { shiftService, type OpenShiftPayload } from '@/services/shiftService'
 import { settingsService } from '@/services/settingsService'
 import { canOpenClient } from '@/lib/shiftWindow'
 import type { Shift, ShiftType } from '@/types'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { Dialog, Button, Input } from '@/design-system/primitives'
 import { useToast } from '@/design-system/hooks/useToast'
 
@@ -37,6 +37,7 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
   const todayShiftsQ = useQuery({
     queryKey: ['shifts', 'byDate', today],
     queryFn: () => shiftService.listShifts({ date: today }),
+    refetchOnMount: 'always',
   })
 
   const settings = settingsQ.data
@@ -243,7 +244,7 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
                 <p className="text-label text-neutral-700">Modal awal (carry-over)</p>
                 <p className="text-body font-semibold text-neutral-900 tabular-nums mt-0.5">
-                  {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(runningModal)}
+                  {formatCurrency(runningModal)}
                 </p>
                 <p className="text-caption text-neutral-500 mt-1">
                   Lanjut dari laci shift sebelumnya — tidak perlu isi modal baru.
