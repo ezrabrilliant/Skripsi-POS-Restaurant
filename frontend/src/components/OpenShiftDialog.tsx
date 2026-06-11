@@ -43,6 +43,12 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
   const hasOpenShift = activeShifts.length > 0
   const pagiOpenedToday = (todayShiftsQ.data ?? []).some((s) => s.type === 'pagi')
 
+  // Carry-over: sudah ada ≥1 shift hari ini → laci dilanjutkan, kasir tidak isi modal
+  // baru (cegah double-count). Modal hari ini = Σ openingCash shift hari ini.
+  const todayShifts = todayShiftsQ.data ?? []
+  const isCarryOver = todayShifts.length > 0
+  const runningModal = todayShifts.reduce((sum, s) => sum + s.openingCash, 0)
+
   // Advisory openable; fail-closed (false) ketika settings belum termuat.
   const openable = (t: ShiftType) =>
     settings ? canOpenClient({ type: t, settings, hasOpenShift, pagiOpenedToday }) : false
@@ -69,7 +75,7 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
   }, [settings, hasOpenShift, pagiOpenedToday])
 
   const amount = Number(openingCash)
-  const openingCashValid = openingCash !== '' && Number.isFinite(amount) && amount >= 0
+  const openingCashValid = isCarryOver || (openingCash !== '' && Number.isFinite(amount) && amount >= 0)
 
   const openMutation = useMutation({
     mutationFn: (payload: OpenShiftPayload) => shiftService.openShift(payload),
@@ -101,7 +107,8 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!openingCashValid) {
+    const effectiveCash = isCarryOver ? 0 : amount
+    if (!isCarryOver && !openingCashValid) {
       toast.error('Modal awal tidak valid')
       return
     }
@@ -110,14 +117,14 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
         toast.error('Tipe shift di luar jam untuk serah-terima')
         return
       }
-      handoverMutation.mutate({ type, openingCash: amount })
+      handoverMutation.mutate({ type, openingCash: effectiveCash })
       return
     }
     if (!openable(type)) {
       toast.error('Tipe shift di luar jam')
       return
     }
-    openMutation.mutate({ type, openingCash: amount })
+    openMutation.mutate({ type, openingCash: effectiveCash })
   }
 
   // Caption alasan tombol tipe disabled.
@@ -232,19 +239,31 @@ export default function OpenShiftDialog({ onClose, onSuccess, activeShifts = [] 
               </p>
             ) : null}
 
-            <Input
-              label="Modal Awal (Rp)"
-              type="number"
-              inputMode="numeric"
-              value={openingCash}
-              onChange={(e) => setOpeningCash(e.target.value)}
-              min={0}
-              step={1000}
-              placeholder="500000"
-              autoFocus
-              required
-              helper="Total uang cash di laci sebelum mulai shift."
-            />
+            {isCarryOver ? (
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
+                <p className="text-label text-neutral-700">Modal awal (carry-over)</p>
+                <p className="text-body font-semibold text-neutral-900 tabular-nums mt-0.5">
+                  {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(runningModal)}
+                </p>
+                <p className="text-caption text-neutral-500 mt-1">
+                  Lanjut dari laci shift sebelumnya — tidak perlu isi modal baru.
+                </p>
+              </div>
+            ) : (
+              <Input
+                label="Modal Awal (Rp)"
+                type="number"
+                inputMode="numeric"
+                value={openingCash}
+                onChange={(e) => setOpeningCash(e.target.value)}
+                min={0}
+                step={1000}
+                placeholder="500000"
+                autoFocus
+                required
+                helper="Total uang cash di laci sebelum mulai shift."
+              />
+            )}
           </>
         )}
       </form>
