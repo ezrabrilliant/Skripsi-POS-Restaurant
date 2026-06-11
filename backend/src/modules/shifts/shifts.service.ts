@@ -100,6 +100,8 @@ export async function openShift(cashierId: number, input: OpenShiftInput): Promi
   // Shift berikutnya melanjutkan laci yang sama (uang tidak diambil/ditambah),
   // jadi openingCash dipaksa 0 supaya Σ openingCash hari itu = modal shift pertama
   // (cegah double-count di settlement). Server = authority, abaikan nilai client.
+  // Safety: double-open konkuren diblok constraint UNIQUE activeMarker (catch P2002
+  // di bawah), jadi shiftsToday stabil antara count dan create.
   const effectiveOpeningCash = shiftsToday > 0 ? 0 : input.openingCash;
 
   try {

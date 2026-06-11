@@ -288,9 +288,8 @@ export async function previewSettlement(businessDate: Date): Promise<SettlementP
   const totalSystem = system.reduce((s, e) => s + e.total, 0);
 
   // Float baseline = sum openingCash semua shift hari itu (3.3).
-  const openingCashTotal = shiftsThatDay.reduce(
-    (sum, s) => sum + s.openingCash.toNumber(),
-    0,
+  const openingCashTotal = Math.round(
+    shiftsThatDay.reduce((sum, s) => sum + s.openingCash.toNumber(), 0),
   );
 
   return {
