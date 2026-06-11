@@ -106,3 +106,4 @@ backend/backups/
 .superpowers/
 .claude/worktrees/
 .claude/worktrees/menu-sku-link-paket-upcharge
+backend/scripts/_backups/
